@@ -34,19 +34,22 @@ npm run playtest     # automated browser play-test (needs `npm run dev` running)
 - **Par / stars:** the solver's solution length is the "target"; meet it for 3 stars.
 - **Hints** run the solver from the player's current position.
 
-## Theme and garden
+## Story, seed packs and garden
 
-Cannabis genetics theme: players sort cannabis seeds, and every newly cleared level opens a
-**seed pack** with one of 33 original strains (common / uncommon / rare / legendary). Copies
-grow the plant in the **Garden** (seedling at 1, vegetative at 3, flowering at 5). Packs are
-deterministic per level, lean toward undiscovered strains, and every 10th level is uncommon or
-better (`src/strains.ts`).
+**Story mode, "Larkspur Gardens"** (`src/story.ts`): you inherit your great-aunt Ivy's abandoned
+botanical garden. Her seed vault was scattered by a storm, so you sort the seeds, and each chapter
+of levels restores one area (Front Beds, Greenhouse, Orchard, Herb Garden, Lily Pond). The town
+will sell the land to a developer unless the garden reopens for the Spring Festival. Every chapter
+has an intro, a midpoint and an outro scene (Ivy's letters, Theo the groundskeeper, Mayor Bell,
+Mr. Harlow the developer). Season 1 = 5 chapters, levels 1–55; levels continue after it.
 
-**Store-policy rule for all theme content:** growing, breeding and collecting only. No
-consumption, potency numbers, or sales references. Strain names are original. Expected ratings:
-17+ (App Store) / Mature (Google Play); see the plan for ad-revenue implications.
+**Seed packs:** every newly cleared level opens a pack with one of 33 plant varieties (flowers,
+fruit, vegetables, herbs; common / uncommon / rare / legendary). Packs are deterministic per
+level, lean toward undiscovered varieties, and every 10th level is uncommon or better
+(`src/varieties.ts`). Copies grow the plant in the **Garden**: seedling (1), growing (3), blooming (5).
 
 Visual style: dark navy, flat shapes, Outfit typeface (all drawn in code, no image assets).
+Audience: general (all ages content, targeting 13+ in the stores to keep ad options open).
 
 ## Week 1 status
 

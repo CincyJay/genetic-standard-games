@@ -6,8 +6,9 @@ import { starsFor, type Level } from '../logic/generator.ts';
 import { canMove, isPotComplete, isSolved, moveCount, topRunLength, usefulMoves, type Board } from '../logic/rules.ts';
 import { hint } from '../logic/solver.ts';
 import { SEED_COLORS, SEED_TEX, THEME, ads, analytics, audio, haptics, save } from '../services.ts';
-import { STAGE_AT, STAGE_LABEL, rollPack, stageFor, type Strain } from '../strains.ts';
+import { STAGE_AT, STAGE_LABEL, rollPack, stageFor, type Variety } from '../varieties.ts';
 import { makePackCard } from '../ui/packCard.ts';
+import { goToLevel } from '../navigation.ts';
 import { drawBackground } from './background.ts';
 
 interface Jar {
@@ -459,7 +460,7 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(900, () => this.showWinPanel(stars, pack));
   }
 
-  private showWinPanel(stars: number, pack: Strain | null): void {
+  private showWinPanel(stars: number, pack: Variety | null): void {
     const { width: w, height: h } = this.scale;
     const dim = this.add.rectangle(w / 2, h / 2, w, h, 0x05080f, 0).setDepth(30).setInteractive();
     this.tweens.add({ targets: dim, fillAlpha: 0.7, duration: 250 });
@@ -527,9 +528,9 @@ export class GameScene extends Phaser.Scene {
       const stage = stageFor(copies);
       const status =
         copies === 1
-          ? 'New strain! Planted in your garden'
+          ? 'New plant! Added to your garden'
           : stage === 2 && copies === STAGE_AT[2]
-            ? 'Your plant is flowering!'
+            ? 'Your plant is in full bloom!'
             : stage === 2
               ? `+1 seed  ·  ${copies} collected`
               : `+1 seed  ·  ${STAGE_LABEL[stage]}  ·  ${copies}/${STAGE_AT[stage + 1]} to grow`;
@@ -556,7 +557,7 @@ export class GameScene extends Phaser.Scene {
       async () => {
         audio.tap();
         await ads.atBreak('level_complete', save.get().levelsCompleted);
-        this.scene.restart({ level: this.level.id + 1 });
+        goToLevel(this, this.level.id + 1);
       },
       { width: 560, height: 150, fontSize: 56, theme: THEME },
     );

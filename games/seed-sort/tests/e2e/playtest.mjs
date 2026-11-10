@@ -33,6 +33,13 @@ await shot('01-menu');
 // Tap "Play": centered, 58% down the game area.
 const box = await page.locator('canvas').boundingBox();
 await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.66);
+// Chapter 1 story plays first: screenshot the title card and a dialogue line, then tap through.
+await page.waitForTimeout(2500);
+await shot('01b-story-title');
+await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.78); // "Begin"
+await page.waitForTimeout(4000);
+await shot('01c-story-line');
+await page.mouse.click(box.x + (box.width * 1010) / 1080, box.y + (box.height * 110) / 1920); // "Skip"
 await page.waitForFunction(() => globalThis.__seedSort?.state()?.level >= 1);
 await page.waitForTimeout(4000); // headless (no GPU) runs at low FPS
 await shot('02-level1-tutorial');
@@ -87,7 +94,7 @@ for (let n = 0; n < levelsToPlay; n++) {
 
 // Jump to a returning player with a grown garden, and a late level for the two-row layout.
 await page.evaluate(() => {
-  const garden = { 'ohio-valley': 5, 'emerald-drift': 3, 'citrus-comet': 1, 'violet-vale': 6, 'glacier-mint': 2, 'aurora-kush': 1, 'genetic-standard-og': 5, 'river-haze': 4 };
+  const garden = { sunflower: 5, tulip: 3, daisy: 1, iris: 6, blueberry: 2, 'golden-rose': 1, moonflower: 5, tomato: 4 };
   localStorage.setItem('seed-sort.save', JSON.stringify({ v: 1, data: { level: 60, stars: {}, levelsCompleted: 59, garden, settings: { sound: true, haptics: true } } }));
 });
 await page.reload();

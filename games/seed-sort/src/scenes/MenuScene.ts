@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { makeButton, makeIconButton } from '@tgs/kit';
 import { SEED_TEX_H, SEED_TEX_W, drawJar } from '../art.ts';
 import { SEED_TEX, THEME, applySettings, audio, haptics, save } from '../services.ts';
+import { goToLevel } from '../navigation.ts';
+import { STORY_LAST_LEVEL, chapterProgress } from '../story.ts';
 import { drawBackground } from './background.ts';
 
 export class MenuScene extends Phaser.Scene {
@@ -24,15 +26,7 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5);
     title.setLetterSpacing(-2);
 
-    const done = save.get().levelsCompleted;
-    this.add
-      .text(w / 2, h * 0.45 + 110, done > 0 ? `${done} levels solved` : 'Sort the seeds. Grow the strains.', {
-        fontFamily: THEME.font,
-        fontSize: '44px',
-        fontStyle: '500',
-        color: THEME.inkSoft,
-      })
-      .setOrigin(0.5);
+    this.drawChapterProgress(w / 2, h * 0.45 + 120);
 
     const level = save.get().level;
     makeButton(
@@ -44,7 +38,7 @@ export class MenuScene extends Phaser.Scene {
         audio.unlock();
         audio.tap();
         haptics.fire('light');
-        this.scene.start('game', { level: save.get().level });
+        goToLevel(this, save.get().level);
       },
       { width: 620, height: 150, fontSize: 60, theme: THEME },
     );
@@ -54,7 +48,7 @@ export class MenuScene extends Phaser.Scene {
       this,
       w / 2,
       h * 0.66 + 190,
-      found > 0 ? `Garden  ·  ${found} strains` : 'Garden',
+      found > 0 ? `Garden  ·  ${found} plants` : 'Garden',
       () => {
         audio.unlock();
         audio.tap();
@@ -87,6 +81,27 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setLetterSpacing(8);
+  }
+
+  /** "Chapter 2 · The Glass House" with a progress bar, or a tagline before the story starts / after it ends. */
+  private drawChapterProgress(cx: number, y: number): void {
+    const level = save.get().level;
+    const p = chapterProgress(level);
+    const style = { fontFamily: THEME.font, fontSize: '42px', fontStyle: '500', color: THEME.inkSoft };
+    if (!p) {
+      const t = level > STORY_LAST_LEVEL ? 'Larkspur Gardens is open. More chapters soon.' : 'Sort the seeds. Grow your garden.';
+      this.add.text(cx, y, t, style).setOrigin(0.5);
+      return;
+    }
+    this.add.text(cx, y, `Chapter ${p.chapter.id}  ·  ${p.chapter.title}`, style).setOrigin(0.5);
+    const barW = 520;
+    const g = this.add.graphics();
+    g.fillStyle(THEME.surface, 1);
+    g.fillRoundedRect(cx - barW / 2, y + 50, barW, 18, 9);
+    if (p.done > 0) {
+      g.fillStyle(THEME.primary, 1);
+      g.fillRoundedRect(cx - barW / 2, y + 50, Math.max(18, (barW * p.done) / p.total), 18, 9);
+    }
   }
 
   /** Three sorted slots: the game in one glance. */

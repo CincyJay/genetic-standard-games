@@ -6,6 +6,7 @@ import { BootScene } from './scenes/BootScene.ts';
 import { GameScene } from './scenes/GameScene.ts';
 import { GardenScene } from './scenes/GardenScene.ts';
 import { MenuScene } from './scenes/MenuScene.ts';
+import { StoryScene } from './scenes/StoryScene.ts';
 import { THEME } from './services.ts';
 
 async function start(): Promise<void> {
@@ -25,7 +26,7 @@ async function start(): Promise<void> {
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     render: { antialias: true },
     input: { activePointers: 1 },
-    scene: [BootScene, MenuScene, GameScene, GardenScene],
+    scene: [BootScene, MenuScene, GameScene, GardenScene, StoryScene],
   });
 }
 

@@ -2,12 +2,13 @@ import Phaser from 'phaser';
 import { makeIconButton } from '@tgs/kit';
 import { drawPlant } from '../art.ts';
 import { THEME, audio, save } from '../services.ts';
-import { RARITY_COLOR, RARITY_LABEL, STAGE_AT, STAGE_LABEL, STRAINS, stageFor } from '../strains.ts';
+import { RARITY_COLOR, RARITY_LABEL, STAGE_AT, STAGE_LABEL, VARIETIES, stageFor } from '../varieties.ts';
+import { goToLevel } from '../navigation.ts';
 import { drawBackground } from './background.ts';
 
 const hex = (c: number) => `#${c.toString(16).padStart(6, '0')}`;
 
-/** The player's collection: every strain, grown by how many packs of it they've opened. */
+/** The player's collection: every plant variety, grown by how many packs of it they've opened. */
 export class GardenScene extends Phaser.Scene {
   constructor() {
     super('garden');
@@ -18,7 +19,7 @@ export class GardenScene extends Phaser.Scene {
     drawBackground(this);
 
     const garden = save.get().garden;
-    const found = STRAINS.filter((s) => garden[s.id]).length;
+    const found = VARIETIES.filter((s) => garden[s.id]).length;
 
     // Grid of plant cards (scrolls)
     const cols = 3;
@@ -27,25 +28,25 @@ export class GardenScene extends Phaser.Scene {
     const gap = 26;
     const left = (w - (cols * cardW + (cols - 1) * gap)) / 2;
     const top = 330;
-    STRAINS.forEach((strain, i) => {
+    VARIETIES.forEach((variety, i) => {
       const x = left + (i % cols) * (cardW + gap) + cardW / 2;
       const y = top + Math.floor(i / cols) * (cardH + gap);
-      const copies = garden[strain.id] ?? 0;
+      const copies = garden[variety.id] ?? 0;
       const g = this.add.graphics({ x, y });
       g.fillStyle(THEME.surface, copies ? 1 : 0.5);
       g.fillRoundedRect(-cardW / 2, 0, cardW, cardH, 28);
       if (copies) {
-        g.lineStyle(3, RARITY_COLOR[strain.rarity], strain.rarity === 'common' ? 0.25 : 0.8);
+        g.lineStyle(3, RARITY_COLOR[variety.rarity], variety.rarity === 'common' ? 0.25 : 0.8);
         g.strokeRoundedRect(-cardW / 2, 0, cardW, cardH, 28);
         const plant = this.add.graphics({ x, y: y + 300 });
-        drawPlant(plant, stageFor(copies), strain.color);
+        drawPlant(plant, stageFor(copies), variety.color, variety.category);
         plant.setScale(0.78);
         const stage = stageFor(copies);
         const next = stage < 2 ? ` · ${copies}/${STAGE_AT[stage + 1]}` : '';
         this.add
-          .text(x, y + 344, strain.name, {
+          .text(x, y + 344, variety.name, {
             fontFamily: THEME.font,
-            fontSize: strain.name.length > 15 ? '28px' : '33px',
+            fontSize: variety.name.length > 15 ? '28px' : '33px',
             fontStyle: '700',
             color: THEME.ink,
           })
@@ -55,7 +56,7 @@ export class GardenScene extends Phaser.Scene {
             fontFamily: THEME.font,
             fontSize: '26px',
             fontStyle: '500',
-            color: stage === 2 ? hex(strain.color) : THEME.inkSoft,
+            color: stage === 2 ? hex(variety.color) : THEME.inkSoft,
           })
           .setOrigin(0.5);
       } else {
@@ -63,11 +64,11 @@ export class GardenScene extends Phaser.Scene {
           .text(x, y + 170, '?', { fontFamily: THEME.font, fontSize: '120px', fontStyle: '800', color: '#2c3a57' })
           .setOrigin(0.5);
         this.add
-          .text(x, y + 344, RARITY_LABEL[strain.rarity], {
+          .text(x, y + 344, RARITY_LABEL[variety.rarity], {
             fontFamily: THEME.font,
             fontSize: '30px',
             fontStyle: '700',
-            color: hex(RARITY_COLOR[strain.rarity]),
+            color: hex(RARITY_COLOR[variety.rarity]),
           })
           .setOrigin(0.5)
           .setAlpha(0.7);
@@ -76,7 +77,7 @@ export class GardenScene extends Phaser.Scene {
           .setOrigin(0.5);
       }
     });
-    const contentBottom = top + Math.ceil(STRAINS.length / cols) * (cardH + gap) + 60;
+    const contentBottom = top + Math.ceil(VARIETIES.length / cols) * (cardH + gap) + 60;
 
     // Fixed header
     const header = this.add.graphics().setScrollFactor(0).setDepth(10);
@@ -88,7 +89,7 @@ export class GardenScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(11);
     this.add
-      .text(w / 2, 195, `${found} of ${STRAINS.length} strains discovered`, {
+      .text(w / 2, 195, `${found} of ${VARIETIES.length} plants discovered`, {
         fontFamily: THEME.font,
         fontSize: '40px',
         fontStyle: '500',
@@ -108,7 +109,7 @@ export class GardenScene extends Phaser.Scene {
       },
       () => {
         audio.tap();
-        if (data.from === 'game' && data.level) this.scene.start('game', { level: data.level });
+        if (data.from === 'game' && data.level) goToLevel(this, data.level);
         else this.scene.start('menu');
       },
       { size: 110, theme: THEME },

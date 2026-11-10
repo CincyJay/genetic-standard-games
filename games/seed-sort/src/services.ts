@@ -6,15 +6,17 @@ export interface SaveData {
   /** Best stars per level id. */
   stars: Record<number, number>;
   levelsCompleted: number;
-  /** Strain id -> copies collected from seed packs. */
+  /** Plant variety id -> copies collected from seed packs. */
   garden: Record<string, number>;
+  /** Story beats already shown (e.g. "c1-intro"). */
+  storySeen: string[];
   settings: { sound: boolean; haptics: boolean };
 }
 
 export const save = new SaveStore<SaveData>({
   key: 'seed-sort.save',
   version: 1,
-  defaults: () => ({ level: 1, stars: {}, levelsCompleted: 0, garden: {}, settings: { sound: true, haptics: true } }),
+  defaults: () => ({ level: 1, stars: {}, levelsCompleted: 0, garden: {}, storySeen: [], settings: { sound: true, haptics: true } }),
 });
 
 export const audio = new SynthAudio();

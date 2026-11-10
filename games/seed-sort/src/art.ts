@@ -10,7 +10,7 @@ export function shade(color: number, amount: number): number {
   return Phaser.Display.Color.GetColor(f(c.red), f(c.green), f(c.blue));
 }
 
-/** Outline of a cannabis seed seen from the side: an oval that tapers to a soft point at one end. */
+/** Seed outline: an oval that tapers to a soft point at one end. */
 function seedOutline(cx: number, cy: number, a: number, b: number): Phaser.Math.Vector2[] {
   const pts: Phaser.Math.Vector2[] = [];
   for (let i = 0; i < 48; i++) {
@@ -21,10 +21,7 @@ function seedOutline(cx: number, cy: number, a: number, b: number): Phaser.Math.
   return pts;
 }
 
-/**
- * Cannabis seeds: flat color per strain, a soft bevel, and the darker
- * "tiger-stripe" marbling real seeds have. No gloss.
- */
+/** Flat seeds with a soft bevel. No gloss, no outlines. */
 export function buildSeedTextures(scene: Phaser.Scene): void {
   const w = SEED_TEX_W;
   const h = SEED_TEX_H;
@@ -38,31 +35,6 @@ export function buildSeedTextures(scene: Phaser.Scene): void {
     g.fillPoints(seedOutline(cx, cy + 6, a, b), true);
     g.fillStyle(color, 1);
     g.fillPoints(seedOutline(cx, cy, a, b), true);
-    // tiger-stripe mottling: wavy dark marks running across the shell
-    const dark = shade(color, -0.34);
-    const stripes: [number, number, number, number][] = [
-      // x offset, start y, length, thickness
-      [-36, -16, 26, 5],
-      [-22, -22, 40, 6],
-      [-8, -24, 30, 5],
-      [6, -20, 44, 6],
-      [20, -18, 28, 5],
-      [33, -12, 22, 4],
-      [-12, 10, 16, 4],
-      [24, 12, 12, 4],
-    ];
-    for (const [dx, y0, len, thick] of stripes) {
-      g.lineStyle(thick, dark, 0.4);
-      g.beginPath();
-      for (let k = 0; k <= 8; k++) {
-        const t = k / 8;
-        const px = cx + dx + Math.sin(t * Math.PI * 2 + dx) * 3 + t * 5;
-        const py = cy + y0 + t * len;
-        if (k === 0) g.moveTo(px, py);
-        else g.lineTo(px, py);
-      }
-      g.strokePath();
-    }
     // soft top bevel
     g.fillStyle(shade(color, 0.25), 0.6);
     g.fillEllipse(cx - 4, cy - b * 0.66, a * 1.15, b * 0.3);
@@ -94,18 +66,18 @@ export function drawJar(
   g.strokeRoundedRect(-w / 2, -h, w, h, radius);
 }
 
-/** A single leaflet: long, narrow, pointed at both ends, drawn from (x, y) along `angle`. */
-function leaflet(g: Phaser.GameObjects.Graphics, x: number, y: number, len: number, angle: number, widthRatio = 0.2): void {
+/** A simple pointed leaf from (x, y) along `angle`. */
+function leaf(g: Phaser.GameObjects.Graphics, x: number, y: number, len: number, angle: number, widthRatio = 0.45): void {
   const pts: Phaser.Math.Vector2[] = [];
   const half = (len * widthRatio) / 2;
-  const N = 18;
+  const N = 16;
   for (let i = 0; i <= N; i++) {
     const t = i / N;
-    pts.push(new Phaser.Math.Vector2(t * len, Math.pow(Math.sin(t * Math.PI), 0.8) * half));
+    pts.push(new Phaser.Math.Vector2(t * len, Math.sin(t * Math.PI) * half));
   }
   for (let i = N; i >= 0; i--) {
     const t = i / N;
-    pts.push(new Phaser.Math.Vector2(t * len, -Math.pow(Math.sin(t * Math.PI), 0.8) * half));
+    pts.push(new Phaser.Math.Vector2(t * len, -Math.sin(t * Math.PI) * half));
   }
   const ca = Math.cos(angle);
   const sa = Math.sin(angle);
@@ -115,42 +87,59 @@ function leaflet(g: Phaser.GameObjects.Graphics, x: number, y: number, len: numb
   );
 }
 
-/**
- * Cannabis fan leaf: an odd number of leaflets radiating from one point, the
- * center one longest. (x, y) is where the leaflets meet; `rotation` turns the
- * whole leaf (0 = pointing up).
- */
-export function drawFanLeaf(
+/** Two-leaf sprout rising from a finished slot, in the seed's color. */
+export function drawSprout(g: Phaser.GameObjects.Graphics, color: number): void {
+  g.clear();
+  g.lineStyle(6, color, 1);
+  g.beginPath();
+  g.moveTo(0, 0);
+  g.lineTo(0, -40);
+  g.strokePath();
+  g.fillStyle(color, 1);
+  leaf(g, 0, -28, 40, Phaser.Math.DegToRad(-150));
+  leaf(g, 0, -40, 40, Phaser.Math.DegToRad(-30));
+}
+
+/** Five-petal flower head centered at (x, y). */
+export function drawBloom(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, color: number): void {
+  g.fillStyle(shade(color, -0.2), 1);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    g.fillCircle(x + Math.cos(a) * r * 0.62, y + Math.sin(a) * r * 0.62 + 3, r * 0.5);
+  }
+  g.fillStyle(color, 1);
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
+    g.fillCircle(x + Math.cos(a) * r * 0.62, y + Math.sin(a) * r * 0.62, r * 0.48);
+  }
+  g.fillStyle(0xffe9a8, 1);
+  g.fillCircle(x, y, r * 0.3);
+}
+
+/** Round fruit or vegetable with a small leaf cap, centered at (x, y). */
+export function drawFruit(g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, color: number): void {
+  g.fillStyle(shade(color, -0.25), 1);
+  g.fillCircle(x, y + 3, r);
+  g.fillStyle(color, 1);
+  g.fillCircle(x, y, r);
+  g.fillStyle(shade(color, 0.25), 0.6);
+  g.fillEllipse(x - r * 0.25, y - r * 0.45, r * 0.9, r * 0.35);
+  g.fillStyle(LEAF_GREEN, 1);
+  leaf(g, x, y - r + 2, r * 0.8, Phaser.Math.DegToRad(-130), 0.5);
+  leaf(g, x, y - r + 2, r * 0.8, Phaser.Math.DegToRad(-50), 0.5);
+}
+
+/** Icon for a variety: a bloom for flowers and herbs, a fruit for fruit and vegetables. */
+export function drawVarietyIcon(
   g: Phaser.GameObjects.Graphics,
   x: number,
   y: number,
   size: number,
   color: number,
-  leaflets: 3 | 5 | 7 = 7,
-  rotation = 0,
+  category: 'Flower' | 'Fruit' | 'Vegetable' | 'Herb',
 ): void {
-  const spread = [0, 30, 58, 84];
-  const lens = [1, 0.84, 0.62, 0.4];
-  const pairs = (leaflets - 1) / 2;
-  g.fillStyle(color, 1);
-  for (let k = pairs; k >= 0; k--) {
-    const sides = k === 0 ? [0] : [-1, 1];
-    for (const side of sides) {
-      const ang = Phaser.Math.DegToRad(-90 + side * spread[k]! ) + rotation;
-      leaflet(g, x, y, size * lens[k]!, ang);
-    }
-  }
-}
-
-/** Small fan leaf rising from a finished slot, in the seed's color. */
-export function drawSprout(g: Phaser.GameObjects.Graphics, color: number): void {
-  g.clear();
-  g.lineStyle(5, color, 1);
-  g.beginPath();
-  g.moveTo(0, 0);
-  g.lineTo(0, -16);
-  g.strokePath();
-  drawFanLeaf(g, 0, -16, 56, color, 7);
+  if (category === 'Fruit' || category === 'Vegetable') drawFruit(g, x, y, size * 0.42, color);
+  else drawBloom(g, x, y, size * 0.5, color);
 }
 
 const LEAF_GREEN = 0x3fbf74;
@@ -158,55 +147,53 @@ const LEAF_GREEN_DARK = 0x2b8f55;
 
 /**
  * A potted plant at a growth stage, origin at the pot's bottom-center, about
- * 300px tall at scale 1. The strain's color shows in its flowers (stage 2) and pot band.
+ * 300px tall at scale 1. The variety's color shows in its blooms or fruit and the pot band.
  */
-export function drawPlant(g: Phaser.GameObjects.Graphics, stage: 0 | 1 | 2, strainColor: number): void {
+export function drawPlant(
+  g: Phaser.GameObjects.Graphics,
+  stage: 0 | 1 | 2,
+  color: number,
+  category: 'Flower' | 'Fruit' | 'Vegetable' | 'Herb',
+): void {
   g.clear();
   // pot
   g.fillStyle(0x2c3a57, 1);
   g.fillRoundedRect(-62, -86, 124, 86, { tl: 6, tr: 6, bl: 22, br: 22 });
   g.fillStyle(0x3a4b6e, 1);
   g.fillRoundedRect(-70, -96, 140, 22, 8);
-  g.fillStyle(strainColor, 1);
+  g.fillStyle(color, 1);
   g.fillRect(-62, -60, 124, 8);
 
   const soil = -96;
   if (stage === 0) {
     g.lineStyle(6, LEAF_GREEN_DARK, 1);
-    g.lineBetween(0, soil, 0, soil - 48);
+    g.lineBetween(0, soil, 0, soil - 44);
     g.fillStyle(LEAF_GREEN, 1);
-    g.fillEllipse(-18, soil - 44, 34, 16);
-    g.fillEllipse(18, soil - 44, 34, 16);
-    drawFanLeaf(g, 0, soil - 50, 40, LEAF_GREEN, 3);
+    leaf(g, 0, soil - 40, 40, Phaser.Math.DegToRad(-160));
+    leaf(g, 0, soil - 40, 40, Phaser.Math.DegToRad(-20));
     return;
   }
-  const height = stage === 1 ? 150 : 200;
+  const height = stage === 1 ? 140 : 180;
   g.lineStyle(8, LEAF_GREEN_DARK, 1);
   g.lineBetween(0, soil, 0, soil - height);
-  // side branches with fan leaves, lower ones larger
-  const tiers = stage === 1 ? 2 : 3;
-  for (let i = 0; i < tiers; i++) {
-    const y = soil - 50 - i * (height / (tiers + 0.6));
-    const size = 78 - i * 12;
-    g.lineStyle(5, LEAF_GREEN_DARK, 1);
-    g.lineBetween(0, y, -34, y - 14);
-    g.lineBetween(0, y, 34, y - 14);
-    drawFanLeaf(g, -34, y - 14, size, LEAF_GREEN, 7, Phaser.Math.DegToRad(-48));
-    drawFanLeaf(g, 34, y - 14, size, LEAF_GREEN, 7, Phaser.Math.DegToRad(48));
+  g.fillStyle(LEAF_GREEN, 1);
+  const pairs = stage === 1 ? 2 : 3;
+  for (let i = 0; i < pairs; i++) {
+    const y = soil - 30 - i * (height / (pairs + 0.4));
+    const len = 66 - i * 10;
+    leaf(g, 0, y, len, Phaser.Math.DegToRad(-160 + i * 6));
+    leaf(g, 0, y - 12, len, Phaser.Math.DegToRad(-20 - i * 6));
   }
-  drawFanLeaf(g, 0, soil - height, 60, LEAF_GREEN, 5);
-  if (stage === 2) {
-    // flowering tops in the strain's color
-    const tops: [number, number, number][] = [
-      [0, soil - height - 30, 1],
-      [-46, soil - height + 50, 0.8],
-      [46, soil - height + 50, 0.8],
-    ];
-    for (const [cx, cy, sc] of tops) {
-      g.fillStyle(shade(strainColor, -0.25), 1);
-      for (let k = 0; k < 6; k++) g.fillCircle(cx + Math.sin(k * 2.1) * 9 * sc, cy + 6 - k * 7 * sc, 12 * sc);
-      g.fillStyle(strainColor, 1);
-      for (let k = 0; k < 6; k++) g.fillCircle(cx + Math.sin(k * 2.1) * 8 * sc, cy - k * 7 * sc, 10 * sc);
-    }
+  if (stage === 1) {
+    g.fillStyle(LEAF_GREEN, 1);
+    leaf(g, 0, soil - height, 34, Phaser.Math.DegToRad(-90));
+    return;
   }
+  // blooming: flowers or fruit in the variety's color
+  const spots: [number, number, number][] = [
+    [0, soil - height - 10, 1],
+    [-52, soil - height + 60, 0.75],
+    [52, soil - height + 40, 0.75],
+  ];
+  for (const [x, y, sc] of spots) drawVarietyIcon(g, x, y, 64 * sc, color, category);
 }
