@@ -1,0 +1,17 @@
+{
+  "name": "seed-sort",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --host",
+    "levels": "node scripts/gen-levels.ts"
+  },
+  "dependencies": {
+    "@fontsource/nunito": "^5.3.0",
+    "@tgs/kit": "*",
+    "phaser": "^4.2.1"
+  }
+}

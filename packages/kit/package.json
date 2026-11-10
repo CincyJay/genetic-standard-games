@@ -1,0 +1,14 @@
+{
+  "name": "@tgs/kit",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Shared studio kit: save, audio, haptics, analytics, ads, UI helpers",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "peerDependencies": {
+    "phaser": "^4.2.1"
+  }
+}
