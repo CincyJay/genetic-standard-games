@@ -24,6 +24,13 @@ describe('story', () => {
     expect(pendingBeats(next.firstLevel, []).map((b) => b.key)).toEqual(['c1-outro', 'c2-intro']);
   });
 
+  it('plays the current chapter intro for a player who never saw it', () => {
+    expect(pendingBeats(3, []).map((b) => b.key)).toEqual(['c1-intro']);
+    expect(pendingBeats(3, ['c1-intro'])).toEqual([]);
+    // intro comes before a midpoint that is also due
+    expect(pendingBeats(5, []).map((b) => b.key)).toEqual(['c1-intro', 'c1-mid']);
+  });
+
   it('never replays seen beats', () => {
     expect(pendingBeats(1, ['c1-intro'])).toEqual([]);
   });

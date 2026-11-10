@@ -173,9 +173,16 @@ export function beatsAfter(level: number): Beat[] {
   return [];
 }
 
-/** Every unseen beat between finishing `level - 1` and starting `level`. */
+/**
+ * Every unseen beat between finishing `level - 1` and starting `level`. Also
+ * includes the current chapter's intro if it was never shown (e.g. a player
+ * who started before the story existed), so nobody lands mid-chapter cold.
+ */
 export function pendingBeats(level: number, seen: readonly string[]): Beat[] {
-  return [...beatsAfter(level - 1), ...beatsBefore(level)].filter((b) => !seen.includes(b.key));
+  const due = [...beatsAfter(level - 1), ...beatsBefore(level)];
+  const c = chapterForLevel(level);
+  if (c && !due.some((b) => b.key === `c${c.id}-intro`)) due.unshift(beat(c, 'intro'));
+  return due.filter((b) => !seen.includes(b.key));
 }
 
 /** Progress within the current chapter, for the menu and HUD. */
