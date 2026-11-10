@@ -1,0 +1,106 @@
+"""Marisol Vega, facilities manager. Waist-up portrait, transparent background. Writes art/out/marisol-*.svg."""
+import os
+OUT = os.path.join(os.path.dirname(__file__), '..', 'out')
+
+SKIN, SKIN_SH, SKIN_HI = '#b97a56', '#9c6243', '#cf9370'
+HAIR, HAIR_HI = '#2a1d1a', '#4a3530'
+JACKET, JACKET_SH, JACKET_HI = '#5d6a3c', '#48532d', '#73824b'
+
+def eyes(expr):
+    s = ''
+    for cx, flip in ((298, 1), (402, -1)):
+        if expr == 'deadpan':
+            s += f'<ellipse cx="{cx}" cy="352" rx="24" ry="13" fill="#fff"/>'
+            s += f'<circle cx="{cx + 3*flip*-1}" cy="356" r="10" fill="#3b2a22"/><circle cx="{cx+4}" cy="352" r="3" fill="#fff"/>'
+            s += f'<path d="M{cx-27},350 Q{cx},337 {cx+27},350 L{cx+27},346 Q{cx},328 {cx-27},346 Z" fill="{SKIN_SH}"/>'
+            s += f'<path d="M{cx-27},349 Q{cx},338 {cx+27},349" stroke="#2a1d1a" stroke-width="5" fill="none" stroke-linecap="round"/>'
+        elif expr == 'smirk':
+            s += f'<ellipse cx="{cx}" cy="352" rx="24" ry="15" fill="#fff"/>'
+            s += f'<circle cx="{cx}" cy="354" r="11" fill="#3b2a22"/><circle cx="{cx+4}" cy="350" r="3" fill="#fff"/>'
+            s += f'<path d="M{cx-27},346 Q{cx},332 {cx+27},346" stroke="#2a1d1a" stroke-width="5" fill="none" stroke-linecap="round"/>'
+            s += f'<path d="M{cx-22},366 Q{cx},372 {cx+22},366" stroke="{SKIN_SH}" stroke-width="4" fill="none" stroke-linecap="round"/>'
+        else:  # surprised
+            s += f'<ellipse cx="{cx}" cy="350" rx="25" ry="20" fill="#fff"/>'
+            s += f'<circle cx="{cx}" cy="350" r="10" fill="#3b2a22"/><circle cx="{cx+4}" cy="346" r="3" fill="#fff"/>'
+            s += f'<path d="M{cx-27},342 Q{cx},322 {cx+27},342" stroke="#2a1d1a" stroke-width="5" fill="none" stroke-linecap="round"/>'
+    return s
+
+def brows(expr):
+    if expr == 'deadpan':
+        return ('<path d="M268,318 L326,322" stroke="#2a1d1a" stroke-width="9" stroke-linecap="round"/>'
+                '<path d="M374,322 L432,318" stroke="#2a1d1a" stroke-width="9" stroke-linecap="round"/>')
+    if expr == 'smirk':
+        return ('<path d="M268,320 L326,322" stroke="#2a1d1a" stroke-width="9" stroke-linecap="round"/>'
+                '<path d="M374,316 Q404,302 432,310" stroke="#2a1d1a" stroke-width="9" fill="none" stroke-linecap="round"/>')
+    return ('<path d="M268,306 Q296,292 326,302" stroke="#2a1d1a" stroke-width="9" fill="none" stroke-linecap="round"/>'
+            '<path d="M374,302 Q404,292 432,306" stroke="#2a1d1a" stroke-width="9" fill="none" stroke-linecap="round"/>')
+
+def mouth(expr):
+    if expr == 'deadpan':
+        return '<path d="M322,448 L380,446" stroke="#7a3f33" stroke-width="7" stroke-linecap="round"/>'
+    if expr == 'smirk':
+        return '<path d="M320,450 Q350,452 384,438" stroke="#7a3f33" stroke-width="7" fill="none" stroke-linecap="round"/>'
+    return '<ellipse cx="350" cy="452" rx="16" ry="20" fill="#5a2a24"/><ellipse cx="350" cy="460" rx="10" ry="8" fill="#c0564f"/>'
+
+def portrait(expr):
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 900" width="700" height="900">
+<defs>
+  <linearGradient id="jacket" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="{JACKET_HI}"/><stop offset="0.55" stop-color="{JACKET}"/><stop offset="1" stop-color="{JACKET_SH}"/></linearGradient>
+  <linearGradient id="face" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="{SKIN_HI}"/><stop offset="0.6" stop-color="{SKIN}"/><stop offset="1" stop-color="{SKIN_SH}"/></linearGradient>
+</defs>
+<g transform="translate(0,28)"><!-- hair, back -->
+<circle cx="350" cy="168" r="66" fill="{HAIR}"/>
+<circle cx="336" cy="150" r="22" fill="{HAIR_HI}" opacity="0.6"/>
+<path d="M200,330 Q190,170 350,160 Q510,170 500,330 Q500,420 470,450 L230,450 Q200,420 200,330 Z" fill="{HAIR}"/>
+</g><!-- body -->
+<path d="M70,900 C80,690 170,590 350,585 C530,590 620,690 630,900 Z" fill="url(#jacket)"/>
+<path d="M300,560 L400,560 L410,600 Q350,640 290,600 Z" fill="{SKIN_SH}"/>
+<rect x="308" y="500" width="84" height="95" rx="30" fill="{SKIN_SH}"/>
+<path d="M290,590 L350,700 L410,590 Q350,620 290,590 Z" fill="#e9e3d3"/>
+<!-- lapels / collar -->
+<path d="M290,588 L240,610 L300,760 L350,700 Z" fill="{JACKET_HI}"/>
+<path d="M410,588 L460,610 L400,760 L350,700 Z" fill="{JACKET_SH}"/>
+<path d="M350,700 L350,900" stroke="{JACKET_SH}" stroke-width="5"/>
+<circle cx="372" cy="790" r="8" fill="#3a3a2a"/><circle cx="372" cy="860" r="8" fill="#3a3a2a"/>
+<!-- pocket with pen -->
+<rect x="450" y="720" width="110" height="80" rx="10" fill="{JACKET_SH}"/>
+<rect x="480" y="690" width="10" height="50" rx="4" fill="#d0473b"/>
+<!-- lanyard + badge -->
+<path d="M318,600 L330,780 M382,600 L370,780" stroke="#2f6f8f" stroke-width="10" stroke-linecap="round"/>
+<rect x="296" y="770" width="108" height="126" rx="10" fill="#f4f4ee" stroke="#c9c9bd" stroke-width="3"/>
+<rect x="312" y="788" width="40" height="46" rx="4" fill="#9cb6a2"/>
+<rect x="360" y="792" width="32" height="8" rx="3" fill="#6b7a70"/><rect x="360" y="808" width="26" height="8" rx="3" fill="#a3aea6"/>
+<rect x="312" y="848" width="78" height="10" rx="4" fill="#3f7f3f"/>
+<g transform="translate(0,28)"><!-- ears -->
+<ellipse cx="228" cy="370" rx="22" ry="34" fill="{SKIN_SH}"/>
+<ellipse cx="472" cy="370" rx="22" ry="34" fill="{SKIN_SH}"/>
+<circle cx="230" cy="402" r="7" fill="#d9b44a"/><circle cx="470" cy="402" r="7" fill="#d9b44a"/>
+<!-- face -->
+<path d="M235,330 Q235,215 350,212 Q465,215 465,330 Q465,450 400,500 Q350,530 300,500 Q235,450 235,330 Z" fill="url(#face)"/>
+<!-- hair front: side part with a loose strand -->
+<path d="M228,340 Q215,200 350,190 Q485,195 474,330 Q450,250 380,236 Q330,280 250,300 Q236,318 228,340 Z" fill="{HAIR}"/>
+<path d="M300,230 Q350,205 420,222" stroke="{HAIR_HI}" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.7"/>
+<path d="M262,300 Q246,360 258,420" stroke="{HAIR}" stroke-width="7" fill="none" stroke-linecap="round"/>
+{brows(expr)}
+{eyes(expr)}
+<!-- nose -->
+<path d="M352,360 Q344,402 334,414 Q350,424 366,414" stroke="{SKIN_SH}" stroke-width="6" fill="none" stroke-linecap="round"/>
+<ellipse cx="276" cy="410" rx="22" ry="11" fill="#c8705a" opacity="0.25"/><ellipse cx="424" cy="410" rx="22" ry="11" fill="#c8705a" opacity="0.25"/>
+{mouth(expr)}
+</g><!-- coffee mug in hand -->
+<g transform="translate(150,742)">
+  <rect x="0" y="0" width="120" height="140" rx="16" fill="#f2efe6"/>
+  <rect x="0" y="0" width="120" height="22" rx="10" fill="#dcd7c8"/>
+  <path d="M120,30 Q170,40 162,80 Q156,112 120,110" stroke="#f2efe6" stroke-width="18" fill="none"/>
+  <text x="70" y="86" font-family="Outfit, Arial, sans-serif" font-size="19" font-weight="800" fill="#3f7f3f" text-anchor="middle">HOLLOW</text>
+  <text x="70" y="108" font-family="Outfit, Arial, sans-serif" font-size="19" font-weight="800" fill="#3f7f3f" text-anchor="middle">BROOK</text>
+  <path d="M-40,50 Q-46,120 -6,140 L20,140 Q-2,110 2,50 Z" fill="{SKIN}"/>
+  <rect x="-30" y="34" width="44" height="24" rx="12" fill="{SKIN}"/><rect x="-30" y="62" width="40" height="24" rx="12" fill="{SKIN_HI}"/>
+  <rect x="-30" y="90" width="38" height="24" rx="12" fill="{SKIN}"/>
+</g>
+</svg>'''
+
+os.makedirs(OUT, exist_ok=True)
+for e in ('deadpan', 'smirk', 'surprised'):
+    open(os.path.join(OUT, f'marisol-{e}.svg'), 'w').write(portrait(e))
+print('ok')
