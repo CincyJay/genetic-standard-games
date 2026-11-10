@@ -10,6 +10,7 @@
     "levels": "node scripts/gen-levels.ts"
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@fontsource/outfit": "^5.3.0",
     "@tgs/kit": "*",
     "phaser": "^4.2.1"
