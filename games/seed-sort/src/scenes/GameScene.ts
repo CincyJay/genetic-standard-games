@@ -6,6 +6,8 @@ import { starsFor, type Level } from '../logic/generator.ts';
 import { canMove, isPotComplete, isSolved, moveCount, topRunLength, usefulMoves, type Board } from '../logic/rules.ts';
 import { hint } from '../logic/solver.ts';
 import { SEED_COLORS, SEED_TEX, THEME, ads, analytics, audio, haptics, save } from '../services.ts';
+import { STAGE_AT, STAGE_LABEL, rollPack, stageFor, type Strain } from '../strains.ts';
+import { makePackCard } from '../ui/packCard.ts';
 import { drawBackground } from './background.ts';
 
 interface Jar {
@@ -146,31 +148,43 @@ export class GameScene extends Phaser.Scene {
   // ------------------------------------------------------------------- HUD
   private buildHud(): void {
     const { width: w, height: h } = this.scale;
-    makeIconButton(this, 110, 120, (g) => this.iconHome(g), () => {
-      audio.tap();
-      this.scene.start('menu');
-    });
+    makeIconButton(
+      this,
+      110,
+      120,
+      (g) => this.iconHome(g),
+      () => {
+        audio.tap();
+        this.scene.start('menu');
+      },
+      { size: 110, theme: THEME },
+    );
 
     this.add
       .text(w / 2, 110, `Level ${this.level.id}`, {
         fontFamily: THEME.font,
-        fontSize: '84px',
-        fontStyle: '900',
+        fontSize: '72px',
+        fontStyle: '700',
         color: THEME.ink,
       })
       .setOrigin(0.5);
     this.movesText = this.add
-      .text(w / 2, 200, '', { fontFamily: THEME.font, fontSize: '42px', fontStyle: '800', color: THEME.inkSoft })
+      .text(w / 2, 195, '', { fontFamily: THEME.font, fontSize: '40px', fontStyle: '500', color: THEME.inkSoft })
       .setOrigin(0.5);
     this.updateMovesText();
 
     const y = h - 190;
-    makeIconButton(this, w / 2 - 300, y, (g) => this.iconRestart(g), () => this.restart(), { size: 140 });
-    makeIconButton(this, w / 2, y, (g) => this.iconBulb(g), () => this.showHint(), { size: 160, color: 0xffd36b, shadow: 0xe0a83a });
-    makeIconButton(this, w / 2 + 300, y, (g) => this.iconUndo(g), () => this.undo(), { size: 140 });
+    makeIconButton(this, w / 2 - 300, y, (g) => this.iconRestart(g), () => this.restart(), { size: 140, theme: THEME });
+    makeIconButton(this, w / 2, y, (g) => this.iconBulb(g), () => this.showHint(), {
+      size: 160,
+      color: THEME.accent,
+      shadow: 0xb8961f,
+      theme: THEME,
+    });
+    makeIconButton(this, w / 2 + 300, y, (g) => this.iconUndo(g), () => this.undo(), { size: 140, theme: THEME });
     const label = (x: number, t: string) =>
       this.add
-        .text(x, y + 112, t, { fontFamily: THEME.font, fontSize: '34px', fontStyle: '800', color: THEME.inkSoft })
+        .text(x, y + 112, t, { fontFamily: THEME.font, fontSize: '32px', fontStyle: '500', color: THEME.inkSoft })
         .setOrigin(0.5);
     label(w / 2 - 300, 'Restart');
     label(w / 2, 'Hint');
@@ -369,8 +383,8 @@ export class GameScene extends Phaser.Scene {
     }
     audio.tap();
     // Week 3: hints become a rewarded-ad offer after a few free ones.
-    this.pulseJar(m.from, 0xffd36b);
-    this.time.delayedCall(350, () => this.pulseJar(m.to, 0x6bcb77));
+    this.pulseJar(m.from, THEME.accent);
+    this.time.delayedCall(350, () => this.pulseJar(m.to, THEME.primary));
     this.pointArrowAt(m.from);
   }
 
@@ -380,11 +394,12 @@ export class GameScene extends Phaser.Scene {
     const color = SEED_COLORS[this.board.pots[p]![0]!]!;
     audio.complete();
     haptics.fire('medium');
-    this.burst(jar.x, jar.top, [color, 0xffffff, 0xfff2b3], 18);
-    const sprout = this.add.graphics({ x: jar.x, y: jar.top - 4 }).setDepth(1);
+    this.burst(jar.x, jar.top, [color], 12);
+    drawJar(jar.g, this.jarW, this.jarH, false, color);
+    const sprout = this.add.graphics({ x: jar.x, y: jar.top - 6 }).setDepth(1);
     drawSprout(sprout, color);
     sprout.setScale(0);
-    this.tweens.add({ targets: sprout, scale: this.jarW / 150, duration: 500, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: sprout, scale: this.jarW / 130, duration: 420, ease: 'Back.easeOut' });
     jar.sprout = sprout;
     this.seeds[p]!.forEach((s, i) =>
       this.tweens.add({ targets: s, y: s.y - 18, duration: 120, delay: i * 40, yoyo: true, ease: 'Quad.easeOut' }),
@@ -395,17 +410,17 @@ export class GameScene extends Phaser.Scene {
     const sprout = this.jars[p]!.sprout;
     if (!sprout) return;
     this.jars[p]!.sprout = null;
+    drawJar(this.jars[p]!.g, this.jarW, this.jarH, false);
     this.tweens.add({ targets: sprout, scale: 0, duration: 150, onComplete: () => sprout.destroy() });
   }
 
   private burst(x: number, y: number, tints: number[], qty: number): void {
-    const e = this.add.particles(x, y, 'petal', {
-      speed: { min: 250, max: 650 },
+    const e = this.add.particles(x, y, 'dot', {
+      speed: { min: 180, max: 520 },
       angle: { min: 200, max: 340 },
-      gravityY: 900,
-      lifespan: 1100,
-      scale: { start: 1.1, end: 0.3 },
-      rotate: { min: 0, max: 360 },
+      gravityY: 700,
+      lifespan: 900,
+      scale: { start: 0.9, end: 0 },
       alpha: { start: 1, end: 0 },
       tint: tints,
       emitting: false,
@@ -421,12 +436,16 @@ export class GameScene extends Phaser.Scene {
     const stars = starsFor(this.moves, this.level.par);
     const seconds = Math.round((this.time.now - this.startedAt) / 1000);
     const id = this.level.id;
+    const firstClear = save.get().level <= id;
+    // Every newly cleared level opens a seed pack for the garden.
+    const pack = firstClear ? rollPack(id, save.get().garden) : null;
     save.update((d) => {
       d.stars[id] = Math.max(d.stars[id] ?? 0, stars);
-      if (d.level <= id) {
+      if (firstClear) {
         d.level = id + 1;
         d.levelsCompleted++;
       }
+      if (pack) d.garden[pack.id] = (d.garden[pack.id] ?? 0) + 1;
     });
     analytics.track('level_complete', { level: id, moves: this.moves, seconds, stars, undos: this.undos });
 
@@ -434,36 +453,39 @@ export class GameScene extends Phaser.Scene {
     this.time.delayedCall(250, () => {
       audio.win();
       haptics.fire('success');
-      this.burst(w * 0.25, 700, SEED_COLORS, 30);
-      this.burst(w * 0.75, 700, SEED_COLORS, 30);
+      this.burst(w * 0.25, 700, SEED_COLORS, 24);
+      this.burst(w * 0.75, 700, SEED_COLORS, 24);
     });
-    this.time.delayedCall(900, () => this.showWinPanel(stars));
+    this.time.delayedCall(900, () => this.showWinPanel(stars, pack));
   }
 
-  private showWinPanel(stars: number): void {
+  private showWinPanel(stars: number, pack: Strain | null): void {
     const { width: w, height: h } = this.scale;
-    const dim = this.add.rectangle(w / 2, h / 2, w, h, 0x3b2f2a, 0).setDepth(30).setInteractive();
-    this.tweens.add({ targets: dim, fillAlpha: 0.35, duration: 250 });
+    const dim = this.add.rectangle(w / 2, h / 2, w, h, 0x05080f, 0).setDepth(30).setInteractive();
+    this.tweens.add({ targets: dim, fillAlpha: 0.7, duration: 250 });
 
+    const panelH = pack ? 1440 : 760;
     const panel = this.add.container(w / 2, h / 2).setDepth(31);
     const bg = this.add.graphics();
-    bg.fillStyle(0xe8d9c6, 1);
-    bg.fillRoundedRect(-420, -380 + 14, 840, 760, 60);
-    bg.fillStyle(0xffffff, 1);
-    bg.fillRoundedRect(-420, -380, 840, 760, 60);
+    bg.fillStyle(THEME.surfaceEdge, 1);
+    bg.fillRoundedRect(-440, -panelH / 2 + 10, 880, panelH, 48);
+    bg.fillStyle(THEME.surface, 1);
+    bg.fillRoundedRect(-440, -panelH / 2, 880, panelH, 48);
+    let y = -panelH / 2 + 110;
     const title = this.add
-      .text(0, -270, 'Level Complete!', { fontFamily: THEME.font, fontSize: '80px', fontStyle: '900', color: '#4f9a52' })
+      .text(0, y, 'Level complete', { fontFamily: THEME.font, fontSize: '68px', fontStyle: '700', color: THEME.ink })
       .setOrigin(0.5);
     panel.add([bg, title]);
 
+    y += 170;
     for (let i = 0; i < 3; i++) {
-      const star = this.add.graphics({ x: (i - 1) * 190, y: -90 + (i === 1 ? -30 : 0) });
-      this.drawStar(star, i < stars ? 0xffc93c : 0xeee3d6, i < stars ? 0xe0a83a : 0xddd0c0);
+      const star = this.add.graphics({ x: (i - 1) * 170, y: y + (i === 1 ? -20 : 0) });
+      this.drawStar(star, i < stars ? THEME.accent : 0x2c3a57, i < stars ? 0xb8961f : THEME.surfaceEdge);
       panel.add(star);
       star.setScale(0);
       this.tweens.add({
         targets: star,
-        scale: i === 1 ? 1.25 : 1,
+        scale: i === 1 ? 1.05 : 0.85,
         duration: 420,
         delay: 300 + i * 220,
         ease: 'Back.easeOut',
@@ -472,29 +494,87 @@ export class GameScene extends Phaser.Scene {
         },
       });
     }
+    y += 140;
     const info = this.add
-      .text(0, 90, `${this.moves} moves  ·  target ${this.level.par}`, {
+      .text(0, y, `${this.moves} moves  ·  target ${this.level.par}`, {
         fontFamily: THEME.font,
-        fontSize: '44px',
-        fontStyle: '800',
+        fontSize: '40px',
+        fontStyle: '500',
         color: THEME.inkSoft,
       })
       .setOrigin(0.5);
     panel.add(info);
 
+    if (pack) {
+      y += 290;
+      const card = makePackCard(this, pack);
+      card.setPosition(0, y);
+      panel.add(card);
+      // Reveal: the packet flips open after the stars land.
+      card.scaleX = 0;
+      this.tweens.add({
+        targets: card,
+        scaleX: 1,
+        duration: 360,
+        delay: 1100,
+        ease: 'Back.easeOut',
+        onStart: () => {
+          audio.complete();
+          haptics.fire('medium');
+        },
+      });
+      const copies = save.get().garden[pack.id] ?? 1;
+      const stage = stageFor(copies);
+      const status =
+        copies === 1
+          ? 'New strain! Planted in your garden'
+          : stage === 2 && copies === STAGE_AT[2]
+            ? 'Your plant is flowering!'
+            : stage === 2
+              ? `+1 seed  ·  ${copies} collected`
+              : `+1 seed  ·  ${STAGE_LABEL[stage]}  ·  ${copies}/${STAGE_AT[stage + 1]} to grow`;
+      y += 270;
+      const statusText = this.add
+        .text(0, y, status, {
+          fontFamily: THEME.font,
+          fontSize: '38px',
+          fontStyle: copies === 1 ? '700' : '500',
+          color: copies === 1 ? '#3ddc84' : THEME.inkSoft,
+        })
+        .setOrigin(0.5)
+        .setAlpha(0);
+      this.tweens.add({ targets: statusText, alpha: 1, duration: 300, delay: 1450 });
+      panel.add(statusText);
+    }
+
+    y = panelH / 2 - (pack ? 270 : 150);
     const next = makeButton(
       this,
       0,
-      240,
-      'Next',
+      y,
+      'Next level',
       async () => {
         audio.tap();
         await ads.atBreak('level_complete', save.get().levelsCompleted);
         this.scene.restart({ level: this.level.id + 1 });
       },
-      { width: 520, height: 160, fontSize: 72, theme: THEME },
+      { width: 560, height: 150, fontSize: 56, theme: THEME },
     );
     panel.add(next);
+    if (pack) {
+      const garden = makeButton(
+        this,
+        0,
+        y + 160,
+        'View garden',
+        () => {
+          audio.tap();
+          this.scene.start('garden', { from: 'game', level: this.level.id + 1 });
+        },
+        { width: 560, height: 120, fontSize: 44, color: 0x2c3a57, shadow: THEME.surfaceEdge, textColor: THEME.ink, theme: THEME },
+      );
+      panel.add(garden);
+    }
     popIn(this, panel);
   }
 
@@ -504,10 +584,11 @@ export class GameScene extends Phaser.Scene {
     this.tutorialText = this.add
       .text(w / 2, 360, TUTORIAL_TEXT[0]!, {
         fontFamily: THEME.font,
-        fontSize: '50px',
-        fontStyle: '800',
+        fontSize: '48px',
+        fontStyle: '500',
         color: THEME.ink,
         align: 'center',
+        lineSpacing: 10,
         wordWrap: { width: 940 },
       })
       .setOrigin(0.5);
@@ -550,9 +631,9 @@ export class GameScene extends Phaser.Scene {
     if (!this.tutorialArrow) {
       this.tutorialArrow = this.add.graphics().setDepth(25);
       const g = this.tutorialArrow;
-      g.fillStyle(0xff8c42, 1);
-      g.fillTriangle(-34, -40, 34, -40, 0, 10);
-      g.fillRoundedRect(-14, -96, 28, 64, 10);
+      g.fillStyle(THEME.accent, 1);
+      g.fillTriangle(-30, -36, 30, -36, 0, 8);
+      g.fillRoundedRect(-11, -88, 22, 56, 8);
     }
     const a = this.tutorialArrow;
     this.tweens.killTweensOf(a);
@@ -563,7 +644,7 @@ export class GameScene extends Phaser.Scene {
   private pulseJar(p: number, color: number): void {
     const jar = this.jars[p]!;
     const ring = this.add.graphics({ x: jar.x, y: jar.bottom - this.jarH / 2 }).setDepth(1);
-    ring.lineStyle(10, color, 1);
+    ring.lineStyle(6, color, 1);
     ring.strokeRoundedRect(-this.jarW / 2 - 14, -this.jarH / 2 - 24, this.jarW + 28, this.jarH + 40, 30);
     this.tweens.add({ targets: ring, alpha: { from: 1, to: 0 }, duration: 450, repeat: 2, onComplete: () => ring.destroy() });
   }
@@ -572,10 +653,10 @@ export class GameScene extends Phaser.Scene {
     this.toast?.destroy();
     const { width: w } = this.scale;
     const text = this.add
-      .text(0, 0, message, { fontFamily: THEME.font, fontSize: '44px', fontStyle: '800', color: '#ffffff' })
+      .text(0, 0, message, { fontFamily: THEME.font, fontSize: '42px', fontStyle: '500', color: THEME.ink })
       .setOrigin(0.5);
     const bg = this.add.graphics();
-    bg.fillStyle(0x3b2f2a, 0.88);
+    bg.fillStyle(THEME.surface, 0.97);
     bg.fillRoundedRect(-text.width / 2 - 40, -50, text.width + 80, 100, 50);
     const c = this.add.container(w / 2, 330, [bg, text]).setDepth(40);
     this.toast = c;
@@ -587,37 +668,36 @@ export class GameScene extends Phaser.Scene {
 
   // ----------------------------------------------------------------- icons
   private iconHome(g: Phaser.GameObjects.Graphics): void {
-    g.fillStyle(0x6b5a50, 1);
-    g.fillTriangle(-30, -2, 30, -2, 0, -30);
-    g.fillRect(-20, -4, 40, 30);
-    g.fillStyle(0xffffff, 1);
-    g.fillRect(-7, 8, 14, 18);
+    g.fillStyle(THEME.icon, 1);
+    g.fillTriangle(-28, -2, 28, -2, 0, -28);
+    g.fillRect(-18, -4, 36, 28);
+    g.fillStyle(THEME.surface, 1);
+    g.fillRect(-6, 8, 12, 16);
   }
 
   private iconRestart(g: Phaser.GameObjects.Graphics): void {
-    g.lineStyle(10, 0x6b5a50, 1);
+    g.lineStyle(8, THEME.icon, 1);
     g.beginPath();
     g.arc(0, 0, 28, Phaser.Math.DegToRad(-60), Phaser.Math.DegToRad(250));
     g.strokePath();
-    g.fillStyle(0x6b5a50, 1);
+    g.fillStyle(THEME.icon, 1);
     g.fillTriangle(8, -42, 28, -18, 30, -46);
   }
 
   private iconUndo(g: Phaser.GameObjects.Graphics): void {
-    g.lineStyle(10, 0x6b5a50, 1);
+    g.lineStyle(8, THEME.icon, 1);
     g.beginPath();
     g.arc(4, 8, 26, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(110));
     g.strokePath();
-    g.fillStyle(0x6b5a50, 1);
+    g.fillStyle(THEME.icon, 1);
     g.fillTriangle(-26, -18, 6, -38, 6, 2);
   }
 
   private iconBulb(g: Phaser.GameObjects.Graphics): void {
-    g.fillStyle(0xffffff, 1);
-    g.fillCircle(0, -10, 30);
-    g.fillRect(-14, 10, 28, 20);
-    g.fillStyle(0xb7791f, 1);
-    g.fillRoundedRect(-16, 28, 32, 14, 6);
+    g.fillStyle(THEME.bg, 1);
+    g.fillCircle(0, -10, 28);
+    g.fillRect(-13, 8, 26, 20);
+    g.fillRoundedRect(-14, 30, 28, 10, 4);
   }
 
   private drawStar(g: Phaser.GameObjects.Graphics, fill: number, shadow: number): void {
@@ -631,7 +711,7 @@ export class GameScene extends Phaser.Scene {
       return out;
     };
     g.fillStyle(shadow, 1);
-    g.fillPoints(pts(80, 38, 8), true);
+    g.fillPoints(pts(80, 38, 6), true);
     g.fillStyle(fill, 1);
     g.fillPoints(pts(80, 38, 0), true);
   }

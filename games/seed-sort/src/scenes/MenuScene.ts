@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import { makeButton, makeIconButton, popIn } from '@tgs/kit';
-import { SEED_COLORS, SEED_TEX, THEME, applySettings, audio, haptics, save } from '../services.ts';
+import { makeButton, makeIconButton } from '@tgs/kit';
+import { SEED_TEX_H, SEED_TEX_W, drawJar } from '../art.ts';
+import { SEED_TEX, THEME, applySettings, audio, haptics, save } from '../services.ts';
 import { drawBackground } from './background.ts';
 
 export class MenuScene extends Phaser.Scene {
@@ -11,103 +12,120 @@ export class MenuScene extends Phaser.Scene {
   create(): void {
     const { width: w, height: h } = this.scale;
     drawBackground(this);
+    this.drawLogoMark(w / 2, h * 0.36);
 
-    // Title
     const title = this.add
-      .text(w / 2, h * 0.27, 'Seed\nSort', {
+      .text(w / 2, h * 0.45, 'Seed Sort', {
         fontFamily: THEME.font,
-        fontSize: '200px',
-        fontStyle: '900',
-        color: '#4f9a52',
-        align: 'center',
-        lineSpacing: -40,
+        fontSize: '150px',
+        fontStyle: '800',
+        color: THEME.ink,
       })
       .setOrigin(0.5);
-    title.setStroke('#ffffff', 22);
-    title.setShadow(0, 12, 'rgba(79,154,82,0.25)', 0, true, true);
-    popIn(this, title);
+    title.setLetterSpacing(-2);
 
-    // Bobbing decorative seeds around the title
-    const spots = [
-      [0.16, 0.14], [0.84, 0.16], [0.12, 0.36], [0.88, 0.38], [0.3, 0.07], [0.72, 0.06],
-    ] as const;
-    spots.forEach(([fx, fy], i) => {
-      const s = this.add.image(w * fx, h * fy, SEED_TEX(i % SEED_COLORS.length)).setScale(0.9).setAngle(-20 + i * 9);
-      this.tweens.add({
-        targets: s,
-        y: s.y - 24,
-        angle: s.angle + 10,
-        duration: 1600 + i * 170,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      });
-    });
+    const done = save.get().levelsCompleted;
+    this.add
+      .text(w / 2, h * 0.45 + 110, done > 0 ? `${done} levels solved` : 'Sort the seeds. Grow the strains.', {
+        fontFamily: THEME.font,
+        fontSize: '44px',
+        fontStyle: '500',
+        color: THEME.inkSoft,
+      })
+      .setOrigin(0.5);
 
     const level = save.get().level;
-    const play = makeButton(
+    makeButton(
       this,
       w / 2,
-      h * 0.58,
-      level === 1 ? 'Play' : `Level ${level}`,
+      h * 0.66,
+      level === 1 ? 'Play' : `Play  ·  Level ${level}`,
       () => {
         audio.unlock();
         audio.tap();
         haptics.fire('light');
         this.scene.start('game', { level: save.get().level });
       },
-      { width: 620, height: 170, fontSize: 76, theme: THEME },
+      { width: 620, height: 150, fontSize: 60, theme: THEME },
     );
-    popIn(this, play, 150);
-    this.tweens.add({ targets: play, scale: 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 600 });
 
-    const done = save.get().levelsCompleted;
+    const found = Object.keys(save.get().garden).length;
+    makeButton(
+      this,
+      w / 2,
+      h * 0.66 + 190,
+      found > 0 ? `Garden  ·  ${found} strains` : 'Garden',
+      () => {
+        audio.unlock();
+        audio.tap();
+        this.scene.start('garden', { from: 'menu' });
+      },
+      { width: 620, height: 120, fontSize: 44, color: 0x2c3a57, shadow: THEME.surfaceEdge, textColor: THEME.ink, theme: THEME },
+    );
+
+    const soundBtn = makeIconButton(
+      this,
+      w - 110,
+      120,
+      (g) => this.drawSpeaker(g, save.get().settings.sound),
+      () => {
+        save.update((d) => (d.settings.sound = !d.settings.sound));
+        applySettings();
+        audio.unlock();
+        audio.tap();
+        this.drawSpeaker(soundBtn.list[1] as Phaser.GameObjects.Graphics, save.get().settings.sound);
+      },
+      { size: 110, theme: THEME },
+    );
+
     this.add
-      .text(w / 2, h * 0.67, done > 0 ? `${done} levels grown` : 'Sort the seeds. Grow the garden.', {
+      .text(w / 2, h - 80, 'THE GENETIC STANDARD', {
         fontFamily: THEME.font,
-        fontSize: '44px',
-        fontStyle: '800',
-        color: THEME.inkSoft,
-      })
-      .setOrigin(0.5);
-
-    // Sound toggle
-    const soundBtn = makeIconButton(this, w - 110, 110, (g) => this.drawSpeaker(g, save.get().settings.sound), () => {
-      save.update((d) => (d.settings.sound = !d.settings.sound));
-      applySettings();
-      audio.unlock();
-      audio.tap();
-      this.drawSpeaker(soundBtn.list[1] as Phaser.GameObjects.Graphics, save.get().settings.sound);
-    });
-
-    this.add
-      .text(w / 2, h - 70, 'THE GENETIC STANDARD', {
-        fontFamily: THEME.font,
-        fontSize: '30px',
-        fontStyle: '800',
-        color: '#9fb58a',
+        fontSize: '28px',
+        fontStyle: '500',
+        color: '#4c5a76',
       })
       .setOrigin(0.5)
-      .setLetterSpacing(6);
+      .setLetterSpacing(8);
+  }
+
+  /** Three sorted slots: the game in one glance. */
+  private drawLogoMark(cx: number, bottom: number): void {
+    const slotW = 104;
+    const scale = (slotW * 0.8) / SEED_TEX_W;
+    const step = SEED_TEX_H * scale * 0.8;
+    const slotH = 3 * step + 40;
+    const colors = [0, 1, 2];
+    colors.forEach((color, i) => {
+      const x = cx + (i - 1) * (slotW + 34);
+      const g = this.add.graphics({ x, y: bottom });
+      drawJar(g, slotW, slotH, false, i === 1 ? 0x3ddc84 : undefined);
+      for (let k = 0; k < 3; k++) {
+        const s = this.add.image(x, bottom - 14 - (SEED_TEX_H * scale) / 2 - k * step, SEED_TEX(color)).setScale(scale);
+        s.alpha = 0;
+        this.tweens.add({ targets: s, alpha: 1, y: { from: s.y - 40, to: s.y }, duration: 380, delay: 120 + i * 90 + k * 60, ease: 'Cubic.easeOut' });
+      }
+    });
   }
 
   private drawSpeaker(g: Phaser.GameObjects.Graphics, on: boolean): void {
+    const c = THEME.icon;
     g.clear();
-    g.fillStyle(0x6b5a50, 1);
-    g.fillRect(-26, -12, 16, 24);
-    g.fillTriangle(-12, -12, 10, -30, 10, 30);
-    g.fillTriangle(-12, -12, -12, 12, 10, 30);
-    g.lineStyle(7, 0x6b5a50, 1);
+    g.fillStyle(c, 1);
+    g.fillRect(-24, -10, 14, 20);
+    g.fillTriangle(-12, -10, 8, -26, 8, 26);
+    g.fillTriangle(-12, -10, -12, 10, 8, 26);
+    g.lineStyle(6, c, 1);
     if (on) {
       g.beginPath();
-      g.arc(14, 0, 16, -0.9, 0.9);
+      g.arc(12, 0, 14, -0.9, 0.9);
       g.strokePath();
       g.beginPath();
-      g.arc(14, 0, 30, -0.9, 0.9);
+      g.arc(12, 0, 26, -0.9, 0.9);
       g.strokePath();
     } else {
-      g.lineBetween(20, -14, 40, 14);
-      g.lineBetween(40, -14, 20, 14);
+      g.lineBetween(18, -12, 36, 12);
+      g.lineBetween(36, -12, 18, 12);
     }
   }
 }

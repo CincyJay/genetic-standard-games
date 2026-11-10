@@ -34,6 +34,20 @@ npm run playtest     # automated browser play-test (needs `npm run dev` running)
 - **Par / stars:** the solver's solution length is the "target"; meet it for 3 stars.
 - **Hints** run the solver from the player's current position.
 
+## Theme and garden
+
+Cannabis genetics theme: players sort cannabis seeds, and every newly cleared level opens a
+**seed pack** with one of 33 original strains (common / uncommon / rare / legendary). Copies
+grow the plant in the **Garden** (seedling at 1, vegetative at 3, flowering at 5). Packs are
+deterministic per level, lean toward undiscovered strains, and every 10th level is uncommon or
+better (`src/strains.ts`).
+
+**Store-policy rule for all theme content:** growing, breeding and collecting only. No
+consumption, potency numbers, or sales references. Strain names are original. Expected ratings:
+17+ (App Store) / Mature (Google Play); see the plan for ad-revenue implications.
+
+Visual style: dark navy, flat shapes, Outfit typeface (all drawn in code, no image assets).
+
 ## Week 1 status
 
 - [x] Monorepo + shared studio kit

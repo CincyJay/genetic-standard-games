@@ -32,7 +32,7 @@ await shot('01-menu');
 
 // Tap "Play": centered, 58% down the game area.
 const box = await page.locator('canvas').boundingBox();
-await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.58);
+await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.66);
 await page.waitForFunction(() => globalThis.__seedSort?.state()?.level >= 1);
 await page.waitForTimeout(4000); // headless (no GPU) runs at low FPS
 await shot('02-level1-tutorial');
@@ -77,22 +77,30 @@ for (let n = 0; n < levelsToPlay; n++) {
   const s = await state();
   if (!s.won) throw new Error(`Level ${level} not won`);
   console.log(`Level ${level} complete in ${s.moves} moves`);
-  await page.waitForTimeout(2200);
+  await page.waitForTimeout(6000); // let the stars and seed-pack reveal finish (headless runs slowly)
   await shot(`04-win-level${level}`);
-  // Tap "Next" (panel center + 240 game px; game is 1920 tall)
-  await page.mouse.click(box.x + box.width / 2, box.y + (box.height * (960 + 240)) / 1920);
+  // Tap "Next level" (panel center + 450 game px; game is 1920 tall)
+  await page.mouse.click(box.x + box.width / 2, box.y + (box.height * (960 + 450)) / 1920);
   await page.waitForFunction((l) => globalThis.__seedSort.state().level === l + 1 && !globalThis.__seedSort.state().won, level);
   await page.waitForTimeout(1200);
 }
 
-// Jump to a late level to check the two-row layout.
+// Jump to a returning player with a grown garden, and a late level for the two-row layout.
 await page.evaluate(() => {
-  localStorage.setItem('seed-sort.save', JSON.stringify({ v: 1, data: { level: 60, stars: {}, levelsCompleted: 59, settings: { sound: true, haptics: true } } }));
+  const garden = { 'ohio-valley': 5, 'emerald-drift': 3, 'citrus-comet': 1, 'violet-vale': 6, 'glacier-mint': 2, 'aurora-kush': 1, 'genetic-standard-og': 5, 'river-haze': 4 };
+  localStorage.setItem('seed-sort.save', JSON.stringify({ v: 1, data: { level: 60, stars: {}, levelsCompleted: 59, garden, settings: { sound: true, haptics: true } } }));
 });
 await page.reload();
 await page.waitForTimeout(1200);
 await shot('05-menu-returning');
-await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.58);
+// Garden button sits 190 game px below Play (66% down)
+await page.mouse.click(box.x + box.width / 2, box.y + (box.height * (1920 * 0.66 + 190)) / 1920);
+await page.waitForTimeout(2500);
+await shot('07-garden');
+// back to menu
+await page.mouse.click(box.x + (box.width * 110) / 1080, box.y + (box.height * 120) / 1920);
+await page.waitForTimeout(1500);
+await page.mouse.click(box.x + box.width / 2, box.y + box.height * 0.66);
 await page.waitForTimeout(1500);
 await shot('06-level60');
 
