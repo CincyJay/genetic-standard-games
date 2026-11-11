@@ -13,7 +13,6 @@
     "build": "npm run build -w games/seed-sort",
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p games/seed-sort",
-    "levels": "npm run levels -w games/seed-sort",
     "playtest": "node games/seed-sort/tests/e2e/playtest.mjs"
   },
   "devDependencies": {

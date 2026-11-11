@@ -61,7 +61,7 @@ export class GardenScene extends Phaser.Scene {
           .setOrigin(0.5);
       } else {
         this.add
-          .text(x, y + 170, '?', { fontFamily: THEME.font, fontSize: '120px', fontStyle: '800', color: '#2c3a57' })
+          .text(x, y + 170, '?', { fontFamily: THEME.font, fontSize: '120px', fontStyle: '800', color: '#d9c7a8' })
           .setOrigin(0.5);
         this.add
           .text(x, y + 344, RARITY_LABEL[variety.rarity], {
@@ -73,7 +73,7 @@ export class GardenScene extends Phaser.Scene {
           .setOrigin(0.5)
           .setAlpha(0.7);
         this.add
-          .text(x, y + 392, 'Undiscovered', { fontFamily: THEME.font, fontSize: '26px', fontStyle: '500', color: '#4c5a76' })
+          .text(x, y + 392, 'Undiscovered', { fontFamily: THEME.font, fontSize: '26px', fontStyle: '500', color: '#a8977f' })
           .setOrigin(0.5);
       }
     });
@@ -81,7 +81,7 @@ export class GardenScene extends Phaser.Scene {
 
     // Fixed header
     const header = this.add.graphics().setScrollFactor(0).setDepth(10);
-    header.fillGradientStyle(0x16233b, 0x16233b, 0x16233b, 0x16233b, 1, 1, 0.92, 0.92);
+    header.fillGradientStyle(0xf3ead8, 0xf3ead8, 0xf3ead8, 0xf3ead8, 1, 1, 0.94, 0.94);
     header.fillRect(0, 0, w, 290);
     this.add
       .text(w / 2, 110, 'Garden', { fontFamily: THEME.font, fontSize: '72px', fontStyle: '700', color: THEME.ink })

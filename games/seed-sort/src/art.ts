@@ -1,69 +1,9 @@
 import Phaser from 'phaser';
-import { SEED_COLORS, SEED_TEX } from './services.ts';
-
-export const SEED_TEX_W = 128;
-export const SEED_TEX_H = 96;
 
 export function shade(color: number, amount: number): number {
   const c = Phaser.Display.Color.IntegerToColor(color);
   const f = (v: number) => Phaser.Math.Clamp(Math.round(amount < 0 ? v * (1 + amount) : v + (255 - v) * amount), 0, 255);
   return Phaser.Display.Color.GetColor(f(c.red), f(c.green), f(c.blue));
-}
-
-/** Seed outline: an oval that tapers to a soft point at one end. */
-function seedOutline(cx: number, cy: number, a: number, b: number): Phaser.Math.Vector2[] {
-  const pts: Phaser.Math.Vector2[] = [];
-  for (let i = 0; i < 48; i++) {
-    const t = (i / 48) * Math.PI * 2;
-    const c = Math.cos(t);
-    pts.push(new Phaser.Math.Vector2(cx + a * c * (c > 0 ? 1.06 : 1), cy + b * Math.sin(t) * (1 - 0.14 * c)));
-  }
-  return pts;
-}
-
-/** Flat seeds with a soft bevel. No gloss, no outlines. */
-export function buildSeedTextures(scene: Phaser.Scene): void {
-  const w = SEED_TEX_W;
-  const h = SEED_TEX_H;
-  const a = (w - 16) / 2;
-  const b = (h - 22) / 2;
-  SEED_COLORS.forEach((color, i) => {
-    const g = scene.make.graphics({}, false);
-    const cx = w / 2;
-    const cy = h / 2 - 3;
-    g.fillStyle(shade(color, -0.35), 1);
-    g.fillPoints(seedOutline(cx, cy + 6, a, b), true);
-    g.fillStyle(color, 1);
-    g.fillPoints(seedOutline(cx, cy, a, b), true);
-    // soft top bevel
-    g.fillStyle(shade(color, 0.25), 0.6);
-    g.fillEllipse(cx - 4, cy - b * 0.66, a * 1.15, b * 0.3);
-    g.generateTexture(SEED_TEX(i), w, h);
-    g.destroy();
-  });
-
-  const d = scene.make.graphics({}, false);
-  d.fillStyle(0xffffff, 1);
-  d.fillCircle(8, 8, 8);
-  d.generateTexture('dot', 16, 16);
-  d.destroy();
-}
-
-/** A seed slot. Origin is the slot's bottom-center. */
-export function drawJar(
-  g: Phaser.GameObjects.Graphics,
-  w: number,
-  h: number,
-  selected: boolean,
-  doneColor?: number,
-): void {
-  g.clear();
-  const radius = { tl: 20, tr: 20, bl: w * 0.42, br: w * 0.42 };
-  const tint = doneColor ?? (selected ? 0xffd84d : 0xffffff);
-  g.fillStyle(tint, doneColor !== undefined ? 0.14 : selected ? 0.1 : 0.05);
-  g.fillRoundedRect(-w / 2, -h, w, h, radius);
-  g.lineStyle(5, tint, doneColor !== undefined ? 0.85 : selected ? 0.9 : 0.16);
-  g.strokeRoundedRect(-w / 2, -h, w, h, radius);
 }
 
 /** A simple pointed leaf from (x, y) along `angle`. */
@@ -85,19 +25,6 @@ function leaf(g: Phaser.GameObjects.Graphics, x: number, y: number, len: number,
     pts.map((p) => new Phaser.Math.Vector2(x + p.x * ca - p.y * sa, y + p.x * sa + p.y * ca)),
     true,
   );
-}
-
-/** Two-leaf sprout rising from a finished slot, in the seed's color. */
-export function drawSprout(g: Phaser.GameObjects.Graphics, color: number): void {
-  g.clear();
-  g.lineStyle(6, color, 1);
-  g.beginPath();
-  g.moveTo(0, 0);
-  g.lineTo(0, -40);
-  g.strokePath();
-  g.fillStyle(color, 1);
-  leaf(g, 0, -28, 40, Phaser.Math.DegToRad(-150));
-  leaf(g, 0, -40, 40, Phaser.Math.DegToRad(-30));
 }
 
 /** Five-petal flower head centered at (x, y). */
@@ -157,9 +84,9 @@ export function drawPlant(
 ): void {
   g.clear();
   // pot
-  g.fillStyle(0x2c3a57, 1);
+  g.fillStyle(0xc4683f, 1);
   g.fillRoundedRect(-62, -86, 124, 86, { tl: 6, tr: 6, bl: 22, br: 22 });
-  g.fillStyle(0x3a4b6e, 1);
+  g.fillStyle(0xd98256, 1);
   g.fillRoundedRect(-70, -96, 140, 22, 8);
   g.fillStyle(color, 1);
   g.fillRect(-62, -60, 124, 8);

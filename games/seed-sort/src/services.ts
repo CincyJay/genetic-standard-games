@@ -6,17 +6,31 @@ export interface SaveData {
   /** Best stars per level id. */
   stars: Record<number, number>;
   levelsCompleted: number;
+  /** Highest single-level score. */
+  bestScore: number;
   /** Plant variety id -> copies collected from seed packs. */
   garden: Record<string, number>;
-  /** Story beats already shown (e.g. "c1-intro"). */
-  storySeen: string[];
   settings: { sound: boolean; haptics: boolean };
 }
 
+const defaults = (): SaveData => ({
+  level: 1,
+  stars: {},
+  levelsCompleted: 0,
+  bestScore: 0,
+  garden: {},
+  settings: { sound: true, haptics: true },
+});
+
 export const save = new SaveStore<SaveData>({
   key: 'seed-sort.save',
-  version: 1,
-  defaults: () => ({ level: 1, stars: {}, levelsCompleted: 0, garden: {}, storySeen: [], settings: { sound: true, haptics: true } }),
+  version: 2,
+  defaults,
+  // v1 was the old tube-sorting game: keep the garden and settings, restart levels.
+  migrate: (data) => {
+    const old = (data ?? {}) as Partial<SaveData>;
+    return { ...defaults(), garden: old.garden ?? {}, settings: old.settings ?? defaults().settings };
+  },
 });
 
 export const audio = new SynthAudio();
@@ -31,25 +45,22 @@ export function applySettings(): void {
   haptics.enabled = s.haptics;
 }
 
-export const THEME: Theme = { ...DEFAULT_THEME };
+/** Warm garden palette: cream paper surfaces, leaf green actions, brown ink. */
+export const THEME: Theme = {
+  ...DEFAULT_THEME,
+  bg: 0xf3ead8,
+  ink: '#3d2e22',
+  inkSoft: '#7a6a58',
+  primary: 0x5aa845,
+  primaryDark: 0x3e7f2f,
+  onPrimary: '#ffffff',
+  surface: 0xfffaf0,
+  surfaceEdge: 0xd9c7a8,
+  icon: 0x5a4634,
+  accent: 0xf5b83d,
+};
 
-/**
- * Seed colors, tuned for a dark background: saturated but not neon, and spread
- * around the hue wheel (plus a light and a warm neutral) so neighbors never blur together.
- */
-export const SEED_COLORS: number[] = [
-  0xff5d5d, // red
-  0xffd84d, // yellow
-  0x3ddc84, // green
-  0x4d8dff, // blue
-  0xa47bff, // violet
-  0xff7ac8, // pink
-  0xff9a3c, // orange
-  0x2fd6c3, // teal
-  0xc08a5b, // brown
-  0xe9edf5, // white
-  0xb5e35a, // lime
-  0x5ac8fa, // sky
-];
+/** Secondary button colors (cream with a tan edge). */
+export const SECONDARY = { color: 0xf4ead6, shadow: 0xcbb38f, textColor: '#5a4634' };
 
-export const SEED_TEX = (c: number) => `seed-${c}`;
+export const ITEM_TEX = (kind: string) => `item-${kind}`;

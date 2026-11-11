@@ -12,13 +12,13 @@ export function makePackCard(scene: Phaser.Scene, variety: Variety, w = 560, h =
   // body
   g.fillStyle(THEME.surfaceEdge, 1);
   g.fillRoundedRect(-w / 2, top + 8, w, h, 28);
-  g.fillStyle(0x24324f, 1);
+  g.fillStyle(0xfffaf0, 1);
   g.fillRoundedRect(-w / 2, top, w, h, 28);
   // crimped header strip in the variety's color
   const band = 64;
   g.fillStyle(shade(variety.color, -0.45), 1);
   g.fillRoundedRect(-w / 2, top, w, band, { tl: 28, tr: 28, bl: 0, br: 0 });
-  g.fillStyle(0x24324f, 1);
+  g.fillStyle(0xfffaf0, 1);
   const teeth = 22;
   for (let i = 0; i < teeth; i++) {
     const x0 = -w / 2 + 20 + (i * (w - 40)) / teeth;

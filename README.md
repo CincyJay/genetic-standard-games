@@ -16,49 +16,30 @@ so each new game reuses menus, saving, sound, ads, analytics and build tooling.
 ```bash
 npm install          # once
 npm run dev          # play in the browser at http://localhost:5173 (add --host to test on a phone on the same Wi-Fi)
-npm test             # unit tests: rules, solver, all levels solvable, ad-frequency policy
+npm test             # unit tests: conveyor rules, seed packs, ad-frequency policy
 npm run typecheck
-npm run levels       # regenerate the level pack (deterministic)
 npm run build        # production web build -> games/seed-sort/dist
 npm run playtest     # automated browser play-test (needs `npm run dev` running)
 ```
 
-## Seed Sort: how it works
+## Seed Sort: how it plays (Conveyor Sort)
 
-- **Rules** (`src/logic/rules.ts`): tap a jar to lift its top run of same-colored seeds, tap
-  another jar that is empty or has the same color on top. Fill every jar with one color.
-- **Levels** are generated, not hand-made: `generator.ts` scrambles seeds, the solver
-  (`solver.ts`, weighted A*) proves each one is solvable and grades difficulty, and the
-  candidate closest to the target difficulty curve is kept. 300 levels ship pre-built
-  (`src/levels/levels.json`); later levels generate on the device with the same results.
-- **Par / stars:** the solver's solution length is the "target"; meet it for 3 stars.
-- **Hints** run the solver from the player's current position.
+Seeds roll along a greenhouse conveyor belt over a row of wooden crates. **Tap a seed when it's
+over the crate with its picture** and it drops in. Wrong crate, or a seed that rolls off the end,
+costs a leaf (3 per level). Streaks multiply points (x2 at 5 in a row, up to x5).
 
-## Story, seed packs and garden
+- **Specials:** golden seeds score big anywhere; weeds can be plucked for a bonus; rocks must be
+  left alone (tapping one costs a leaf).
+- **Ramp:** 3 crates → 4 (level 4) → 5 (level 13); belt speed and spawn rate rise; rocks from
+  level 4, weeds from 6, crates that move around from level 10. Crates glow under a matching seed
+  for the first 5 levels.
+- **Rewards:** 1–3 stars by leaves lost; every newly cleared level opens a seed pack for the
+  garden (33 plant varieties that grow as you collect copies).
+- **Rewarded ad placement:** "Keep going (+1 leaf)" when you run out, once per level.
 
-**Story mode, "Larkspur Gardens"** (`src/story.ts`): you inherit your great-aunt Ivy's abandoned
-botanical garden. Her seed vault was scattered by a storm, so you sort the seeds, and each chapter
-of levels restores one area (Front Beds, Greenhouse, Orchard, Herb Garden, Lily Pond). The town
-will sell the land to a developer unless the garden reopens for the Spring Festival. Every chapter
-has an intro, a midpoint and an outro scene (Ivy's letters, Theo the groundskeeper, Mayor Bell,
-Mr. Harlow the developer). Season 1 = 5 chapters, levels 1–55; levels continue after it.
+Code: rules in `src/logic/conveyor.ts` (pure, unit-tested), screen in `src/scenes/PlayScene.ts`.
+Art is vector illustration drawn in code under `art/` (seeds, crate, greenhouse, garden scenes,
+characters) and rendered with `node art/build.mjs`.
 
-**Seed packs:** every newly cleared level opens a pack with one of 33 plant varieties (flowers,
-fruit, vegetables, herbs; common / uncommon / rare / legendary). Packs are deterministic per
-level, lean toward undiscovered varieties, and every 10th level is uncommon or better
-(`src/varieties.ts`). Copies grow the plant in the **Garden**: seedling (1), growing (3), blooming (5).
-
-Visual style: dark navy, flat shapes, Outfit typeface (all drawn in code, no image assets).
-Audience: general (all ages content, targeting 13+ in the stores to keep ad options open).
-
-## Week 1 status
-
-- [x] Monorepo + shared studio kit
-- [x] Core mechanic, animations, synthesized SFX, haptics, save/progress
-- [x] Level generator + solver; 300 verified levels; difficulty curve with breathers/challenges
-- [x] Tutorial (level 1), hint, undo, restart, stars, win celebration, sprout on finished jars
-- [x] Ad-frequency policy (grace period, cooldown, Remove Ads) with tests; fake ad provider
-- [x] Unit tests + automated browser play-test
-
-**Next (Week 2):** garden meta (grown plants collection), more seed/jar polish, color-blind
-patterns on seeds, settings screen, special seeds (hidden "?" seeds, locked jars), 3–5 person playtest.
+**Next:** the garden game (spend stars on tasks in the entrance garden, with characters), endless
+mode, power-ups, then native app builds with real ads and analytics. See `docs/garden-game-design.md`.

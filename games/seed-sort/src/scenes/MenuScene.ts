@@ -1,10 +1,7 @@
 import Phaser from 'phaser';
-import { makeButton, makeIconButton } from '@tgs/kit';
-import { SEED_TEX_H, SEED_TEX_W, drawJar } from '../art.ts';
-import { SEED_TEX, THEME, applySettings, audio, haptics, save } from '../services.ts';
+import { makeButton, makeIconButton, popIn } from '@tgs/kit';
 import { goToLevel } from '../navigation.ts';
-import { STORY_LAST_LEVEL, chapterProgress } from '../story.ts';
-import { drawBackground } from './background.ts';
+import { ITEM_TEX, SECONDARY, THEME, applySettings, audio, haptics, save } from '../services.ts';
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -13,26 +10,43 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     const { width: w, height: h } = this.scale;
-    drawBackground(this);
-    this.drawLogoMark(w / 2, h * 0.36);
+    this.add.image(w / 2, h / 2, 'bg-garden').setDisplaySize(w, h);
+    // soft wash at the top and bottom so text reads over the painting
+    const wash = this.add.graphics();
+    wash.fillGradientStyle(0xfff8ea, 0xfff8ea, 0xfff8ea, 0xfff8ea, 0.9, 0.9, 0, 0);
+    wash.fillRect(0, 0, w, 760);
+    wash.fillGradientStyle(0x2a1a10, 0x2a1a10, 0x2a1a10, 0x2a1a10, 0, 0, 0.55, 0.55);
+    wash.fillRect(0, h - 900, w, 900);
 
+    // logo: a little pile of seeds over the title
+    const seeds = ['redbean', 'corn', 'pea', 'sunflower', 'pumpkin', 'acorn', 'runner'];
+    seeds.forEach((k, i) => {
+      const x = w / 2 + (i - 3) * 110;
+      const y = 300 + Math.abs(i - 3) * 18;
+      const s = this.add.image(x, y - 300, ITEM_TEX(k)).setScale(0.55).setAngle(-18 + i * 6);
+      this.tweens.add({ targets: s, y, duration: 650, delay: 100 + i * 70, ease: 'Bounce.easeOut' });
+    });
     const title = this.add
-      .text(w / 2, h * 0.45, 'Seed Sort', {
+      .text(w / 2, 470, 'Seed Sort', { fontFamily: THEME.font, fontSize: '170px', fontStyle: '800', color: '#3e7f2f' })
+      .setOrigin(0.5)
+      .setStroke('#ffffff', 18);
+    title.setShadow(0, 10, 'rgba(62,127,47,0.35)', 0, true, true);
+    popIn(this, title, 200);
+    this.add
+      .text(w / 2, 610, 'Catch every seed. Grow your garden.', {
         fontFamily: THEME.font,
-        fontSize: '150px',
-        fontStyle: '800',
+        fontSize: '44px',
+        fontStyle: '700',
         color: THEME.ink,
       })
-      .setOrigin(0.5);
-    title.setLetterSpacing(-2);
-
-    this.drawChapterProgress(w / 2, h * 0.45 + 120);
+      .setOrigin(0.5)
+      .setStroke('#fff8ea', 10);
 
     const level = save.get().level;
-    makeButton(
+    const play = makeButton(
       this,
       w / 2,
-      h * 0.66,
+      h - 520,
       level === 1 ? 'Play' : `Play  ·  Level ${level}`,
       () => {
         audio.unlock();
@@ -40,27 +54,34 @@ export class MenuScene extends Phaser.Scene {
         haptics.fire('light');
         goToLevel(this, save.get().level);
       },
-      { width: 620, height: 150, fontSize: 60, theme: THEME },
+      { width: 660, height: 170, fontSize: 64, theme: THEME },
     );
+    this.tweens.add({ targets: play, scale: 1.04, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 800 });
 
     const found = Object.keys(save.get().garden).length;
     makeButton(
       this,
       w / 2,
-      h * 0.66 + 190,
-      found > 0 ? `Garden  ·  ${found} plants` : 'Garden',
+      h - 320,
+      found > 0 ? `My Garden  ·  ${found} plants` : 'My Garden',
       () => {
         audio.unlock();
         audio.tap();
         this.scene.start('garden', { from: 'menu' });
       },
-      { width: 620, height: 120, fontSize: 44, color: 0x2c3a57, shadow: THEME.surfaceEdge, textColor: THEME.ink, theme: THEME },
+      { width: 660, height: 130, fontSize: 46, ...SECONDARY, theme: THEME },
     );
+    const best = save.get().bestScore;
+    if (best > 0) {
+      this.add
+        .text(w / 2, h - 190, `Best score  ${best.toLocaleString()}`, { fontFamily: THEME.font, fontSize: '38px', fontStyle: '700', color: '#fff8ea' })
+        .setOrigin(0.5);
+    }
 
     const soundBtn = makeIconButton(
       this,
-      w - 110,
-      120,
+      w - 100,
+      100,
       (g) => this.drawSpeaker(g, save.get().settings.sound),
       () => {
         save.update((d) => (d.settings.sound = !d.settings.sound));
@@ -69,58 +90,13 @@ export class MenuScene extends Phaser.Scene {
         audio.tap();
         this.drawSpeaker(soundBtn.list[1] as Phaser.GameObjects.Graphics, save.get().settings.sound);
       },
-      { size: 110, theme: THEME },
+      { size: 104, theme: THEME },
     );
 
     this.add
-      .text(w / 2, h - 80, 'THE GENETIC STANDARD', {
-        fontFamily: THEME.font,
-        fontSize: '28px',
-        fontStyle: '500',
-        color: '#4c5a76',
-      })
+      .text(w / 2, h - 80, 'THE GENETIC STANDARD', { fontFamily: THEME.font, fontSize: '28px', fontStyle: '700', color: '#efe2c8' })
       .setOrigin(0.5)
       .setLetterSpacing(8);
-  }
-
-  /** "Chapter 2 · The Glass House" with a progress bar, or a tagline before the story starts / after it ends. */
-  private drawChapterProgress(cx: number, y: number): void {
-    const level = save.get().level;
-    const p = chapterProgress(level);
-    const style = { fontFamily: THEME.font, fontSize: '42px', fontStyle: '500', color: THEME.inkSoft };
-    if (!p) {
-      const t = level > STORY_LAST_LEVEL ? 'Larkspur Gardens is open. More chapters soon.' : 'Sort the seeds. Grow your garden.';
-      this.add.text(cx, y, t, style).setOrigin(0.5);
-      return;
-    }
-    this.add.text(cx, y, `Chapter ${p.chapter.id}  ·  ${p.chapter.title}`, style).setOrigin(0.5);
-    const barW = 520;
-    const g = this.add.graphics();
-    g.fillStyle(THEME.surface, 1);
-    g.fillRoundedRect(cx - barW / 2, y + 50, barW, 18, 9);
-    if (p.done > 0) {
-      g.fillStyle(THEME.primary, 1);
-      g.fillRoundedRect(cx - barW / 2, y + 50, Math.max(18, (barW * p.done) / p.total), 18, 9);
-    }
-  }
-
-  /** Three sorted slots: the game in one glance. */
-  private drawLogoMark(cx: number, bottom: number): void {
-    const slotW = 104;
-    const scale = (slotW * 0.8) / SEED_TEX_W;
-    const step = SEED_TEX_H * scale * 0.8;
-    const slotH = 3 * step + 40;
-    const colors = [0, 1, 2];
-    colors.forEach((color, i) => {
-      const x = cx + (i - 1) * (slotW + 34);
-      const g = this.add.graphics({ x, y: bottom });
-      drawJar(g, slotW, slotH, false, i === 1 ? 0x3ddc84 : undefined);
-      for (let k = 0; k < 3; k++) {
-        const s = this.add.image(x, bottom - 14 - (SEED_TEX_H * scale) / 2 - k * step, SEED_TEX(color)).setScale(scale);
-        s.alpha = 0;
-        this.tweens.add({ targets: s, alpha: 1, y: { from: s.y - 40, to: s.y }, duration: 380, delay: 120 + i * 90 + k * 60, ease: 'Cubic.easeOut' });
-      }
-    });
   }
 
   private drawSpeaker(g: Phaser.GameObjects.Graphics, on: boolean): void {
