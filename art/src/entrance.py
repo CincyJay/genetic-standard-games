@@ -3,7 +3,9 @@ Hollow Brook: Entrance Path scene, as layered SVG.
 Writes art/out/entrance-overgrown.svg and art/out/entrance-restored.svg.
 Every element is a separate group so the game can swap broken/fixed states per task.
 """
-import math, random, os
+import math, random, os, sys
+sys.path.insert(0, os.path.dirname(__file__))
+from foliage import GREEN, DRY, HEDGE, tree, bush, foliage, hedge_top, hedge_face_texture, grass_tufts, flower_planting
 
 W, H = 1080, 1920
 OUT = os.path.join(os.path.dirname(__file__), '..', 'out')
@@ -100,7 +102,9 @@ def flowerbed(cx, cy, w, h, colors, seed, planted=True):
     for i in range(22):
         a = i / 22 * math.tau
         s += f'<ellipse cx="{cx + math.cos(a)*w/2:.1f}" cy="{cy + math.sin(a)*h/2:.1f}" rx="{w*0.05:.1f}" ry="{h*0.07:.1f}" fill="#d8cdb8" stroke="#b7a88e" stroke-width="2"/>'
-    if planted:
+    if planted == 'flowers':
+        s += flower_planting(cx, cy, w, h, colors, seed)
+    elif planted:
         items = []
         for i in range(int(w * h / 1800)):
             a = rr.random() * math.tau
@@ -239,31 +243,37 @@ def scene(restored: bool) -> str:
     # distant hills + treeline
     o.append(f'<path d="M0,700 Q180,560 380,640 Q560,700 720,610 Q900,520 1080,620 L1080,900 L0,900 Z" fill="url(#hill1)"/>')
     rr = random.Random(11)
+    haze = ['#5f9277', '#6a9f80', '#76aa89', '#82b493', '#90bf9d', '#a2cba9']
     trees = ''
-    for i in range(16):
-        x = i * 72 + rr.uniform(-20, 20)
-        r = rr.uniform(46, 70)
-        trees += f'<path d="{blob(x, 700 + rr.uniform(-10,20), r, 9, 0.15, 0.9, i)}" fill="#6a9f78"/>'
-    o.append(trees)
+    for i in range(14):
+        x = i * 82 + rr.uniform(-20, 20)
+        r = rr.uniform(48, 72)
+        trees += foliage(x, 700 + rr.uniform(-10, 20), r, r * 0.85, haze, 200 + i, density=0.6)
+    o.append(f'<g opacity="0.9">{trees}</g>')
     o.append(f'<path d="M0,760 Q260,700 540,740 Q820,780 1080,720 L1080,900 L0,900 Z" fill="url(#hill2)"/>')
     # greenhouse in the distance
     o.append(greenhouse(800, 760, broken=not restored))
     # lawn
     o.append(f'<path d="M0,780 Q540,740 1080,780 L1080,{H} L0,{H} Z" fill="url(#{"lawn" if restored else "lawnDry"})"/>')
+    if restored:  # faint mowing stripes, converging toward the gate
+        for k in range(-6, 7):
+            if k % 2:
+                o.append(f'<path d="M{540 + k*30},{790} L{540 + (k+1)*30},{790} L{540 + (k+1)*260},{H} L{540 + k*260},{H} Z" fill="#ffffff" opacity="0.045"/>')
+    o.append(grass_tufts(lambda x, y: y > 800, 800, H, GREEN if restored else DRY, 21, n=900 if restored else 650))
     # hedges receding (left/right walls)
-    hedge = '#3f7f3f' if restored else '#55703a'
-    hedgeLight = '#58a052' if restored else '#6f8a46'
-    o.append(f'<path d="M0,880 L330,800 L330,860 L0,1080 Z" fill="{hedge}"/><path d="M0,880 L330,800 L330,815 L0,905 Z" fill="{hedgeLight}"/>')
-    o.append(f'<path d="M1080,880 L750,800 L750,860 L1080,1080 Z" fill="{hedge}"/><path d="M1080,880 L750,800 L750,815 L1080,905 Z" fill="{hedgeLight}"/>')
-    if not restored:
-        for k in range(10):
-            x = 30 + k * 30
-            o.append(f'<path d="{blob(x, 860 - k*7 + rr.uniform(-8,8), 22, 7, 0.3, 0.8, k+40)}" fill="#6f8a3a"/>')
-            o.append(f'<path d="{blob(W - x, 860 - k*7 + rr.uniform(-8,8), 22, 7, 0.3, 0.8, k+60)}" fill="#6f8a3a"/>')
+    hp = HEDGE if restored else DRY
+    leftH = [(0, 880), (330, 800), (330, 860), (0, 1080)]
+    rightH = [(1080, 880), (750, 800), (750, 860), (1080, 1080)]
+    for poly, sd in ((leftH, 1), (rightH, 2)):
+        o.append(f'<path d="{path_d(poly)}" fill="{hp[2]}"/>')
+        o.append(hedge_face_texture(poly, hp, 300 + sd, n=170))
+    # left face is in shadow (sun is to the right)
+    o.append(f'<path d="{path_d(leftH)}" fill="#0d2410" opacity="0.18"/>')
+    o.append(hedge_top(0, 892, 330, 806, 30 if restored else 36, 10 if restored else 14, hp, 41))
+    o.append(hedge_top(1080, 892, 750, 806, 30 if restored else 36, 10 if restored else 14, hp, 42))
     # trees behind the hedges, framing the gate
-    for (tx, ty, tr, sd) in [(990, 700, 150, 3), (90, 720, 130, 8)]:
-        o.append(f'<rect x="{tx-22}" y="{ty}" width="44" height="{170}" fill="#6b4a33"/><rect x="{tx-22}" y="{ty}" width="14" height="170" fill="#83603f"/>')
-        o.append(tree_canopy(tx, ty, tr, '#4f9a4a' if restored else '#6f8a3a', '#7cc46a' if restored else '#8fa252', '#3a7a3a' if restored else '#55703a', sd))
+    for (tx, ground, th, cr, sd) in [(985, 880, 380, 190, 3), (95, 890, 340, 165, 8)]:
+        o.append(tree(tx, ground, th, cr, GREEN if restored else DRY, sd))
     # gate at end of path
     o.append(f'<g id="gate">{gate(540, 870, open_=restored, vines=not restored)}</g>')
     # path (perspective)
@@ -295,13 +305,15 @@ def scene(restored: bool) -> str:
         row += 1
     o.append(f'<g id="path">{stones}</g>')
     # flowerbeds
-    o.append(f'<g id="bed-left">{flowerbed(210, 1180, 300, 150, ["#ff6f91", "#ffc93c", "#ffffff", "#c77dff"], 1, planted=restored)}</g>')
-    o.append(f'<g id="bed-right">{flowerbed(890, 1120, 260, 130, ["#ff8c42", "#ffd84d", "#ff5d5d"], 2, planted=restored)}</g>')
+    left_plan = [('tulip', '#e8475f'), ('tulip', '#f2b632'), ('daisy', '#ffffff'), ('cosmos', '#d36fd8'), ('daisy', '#ffffff')]
+    right_plan = [('rose', '#e8475f'), ('cosmos', '#ff9a52'), ('tulip', '#ffd23f'), ('rose', '#f7a6c2')]
+    o.append(f'<g id="bed-left">{flowerbed(210, 1180, 300, 150, left_plan, 1, planted="flowers" if restored else False)}</g>')
+    o.append(f'<g id="bed-right">{flowerbed(890, 1120, 260, 130, right_plan, 2, planted="flowers" if restored else False)}</g>')
     # shrubs along the hedges
     for (x, yy, r, sd) in [(70, 1010, 70, 1), (1010, 1000, 75, 4), (330, 930, 45, 7), (760, 925, 45, 9)]:
-        o.append(shrub(x, yy, r, seed=sd) if restored else shrub(x, yy, r, '#6f8a3a', '#8fa252', '#55703a', sd))
+        o.append(bush(x, yy, r, GREEN if restored else DRY, sd))
     # lamp post
-    o.append(f'<g id="lamp">{lamp(150, 1520, lit=restored, broken=not restored)}</g>')
+    o.append(f'<g id="lamp">{lamp(1045, 1560, lit=restored, broken=not restored)}</g>')
     # bench
     o.append(f'<g id="bench">{bench(895, 1500, broken=not restored)}</g>')
     # pond bottom-left with goose
