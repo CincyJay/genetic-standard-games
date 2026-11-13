@@ -46,6 +46,15 @@ npm run dev:casino                     # http://localhost:5174 (vite picks the p
 node games/casino/tests/e2e/playtest.mjs http://localhost:5174/   # plays every game
 ```
 
+**Android app (Capacitor):** `games/casino/android/` is the native project. Build an installable APK:
+
+```bash
+cd games/casino && npx vite build && npx cap sync android
+cd android && ./gradlew assembleDebug    # needs the Android SDK (ANDROID_HOME); output in app/build/outputs/apk/debug/
+```
+
+Icons and splash screens: `node art/casino/android-icons.mjs`.
+
 **Before launch:** a short consult with a gaming lawyer (social casino rules vary by state;
 Washington in particular), store age ratings, and geo-restrictions where needed.
 

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Velvet Ace Casino</string>
+    <string name="title_activity_main">Velvet Ace Casino</string>
+    <string name="package_name">com.thegeneticstandard.velvetace</string>
+    <string name="custom_url_scheme">com.thegeneticstandard.velvetace</string>
+</resources>
