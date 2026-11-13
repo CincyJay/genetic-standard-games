@@ -122,7 +122,7 @@ function lineWin(grid: Grid, line: number[], lineBet: number, idx: number): Line
     else break;
   }
   const candidates: { symbol: Exclude<Sym, 'scatter'>; count: number }[] = [];
-  if (target !== 'wild' && target !== 'scatter') candidates.push({ symbol: target, count: countFor(target) });
+  if (target !== 'wild') candidates.push({ symbol: target, count: countFor(target) });
   if (wildRun >= 3) candidates.push({ symbol: 'wild', count: wildRun });
   let best: LineWin | null = null;
   for (const c of candidates) {
