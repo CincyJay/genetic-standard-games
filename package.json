@@ -12,8 +12,10 @@
     "dev": "npm run dev -w games/seed-sort",
     "build": "npm run build -w games/seed-sort",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit -p games/seed-sort",
-    "playtest": "node games/seed-sort/tests/e2e/playtest.mjs"
+    "typecheck": "tsc --noEmit -p games/seed-sort && tsc --noEmit -p games/casino",
+    "playtest": "node games/seed-sort/tests/e2e/playtest.mjs",
+    "dev:casino": "npm run dev -w games/casino",
+    "build:casino": "npm run build -w games/casino"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",
