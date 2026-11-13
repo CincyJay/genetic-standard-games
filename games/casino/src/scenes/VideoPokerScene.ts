@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { PAYTABLE, VideoPokerRound, classify, payFor } from '../logic/videopoker.ts';
 import { GOLD, SECONDARY, THEME, audio, fmt, haptics, wallet } from '../services.ts';
 import { CARD_H, CARD_W, banner, coinBar, coinShower, dealCard, flipCard, makeButton, outOfCoins, text } from '../ui/common.ts';
+import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
 const DENOMS = [10, 50, 100, 500, 1000];
 const CARD_Y = 1080;
@@ -25,8 +26,10 @@ export class VideoPokerScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width: w, height: h } = this.scale;
-    this.add.image(w / 2, h / 2, 'bg-lobby').setDisplaySize(w, h);
+    const w = VW;
+    const h = VH;
+    frame(this);
+    backdrop(this, 'bg-lobby');
     this.refresh = coinBar(this, 'Video Poker', () => this.scene.start('lobby'));
     // machine screen
     const scr = this.add.graphics();
@@ -84,7 +87,7 @@ export class VideoPokerScene extends Phaser.Scene {
   }
 
   private cardX(i: number): number {
-    return this.scale.width / 2 + (i - 2) * 196;
+    return VW / 2 + (i - 2) * 196;
   }
 
   private updateBet(): void {
@@ -103,7 +106,7 @@ export class VideoPokerScene extends Phaser.Scene {
     if (win) {
       const r = PAYTABLE.findIndex((p) => p.key === win);
       g.fillStyle(0xff4f8b, 0.45);
-      g.fillRect(60, top - 6 + r * rowH, this.scale.width - 120, rowH);
+      g.fillRect(60, top - 6 + r * rowH, VW - 120, rowH);
     }
     this.table.add(g);
     PAYTABLE.forEach((p, r) => {
@@ -194,7 +197,7 @@ export class VideoPokerScene extends Phaser.Scene {
       else {
         audio.win();
         banner(this, name, `+${fmt(win)}`);
-        coinShower(this, this.scale.width / 2, CARD_Y, win);
+        coinShower(this, VW / 2, CARD_Y, win);
       }
       haptics.fire('success');
     } else {

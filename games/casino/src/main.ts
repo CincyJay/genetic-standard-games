@@ -29,7 +29,7 @@ async function start(): Promise<void> {
     backgroundColor: THEME.bg,
     width: 1080,
     height: 1920,
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
     render: { antialias: true },
     input: { activePointers: 1 },
     scene: [BootScene, LobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene],

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { BlackjackRound, Shoe, handTotal, type PlayerHand } from '../logic/blackjack.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, wallet } from '../services.ts';
 import { CARD_H, CARD_W, banner, chipPicker, coinBar, coinShower, dealCard, flipCard, makeButton, outOfCoins, text } from '../ui/common.ts';
+import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
 const SHOE = { x: 940, y: 330 };
 const DEALER_Y = 470;
@@ -28,8 +29,10 @@ export class BlackjackScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width: w, height: h } = this.scale;
-    this.add.image(w / 2, h / 2, 'bg-felt').setDisplaySize(w, h);
+    const w = VW;
+    const h = VH;
+    frame(this);
+    backdrop(this, 'bg-felt');
     this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('lobby'));
     // table printing
     text(this, w / 2, 760, 'BLACKJACK PAYS 3 TO 2', 44, '700', 'rgba(233,200,106,0.7)', DISPLAY_FONT);
@@ -67,7 +70,7 @@ export class BlackjackScene extends Phaser.Scene {
     let k = 0;
     for (const v of [...CHIPS].reverse()) {
       while (rest >= v && k < 8) {
-        this.betChips.push(this.add.image(this.scale.width / 2, BET_Y - k * 10, `chip-${v}`).setDisplaySize(130, 130).setDepth(5));
+        this.betChips.push(this.add.image(VW / 2, BET_Y - k * 10, `chip-${v}`).setDisplaySize(130, 130).setDepth(5));
         rest -= v;
         k++;
       }
@@ -79,7 +82,7 @@ export class BlackjackScene extends Phaser.Scene {
     this.busy = false;
     this.clearControls();
     this.showBet();
-    const { width: w } = this.scale;
+    const w = VW;
     this.controls.push(
       ...chipPicker(this, 1660, CHIPS, this.chip, (v) => {
         this.chip = v;
@@ -130,14 +133,14 @@ export class BlackjackScene extends Phaser.Scene {
   // ---------------------------------------------------------- positions
   private handCenter(i: number): number {
     const n = this.round?.hands.length ?? 1;
-    const w = this.scale.width;
+    const w = VW;
     return n === 1 ? w / 2 : i === 0 ? w * 0.28 : w * 0.72;
   }
   private cardX(hand: number, j: number, n: number): number {
     return this.handCenter(hand) + (j - (n - 1) / 2) * 62;
   }
   private dealerX(j: number, n: number): number {
-    return this.scale.width / 2 + (j - (n - 1) / 2) * 70;
+    return VW / 2 + (j - (n - 1) / 2) * 70;
   }
 
   // ------------------------------------------------------------ playing
@@ -145,7 +148,7 @@ export class BlackjackScene extends Phaser.Scene {
     this.clearControls();
     const r = this.round!;
     if (r.phase !== 'player') return;
-    const { width: w } = this.scale;
+    const w = VW;
     const y = 1700;
     const btns: [string, () => void, object][] = [
       ['Hit', () => this.act('hit'), {}],
@@ -220,7 +223,7 @@ export class BlackjackScene extends Phaser.Scene {
     });
     if (r.phase === 'settled') {
       const d = handTotal(r.dealer).total;
-      this.labels.push(this.badge(this.scale.width / 2, DEALER_Y - CARD_H / 2 - 50, d > 21 ? 'Bust' : String(d), false));
+      this.labels.push(this.badge(VW / 2, DEALER_Y - CARD_H / 2 - 50, d > 21 ? 'Bust' : String(d), false));
     }
   }
 
@@ -271,7 +274,7 @@ export class BlackjackScene extends Phaser.Scene {
     }
     if (net > 0) {
       haptics.fire('success');
-      coinShower(this, this.scale.width / 2, PLAYER_Y, net);
+      coinShower(this, VW / 2, PLAYER_Y, net);
       wallet.recordWin(net);
     }
     this.time.delayedCall(2200, () => this.clearTable());

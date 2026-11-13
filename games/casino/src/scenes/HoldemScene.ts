@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { makeButton, popIn } from '@tgs/kit';
-import { cardId } from '../logic/cards.ts';
 import { HoldemTable, decide, type Personality } from '../logic/holdem.ts';
-import { DANGER, DISPLAY_FONT, GOLD, SECONDARY, THEME, audio, fmt, haptics, wallet } from '../services.ts';
-import { CARD_H, CARD_W, banner, coinBar, coinShower, dealCard, flipCard, outOfCoins, text } from '../ui/common.ts';
+import { THEME, audio, fmt, haptics, wallet } from '../services.ts';
+import { CARD_H, CARD_W, coinBar, dealCard, flipCard, outOfCoins, text } from '../ui/common.ts';
+import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
 const STAKES = [
   { name: 'Casual', sb: 10, bb: 20, buyIn: 2_000 },
@@ -11,275 +11,446 @@ const STAKES = [
   { name: 'VIP Room', sb: 250, bb: 500, buyIn: 50_000 },
 ];
 const SEATS = [
-  { x: 540, y: 1440 },
-  { x: 150, y: 1170 },
-  { x: 150, y: 690 },
-  { x: 540, y: 450 },
-  { x: 930, y: 690 },
-  { x: 930, y: 1170 },
+  { x: 540, y: 1585 },
+  { x: 112, y: 1290 },
+  { x: 112, y: 640 },
+  { x: 540, y: 300 },
+  { x: 968, y: 640 },
+  { x: 968, y: 1290 },
 ];
-const CENTER = { x: 540, y: 880 };
-const BOARD_Y = 900;
-const BOT_POOL: [string, number, Personality][] = [
-  ['Rosa', 0xff4f8b, { aggression: 0.7, bluff: 0.12 }],
-  ['Dmitri', 0x4fd1ff, { aggression: 0.3, bluff: 0.04 }],
-  ['Kwame', 0x7dff6a, { aggression: 0.5, bluff: 0.08 }],
-  ['Lena', 0xffe14a, { aggression: 0.85, bluff: 0.18 }],
-  ['Hector', 0xff9a3c, { aggression: 0.2, bluff: 0.03 }],
-  ['Priya', 0xc77dff, { aggression: 0.55, bluff: 0.1 }],
-  ['Sam', 0x2fd6c3, { aggression: 0.4, bluff: 0.06 }],
-  ['Yuki', 0xff7a5c, { aggression: 0.65, bluff: 0.14 }],
+const CENTER = { x: 540, y: 960 };
+const POT = { x: 540, y: 780 };
+const BOARD_Y = 960;
+const BRASS = 0xc9a96a;
+const BRASS_HEX = '#d9c38f';
+const PANEL = 0x0d0b0d;
+const AV = 128; // avatar diameter
+
+const BOTS: { name: string; key: string; p: Personality }[] = [
+  { name: 'Rosa', key: 'rosa', p: { aggression: 0.7, bluff: 0.12 } },
+  { name: 'Dmitri', key: 'dmitri', p: { aggression: 0.3, bluff: 0.04 } },
+  { name: 'Kwame', key: 'kwame', p: { aggression: 0.5, bluff: 0.08 } },
+  { name: 'Lena', key: 'lena', p: { aggression: 0.85, bluff: 0.18 } },
+  { name: 'Hector', key: 'hector', p: { aggression: 0.2, bluff: 0.03 } },
+  { name: 'Priya', key: 'priya', p: { aggression: 0.55, bluff: 0.1 } },
+  { name: 'Sam', key: 'sam', p: { aggression: 0.4, bluff: 0.06 } },
+  { name: 'Yuki', key: 'yuki', p: { aggression: 0.65, bluff: 0.14 } },
 ];
 
-interface SeatView {
-  color: number;
-  personality: Personality;
+interface SeatUi {
+  key: string;
+  p: Personality;
+  avatar: Phaser.GameObjects.Image;
+  ring: Phaser.GameObjects.Graphics;
+  timer: Phaser.GameObjects.Graphics;
+  name: Phaser.GameObjects.Text;
+  stack: Phaser.GameObjects.Text;
+  bubble: Phaser.GameObjects.Container | null;
   cards: Phaser.GameObjects.Image[];
+  bet: Phaser.GameObjects.Container | null;
+  shownBet: number;
 }
+
+const CHIP_VALUES = [5000, 1000, 500, 100, 50, 10];
 
 export class HoldemScene extends Phaser.Scene {
   private table: HoldemTable | null = null;
   private stake = STAKES[0]!;
-  private views: SeatView[] = [];
-  private poolIndex = 0;
+  private seats: SeatUi[] = [];
+  private botCursor = 0;
   private refresh!: () => void;
-  private layer!: Phaser.GameObjects.Container;
-  private controls: Phaser.GameObjects.GameObject[] = [];
   private board: Phaser.GameObjects.Image[] = [];
+  private pot: Phaser.GameObjects.Container | null = null;
+  private shownPot = 0;
+  private dealerBtn: Phaser.GameObjects.Container | null = null;
+  private handLabel!: Phaser.GameObjects.Text;
+  private controls: Phaser.GameObjects.GameObject[] = [];
   private stepping = false;
+  private thinking: Phaser.Tweens.Tween | null = null;
+  private bottom = VH;
 
   constructor() {
     super('holdem');
   }
 
   create(): void {
-    const { width: w, height: h } = this.scale;
-    this.add.image(w / 2, h / 2, 'bg-lobby').setDisplaySize(w, h);
+    const w = VW;
+    const h = VH;
+    this.bottom = frame(this).bottom;
+    backdrop(this, 'bg-poker');
     this.table = null;
-    this.views = [];
+    this.seats = [];
     this.board = [];
+    this.pot = null;
+    this.shownPot = 0;
+    this.dealerBtn = null;
     this.controls = [];
-    this.poolIndex = Phaser.Math.Between(0, BOT_POOL.length - 1);
-    this.drawTableFelt();
-    this.layer = this.add.container(0, 0).setDepth(20);
+    this.stepping = false;
+    this.botCursor = Phaser.Math.Between(0, BOTS.length - 1);
     this.refresh = coinBar(this, "Hold'em", () => this.leave());
-    this.chooseStakes();
+    this.handLabel = text(this, SEATS[0]!.x, 1268, '', 34, '700', BRASS_HEX).setDepth(30);
     (globalThis as Record<string, unknown>).__holdem = {
       state: () => ({ toAct: this.table?.toAct ?? -1, street: this.table?.street ?? 'none', hand: this.table?.handNumber ?? 0, stack: this.table?.seats[0]!.stack ?? 0 }),
     };
-  }
-
-  private drawTableFelt(): void {
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.4);
-    g.fillEllipse(CENTER.x, CENTER.y + 20, 900, 1360);
-    g.fillStyle(0x5a2e12, 1);
-    g.fillEllipse(CENTER.x, CENTER.y, 900, 1360);
-    g.fillStyle(0x7a4520, 1);
-    g.fillEllipse(CENTER.x, CENTER.y - 6, 870, 1330);
-    g.fillStyle(0x0f6a42, 1);
-    g.fillEllipse(CENTER.x, CENTER.y, 780, 1240);
-    g.fillStyle(0x1f8a57, 0.6);
-    g.fillEllipse(CENTER.x, CENTER.y - 40, 600, 900);
-    g.lineStyle(3, 0xe9c86a, 0.45);
-    g.strokeEllipse(CENTER.x, CENTER.y, 700, 1150);
-    text(this, CENTER.x, 1060, 'VELVET ACE', 40, '900', 'rgba(233,200,106,0.35)', DISPLAY_FONT).setLetterSpacing(6);
+    this.chooseStakes();
   }
 
   // ------------------------------------------------------------ buy-in
+  private panelBg(wd: number, ht: number): Phaser.GameObjects.Graphics {
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.5);
+    g.fillRoundedRect(-wd / 2, -ht / 2 + 12, wd, ht, 36);
+    g.fillStyle(PANEL, 0.94);
+    g.fillRoundedRect(-wd / 2, -ht / 2, wd, ht, 36);
+    g.lineStyle(2, BRASS, 0.6);
+    g.strokeRoundedRect(-wd / 2, -ht / 2, wd, ht, 36);
+    return g;
+  }
+
   private chooseStakes(): void {
-    const { width: w } = this.scale;
-    const panel = this.add.container(w / 2, 900).setDepth(100);
-    const bg = this.add.graphics();
-    bg.fillStyle(THEME.surfaceEdge, 0.95);
-    bg.fillRoundedRect(-440, -420, 880, 840, 48);
-    bg.lineStyle(4, 0xe9c86a, 0.9);
-    bg.strokeRoundedRect(-440, -420, 880, 840, 48);
-    panel.add([bg, text(this, 0, -330, 'Choose a table', 64, '900', GOLD, DISPLAY_FONT)]);
+    const w = VW;
+    const panel = this.add.container(w / 2, 960).setDepth(100);
+    panel.add([this.panelBg(860, 820), text(this, 0, -320, 'Choose a table', 56, '800', '#ffffff')]);
+    panel.add(text(this, 0, -262, 'Six-max no-limit hold’em', 30, '500', '#9a8f9e'));
     STAKES.forEach((s, i) => {
-      const y = -170 + i * 200;
-      panel.add(
-        makeButton(
-          this,
-          0,
-          y,
-          `${s.name}  ·  buy-in ${fmt(s.buyIn)}`,
-          () => {
-            if (!wallet.spend(s.buyIn)) return outOfCoins(this, this.refresh);
-            this.refresh();
-            audio.unlock();
-            audio.complete();
-            this.stake = s;
-            panel.destroy();
-            this.sitDown();
-          },
-          { width: 760, height: 130, fontSize: 40, theme: THEME, ...(i === 0 ? {} : SECONDARY) },
-        ),
-      );
-      panel.add(text(this, 0, y + 88, `Blinds ${fmt(s.sb)} / ${fmt(s.bb)}`, 28, '600', THEME.inkSoft));
+      const y = -130 + i * 190;
+      const row = this.add.container(0, y);
+      const g = this.add.graphics();
+      g.fillStyle(0xffffff, 0.04);
+      g.fillRoundedRect(-380, -70, 760, 140, 24);
+      g.lineStyle(2, BRASS, i === 0 ? 0.9 : 0.35);
+      g.strokeRoundedRect(-380, -70, 760, 140, 24);
+      row.add([
+        g,
+        text(this, -340, -22, s.name, 44, '800', '#ffffff').setOrigin(0, 0.5),
+        text(this, -340, 28, `Blinds ${fmt(s.sb)} / ${fmt(s.bb)}`, 30, '500', '#9a8f9e').setOrigin(0, 0.5),
+        text(this, 340, 0, fmt(s.buyIn), 44, '800', BRASS_HEX).setOrigin(1, 0.5),
+      ]);
+      row.setSize(760, 140).setInteractive({ useHandCursor: true });
+      row.on('pointerup', () => {
+        if (!wallet.spend(s.buyIn)) return outOfCoins(this, this.refresh);
+        this.refresh();
+        audio.unlock();
+        audio.chips(6);
+        this.stake = s;
+        panel.destroy();
+        this.sitDown();
+      });
+      panel.add(row);
     });
+    panel.add(text(this, 0, 360, 'Your buy-in comes back to your balance when you leave.', 26, '500', '#7a707e'));
     popIn(this, panel);
   }
 
-  private nextBot(): [string, number, Personality] {
-    const b = BOT_POOL[this.poolIndex % BOT_POOL.length]!;
-    this.poolIndex++;
+  private nextBot() {
+    const b = BOTS[this.botCursor % BOTS.length]!;
+    this.botCursor++;
     return b;
   }
 
   private sitDown(): void {
     const seats = [{ name: 'You', stack: this.stake.buyIn, human: true }];
-    this.views = [{ color: 0xe9c86a, personality: { aggression: 0, bluff: 0 }, cards: [] }];
+    const picks = [{ name: 'You', key: 'you', p: { aggression: 0, bluff: 0 } }];
     for (let i = 1; i < 6; i++) {
-      const [name, color, personality] = this.nextBot();
-      seats.push({ name, stack: this.stake.buyIn, human: false });
-      this.views.push({ color, personality, cards: [] });
+      const b = this.nextBot();
+      seats.push({ name: b.name, stack: this.stake.buyIn, human: false });
+      picks.push(b);
     }
     this.table = new HoldemTable(seats, this.stake.sb, this.stake.bb);
+    picks.forEach((b, i) => this.seats.push(this.makeSeat(i, b.key, b.name, b.p)));
     this.newHand();
+  }
+
+  private makeSeat(i: number, key: string, name: string, p: Personality): SeatUi {
+    const pos = SEATS[i]!;
+    const shadow = this.add.graphics().setDepth(5);
+    shadow.fillStyle(0x000000, 0.5);
+    shadow.fillCircle(pos.x + 4, pos.y + 8, AV / 2 + 6);
+    const ring = this.add.graphics().setDepth(6);
+    const avatar = this.add.image(pos.x, pos.y, `av-${key}`).setDisplaySize(AV, AV).setDepth(7);
+    const timer = this.add.graphics().setDepth(8);
+    const plate = this.add.graphics().setDepth(8);
+    plate.fillStyle(PANEL, 0.88);
+    plate.fillRoundedRect(pos.x - 92, pos.y + AV / 2 - 6, 184, 70, 18);
+    plate.lineStyle(2, BRASS, 0.4);
+    plate.strokeRoundedRect(pos.x - 92, pos.y + AV / 2 - 6, 184, 70, 18);
+    const nm = text(this, pos.x, pos.y + AV / 2 + 14, name, 26, '700', '#e9e4ea').setDepth(9);
+    const st = text(this, pos.x, pos.y + AV / 2 + 44, '', 28, '800', BRASS_HEX).setDepth(9);
+    const ui: SeatUi = { key, p, avatar, ring, timer, name: nm, stack: st, bubble: null, cards: [], bet: null, shownBet: 0 };
+    this.drawRing(ui, false);
+    return ui;
+  }
+
+  private drawRing(ui: SeatUi, active: boolean, winner = false): void {
+    const i = this.seats.indexOf(ui);
+    const pos = SEATS[i >= 0 ? i : 0]!;
+    ui.ring.clear();
+    ui.ring.lineStyle(winner ? 8 : 5, winner ? 0xffd75e : active ? 0xffffff : BRASS, winner || active ? 1 : 0.7);
+    ui.ring.strokeCircle(pos.x, pos.y, AV / 2 + 4);
+  }
+
+  // ------------------------------------------------------------ chips
+  /** A small 3D stack of chips representing `amount`, with a label. */
+  private chipStack(x: number, y: number, amount: number, label = true): Phaser.GameObjects.Container {
+    const c = this.add.container(x, y).setDepth(12);
+    const chips: number[] = [];
+    let rest = amount;
+    for (const v of CHIP_VALUES) {
+      while (rest >= v && chips.length < 9) {
+        chips.push(v);
+        rest -= v;
+      }
+    }
+    if (chips.length === 0) chips.push(10);
+    const sh = this.add.ellipse(4, 8, 88, 40, 0x000000, 0.45);
+    c.add(sh);
+    chips.reverse().forEach((v, k) => {
+      c.add(this.add.image(0, -k * 9, `chip-${v}`).setDisplaySize(80, 44));
+    });
+    if (label) {
+      const t = text(this, 0, 44, fmt(amount), 28, '800', '#ffffff');
+      const bg = this.add.graphics();
+      bg.fillStyle(0x000000, 0.65);
+      bg.fillRoundedRect(-t.width / 2 - 14, 26, t.width + 28, 36, 18);
+      c.add([bg, t]);
+    }
+    return c;
+  }
+
+  private betSpot(i: number): { x: number; y: number } {
+    const p = SEATS[i]!;
+    const k = i === 0 ? 0.38 : i === 3 ? 0.45 : 0.4;
+    return { x: p.x + (CENTER.x - p.x) * k, y: p.y + (CENTER.y - p.y) * k + (i === 0 ? -150 : 0) };
   }
 
   // ------------------------------------------------------------ hand flow
   private newHand(): void {
+    if (!this.table) return;
     const t = this.table!;
-    // replace busted computer players so the table stays full
     for (let i = 1; i < 6; i++) {
       if (t.seats[i]!.stack <= 0) {
-        const [name, color, personality] = this.nextBot();
-        Object.assign(t.seats[i]!, { name, stack: this.stake.buyIn, out: false });
-        this.views[i] = { color, personality, cards: [] };
-        this.toast(`${name} joins the table`);
+        const b = this.nextBot();
+        Object.assign(t.seats[i]!, { name: b.name, stack: this.stake.buyIn, out: false });
+        const ui = this.seats[i]!;
+        ui.key = b.key;
+        ui.p = b.p;
+        ui.avatar.setTexture(`av-${b.key}`).setDisplaySize(AV, AV);
+        ui.name.setText(b.name);
+        this.toast(`${b.name} sits down`);
       }
     }
     if (t.seats[0]!.stack <= 0) return this.busted();
-    for (const v of this.views) v.cards.forEach((c) => c.destroy());
+    for (const ui of this.seats) {
+      ui.cards.forEach((c) => c.destroy());
+      ui.cards = [];
+      ui.bet?.destroy();
+      ui.bet = null;
+      ui.shownBet = 0;
+      ui.bubble?.destroy();
+      ui.bubble = null;
+      ui.avatar.setAlpha(1);
+      this.drawRing(ui, false);
+    }
     this.board.forEach((c) => c.destroy());
     this.board = [];
+    this.pot?.destroy();
+    this.pot = null;
+    this.shownPot = 0;
+    this.handLabel.setText('');
     t.startHand();
-    // deal hole cards
+    this.placeDealerButton();
+    // deal hole cards: yours face up and large, theirs face down beside their portrait
     let d = 0;
-    t.seats.forEach((s, i) => {
-      const v = this.views[i]!;
-      v.cards = [];
-      if (s.out) return;
-      const human = i === 0;
-      for (let k = 0; k < 2; k++) {
+    for (let k = 0; k < 2; k++) {
+      t.seats.forEach((s, i) => {
+        if (s.out) return;
         const pos = this.holePos(i, k);
-        const card = dealCard(this, CENTER, pos.x, pos.y, human ? s.cards[k]! : null, d, human ? 0.95 : 0.5);
-        card.setAngle(human ? (k ? 6 : -6) : k ? 8 : -8);
-        v.cards.push(card);
-        d += 60;
-      }
-    });
-    this.render();
-    this.time.delayedCall(d + 300, () => this.step());
+        const human = i === 0;
+        const card = dealCard(this, CENTER, pos.x, pos.y, human ? s.cards[k]! : null, d, human ? 1 : 0.42);
+        card.setAngle(human ? (k ? 5 : -5) : (k ? 10 : -4) * (i < 3 && i > 0 ? 1 : -1)).setDepth(human ? 20 : 4);
+        this.seats[i]!.cards.push(card);
+        d += 70;
+      });
+    }
+    this.syncBets(false);
+    this.time.delayedCall(d + 350, () => this.step());
   }
 
   private holePos(i: number, k: number): { x: number; y: number } {
     const s = SEATS[i]!;
-    if (i === 0) return { x: s.x - 70 + k * 140, y: s.y - 210 };
-    const towardCenter = s.x < 540 ? 1 : s.x > 540 ? -1 : 0;
-    return { x: s.x + towardCenter * 110 + (k - 0.5) * 50, y: s.y + (i === 3 ? 110 : 0) };
+    if (i === 0) return { x: s.x - 72 + k * 144, y: 1395 };
+    const side = s.x < 540 ? 1 : s.x > 540 ? -1 : 0;
+    if (i === 3) return { x: s.x + 96 + k * 34, y: s.y + 20 };
+    return { x: s.x + side * (AV / 2 + 18 + k * 30), y: s.y - 6 };
+  }
+
+  private placeDealerButton(): void {
+    const t = this.table!;
+    const p = SEATS[t.button]!;
+    const x = p.x + (p.x < 540 ? 92 : p.x > 540 ? -92 : -100);
+    const y = p.y + (t.button === 0 ? -90 : 76);
+    if (!this.dealerBtn) {
+      const g = this.add.graphics();
+      g.fillStyle(0x000000, 0.4);
+      g.fillCircle(3, 5, 26);
+      g.fillStyle(0xf4f1ea, 1);
+      g.fillCircle(0, 0, 26);
+      g.lineStyle(3, 0xc9c2b4, 1);
+      g.strokeCircle(0, 0, 20);
+      this.dealerBtn = this.add.container(x, y, [g, text(this, 0, 0, 'D', 26, '900', '#1d1d22')]).setDepth(15);
+    } else this.tweens.add({ targets: this.dealerBtn, x, y, duration: 400, ease: 'Cubic.easeInOut' });
   }
 
   private step(): void {
+    if (!this.table) return;
     const t = this.table!;
     if (this.stepping) return;
     this.syncBoard();
-    this.render();
+    this.syncBets(true);
+    this.syncSeats();
     if (t.street === 'done') return this.showResults();
     if (t.toAct === 0) return this.humanTurn();
+    const i = t.toAct;
+    const think = Phaser.Math.Between(700, 1300);
     this.stepping = true;
-    this.time.delayedCall(Phaser.Math.Between(550, 950), () => {
+    this.startTimer(i, think);
+    this.time.delayedCall(think, () => {
       this.stepping = false;
-      const i = t.toAct;
-      if (i < 0 || t.street === 'done') return this.step();
-      t.act(decide(t, i, this.views[i]!.personality));
-      this.actionSound(t.seats[i]!.lastAction ?? '');
-      this.step();
+      this.stopTimer(i);
+      if (t.toAct !== i || t.street === 'done') return this.step();
+      t.act(decide(t, i, this.seats[i]!.p));
+      this.afterAction(i);
     });
   }
 
-  private actionSound(a: string): void {
-    if (a === 'Fold') audio.play([{ freq: 300, to: 200, dur: 0.08, wave: 'triangle', vol: 0.08 }]);
-    else if (a === 'Check') audio.tap();
-    else audio.play([{ freq: 900, to: 1200, dur: 0.05, wave: 'triangle', vol: 0.12 }, { freq: 1100, to: 1400, dur: 0.05, wave: 'triangle', vol: 0.1, delay: 0.06 }]);
+  private afterAction(i: number): void {
+    const a = this.table!.seats[i]!.lastAction ?? '';
+    if (a === 'Fold') audio.fold();
+    else if (a === 'Check') audio.knock();
+    else audio.chips(a === 'All in' ? 7 : 3);
+    this.bubble(i, a);
+    if (a === 'Fold') {
+      // toss the cards in
+      this.seats[i]!.cards.forEach((c) => this.tweens.add({ targets: c, x: CENTER.x, y: CENTER.y, alpha: 0, angle: 90, duration: 300 }));
+      this.seats[i]!.avatar.setAlpha(0.45);
+    }
+    this.step();
+  }
+
+  private startTimer(i: number, ms: number): void {
+    const ui = this.seats[i]!;
+    const pos = SEATS[i]!;
+    this.drawRing(ui, true);
+    this.thinking?.stop();
+    this.thinking = this.tweens.addCounter({
+      from: 1,
+      to: 0,
+      duration: ms,
+      onUpdate: (tw) => {
+        const v = tw.getValue() ?? 0;
+        ui.timer.clear();
+        ui.timer.lineStyle(8, v > 0.3 ? 0x5ee08f : 0xffb347, 1);
+        ui.timer.beginPath();
+        ui.timer.arc(pos.x, pos.y, AV / 2 + 12, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * v, false);
+        ui.timer.strokePath();
+      },
+    });
+  }
+
+  private stopTimer(i: number): void {
+    this.thinking?.stop();
+    this.thinking = null;
+    this.seats[i]!.timer.clear();
+    this.drawRing(this.seats[i]!, false);
+  }
+
+  private bubble(i: number, label: string): void {
+    const ui = this.seats[i]!;
+    ui.bubble?.destroy();
+    const p = SEATS[i]!;
+    const color = label === 'Fold' ? 0x6a6470 : label === 'Check' ? 0x2f6f8f : label.startsWith('All') ? 0xb3283f : 0x3f7f3f;
+    const t = text(this, 0, 0, label, 26, '800', '#ffffff');
+    const g = this.add.graphics();
+    g.fillStyle(color, 0.95);
+    g.fillRoundedRect(-t.width / 2 - 16, -22, t.width + 32, 44, 22);
+    ui.bubble = this.add.container(p.x, p.y - AV / 2 - 30, [g, t]).setDepth(25);
+    popIn(this, ui.bubble);
+  }
+
+  // ------------------------------------------------------------ syncing
+  private syncSeats(): void {
+    const t = this.table!;
+    t.seats.forEach((s, i) => {
+      const ui = this.seats[i]!;
+      ui.stack.setText(s.allIn ? 'ALL IN' : fmt(s.stack)).setColor(s.allIn ? '#ff8a9a' : BRASS_HEX);
+    });
+    const me = t.seats[0]!;
+    this.handLabel.setText(!me.folded && t.board.length >= 3 ? t.handName(0) : '');
+  }
+
+  /** Animate bets: growing stacks in front of players; at the end of a round, slide them into the pot. */
+  private syncBets(animate: boolean): void {
+    const t = this.table!;
+    const total = t.seats.reduce((a, s) => a + s.bet, 0);
+    const shownTotal = this.seats.reduce((a, u) => a + u.shownBet, 0);
+    if (total === 0 && shownTotal > 0) {
+      // round over: everything slides to the pot
+      audio.chips(5, 0.7);
+      for (const ui of this.seats) {
+        if (!ui.bet) continue;
+        const b = ui.bet;
+        ui.bet = null;
+        ui.shownBet = 0;
+        this.tweens.add({ targets: b, x: POT.x, y: POT.y, scale: 0.7, alpha: 0.2, duration: 380, ease: 'Cubic.easeIn', onComplete: () => b.destroy() });
+      }
+      this.time.delayedCall(380, () => this.syncPot());
+      return;
+    }
+    t.seats.forEach((s, i) => {
+      const ui = this.seats[i]!;
+      if (s.bet === ui.shownBet) return;
+      ui.bet?.destroy();
+      ui.shownBet = s.bet;
+      if (s.bet <= 0) {
+        ui.bet = null;
+        return;
+      }
+      const spot = this.betSpot(i);
+      const stack = this.chipStack(spot.x, spot.y, s.bet);
+      if (animate) {
+        stack.setPosition(SEATS[i]!.x, SEATS[i]!.y);
+        this.tweens.add({ targets: stack, x: spot.x, y: spot.y, duration: 280, ease: 'Cubic.easeOut' });
+      }
+      ui.bet = stack;
+    });
+    this.syncPot();
+  }
+
+  private syncPot(): void {
+    const t = this.table!;
+    const inPot = t.pot - t.seats.reduce((a, s) => a + s.bet, 0);
+    if (inPot === this.shownPot && this.pot) return;
+    this.pot?.destroy();
+    this.shownPot = inPot;
+    if (inPot <= 0) {
+      this.pot = null;
+      return;
+    }
+    this.pot = this.chipStack(POT.x, POT.y, inPot, false);
+    const t2 = text(this, 0, 40, `Pot ${fmt(inPot)}`, 32, '800', '#ffffff');
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.6);
+    bg.fillRoundedRect(-t2.width / 2 - 20, 20, t2.width + 40, 42, 21);
+    this.pot.add([bg, t2]);
   }
 
   private syncBoard(): void {
     const t = this.table!;
     for (let k = this.board.length; k < t.board.length; k++) {
-      const x = CENTER.x + (k - 2) * 148;
-      const c = dealCard(this, CENTER, x, BOARD_Y, t.board[k]!, (k - this.board.length) * 150 + 100, 0.82);
+      const x = CENTER.x + (k - 2) * 142;
+      const c = dealCard(this, POT, x, BOARD_Y, t.board[k]!, (k - this.board.length) * 160 + 200, 0.8);
+      c.setDepth(10);
       this.board.push(c);
-    }
-  }
-
-  // ------------------------------------------------------------- render
-  private render(): void {
-    const t = this.table!;
-    this.layer.removeAll(true);
-    // pot
-    if (t.pot > 0) {
-      const pot = this.add.container(CENTER.x, 700);
-      pot.add([this.add.image(-90, 0, 'chip-500').setDisplaySize(70, 70), text(this, 20, 0, `Pot ${fmt(t.pot)}`, 42, '800', '#ffffff')]);
-      this.layer.add(pot);
-    }
-    t.seats.forEach((s, i) => {
-      const p = SEATS[i]!;
-      const v = this.views[i]!;
-      const g = this.add.graphics();
-      const active = t.toAct === i && t.street !== 'done';
-      if (active) {
-        g.fillStyle(0xe9c86a, 0.35);
-        g.fillCircle(p.x, p.y, 84);
-      }
-      g.fillStyle(0x14071f, 1);
-      g.fillCircle(p.x, p.y, 68);
-      g.fillStyle(v.color, s.folded || s.out ? 0.35 : 1);
-      g.fillCircle(p.x, p.y, 60);
-      g.lineStyle(4, active ? 0xffffff : 0xe9c86a, 1);
-      g.strokeCircle(p.x, p.y, 68);
-      this.layer.add(g);
-      this.layer.add(text(this, p.x, p.y, s.name[0]!, 60, '900', '#14071f'));
-      const plate = this.add.graphics();
-      plate.fillStyle(0x000000, 0.7);
-      plate.fillRoundedRect(p.x - 100, p.y + 70, 200, 76, 18);
-      this.layer.add(plate);
-      this.layer.add(text(this, p.x, p.y + 92, s.name, 28, '700', '#ffffff'));
-      this.layer.add(text(this, p.x, p.y + 124, s.allIn ? 'ALL IN' : fmt(s.stack), 28, '800', s.allIn ? '#ff6b7a' : GOLD));
-      // bet in front of the seat
-      if (s.bet > 0) {
-        const bx = p.x + (CENTER.x - p.x) * 0.38;
-        const by = p.y + (CENTER.y - p.y) * 0.3;
-        this.layer.add(this.add.image(bx, by, 'chip-100').setDisplaySize(54, 54));
-        this.layer.add(text(this, bx, by + 46, fmt(s.bet), 26, '800', '#ffffff').setStroke('#000000', 6));
-      }
-      // last action bubble
-      if (s.lastAction && t.street !== 'done') {
-        const bub = text(this, p.x, p.y - 100, s.lastAction, 28, '800', '#14071f');
-        const bg = this.add.graphics();
-        bg.fillStyle(s.lastAction === 'Fold' ? 0xbbbbbb : 0xffffff, 1);
-        bg.fillRoundedRect(p.x - bub.width / 2 - 18, p.y - 124, bub.width + 36, 48, 24);
-        this.layer.add([bg, bub]);
-      }
-      if (i === t.button) {
-        const dx = p.x + (p.x < 540 ? 80 : p.x > 540 ? -80 : 96);
-        const dy = p.y - 60;
-        const d = this.add.graphics();
-        d.fillStyle(0xffffff, 1);
-        d.fillCircle(dx, dy, 24);
-        d.lineStyle(3, 0x14071f, 1);
-        d.strokeCircle(dx, dy, 24);
-        this.layer.add([d, text(this, dx, dy, 'D', 26, '900', '#14071f')]);
-      }
-      // dim folded hands
-      v.cards.forEach((c) => c.setAlpha(s.folded ? 0.35 : 1));
-    });
-    // human's current hand name
-    const me = t.seats[0]!;
-    if (!me.folded && me.cards.length && t.board.length >= 3) {
-      this.layer.add(text(this, SEATS[0]!.x, SEATS[0]!.y - 345, t.handName(0), 34, '800', GOLD).setStroke('#000000', 6));
     }
   }
 
@@ -289,136 +460,233 @@ export class HoldemScene extends Phaser.Scene {
     this.controls = [];
   }
 
+  private controlPanel(): void {
+    const w = VW;
+    const h = this.bottom;
+    const g = this.add.graphics().setDepth(55);
+    g.fillStyle(PANEL, 0.92);
+    g.fillRect(-1000, h - 210, w + 2000, 210 + 1000);
+    g.lineStyle(2, BRASS, 0.5);
+    g.lineBetween(-1000, h - 210, w + 1000, h - 210);
+    this.controls.push(g);
+  }
+
   private humanTurn(): void {
+    if (!this.table) return;
     const t = this.table!;
     const L = t.legal(0);
     this.clearControls();
-    const { width: w } = this.scale;
+    this.drawRing(this.seats[0]!, true);
+    this.controlPanel();
+    const w = VW;
+    const h = this.bottom;
+    const y = h - 105;
     const act = (fn: () => void) => () => {
       haptics.fire('light');
       this.clearControls();
+      this.drawRing(this.seats[0]!, false);
       fn();
-      this.actionSound(t.seats[0]!.lastAction ?? '');
-      this.step();
+      this.afterAction(0);
     };
-    const row1 = 1690;
+    const btn = (x: number, label: string, fn: () => void, style: object, bw = 300) =>
+      makeButton(this, x, y, label, fn, { width: bw, height: 120, fontSize: 40, theme: THEME, ...style }).setDepth(60);
     this.controls.push(
-      makeButton(this, w / 2 - 260, row1, 'Fold', act(() => t.act({ type: 'fold' })), { width: 400, height: 120, fontSize: 46, ...DANGER, theme: THEME }),
-      makeButton(
-        this,
-        w / 2 + 210,
-        row1,
-        L.canCheck ? 'Check' : `Call ${fmt(L.toCall)}`,
-        act(() => t.act({ type: L.canCheck ? 'check' : 'call' })),
-        { width: 500, height: 120, fontSize: 46, theme: THEME },
-      ),
+      btn(w / 2 - 340, 'Fold', act(() => t.act({ type: 'fold' })), { color: 0x4a2a30, shadow: 0x200f12, textColor: '#ffd6dc' }, 290),
+      btn(w / 2, L.canCheck ? 'Check' : `Call ${fmt(L.toCall)}`, act(() => t.act({ type: L.canCheck ? 'check' : 'call' })), { color: 0x2f6f8f, shadow: 0x123446, textColor: '#ffffff' }, 330),
     );
     if (L.canRaise) {
-      const pot = t.pot;
-      const opts: [string, number][] = [
-        [`Min ${fmt(L.minRaiseTo)}`, L.minRaiseTo],
-        ['½ Pot', t.currentBet + Math.round(pot / 2)],
-        ['Pot', t.currentBet + pot],
-        ['All in', L.maxRaiseTo],
-      ];
-      opts.forEach(([label, to], k) => {
-        const x = w / 2 + (k - 1.5) * 245;
-        this.controls.push(
-          makeButton(
-            this,
-            x,
-            1840,
-            label,
-            act(() => t.act(label === 'All in' ? { type: 'allin' } : { type: 'raise', to })),
-            { width: 230, height: 100, fontSize: label.length > 7 ? 30 : 36, ...SECONDARY, theme: THEME },
-          ),
-        );
-      });
+      this.controls.push(
+        btn(w / 2 + 340, t.currentBet > 0 ? 'Raise' : 'Bet', () => this.raisePanel(), { color: 0x3f7f3f, shadow: 0x173a17, textColor: '#ffffff' }, 290),
+      );
     }
-    this.controls.forEach((c) => (c as Phaser.GameObjects.Container).setDepth(60));
   }
 
-  // ------------------------------------------------------------- results
+  /** Bet slider with quick sizes. */
+  private raisePanel(): void {
+    const t = this.table!;
+    const L = t.legal(0);
+    audio.tap();
+    this.clearControls();
+    const w = VW;
+    const h = this.bottom;
+    const g = this.add.graphics().setDepth(55);
+    g.fillStyle(PANEL, 0.95);
+    g.fillRect(-1000, h - 380, w + 2000, 380 + 1000);
+    g.lineStyle(2, BRASS, 0.5);
+    g.lineBetween(-1000, h - 380, w + 1000, h - 380);
+    this.controls.push(g);
+    const min = L.minRaiseTo;
+    const max = L.maxRaiseTo;
+    let value = Math.min(max, Math.max(min, t.currentBet + Math.round(t.pot / 2)));
+    const trackX0 = 120;
+    const trackX1 = w - 120;
+    const trackY = h - 270;
+    const track = this.add.graphics().setDepth(56);
+    const knob = this.add.circle(0, trackY, 30, 0xf4f1ea).setDepth(57).setStrokeStyle(4, BRASS).setInteractive({ draggable: true, useHandCursor: true });
+    const label = text(this, w / 2, h - 340, '', 40, '800', '#ffffff').setDepth(57);
+    const draw = () => {
+      const f = max === min ? 1 : (value - min) / (max - min);
+      const x = trackX0 + (trackX1 - trackX0) * f;
+      track.clear();
+      track.fillStyle(0x3a343c, 1);
+      track.fillRoundedRect(trackX0, trackY - 8, trackX1 - trackX0, 16, 8);
+      track.fillStyle(0x3f9f5f, 1);
+      track.fillRoundedRect(trackX0, trackY - 8, Math.max(16, x - trackX0), 16, 8);
+      knob.x = x;
+      label.setText(value >= max ? `All in  ${fmt(max)}` : `${t.currentBet > 0 ? 'Raise to' : 'Bet'} ${fmt(value)}`);
+    };
+    const setFrom = (x: number) => {
+      const f = Phaser.Math.Clamp((x - trackX0) / (trackX1 - trackX0), 0, 1);
+      const raw = min + (max - min) * f;
+      value = f >= 0.995 ? max : Math.min(max, Math.max(min, Math.round(raw / this.stake.bb) * this.stake.bb));
+      draw();
+    };
+    knob.on('drag', (_p: Phaser.Input.Pointer, x: number) => setFrom(x));
+    const hit = this.add.zone(w / 2, trackY, trackX1 - trackX0 + 60, 90).setInteractive().setDepth(56);
+    hit.on('pointerdown', (p: Phaser.Input.Pointer) => setFrom(p.x));
+    this.controls.push(track, knob, label, hit);
+    const presets: [string, number][] = [
+      ['½ Pot', t.currentBet + Math.round(t.pot / 2)],
+      ['¾ Pot', t.currentBet + Math.round((t.pot * 3) / 4)],
+      ['Pot', t.currentBet + t.pot],
+      ['All in', max],
+    ];
+    presets.forEach(([lbl, v], k) => {
+      this.controls.push(
+        makeButton(this, w / 2 + (k - 1.5) * 230, h - 185, lbl, () => {
+          audio.tap();
+          value = Math.min(max, Math.max(min, v));
+          draw();
+        }, { width: 210, height: 80, fontSize: 32, color: 0x2a242c, shadow: 0x0d0b0d, textColor: '#e9e4ea', theme: THEME }).setDepth(58),
+      );
+    });
+    this.controls.push(
+      makeButton(this, w / 2 - 300, h - 75, 'Back', () => {
+        audio.tap();
+        this.humanTurn();
+      }, { width: 280, height: 100, fontSize: 36, color: 0x2a242c, shadow: 0x0d0b0d, textColor: '#e9e4ea', theme: THEME }).setDepth(58),
+      makeButton(this, w / 2 + 150, h - 75, 'Confirm', () => {
+        haptics.fire('light');
+        this.clearControls();
+        this.drawRing(this.seats[0]!, false);
+        t.act(value >= max ? { type: 'allin' } : { type: 'raise', to: value });
+        this.afterAction(0);
+      }, { width: 440, height: 110, fontSize: 42, color: 0x3f7f3f, shadow: 0x173a17, textColor: '#ffffff', theme: THEME }).setDepth(58),
+    );
+    draw();
+  }
+
+  // ------------------------------------------------------------ results
   private showResults(): void {
+    if (!this.table) return;
     const t = this.table!;
     this.clearControls();
     const showdown = t.board.length === 5 && t.seats.filter((s) => !s.folded && !s.out).length > 1;
     if (showdown) {
       t.seats.forEach((s, i) => {
         if (i === 0 || s.folded || s.out) return;
-        this.views[i]!.cards.forEach((c, k) => {
-          // grow the revealed cards a little so they're readable, then flip
-          c.setDisplaySize(CARD_W * 0.62, CARD_H * 0.62);
-          flipCard(this, c, s.cards[k]!, k * 80);
+        const ui = this.seats[i]!;
+        ui.cards.forEach((c, k) => {
+          const p = SEATS[i]!;
+          const side = p.x < 540 ? 1 : p.x > 540 ? -1 : 0;
+          this.tweens.add({
+            targets: c,
+            x: i === 3 ? p.x - 60 + k * 120 + 170 : p.x + side * (110 + k * 70),
+            y: i === 3 ? p.y + 30 : p.y + 10,
+            angle: 0,
+            duration: 220,
+          });
+          c.setDisplaySize(CARD_W * 0.6, CARD_H * 0.6).setDepth(14);
+          flipCard(this, c, s.cards[k]!, 120 + k * 90);
         });
       });
     }
+    // pot slides to the winner(s)
+    const potObj = this.pot;
+    this.pot = null;
     let humanWon = 0;
-    const lines = t.results.map((r) => {
+    const lines: string[] = [];
+    t.results.forEach((r) => {
+      const share = Math.floor(r.amount / r.winners.length);
+      if (r.winners.includes(0)) humanWon += share;
       const names = r.winners.map((i) => t.seats[i]!.name);
-      if (r.winners.includes(0)) humanWon += Math.floor(r.amount / r.winners.length);
-      for (const i of r.winners) {
-        const p = SEATS[i]!;
-        const ring = this.add.graphics().setDepth(30);
-        ring.lineStyle(10, 0xffe14a, 1);
-        ring.strokeCircle(p.x, p.y, 80);
-        this.tweens.add({ targets: ring, alpha: 0, duration: 500, yoyo: true, repeat: 2, onComplete: () => ring.destroy() });
-      }
-      const who = names.length > 1 ? `${names.join(' & ')} split` : names[0] === 'You' ? 'You win' : `${names[0]} wins`;
-      return `${who} ${fmt(r.amount)}${r.hand ? ` with ${r.hand}` : ''}`;
+      lines.push(`${names.length > 1 ? `${names.join(' & ')} split` : names[0] === 'You' ? 'You win' : `${names[0]} wins`} ${fmt(r.amount)}${r.hand ? ` · ${r.hand}` : ''}`);
+      r.winners.forEach((wi) => {
+        this.drawRing(this.seats[wi]!, false, true);
+        const p = SEATS[wi]!;
+        const stack = this.chipStack(POT.x, POT.y, share, false);
+        this.tweens.add({ targets: stack, x: p.x, y: p.y, duration: 520, delay: showdown ? 900 : 300, ease: 'Cubic.easeInOut', onComplete: () => stack.destroy() });
+      });
     });
-    const msg = text(this, CENTER.x, 700, lines.join('\n'), 36, '800', '#ffffff').setStroke('#000000', 8).setDepth(40);
+    potObj?.destroy();
+    for (const ui of this.seats) ui.bet?.destroy();
+    this.time.delayedCall(showdown ? 1100 : 450, () => {
+      audio.chips(6);
+      this.syncSeats();
+    });
+    const w = VW;
+    const msg = this.add.container(w / 2, 1150).setDepth(40);
+    const tx = text(this, 0, 0, lines.join('\n'), 34, '800', '#ffffff');
+    const bg = this.add.graphics();
+    bg.fillStyle(PANEL, 0.88);
+    bg.fillRoundedRect(-tx.width / 2 - 30, -tx.height / 2 - 18, tx.width + 60, tx.height + 36, 22);
+    bg.lineStyle(2, BRASS, 0.6);
+    bg.strokeRoundedRect(-tx.width / 2 - 30, -tx.height / 2 - 18, tx.width + 60, tx.height + 36, 22);
+    msg.add([bg, tx]);
+    msg.setAlpha(0);
+    this.tweens.add({ targets: msg, alpha: 1, delay: showdown ? 700 : 200, duration: 250 });
     if (humanWon > 0) {
-      audio.win();
+      this.time.delayedCall(showdown ? 1200 : 500, () => audio.complete());
       haptics.fire('success');
-      coinShower(this, SEATS[0]!.x, SEATS[0]!.y - 150, humanWon);
       wallet.recordWin(humanWon);
     }
-    this.render();
-    this.time.delayedCall(showdown ? 3600 : 2400, () => {
+    this.time.delayedCall(showdown ? 4200 : 2600, () => {
       msg.destroy();
       this.newHand();
     });
   }
 
   private busted(): void {
-    const { width: w } = this.scale;
-    const panel = this.add.container(w / 2, 900).setDepth(100);
-    const bg = this.add.graphics();
-    bg.fillStyle(THEME.surfaceEdge, 0.95);
-    bg.fillRoundedRect(-420, -300, 840, 600, 48);
-    bg.lineStyle(4, 0xe9c86a, 0.9);
-    bg.strokeRoundedRect(-420, -300, 840, 600, 48);
-    panel.add([bg, text(this, 0, -200, 'Out of chips', 64, '900', GOLD, DISPLAY_FONT)]);
+    const w = VW;
+    const panel = this.add.container(w / 2, 960).setDepth(100);
+    panel.add([this.panelBg(820, 560), text(this, 0, -180, 'Out of chips', 56, '800', '#ffffff')]);
     panel.add(
-      makeButton(this, 0, -30, `Rebuy ${fmt(this.stake.buyIn)}`, () => {
+      makeButton(this, 0, -20, `Rebuy ${fmt(this.stake.buyIn)}`, () => {
         if (!wallet.spend(this.stake.buyIn)) return outOfCoins(this, this.refresh);
         this.refresh();
         this.table!.seats[0]!.stack = this.stake.buyIn;
         this.table!.seats[0]!.out = false;
         panel.destroy();
         this.newHand();
-      }, { width: 640, height: 130, fontSize: 46, theme: THEME }),
+      }, { width: 620, height: 130, fontSize: 44, color: 0x3f7f3f, shadow: 0x173a17, textColor: '#ffffff', theme: THEME }),
     );
-    panel.add(makeButton(this, 0, 140, 'Leave table', () => this.scene.start('lobby'), { width: 640, height: 120, fontSize: 42, ...SECONDARY, theme: THEME }));
+    panel.add(makeButton(this, 0, 150, 'Leave table', () => this.scene.start('lobby'), { width: 620, height: 110, fontSize: 40, color: 0x2a242c, shadow: 0x0d0b0d, textColor: '#e9e4ea', theme: THEME }));
     popIn(this, panel);
   }
 
   private leave(): void {
     const t = this.table;
+    // cancel computer players' pending moves and any queued deals
+    this.time.removeAllEvents();
+    this.thinking?.stop();
+    this.clearControls();
     if (t) {
       const chips = t.seats[0]!.stack;
       if (chips > 0) {
         wallet.add(chips);
-        banner(this, 'Cashed out', fmt(chips));
+        this.toast(`Cashed out ${fmt(chips)}`);
+        audio.chips(6);
       }
       this.table = null;
     }
-    this.time.delayedCall(t ? 600 : 0, () => this.scene.start('lobby'));
+    this.time.delayedCall(t ? 700 : 0, () => this.scene.start('lobby'));
   }
 
   private toast(msg: string): void {
-    const t = text(this, CENTER.x, 600, msg, 34, '700', '#ffffff').setStroke('#000000', 8).setDepth(45);
-    this.tweens.add({ targets: t, alpha: 0, delay: 1500, duration: 400, onComplete: () => t.destroy() });
+    const t = text(this, CENTER.x, 560, msg, 32, '700', '#ffffff').setDepth(45);
+    const bg = this.add.graphics().setDepth(44);
+    bg.fillStyle(PANEL, 0.85);
+    bg.fillRoundedRect(CENTER.x - t.width / 2 - 24, 534, t.width + 48, 52, 26);
+    this.tweens.add({ targets: [t, bg], alpha: 0, delay: 1600, duration: 400, onComplete: () => (t.destroy(), bg.destroy()) });
   }
 }

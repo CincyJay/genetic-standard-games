@@ -4,6 +4,52 @@ import type { Card } from '../logic/cards.ts';
 import { cardId } from '../logic/cards.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, ads, analytics, audio, bonus, fmt, haptics, wallet } from '../services.ts';
 
+/** Design size: every scene lays out in this 1080 x 1920 world. */
+export const VW = 1080;
+export const VH = 1920;
+
+/**
+ * Fit the design to any screen shape. The game canvas fills the phone (Scale.EXPAND);
+ * the camera centers the 1080x1920 layout and the extra space shows evenly around it.
+ * Returns the visible world bounds (bottom-anchored UI should use `bottom`).
+ */
+export function frame(scene: Phaser.Scene): { left: number; right: number; top: number; bottom: number } {
+  const W = scene.scale.width;
+  const H = scene.scale.height;
+  const ex = (W - VW) / 2;
+  const ey = (H - VH) / 2;
+  scene.cameras.main.setScroll(-ex, -ey);
+  (globalThis as Record<string, unknown>).__view = { W, H };
+  return { left: -ex, right: VW + ex, top: -ey, bottom: VH + ey };
+}
+
+/**
+ * Full-screen background that always covers the screen (uniform scale, centered).
+ * With `crop`, only the part behind world rows y0..y1 is drawn (used to mask slot reels).
+ */
+export function backdrop(scene: Phaser.Scene, key: string, crop?: { y0: number; y1: number }): Phaser.GameObjects.Image {
+  const W = scene.scale.width;
+  const H = scene.scale.height;
+  const img = scene.add.image(W / 2, H / 2, key).setScrollFactor(0);
+  const s = Math.max(W / img.width, H / img.height);
+  img.setScale(s);
+  if (crop) {
+    const ey = (H - VH) / 2;
+    const offY = (H - img.height * s) / 2;
+    const ty0 = Math.max(0, (crop.y0 + ey - offY) / s);
+    const ty1 = Math.min(img.height, (crop.y1 + ey - offY) / s);
+    img.setCrop(0, ty0, img.width, Math.max(0, ty1 - ty0));
+  }
+  return img;
+}
+
+/** A dimming layer over the whole screen. */
+export function screenDim(scene: Phaser.Scene, alpha: number, depth: number): Phaser.GameObjects.Rectangle {
+  const W = scene.scale.width;
+  const H = scene.scale.height;
+  return scene.add.rectangle(W / 2, H / 2, W, H, 0x000000, alpha).setScrollFactor(0).setDepth(depth).setInteractive();
+}
+
 export const CARD_W = 170;
 export const CARD_H = (CARD_W * 280) / 200;
 
@@ -22,12 +68,13 @@ export function text(
 
 /** Top bar: back button, title, coin balance. Returns a function that refreshes the balance. */
 export function coinBar(scene: Phaser.Scene, title: string, onBack?: () => void): () => void {
-  const { width: w } = scene.scale;
-  const g = scene.add.graphics().setDepth(50);
+  const w = scene.scale.width;
+  const pin = <T extends Phaser.GameObjects.GameObject & { setScrollFactor(x: number): T }>(o: T): T => o.setScrollFactor(0);
+  const g = pin(scene.add.graphics().setDepth(50));
   g.fillStyle(0x000000, 0.35);
   g.fillRect(0, 0, w, 200);
   if (onBack) {
-    makeIconButton(
+    const back = makeIconButton(
       scene,
       90,
       100,
@@ -42,16 +89,17 @@ export function coinBar(scene: Phaser.Scene, title: string, onBack?: () => void)
       },
       { size: 100, theme: THEME },
     ).setDepth(51);
+    pin(back);
   }
-  text(scene, onBack ? 400 : w / 2 - 200, 100, title, 52, '700', GOLD, DISPLAY_FONT).setOrigin(0, 0.5).setDepth(51);
+  pin(text(scene, onBack ? 160 : w / 2 - 200, 100, title, 52, '700', GOLD, DISPLAY_FONT).setOrigin(0, 0.5).setDepth(51));
   // coin pill
-  const pill = scene.add.graphics().setDepth(51);
+  const pill = pin(scene.add.graphics().setDepth(51));
   pill.fillStyle(0x14071f, 0.9);
   pill.fillRoundedRect(w - 380, 62, 340, 76, 38);
   pill.lineStyle(3, 0xe9c86a, 0.8);
   pill.strokeRoundedRect(w - 380, 62, 340, 76, 38);
-  scene.add.image(w - 344, 100, 'chip-1000').setDisplaySize(64, 64).setDepth(52);
-  const amount = text(scene, w - 190, 100, '', 44, '800', '#ffffff').setDepth(52);
+  pin(scene.add.image(w - 344, 100, 'chip-1000').setDisplaySize(64, 64).setDepth(52));
+  const amount = pin(text(scene, w - 190, 100, '', 44, '800', '#ffffff').setDepth(52));
   let shown = wallet.coins;
   const refresh = () => {
     const target = wallet.coins;
@@ -96,7 +144,7 @@ export function dealCard(
     duration: 280,
     delay,
     ease: 'Cubic.easeOut',
-    onStart: () => audio.play([{ freq: 1400, to: 700, dur: 0.05, wave: 'triangle', vol: 0.08 }]),
+    onStart: () => audio.card(),
     onComplete: () => {
       if (c) flipCard(scene, s, c);
     },
@@ -113,6 +161,7 @@ export function flipCard(scene: Phaser.Scene, s: Phaser.GameObjects.Image, c: Ca
     scaleX: 0,
     duration: 110,
     delay,
+    onStart: () => audio.flip(),
     onComplete: () => {
       s.setTexture(`card-${cardId(c)}`).setDisplaySize(dw, dh);
       const full = s.scaleX;
@@ -141,8 +190,7 @@ export function coinShower(scene: Phaser.Scene, x: number, y: number, amount: nu
 
 /** Big centered banner ("BLACKJACK!", "+2,500"). */
 export function banner(scene: Phaser.Scene, line1: string, line2 = '', color = GOLD): void {
-  const { width: w } = scene.scale;
-  const c = scene.add.container(w / 2, 760).setDepth(90);
+  const c = scene.add.container(VW / 2, 760).setDepth(90);
   const t1 = text(scene, 0, 0, line1, 96, '900', color, DISPLAY_FONT).setStroke('#14071f', 14);
   c.add(t1);
   if (line2) c.add(text(scene, 0, 96, line2, 60, '800', '#ffffff').setStroke('#14071f', 12));
@@ -152,9 +200,8 @@ export function banner(scene: Phaser.Scene, line1: string, line2 = '', color = G
 
 /** Modal shown when a bet can't be covered: free bonus or a rewarded video. */
 export function outOfCoins(scene: Phaser.Scene, refresh: () => void): void {
-  const { width: w, height: h } = scene.scale;
-  const dim = scene.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0.6).setDepth(200).setInteractive();
-  const panel = scene.add.container(w / 2, h / 2).setDepth(201);
+  const dim = screenDim(scene, 0.6, 200);
+  const panel = scene.add.container(VW / 2, VH / 2).setDepth(201);
   const bg = scene.add.graphics();
   bg.fillStyle(THEME.surfaceEdge, 1);
   bg.fillRoundedRect(-420, -340, 840, 680, 48);
@@ -176,7 +223,7 @@ export function outOfCoins(scene: Phaser.Scene, refresh: () => void): void {
       ready ? `Free bonus  +${fmt(bonus.amount())}` : `Bonus in ${formatWait(bonus.msUntilReady())}`,
       () => {
         if (!ready) return;
-        audio.complete();
+        audio.win();
         bonus.collect();
         refresh();
         close();
@@ -214,7 +261,7 @@ export function formatWait(ms: number): string {
 
 /** A row of chip buttons to choose a bet size; calls `onPick` with the value. Returns the objects it created. */
 export function chipPicker(scene: Phaser.Scene, y: number, values: number[], selected: number, onPick: (v: number) => void): Phaser.GameObjects.GameObject[] {
-  const { width: w } = scene.scale;
+  const w = VW;
   const gap = Math.min(170, (w - 120) / values.length);
   const imgs: Phaser.GameObjects.Image[] = [];
   const ring = scene.add.graphics().setDepth(30);
@@ -227,7 +274,8 @@ export function chipPicker(scene: Phaser.Scene, y: number, values: number[], sel
     const x = w / 2 + (i - (values.length - 1) / 2) * gap;
     const img = scene.add.image(x, y, `chip-${v}`).setDisplaySize(118, 118).setDepth(31).setInteractive({ useHandCursor: true });
     img.on('pointerup', () => {
-      audio.tap();
+      audio.unlock();
+      audio.chip();
       mark(i);
       onPick(v);
     });

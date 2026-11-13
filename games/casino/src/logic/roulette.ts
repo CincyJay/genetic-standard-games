@@ -9,6 +9,8 @@ export const RED = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 3
 
 export type BetSpot =
   | { type: 'straight'; n: number }
+  /** Inside bets on 2 (split), 3 (street/trio), 4 (corner/first four) or 6 (six line) numbers. */
+  | { type: 'inside'; numbers: number[]; name: string }
   | { type: 'red' | 'black' | 'odd' | 'even' | 'low' | 'high' }
   | { type: 'dozen' | 'column'; n: 1 | 2 | 3 };
 
@@ -23,11 +25,13 @@ export function colorOf(n: number): 'red' | 'black' | 'green' {
 }
 
 export function spotKey(s: BetSpot): string {
+  if (s.type === 'inside') return `inside-${[...s.numbers].sort((a, b) => a - b).join('-')}`;
   return 'n' in s ? `${s.type}-${s.n}` : s.type;
 }
 
 export function wins(s: BetSpot, n: number): boolean {
   if (s.type === 'straight') return s.n === n;
+  if (s.type === 'inside') return s.numbers.includes(n);
   if (n === 0) return false;
   switch (s.type) {
     case 'red':
@@ -46,12 +50,16 @@ export function wins(s: BetSpot, n: number): boolean {
       return Math.ceil(n / 12) === s.n;
     case 'column':
       return ((n - 1) % 3) + 1 === s.n;
+    default:
+      return false;
   }
 }
 
 /** Winnings multiple (not counting the returned stake). */
 export function payoutMultiple(s: BetSpot): number {
   if (s.type === 'straight') return 35;
+  // split 17:1, street 11:1, corner 8:1, six line 5:1
+  if (s.type === 'inside') return 36 / s.numbers.length - 1;
   if (s.type === 'dozen' || s.type === 'column') return 2;
   return 1;
 }
@@ -63,4 +71,26 @@ export function settle(bets: Bet[], n: number): number {
 
 export function spin(rnd: Random = secureRandom): number {
   return Math.floor(rnd() * 37);
+}
+
+/** Every legal inside bet on the standard layout (numbers 1-36 in 12 rows of 3, zero on top). */
+export function insideBets(): BetSpot[] {
+  const out: BetSpot[] = [];
+  const at = (row: number, col: number) => row * 3 + col + 1;
+  for (let r = 0; r < 12; r++) {
+    for (let c = 0; c < 3; c++) {
+      if (c < 2) out.push({ type: 'inside', numbers: [at(r, c), at(r, c + 1)], name: 'Split' });
+      if (r < 11) out.push({ type: 'inside', numbers: [at(r, c), at(r + 1, c)], name: 'Split' });
+      if (c < 2 && r < 11) out.push({ type: 'inside', numbers: [at(r, c), at(r, c + 1), at(r + 1, c), at(r + 1, c + 1)], name: 'Corner' });
+    }
+    out.push({ type: 'inside', numbers: [at(r, 0), at(r, 1), at(r, 2)], name: 'Street' });
+    if (r < 11) out.push({ type: 'inside', numbers: [0, 1, 2, 3, 4, 5].map((k) => at(r, 0) + k), name: 'Six line' });
+  }
+  out.push({ type: 'inside', numbers: [0, 1], name: 'Split' });
+  out.push({ type: 'inside', numbers: [0, 2], name: 'Split' });
+  out.push({ type: 'inside', numbers: [0, 3], name: 'Split' });
+  out.push({ type: 'inside', numbers: [0, 1, 2], name: 'Trio' });
+  out.push({ type: 'inside', numbers: [0, 2, 3], name: 'Trio' });
+  out.push({ type: 'inside', numbers: [0, 1, 2, 3], name: 'First four' });
+  return out;
 }

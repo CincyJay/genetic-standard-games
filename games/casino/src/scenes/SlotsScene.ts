@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { FREE_SPIN_MULTIPLIER, LINES, LINE_BETS, SYMBOLS, gridFromStops, evaluate, spinStops, type SpinResult, type Sym } from '../logic/slots.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, wallet } from '../services.ts';
 import { banner, coinBar, coinShower, makeButton, outOfCoins, text } from '../ui/common.ts';
+import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
 const CELL = 186;
 const LEFT = (1080 - CELL * 5) / 2;
@@ -36,8 +37,10 @@ export class SlotsScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width: w, height: h } = this.scale;
-    this.add.image(w / 2, h / 2, 'bg-slots').setDisplaySize(w, h);
+    const w = VW;
+    const h = VH;
+    frame(this);
+    backdrop(this, 'bg-slots');
     this.reels = [];
     this.finals = [];
     this.spinning = false;
@@ -61,13 +64,13 @@ export class SlotsScene extends Phaser.Scene {
       this.finals.push(imgs);
     }
     // covers above and below the window hide the spinning strips
-    this.add.image(0, 0, 'bg-slots').setOrigin(0).setDisplaySize(w, h).setCrop(0, 0, 1080, TOP - 16).setDepth(20);
-    this.add.image(0, 0, 'bg-slots').setOrigin(0).setDisplaySize(w, h).setCrop(0, TOP + CELL * 3 + 16, 1080, 1920).setDepth(20);
-    const frame = this.add.graphics().setDepth(21);
-    frame.lineStyle(10, 0xe9c86a, 1);
-    frame.strokeRoundedRect(LEFT - 16, TOP - 16, CELL * 5 + 32, CELL * 3 + 32, 28);
-    frame.lineStyle(3, 0xfff4b0, 0.7);
-    frame.strokeRoundedRect(LEFT - 8, TOP - 8, CELL * 5 + 16, CELL * 3 + 16, 22);
+    backdrop(this, 'bg-slots', { y0: -10000, y1: TOP - 16 }).setDepth(20);
+    backdrop(this, 'bg-slots', { y0: TOP + CELL * 3 + 16, y1: 10000 }).setDepth(20);
+    const border = this.add.graphics().setDepth(21);
+    border.lineStyle(10, 0xe9c86a, 1);
+    border.strokeRoundedRect(LEFT - 16, TOP - 16, CELL * 5 + 32, CELL * 3 + 32, 28);
+    border.lineStyle(3, 0xfff4b0, 0.7);
+    border.strokeRoundedRect(LEFT - 8, TOP - 8, CELL * 5 + 16, CELL * 3 + 16, 22);
     this.lines = this.add.graphics().setDepth(22);
 
     text(this, w / 2, 300, 'LUCKY SEVENS', 76, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
@@ -145,6 +148,7 @@ export class SlotsScene extends Phaser.Scene {
     const grid = gridFromStops(stops);
     const result = evaluate(grid, this.lineBet);
     let stopped = 0;
+    audio.reelSpin(0.7 + 4 * 0.26);
     for (let r = 0; r < 5; r++) {
       const col = this.reels[r]!;
       // strip: final three on top, random filler, then the symbols currently showing
@@ -170,7 +174,7 @@ export class SlotsScene extends Phaser.Scene {
           col.y = 0;
           newImgs.forEach((im, row) => (im.y = TOP + CELL * (row + 0.5)));
           this.finals[r] = newImgs;
-          audio.play([{ freq: 160, to: 90, dur: 0.08, wave: 'square', vol: 0.08 }]);
+          audio.reelStop();
           if (++stopped === 5) this.done(result, free);
         },
       });
@@ -197,7 +201,7 @@ export class SlotsScene extends Phaser.Scene {
       else if (x >= 10) banner(this, 'BIG WIN', `+${fmt(win)}`);
       if (x >= 10) {
         audio.win();
-        coinShower(this, this.scale.width / 2, 700, win);
+        coinShower(this, VW / 2, 700, win);
         haptics.fire('success');
       } else audio.complete();
     }

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
-import { WHEEL_ORDER, colorOf, settle, spin, spotKey, wins, type Bet, type BetSpot } from '../logic/roulette.ts';
+import { WHEEL_ORDER, colorOf, insideBets, settle, spin, spotKey, wins, type Bet, type BetSpot } from '../logic/roulette.ts';
 import { DISPLAY_FONT, SECONDARY, THEME, audio, fmt, haptics, wallet } from '../services.ts';
 import { banner, chipPicker, coinBar, coinShower, makeButton, outOfCoins, text } from '../ui/common.ts';
+import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 import { drawWheel } from '../ui/wheel.ts';
 
 const CHIPS = [10, 50, 100, 500, 1000, 5000];
@@ -44,8 +45,10 @@ export class RouletteScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width: w, height: h } = this.scale;
-    this.add.image(w / 2, h / 2, 'bg-felt').setDisplaySize(w, h);
+    const w = VW;
+    const h = VH;
+    frame(this);
+    backdrop(this, 'bg-felt');
     this.bets = new Map();
     this.history = [];
     this.spots = [];
@@ -103,6 +106,49 @@ export class RouletteScene extends Phaser.Scene {
       [{ type: 'high' }, '19–36', 0x000000],
     ];
     outside.forEach(([spot, label, fill], i) => this.addSpot(spot, OUT_X, GY + i * 2 * CH, OUT_W, CH * 2, fill, label, 30, true));
+    this.addInsideZones();
+  }
+
+  /** Grid position (top-left) of a number cell. */
+  private cell(n: number): { x: number; y: number } {
+    const row = Math.ceil(n / 3) - 1;
+    const col = (n - 1) % 3;
+    return { x: GX + col * CW, y: GY + row * CH };
+  }
+
+  /**
+   * Invisible tap targets on the lines between numbers: tap a line for a split,
+   * a crossing for a corner, the left edge of a row for a street, and the left
+   * edge between rows for a six line. Added last so they sit above the cells.
+   */
+  private addInsideZones(): void {
+    const LW = 44; // thickness of a line target
+    for (const bet of insideBets()) {
+      if (bet.type !== 'inside') continue;
+      const nz = bet.numbers.filter((n) => n > 0);
+      const cells = nz.map((n) => this.cell(n));
+      const minX = Math.min(...cells.map((c) => c.x));
+      const minY = Math.min(...cells.map((c) => c.y));
+      const maxY = Math.max(...cells.map((c) => c.y)) + CH;
+      let cx: number;
+      let cy: number;
+      let w = LW;
+      let h = LW;
+      const hasZero = bet.numbers.includes(0);
+      if (hasZero) {
+        cy = GY;
+        if (bet.numbers.length === 2) [cx, w] = [minX + CW / 2, CW - LW];
+        else if (bet.numbers.length === 3) cx = bet.numbers.includes(1) ? GX + CW : GX + 2 * CW;
+        else cx = GX;
+      } else if (bet.name === 'Street') [cx, cy, h] = [GX, minY + CH / 2, CH - LW];
+      else if (bet.name === 'Six line') [cx, cy] = [GX, minY + CH];
+      else if (bet.name === 'Corner') [cx, cy] = [minX + CW, minY + CH];
+      else if (maxY - minY === CH) [cx, cy, h] = [minX + CW, minY + CH / 2, CH - LW]; // side-by-side split
+      else [cx, cy, w] = [minX + CW / 2, minY + CH, CW - LW]; // stacked split
+      const zone = this.add.zone(cx, cy, w, h).setInteractive({ useHandCursor: true });
+      zone.on('pointerup', () => this.place(bet));
+      this.spots.push({ spot: bet, x: cx - w / 2, y: cy - h / 2, w, h });
+    }
   }
 
   private spotOf(s: BetSpot): Spot {
@@ -113,7 +159,7 @@ export class RouletteScene extends Phaser.Scene {
     if (this.spinning) return;
     if (!wallet.canAfford(this.totalBet() + this.chip)) return outOfCoins(this, this.refresh);
     audio.unlock();
-    audio.play([{ freq: 900, to: 1200, dur: 0.05, wave: 'triangle', vol: 0.12 }]);
+    audio.chip();
     haptics.fire('light');
     const key = spotKey(spot);
     const bet = this.bets.get(key) ?? { spot, amount: 0 };
@@ -131,7 +177,8 @@ export class RouletteScene extends Phaser.Scene {
     if (!bet) return;
     const p = this.spotOf(bet.spot);
     const value = [...CHIPS].reverse().find((v) => v <= bet.amount) ?? 10;
-    const img = this.add.image(0, 0, `chip-${value}`).setDisplaySize(76, 76);
+    const inside = bet.spot.type === 'inside';
+    const img = this.add.image(0, 0, `chip-${value}`).setDisplaySize(inside ? 62 : 76, inside ? 62 : 76);
     const label = text(this, 0, 0, fmt(bet.amount), 22, '900', '#ffffff').setStroke('#000000', 5);
     const c = this.add.container(p.x + p.w / 2, p.y + p.h / 2, [img, label]).setDepth(15);
     c.setScale(0.6);
@@ -147,7 +194,7 @@ export class RouletteScene extends Phaser.Scene {
 
   private updateTotal(): void {
     const t = this.totalBet();
-    this.totalText.setText(t > 0 ? `Total bet ${fmt(t)}` : 'Tap the table to place chips');
+    this.totalText.setText(t > 0 ? `Total bet ${fmt(t)}` : 'Tap a number, or a line between numbers to split');
   }
 
   private clear(): void {
@@ -198,10 +245,11 @@ export class RouletteScene extends Phaser.Scene {
     this.marker?.destroy();
     this.marker = null;
     const result = spin();
-    const { width: w, height: h } = this.scale;
+    const w = VW;
+    const h = VH;
 
     // wheel overlay
-    const dim = this.add.rectangle(w / 2, h / 2, w, h, 0x000000, 0).setDepth(60);
+    const dim = screenDim(this, 0, 60);
     this.tweens.add({ targets: dim, fillAlpha: 0.6, duration: 250 });
     const R = 400;
     const g = this.add.graphics();
@@ -223,23 +271,13 @@ export class RouletteScene extends Phaser.Scene {
     this.tweens.add({ targets: ballHolder, angle: ballEnd, duration: dur, ease: 'Cubic.easeOut' });
     // ball drops from the rim into the pockets
     this.tweens.add({ targets: ball, y: -R * 0.74, duration: 800, delay: dur - 1300, ease: 'Bounce.easeOut' });
-    let ticks = 0;
-    const tick = this.time.addEvent({
-      delay: 90,
-      loop: true,
-      callback: () => {
-        ticks++;
-        if (ticks % Math.max(1, Math.floor(ticks / 12)) === 0) audio.play([{ freq: 2200, dur: 0.015, wave: 'square', vol: 0.03 }]);
-      },
-    });
+    audio.ballRoll(dur / 1000);
 
     this.time.delayedCall(dur + 200, () => {
-      tick.remove();
       const col = colorOf(result);
       const t = text(this, w / 2, 1420, `${result} ${col.toUpperCase()}`, 80, '900', col === 'red' ? '#ff5d6e' : col === 'green' ? '#5dff9a' : '#ffffff', DISPLAY_FONT)
         .setStroke('#000000', 12)
         .setDepth(62);
-      audio.drop(4);
       this.time.delayedCall(1300, () => {
         this.tweens.add({ targets: [holder, t], alpha: 0, scale: 0.4, duration: 300, onComplete: () => (holder.destroy(), t.destroy()) });
         this.tweens.add({ targets: dim, fillAlpha: 0, duration: 300, onComplete: () => dim.destroy() });
@@ -294,7 +332,7 @@ export class RouletteScene extends Phaser.Scene {
 
   private drawRecent(): void {
     this.recentRow.removeAll(true);
-    const w = this.scale.width;
+    const w = VW;
     if (this.recent.length === 0) {
       this.recentRow.add(text(this, w / 2, 0, 'European wheel  ·  single zero', 30, '600', 'rgba(255,244,220,0.6)'));
       return;

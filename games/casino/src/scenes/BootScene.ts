@@ -29,7 +29,10 @@ export class BootScene extends Phaser.Scene {
     this.load.svg('card-back', 'art/cards/back.svg', cardSize);
     for (const v of CHIP_VALUES) this.load.svg(`chip-${v}`, `art/chips/${v}.svg`, { width: 180, height: 180 });
     for (const s of SYMBOLS) this.load.svg(`sym-${s}`, `art/slots/${s}.svg`, { width: 260, height: 260 });
-    for (const bg of ['bg-lobby', 'bg-felt', 'bg-felt-red', 'bg-slots']) this.load.image(bg, `art/${bg}.jpg`);
+    for (const bg of ['bg-lobby', 'bg-felt', 'bg-felt-red', 'bg-slots', 'bg-poker']) this.load.image(bg, `art/${bg}.jpg`);
+    for (const a of ['you', 'rosa', 'dmitri', 'kwame', 'lena', 'hector', 'priya', 'sam', 'yuki']) {
+      this.load.svg(`av-${a}`, `art/avatars/${a}.svg`, { width: 256, height: 256 });
+    }
   }
 
   create(): void {

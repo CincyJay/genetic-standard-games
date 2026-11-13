@@ -3,6 +3,7 @@ import { makeButton, popIn } from '@tgs/kit';
 import { cardId, cards } from '../logic/cards.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, audio, bonus, fmt, haptics, save } from '../services.ts';
 import { CARD_H, CARD_W, coinBar, coinShower, formatWait, text } from '../ui/common.ts';
+import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 import { drawWheel } from '../ui/wheel.ts';
 
 interface Tile {
@@ -22,8 +23,9 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   create(): void {
-    const { width: w, height: h } = this.scale;
-    this.add.image(w / 2, h / 2, 'bg-lobby').setDisplaySize(w, h);
+    const w = VW;
+    const h = frame(this).bottom;
+    backdrop(this, 'bg-lobby');
     const refresh = coinBar(this, '');
 
     // logo: a fanned ace and king behind the name

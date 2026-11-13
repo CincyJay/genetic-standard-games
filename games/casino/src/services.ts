@@ -1,4 +1,5 @@
-import { AdsService, DebugAnalytics, FakeAdsProvider, Haptics, SaveStore, SynthAudio, DEFAULT_THEME, type Theme } from '@tgs/kit';
+import { AdsService, DebugAnalytics, FakeAdsProvider, Haptics, SaveStore, DEFAULT_THEME, type Theme } from '@tgs/kit';
+import { CasinoSound } from './sfx.ts';
 
 /**
  * Play money only: coins can be earned free or bought, but never cashed out or
@@ -31,7 +32,7 @@ export const save = new SaveStore<SaveData>({
   }),
 });
 
-export const audio = new SynthAudio();
+export const audio = new CasinoSound();
 export const haptics = new Haptics();
 export const analytics = new DebugAnalytics(import.meta.env.DEV);
 // Replaced with AdMob on iOS/Android.
