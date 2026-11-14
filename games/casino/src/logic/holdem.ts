@@ -42,8 +42,8 @@ export class HoldemTable {
   minRaise = 0;
   results: PotResult[] = [];
   handNumber = 0;
-  readonly sb: number;
-  readonly bb: number;
+  sb: number;
+  bb: number;
   private deck: Card[] = [];
   private deckPreset = false;
   private acted = new Set<number>();
@@ -74,6 +74,12 @@ export class HoldemTable {
       if (pred(i)) return i;
     }
     return -1;
+  }
+
+  /** Change the blinds from the next hand on (tournaments). */
+  setBlinds(sb: number, bb: number): void {
+    this.sb = sb;
+    this.bb = bb;
   }
 
   /** Players still in chips. */

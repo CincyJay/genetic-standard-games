@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { WHEEL_ORDER, colorOf, insideBets, settle, spin, spotKey, wins, type Bet, type BetSpot } from '../logic/roulette.ts';
+import { CALLED_BETS, WHEEL_ORDER, colorOf, coveredBy, insideBets, neighbors, settle, spin, spotKey, wins, type Bet, type BetSpot } from '../logic/roulette.ts';
 import { DISPLAY_FONT, SECONDARY, THEME, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { banner, chipPicker, coinBar, coinShower, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
@@ -63,9 +63,10 @@ export class RouletteScene extends Phaser.Scene {
     this.drawTable();
     this.totalText = text(this, w / 2, 1555, '', 38, '800', '#ffffff');
     chipPicker(this, 1665, CHIPS, this.chip, (v) => (this.chip = v));
-    makeButton(this, 170, 1820, 'Clear', () => this.clear(), { width: 260, height: 110, fontSize: 40, ...SECONDARY, theme: THEME });
-    makeButton(this, 440, 1820, 'Undo', () => this.undo(), { width: 240, height: 110, fontSize: 40, ...SECONDARY, theme: THEME });
-    makeButton(this, 800, 1820, 'Spin', () => this.spinWheel(), { width: 400, height: 130, fontSize: 56, theme: THEME });
+    makeButton(this, 130, 1820, 'Clear', () => this.clear(), { width: 220, height: 110, fontSize: 38, ...SECONDARY, theme: THEME });
+    makeButton(this, 365, 1820, 'Undo', () => this.undo(), { width: 220, height: 110, fontSize: 38, ...SECONDARY, theme: THEME });
+    makeButton(this, 600, 1820, 'Track', () => this.toggleRacetrack(), { width: 220, height: 110, fontSize: 38, color: 0x0f6a42, shadow: 0x06301e, textColor: '#ffffff', theme: THEME });
+    makeButton(this, 880, 1820, 'Spin', () => this.spinWheel(), { width: 300, height: 130, fontSize: 54, theme: THEME });
     this.updateTotal();
   }
 
@@ -155,12 +156,106 @@ export class RouletteScene extends Phaser.Scene {
     return this.spots.find((p) => spotKey(p.spot) === spotKey(s))!;
   }
 
-  private place(spot: BetSpot): void {
+  // ---------------------------------------------------------------- racetrack
+  private track: Phaser.GameObjects.Container | null = null;
+
+  /** Place `chips` chips of the current size on a spot (used by racetrack bets). */
+  private placeMany(spot: BetSpot, chips: number): boolean {
+    audio.chips(2, 0.7);
+    for (let i = 0; i < chips; i++) {
+      if (!wallet.canAfford(this.totalBet() + this.chip)) {
+        outOfCoins(this, this.refresh);
+        return false;
+      }
+      this.place(spot, true);
+    }
+    return true;
+  }
+
+  private toggleRacetrack(): void {
+    audio.tap();
+    if (this.track) {
+      this.track.destroy();
+      this.track = null;
+      return;
+    }
+    if (this.spinning) return;
+    const c = this.add.container(0, 0).setDepth(70);
+    this.track = c;
+    const bg = this.add.graphics();
+    bg.fillStyle(0x06301e, 0.97);
+    bg.fillRoundedRect(40, 280, VW - 80, 1210, 40);
+    bg.lineStyle(3, 0xe9c86a, 0.7);
+    bg.strokeRoundedRect(40, 280, VW - 80, 1210, 40);
+    c.add(bg);
+    c.add(text(this, VW / 2, 336, 'RACETRACK', 40, '900', '#e9c86a').setLetterSpacing(8));
+    c.add(text(this, VW / 2, 386, `Tap a number to bet it and 2 neighbors each side (5 × ${fmt(this.chip)})`, 26, '600', 'rgba(255,244,220,0.7)'));
+    // stadium-shaped track: numbers in wheel order
+    const cx = VW / 2;
+    const cy = 900;
+    const halfStraight = 300;
+    const R = 330;
+    const perim = 4 * halfStraight + 2 * Math.PI * R;
+    const pointAt = (d: number): { x: number; y: number } => {
+      // start at the bottom of the right straight, go up, over the top, down the left, round the bottom
+      const s1 = 2 * halfStraight;
+      const arc = Math.PI * R;
+      if (d < s1) return { x: cx + R, y: cy + halfStraight - d };
+      d -= s1;
+      if (d < arc) {
+        const a = d / R;
+        return { x: cx + R * Math.cos(a), y: cy - halfStraight - R * Math.sin(a) };
+      }
+      d -= arc;
+      if (d < s1) return { x: cx - R, y: cy - halfStraight + d };
+      d -= s1;
+      const a = Math.PI + d / R;
+      return { x: cx + R * Math.cos(a), y: cy + halfStraight - R * Math.sin(a) };
+    };
+    const cells = new Map<number, Phaser.GameObjects.Arc>();
+    WHEEL_ORDER.forEach((n, i) => {
+      const p = pointAt(((i + 0.5) / WHEEL_ORDER.length) * perim);
+      const col = colorOf(n);
+      const circle = this.add.circle(p.x, p.y, 40, col === 'red' ? 0xc8102e : col === 'black' ? 0x1d1d22 : 0x0f8a4a).setStrokeStyle(3, 0xe9c86a);
+      circle.setInteractive({ useHandCursor: true });
+      circle.on('pointerup', () => {
+        const ns = neighbors(n);
+        for (const m of ns) if (!this.placeMany({ type: 'straight', n: m }, 1)) break;
+        this.flash(cells, ns);
+      });
+      cells.set(n, circle);
+      c.add([circle, text(this, p.x, p.y, String(n), 30, '900', '#ffffff')]);
+    });
+    // called bets inside the track
+    CALLED_BETS.forEach((b, i) => {
+      const chips = b.parts.reduce((sum, p) => sum + p.chips, 0);
+      const y = 650 + i * 170;
+      const btn = makeButton(this, cx, y, `${b.name}  ·  ${chips} chips`, () => {
+        for (const part of b.parts) if (!this.placeMany(part.spot, part.chips)) break;
+        this.flash(cells, coveredBy(b));
+      }, { width: 520, height: 120, fontSize: 30, color: 0x0f6a42, shadow: 0x06301e, textColor: '#ffffff', theme: THEME });
+      c.add(btn);
+    });
+    c.add(text(this, VW / 2, 1440, 'Chips land on the table. Tap Track again to see them.', 26, '600', 'rgba(255,244,220,0.7)'));
+  }
+
+  private flash(cells: Map<number, Phaser.GameObjects.Arc>, numbers: number[]): void {
+    for (const n of numbers) {
+      const c = cells.get(n);
+      if (!c) continue;
+      this.tweens.add({ targets: c, scale: 1.25, duration: 140, yoyo: true });
+    }
+    this.updateTotal();
+  }
+
+  private place(spot: BetSpot, quiet = false): void {
     if (this.spinning) return;
     if (!wallet.canAfford(this.totalBet() + this.chip)) return outOfCoins(this, this.refresh);
     audio.unlock();
-    audio.chip();
-    haptics.fire('light');
+    if (!quiet) {
+      audio.chip();
+      haptics.fire('light');
+    }
     const key = spotKey(spot);
     const bet = this.bets.get(key) ?? { spot, amount: 0 };
     bet.amount += this.chip;
@@ -239,6 +334,8 @@ export class RouletteScene extends Phaser.Scene {
       return;
     }
     if (!wallet.spend(total)) return outOfCoins(this, this.refresh);
+    this.track?.destroy();
+    this.track = null;
     player.wager(total);
     player.event('roulette_spin');
     this.refresh();

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { PAYTABLE, VideoPokerRound, classify, payFor } from '../logic/videopoker.ts';
+import { PAYTABLES, VARIANT_NAMES, VideoPokerRound, classify, payFor, type Variant } from '../logic/videopoker.ts';
 import { GOLD, SECONDARY, THEME, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { CARD_H, CARD_W, banner, coinBar, coinShower, dealCard, flipCard, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
@@ -10,6 +10,11 @@ const DECK = { x: 540, y: 1960 };
 
 export class VideoPokerScene extends Phaser.Scene {
   private coins = 5;
+  private variant: Variant = 'jacks';
+  private tabs!: Phaser.GameObjects.Container;
+  private get paytable() {
+    return PAYTABLES[this.variant];
+  }
   private denom = 100;
   private round: VideoPokerRound | null = null;
   private sprites: Phaser.GameObjects.Image[] = [];
@@ -38,6 +43,8 @@ export class VideoPokerScene extends Phaser.Scene {
     scr.lineStyle(6, 0xe9c86a, 0.9);
     scr.strokeRoundedRect(30, 230, w - 60, 1180, 30);
     this.table = this.add.container(0, 0);
+    this.tabs = this.add.container(0, 0);
+    this.drawTabs();
     this.drawPaytable(null);
     for (let i = 0; i < 5; i++) {
       this.sprites.push(this.add.image(this.cardX(i), CARD_Y, 'card-back').setDisplaySize(CARD_W, CARD_H).setDepth(10));
@@ -95,25 +102,51 @@ export class VideoPokerScene extends Phaser.Scene {
     this.drawPaytable(null);
   }
 
+  /** Game tabs: Jacks or Better, Deuces Wild, Double Double Bonus. */
+  private drawTabs(): void {
+    this.tabs.removeAll(true);
+    (['jacks', 'deuces', 'ddb'] as Variant[]).forEach((v, i) => {
+      const x = 70 + i * 315;
+      const g = this.add.graphics();
+      const on = v === this.variant;
+      g.fillStyle(on ? 0xe9b949 : 0x16297a, 1);
+      g.fillRoundedRect(x, 254, 300, 70, 35);
+      g.lineStyle(2, 0xe9c86a, on ? 1 : 0.5);
+      g.strokeRoundedRect(x, 254, 300, 70, 35);
+      const t = text(this, x + 150, 289, VARIANT_NAMES[v], v === 'ddb' ? 24 : 30, '800', on ? '#3a1a00' : '#ffe14a');
+      const z = this.add.zone(x + 150, 289, 300, 70).setInteractive({ useHandCursor: true });
+      z.on('pointerup', () => {
+        if (this.busy || (this.round && !this.round.drawn)) return;
+        audio.tap();
+        this.variant = v;
+        this.drawTabs();
+        this.drawPaytable(null);
+        this.resultText.setText(v === 'deuces' ? 'Every 2 is wild' : v === 'ddb' ? 'Big bonuses for four of a kind' : 'Pairs of jacks or better pay');
+      });
+      this.tabs.add([g, t, z]);
+    });
+  }
+
   /** Paytable with the current coin column and (optionally) the winning row highlighted. */
   private drawPaytable(win: string | null): void {
     this.table.removeAll(true);
-    const top = 270;
-    const rowH = 54;
+    const top = 350;
+    const rowH = Math.min(54, 560 / this.paytable.length);
+    const font = Math.round(rowH * 0.56);
     const g = this.add.graphics();
     g.fillStyle(0xe9c86a, 0.18);
-    g.fillRect(392 + (this.coins - 1) * 128, top - 8, 128, rowH * PAYTABLE.length + 10);
+    g.fillRect(392 + (this.coins - 1) * 128, top - 8, 128, rowH * this.paytable.length + 10);
     if (win) {
-      const r = PAYTABLE.findIndex((p) => p.key === win);
+      const r = this.paytable.findIndex((p) => p.key === win);
       g.fillStyle(0xff4f8b, 0.45);
       g.fillRect(60, top - 6 + r * rowH, VW - 120, rowH);
     }
     this.table.add(g);
-    PAYTABLE.forEach((p, r) => {
+    this.paytable.forEach((p, r) => {
       const y = top + r * rowH + rowH / 2 - 4;
-      this.table.add(text(this, 80, y, p.name.toUpperCase(), 30, '800', '#ffe14a').setOrigin(0, 0.5));
+      this.table.add(text(this, 80, y, p.name.toUpperCase(), font, '800', '#ffe14a').setOrigin(0, 0.5));
       p.pays.forEach((v, c) => {
-        this.table.add(text(this, 456 + c * 128, y, String(v), 30, '800', c === this.coins - 1 ? '#ffffff' : '#ffe14a'));
+        this.table.add(text(this, 456 + c * 128, y, String(v), font, '800', c === this.coins - 1 ? '#ffffff' : '#ffe14a'));
       });
     });
   }
@@ -151,10 +184,10 @@ export class VideoPokerScene extends Phaser.Scene {
     this.setDealLabel('Draw');
     this.time.delayedCall(900, () => {
       this.busy = false;
-      const k = classify(r.hand);
+      const k = classify(r.hand, this.variant);
       if (k) {
         this.drawPaytable(k);
-        this.resultText.setText(PAYTABLE.find((p) => p.key === k)!.name);
+        this.resultText.setText(this.paytable.find((p) => p.key === k)!.name);
       }
     });
   }
@@ -186,18 +219,18 @@ export class VideoPokerScene extends Phaser.Scene {
 
   private settle(): void {
     const r = this.round!;
-    const k = classify(r.hand);
-    const win = payFor(k, this.coins) * this.denom;
+    const k = classify(r.hand, this.variant);
+    const win = payFor(k, this.coins, this.variant) * this.denom;
     this.drawPaytable(k);
-    if (k && k !== 'jacks') player.event('videopoker_twopair');
+    if (k && payFor(k, 1, this.variant) >= 2) player.event('videopoker_twopair');
     if (win > 0) player.event('coins_won', win);
     if (win > 0) {
       wallet.add(win);
       wallet.recordWin(win);
       this.refresh();
-      const name = PAYTABLE.find((p) => p.key === k)!.name;
+      const name = this.paytable.find((p) => p.key === k)!.name;
       this.resultText.setText(`${name}  ·  Win ${fmt(win)}`);
-      if (k === 'jacks' || k === 'twoPair') audio.complete();
+      if (payFor(k, 1, this.variant) <= 2) audio.complete();
       else {
         audio.win();
         banner(this, name, `+${fmt(win)}`);

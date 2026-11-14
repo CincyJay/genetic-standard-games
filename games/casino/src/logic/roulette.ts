@@ -94,3 +94,83 @@ export function insideBets(): BetSpot[] {
   out.push({ type: 'inside', numbers: [0, 1, 2, 3], name: 'First four' });
   return out;
 }
+
+// ------------------------------------------------------------------ racetrack
+const inside = (name: string, ...numbers: number[]): BetSpot => ({ type: 'inside', numbers, name });
+const straight = (n: number): BetSpot => ({ type: 'straight', n });
+
+export interface CalledBet {
+  id: 'voisins' | 'tiers' | 'orphelins' | 'zero';
+  name: string;
+  /** The standard bets it places, each with how many chips. */
+  parts: { spot: BetSpot; chips: number }[];
+}
+
+/** The classic French "called" bets on the racetrack. */
+export const CALLED_BETS: CalledBet[] = [
+  {
+    id: 'voisins',
+    name: 'Voisins du Zéro',
+    parts: [
+      { spot: inside('Trio', 0, 2, 3), chips: 2 },
+      { spot: inside('Split', 4, 7), chips: 1 },
+      { spot: inside('Split', 12, 15), chips: 1 },
+      { spot: inside('Split', 18, 21), chips: 1 },
+      { spot: inside('Split', 19, 22), chips: 1 },
+      { spot: inside('Split', 32, 35), chips: 1 },
+      { spot: inside('Corner', 25, 26, 28, 29), chips: 2 },
+    ],
+  },
+  {
+    id: 'tiers',
+    name: 'Tiers du Cylindre',
+    parts: [
+      { spot: inside('Split', 5, 8), chips: 1 },
+      { spot: inside('Split', 10, 11), chips: 1 },
+      { spot: inside('Split', 13, 16), chips: 1 },
+      { spot: inside('Split', 23, 24), chips: 1 },
+      { spot: inside('Split', 27, 30), chips: 1 },
+      { spot: inside('Split', 33, 36), chips: 1 },
+    ],
+  },
+  {
+    id: 'orphelins',
+    name: 'Orphelins',
+    parts: [
+      { spot: straight(1), chips: 1 },
+      { spot: inside('Split', 6, 9), chips: 1 },
+      { spot: inside('Split', 14, 17), chips: 1 },
+      { spot: inside('Split', 17, 20), chips: 1 },
+      { spot: inside('Split', 31, 34), chips: 1 },
+    ],
+  },
+  {
+    id: 'zero',
+    name: 'Jeu Zéro',
+    parts: [
+      { spot: inside('Split', 0, 3), chips: 1 },
+      { spot: inside('Split', 12, 15), chips: 1 },
+      { spot: straight(26), chips: 1 },
+      { spot: inside('Split', 32, 35), chips: 1 },
+    ],
+  },
+];
+
+/** "Neighbors" bet: the number and `k` on each side of it on the wheel, one chip each. */
+export function neighbors(n: number, k = 2): number[] {
+  const i = WHEEL_ORDER.indexOf(n);
+  const len = WHEEL_ORDER.length;
+  const out: number[] = [];
+  for (let d = -k; d <= k; d++) out.push(WHEEL_ORDER[(i + d + len) % len]!);
+  return out;
+}
+
+/** Numbers each called bet covers (for highlighting on the racetrack). */
+export function coveredBy(bet: CalledBet): number[] {
+  const set = new Set<number>();
+  for (const p of bet.parts) {
+    if (p.spot.type === 'straight') set.add(p.spot.n);
+    else if (p.spot.type === 'inside') p.spot.numbers.forEach((x) => set.add(x));
+  }
+  return [...set].sort((a, b) => a - b);
+}

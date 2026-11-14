@@ -32,10 +32,10 @@ and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) 
 | Game | Rules (in `games/casino/src/logic/`, all unit-tested) |
 |---|---|
 | Slots (4 machines) | 5x3, 20 lines, wilds, scatters. Lucky Sevens: free spins pay 3x. Pharaoh's Gold: pick-3 bonus. Deep Blue: expanding wilds + free spins. Gold Rush: prize-wheel bonus. Shared progressive jackpot (5 wilds on a line, scaled by bet). Each ~95% return by simulation (`node games/casino/tests/rtp-sim.ts`) |
-| Blackjack | 6 decks, dealer stands on all 17s, 3:2 blackjack, double, split, dealer peek |
-| Texas Hold'em | No-limit, 6 seats vs computer players with personalities; side pots, split pots; buy-in tables at 3 stakes |
-| Video Poker | Jacks or Better, full-pay 9/6 table, 1-5 coins, 5 denominations |
-| Roulette | European single zero: straight, red/black, odd/even, low/high, dozens, columns |
+| Blackjack | 6 decks, dealer stands on all 17s, 3:2 blackjack, double, split, dealer peek; play 1-3 hands at once; Perfect Pairs and 21+3 side bets |
+| Texas Hold'em | No-limit, 6 seats vs computer players with personalities; side pots, split pots; cash tables at 3 stakes plus Sit & Go tournaments (Bronze/Silver/Gold buy-ins, rising blinds, top 3 paid 50/30/20%) |
+| Video Poker | Jacks or Better (9/6), Deuces Wild, Double Double Bonus (with kicker pays); 1-5 coins, 5 denominations |
+| Roulette | European single zero: straight, red/black, odd/even, low/high, dozens, columns, splits, streets, corners, six-lines; racetrack with neighbour bets and the called bets (Voisins, Tiers, Orphelins, Jeu Zéro) |
 
 **Progression** (`src/logic/progression.ts`): XP from every wager (1 per 10 coins) raises your
 level; each level pays coins (bigger every 5th) and unlocks content (Pharaoh's Gold at 3, High

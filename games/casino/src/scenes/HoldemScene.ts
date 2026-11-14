@@ -3,6 +3,7 @@ import { makeButton, popIn } from '@tgs/kit';
 import { HoldemTable, decide, type Personality } from '../logic/holdem.ts';
 import { THEME, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { isUnlocked, UNLOCKS } from '../logic/progression.ts';
+import { SNG_BUYINS, START_CHIPS, blindsFor, prizeFor } from '../logic/tournament.ts';
 import { CARD_H, CARD_W, coinBar, dealCard, flipCard, outOfCoins, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
@@ -57,6 +58,12 @@ const CHIP_VALUES = [5000, 1000, 500, 100, 50, 10];
 export class HoldemScene extends Phaser.Scene {
   private table: HoldemTable | null = null;
   private stake = STAKES[0]!;
+  /** Sit & Go in progress (null at a cash table). */
+  private sng: { name: string; buyIn: number } | null = null;
+  /** Seat indexes in the order they were knocked out. */
+  private eliminated: number[] = [];
+  private hud: Phaser.GameObjects.Text | null = null;
+  private lastLevel = 0;
   private seats: SeatUi[] = [];
   private botCursor = 0;
   private refresh!: () => void;
@@ -111,48 +118,74 @@ export class HoldemScene extends Phaser.Scene {
   private chooseStakes(): void {
     const w = VW;
     const panel = this.add.container(w / 2, 960).setDepth(100);
-    panel.add([this.panelBg(860, 820), text(this, 0, -320, 'Choose a table', 56, '800', '#ffffff')]);
-    panel.add(text(this, 0, -262, 'Six-max no-limit hold’em', 30, '500', '#9a8f9e'));
-    STAKES.forEach((s, i) => {
-      const y = -130 + i * 190;
-      const row = this.add.container(0, y);
+    panel.add([this.panelBg(900, 1520), text(this, 0, -690, 'Choose a game', 56, '800', '#ffffff')]);
+    const row = (y: number, title: string, sub: string, right: string, lockedLevel: number | null, onTap: () => void) => {
+      const r = this.add.container(0, y);
       const g = this.add.graphics();
       g.fillStyle(0xffffff, 0.04);
-      g.fillRoundedRect(-380, -70, 760, 140, 24);
-      g.lineStyle(2, BRASS, i === 0 ? 0.9 : 0.35);
-      g.strokeRoundedRect(-380, -70, 760, 140, 24);
-      row.add([
+      g.fillRoundedRect(-400, -62, 800, 124, 24);
+      g.lineStyle(2, BRASS, 0.5);
+      g.strokeRoundedRect(-400, -62, 800, 124, 24);
+      r.add([
         g,
-        text(this, -340, -22, s.name, 44, '800', '#ffffff').setOrigin(0, 0.5),
-        text(this, -340, 28, `Blinds ${fmt(s.sb)} / ${fmt(s.bb)}`, 30, '500', '#9a8f9e').setOrigin(0, 0.5),
-        text(this, 340, 0, fmt(s.buyIn), 44, '800', BRASS_HEX).setOrigin(1, 0.5),
+        text(this, -360, -20, title, 40, '800', '#ffffff').setOrigin(0, 0.5),
+        text(this, -360, 26, sub, 28, '500', '#9a8f9e').setOrigin(0, 0.5),
+        text(this, 360, 0, right, 42, '800', BRASS_HEX).setOrigin(1, 0.5),
       ]);
-      const unlockId = i === 1 ? 'holdem-highroller' : i === 2 ? 'holdem-vip' : null;
-      const locked = unlockId ? !isUnlocked(unlockId, player.level) : false;
-      if (locked) {
+      if (lockedLevel) {
         const shade = this.add.graphics();
-        shade.fillStyle(0x000000, 0.65);
-        shade.fillRoundedRect(-380, -70, 760, 140, 24);
-        row.add([shade, text(this, 0, 0, `Locked  ·  reach level ${UNLOCKS.find((u) => u.id === unlockId)!.level}`, 38, '800', '#ffffff')]);
+        shade.fillStyle(0x000000, 0.68);
+        shade.fillRoundedRect(-400, -62, 800, 124, 24);
+        r.add([shade, text(this, 0, 0, `Locked  ·  reach level ${lockedLevel}`, 36, '800', '#ffffff')]);
       }
-      row.setSize(760, 140).setInteractive({ useHandCursor: true });
-      row.on('pointerup', () => {
-        if (locked) {
+      r.setSize(800, 124).setInteractive({ useHandCursor: true });
+      r.on('pointerup', () => {
+        if (lockedLevel) {
           audio.invalid();
           return;
         }
-        if (!wallet.spend(s.buyIn)) return outOfCoins(this, this.refresh);
+        onTap();
+      });
+      panel.add(r);
+    };
+    panel.add(text(this, -400, -590, 'CASH TABLES', 30, '800', BRASS_HEX).setOrigin(0, 0.5).setLetterSpacing(4));
+    panel.add(text(this, 400, -590, 'chips come back when you leave', 24, '500', '#7a707e').setOrigin(1, 0.5));
+    STAKES.forEach((st, i) => {
+      const unlockId = i === 1 ? 'holdem-highroller' : i === 2 ? 'holdem-vip' : null;
+      const locked = unlockId && !isUnlocked(unlockId, player.level) ? UNLOCKS.find((u) => u.id === unlockId)!.level : null;
+      row(-490 + i * 145, st.name, `Blinds ${fmt(st.sb)} / ${fmt(st.bb)}`, fmt(st.buyIn), locked, () => {
+        if (!wallet.spend(st.buyIn)) return outOfCoins(this, this.refresh);
         this.refresh();
         audio.unlock();
         audio.chips(6);
-        this.stake = s;
+        this.stake = st;
+        this.sng = null;
         panel.destroy();
         this.sitDown();
       });
-      panel.add(row);
     });
-    panel.add(text(this, 0, 360, 'Your buy-in comes back to your balance when you leave.', 26, '500', '#7a707e'));
+    panel.add(text(this, -400, -10, 'SIT & GO TOURNAMENTS', 30, '800', BRASS_HEX).setOrigin(0, 0.5).setLetterSpacing(4));
+    panel.add(text(this, 400, -10, 'top 3 win', 24, '500', '#7a707e').setOrigin(1, 0.5));
+    SNG_BUYINS.forEach((sg, i) => {
+      row(90 + i * 145, sg.name, `1st ${fmt(prizeFor(sg.buyIn, 1))} · 2nd ${fmt(prizeFor(sg.buyIn, 2))} · 3rd ${fmt(prizeFor(sg.buyIn, 3))}`, fmt(sg.buyIn), null, () =>
+        this.startSng(sg, panel),
+      );
+    });
+    panel.add(text(this, 0, 560, 'Six players, 1,500 chips each, blinds rise every 6 hands.', 26, '500', '#7a707e'));
+    panel.add(text(this, 0, 600, 'Last player standing wins.', 26, '500', '#7a707e'));
     popIn(this, panel);
+  }
+
+  private startSng(sg: { name: string; buyIn: number }, panel?: Phaser.GameObjects.Container): void {
+    if (!wallet.spend(sg.buyIn)) return outOfCoins(this, this.refresh);
+    this.refresh();
+    audio.unlock();
+    audio.chips(6);
+    this.sng = sg;
+    this.eliminated = [];
+    this.lastLevel = 0;
+    panel?.destroy();
+    this.sitDown();
   }
 
   private nextBot() {
@@ -162,14 +195,20 @@ export class HoldemScene extends Phaser.Scene {
   }
 
   private sitDown(): void {
-    const seats = [{ name: 'You', stack: this.stake.buyIn, human: true }];
+    const startStack = this.sng ? START_CHIPS : this.stake.buyIn;
+    const seats = [{ name: 'You', stack: startStack, human: true }];
     const picks = [{ name: 'You', key: 'you', p: { aggression: 0, bluff: 0 } }];
     for (let i = 1; i < 6; i++) {
       const b = this.nextBot();
-      seats.push({ name: b.name, stack: this.stake.buyIn, human: false });
+      seats.push({ name: b.name, stack: startStack, human: false });
       picks.push(b);
     }
-    this.table = new HoldemTable(seats, this.stake.sb, this.stake.bb);
+    const blinds = this.sng ? blindsFor(1) : this.stake;
+    this.table = new HoldemTable(seats, blinds.sb, blinds.bb);
+    if (this.sng) {
+      this.hud?.destroy();
+      this.hud = text(this, VW / 2, 228, '', 28, '700', BRASS_HEX).setDepth(30);
+    }
     picks.forEach((b, i) => this.seats.push(this.makeSeat(i, b.key, b.name, b.p)));
     this.newHand();
   }
@@ -240,7 +279,19 @@ export class HoldemScene extends Phaser.Scene {
   private newHand(): void {
     if (!this.table) return;
     const t = this.table!;
-    for (let i = 1; i < 6; i++) {
+    if (this.sng) {
+      const left = t.seats.filter((x) => x.stack > 0).length;
+      if (t.seats[0]!.stack <= 0) return this.finishSng(this.placeOf(0));
+      if (left === 1) return this.finishSng(1);
+      const b = blindsFor(t.handNumber + 1);
+      t.setBlinds(b.sb, b.bb);
+      if (b.level !== this.lastLevel) {
+        if (this.lastLevel > 0) this.toast(`Blinds up  ·  ${fmt(b.sb)} / ${fmt(b.bb)}`);
+        this.lastLevel = b.level;
+      }
+      this.hud?.setText(`${this.sng.name}  ·  Level ${b.level}  ·  Blinds ${fmt(b.sb)}/${fmt(b.bb)}  ·  ${left} left`);
+    }
+    for (let i = 1; i < 6 && !this.sng; i++) {
       if (t.seats[i]!.stack <= 0) {
         const b = this.nextBot();
         Object.assign(t.seats[i]!, { name: b.name, stack: this.stake.buyIn, out: false });
@@ -551,7 +602,7 @@ export class HoldemScene extends Phaser.Scene {
     const setFrom = (x: number) => {
       const f = Phaser.Math.Clamp((x - trackX0) / (trackX1 - trackX0), 0, 1);
       const raw = min + (max - min) * f;
-      value = f >= 0.995 ? max : Math.min(max, Math.max(min, Math.round(raw / this.stake.bb) * this.stake.bb));
+      value = f >= 0.995 ? max : Math.min(max, Math.max(min, Math.round(raw / t.bb) * t.bb));
       draw();
     };
     knob.on('drag', (_p: Phaser.Input.Pointer, x: number) => setFrom(x));
@@ -648,8 +699,9 @@ export class HoldemScene extends Phaser.Scene {
     msg.add([bg, tx]);
     msg.setAlpha(0);
     this.tweens.add({ targets: msg, alpha: 1, delay: showdown ? 700 : 200, duration: 250 });
+    if (this.sng) this.recordEliminations();
     if (!t.seats[0]!.out) {
-      player.wager(this.stake.bb * 10);
+      player.wager(t.bb * 10);
       player.event('holdem_hand');
       if (humanWon > 0) {
         player.event('holdem_pot');
@@ -692,7 +744,10 @@ export class HoldemScene extends Phaser.Scene {
     this.time.removeAllEvents();
     this.thinking?.stop();
     this.clearControls();
-    if (t) {
+    if (t && this.sng) {
+      this.toast('You left the tournament');
+      this.table = null;
+    } else if (t) {
       const chips = t.seats[0]!.stack;
       if (chips > 0) {
         wallet.add(chips);
@@ -704,6 +759,67 @@ export class HoldemScene extends Phaser.Scene {
     this.time.delayedCall(t ? 700 : 0, () => this.scene.start('lobby'));
   }
 
+  /** Finishing place for a knocked-out seat (6th is the first one out). */
+  private placeOf(seat: number): number {
+    const k = this.eliminated.indexOf(seat);
+    return k < 0 ? 1 : 6 - k;
+  }
+
+  private recordEliminations(): void {
+    const t = this.table!;
+    t.seats.forEach((s, i) => {
+      if (s.stack > 0 || this.eliminated.includes(i)) return;
+      this.eliminated.push(i);
+      const place = this.placeOf(i);
+      const ui = this.seats[i]!;
+      ui.avatar.setAlpha(0.3);
+      ui.stack.setText('OUT');
+      if (i !== 0) this.toast(`${s.name} is out in ${ordinal(place)}`);
+    });
+  }
+
+  private finishSng(place: number): void {
+    const sg = this.sng!;
+    this.clearControls();
+    const prize = prizeFor(sg.buyIn, place);
+    if (prize > 0) {
+      wallet.add(prize);
+      wallet.recordWin(prize);
+      player.event('coins_won', prize);
+      if (place === 1) player.event('holdem_pot', 3);
+      this.refresh();
+    }
+    const panel = this.add.container(VW / 2, 960).setDepth(100);
+    panel.add([this.panelBg(820, 760), text(this, 0, -280, place === 1 ? 'Champion!' : `You finished ${ordinal(place)}`, 60, '900', place === 1 ? '#ffd75e' : '#ffffff')]);
+    panel.add(text(this, 0, -190, sg.name, 32, '600', '#9a8f9e'));
+    panel.add(text(this, 0, -70, prize > 0 ? `+${fmt(prize)}` : 'No prize this time', prize > 0 ? 80 : 44, '900', prize > 0 ? BRASS_HEX : '#9a8f9e'));
+    panel.add(
+      makeButton(this, 0, 110, `Play again  ·  ${fmt(sg.buyIn)}`, () => {
+        panel.destroy();
+        for (const ui of this.seats) {
+          ui.cards.forEach((c) => c.destroy());
+          ui.bet?.destroy();
+          ui.bubble?.destroy();
+          ui.avatar.setAlpha(1);
+        }
+        this.seats.forEach((ui) => [ui.avatar, ui.ring, ui.timer, ui.name, ui.stack].forEach((o) => o.destroy()));
+        this.seats = [];
+        this.board.forEach((c) => c.destroy());
+        this.board = [];
+        this.pot?.destroy();
+        this.pot = null;
+        this.startSng(sg);
+      }, { width: 620, height: 130, fontSize: 42, color: 0x3f7f3f, shadow: 0x173a17, textColor: '#ffffff', theme: THEME }),
+    );
+    panel.add(makeButton(this, 0, 270, 'Lobby', () => this.scene.start('lobby'), { width: 620, height: 110, fontSize: 40, color: 0x2a242c, shadow: 0x0d0b0d, textColor: '#e9e4ea', theme: THEME }));
+    popIn(this, panel);
+    if (prize > 0) {
+      audio.win();
+      haptics.fire('success');
+    } else audio.invalid();
+    this.table = null;
+  }
+
   private toast(msg: string): void {
     const t = text(this, CENTER.x, 560, msg, 32, '700', '#ffffff').setDepth(45);
     const bg = this.add.graphics().setDepth(44);
@@ -711,4 +827,8 @@ export class HoldemScene extends Phaser.Scene {
     bg.fillRoundedRect(CENTER.x - t.width / 2 - 24, 534, t.width + 48, 52, 26);
     this.tweens.add({ targets: [t, bg], alpha: 0, delay: 1600, duration: 400, onComplete: () => (t.destroy(), bg.destroy()) });
   }
+}
+
+function ordinal(n: number): string {
+  return `${n}${n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th'}`;
 }

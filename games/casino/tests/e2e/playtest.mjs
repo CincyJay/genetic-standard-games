@@ -96,17 +96,24 @@ await back(); // to the lobby
 step('blackjack');
 await tap(300, 1185);
 await wait(2500);
-await tap(710, 1820); // Deal
-await wait(4500);
+await page.evaluate(() => globalThis.__bj.setup(2, true, true));
+await wait(800);
+await shot('04a-blackjack-betting');
+await tap(710, 1835); // Deal
+await wait(6000);
 await shot('04-blackjack-deal');
-if ((await page.evaluate(() => globalThis.__bj.phase())) === 'player') await page.evaluate(() => globalThis.__bj.stand());
-await wait(5000);
+for (let k = 0; k < 4; k++) {
+  if ((await page.evaluate(() => globalThis.__bj.phase())) === 'player') await page.evaluate(() => globalThis.__bj.stand());
+  await wait(1500);
+}
+await wait(3000);
 await shot('05-blackjack-result');
 await back();
 
 step('video poker');
 await tap(300, 1545);
 await wait(2500);
+await tap(70 + 315 + 150, 289); // Deuces Wild tab
 await tap(860, 1780); // Deal
 await wait(3500);
 await tap(148, 1080); // hold first two
@@ -126,6 +133,12 @@ await tap(115 + 190 * 1, 384 + 5 * 86 + 43); // split 16/17
 await tap(115 + 190 * 2, 384 + 6 * 86); // corner 17/18/20/21
 await tap(115 + 190 * 3 + 120 + 70, 384 + 4 * 86 + 86); // RED
 await tap(115 + 190 * 3 + 60, 384 + 4 * 86 * 1 + 172); // 2nd dozen
+await tap(600, 1820); // Track
+await wait(1200);
+await tap(540, 650); // Voisins du Zero
+await wait(800);
+await shot('08b-racetrack');
+await tap(600, 1820); // back to the table
 await wait(800);
 await shot('08-roulette-bets');
 await tap(800, 1820); // Spin
@@ -139,7 +152,7 @@ step("hold'em");
 await tap(780, 1185);
 await wait(2500);
 await shot('11-holdem-stakes');
-await tap(540, 960 - 130); // Casual table
+await tap(540, 960 - 490); // Casual cash table
 const t0 = Date.now();
 let lastHand = 0;
 let shots = 0;
@@ -206,6 +219,38 @@ for (const [i, id] of [[1, 'pharaoh'], [2, 'ocean'], [3, 'goldrush']]) {
     await back();
   }
 }
+
+step('sit & go');
+await page.evaluate(() => {
+  const raw = JSON.parse(localStorage.getItem('velvet-ace.save'));
+  raw.data.coins = 500000;
+  localStorage.setItem('velvet-ace.save', JSON.stringify(raw));
+});
+await page.reload();
+await wait(5000);
+await tap(780, 1185);
+await wait(2500);
+await shot('20-holdem-chooser');
+await tap(540, 960 + 90); // Bronze Sit & Go
+const t1 = Date.now();
+let snapped = false;
+let maxHand = 0;
+while (Date.now() - t1 < 90000) {
+  const s2 = await page.evaluate(() => globalThis.__holdem.state());
+  maxHand = Math.max(maxHand, s2.hand);
+  if (s2.hand === 0 && maxHand > 0) break; // tournament ended (busted or won)
+  if (s2.hand >= 3 && !snapped) { await shot('21-sng'); snapped = true; }
+  if (s2.hand >= 5) break;
+  if (s2.toAct === 0) {
+    const v = await page.evaluate(() => globalThis.__view);
+    await page.mouse.click(box.x + ((540 + (v.W - 1080) / 2) * box.width) / v.W, box.y + ((v.H - 105) * box.height) / v.H);
+    await wait(400);
+  }
+  await wait(250);
+}
+await wait(1500);
+await shot('22-sng-end');
+step(`sit & go: played ${maxHand} hands`);
 
 await browser.close();
 if (errors.length) {

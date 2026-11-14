@@ -36,6 +36,8 @@ export interface PlayerHand {
   done: boolean;
   doubled: boolean;
   fromSplit: boolean;
+  /** Which betting spot (0..2) this hand belongs to. */
+  spot: number;
   result?: HandResult;
   /** Total returned to the player (stake + winnings), set at settlement. */
   payout?: number;
@@ -76,19 +78,25 @@ export class BlackjackRound {
   active = 0;
   private readonly shoe: Shoe;
 
-  constructor(shoe: Shoe, bet: number) {
+  /** `bets`: one stake per betting spot (1 to 3 spots), dealt left to right. */
+  constructor(shoe: Shoe, bets: number | number[]) {
     this.shoe = shoe;
-    this.hands = [{ cards: [], bet, done: false, doubled: false, fromSplit: false }];
-    const h = this.hands[0]!;
-    h.cards.push(shoe.draw());
+    const list = Array.isArray(bets) ? bets : [bets];
+    this.hands = list.map((bet, spot) => ({ cards: [], bet, done: false, doubled: false, fromSplit: false, spot }));
+    for (const h of this.hands) h.cards.push(shoe.draw());
     this.dealer.push(shoe.draw());
-    h.cards.push(shoe.draw());
+    for (const h of this.hands) h.cards.push(shoe.draw());
     this.dealer.push(shoe.draw());
-    // dealer peek, or natural blackjack for the player
-    if (isBlackjack(this.dealer) || isBlackjack(h.cards)) {
-      h.done = true;
+    // dealer peeks: a dealer blackjack ends the round at once
+    if (isBlackjack(this.dealer)) {
+      for (const h of this.hands) h.done = true;
       this.settle();
+      return;
     }
+    for (const h of this.hands) if (isBlackjack(h.cards)) h.done = true;
+    const first = this.hands.findIndex((h) => !h.done);
+    if (first < 0) this.settle();
+    else this.active = first;
   }
 
   get hand(): PlayerHand {
@@ -99,11 +107,12 @@ export class BlackjackRound {
     return this.phase === 'player' && this.hand.cards.length === 2 && !this.hand.done;
   }
 
+  /** One split per betting spot. */
   canSplit(): boolean {
     const h = this.hand;
     return (
       this.phase === 'player' &&
-      this.hands.length === 1 &&
+      !h.fromSplit &&
       h.cards.length === 2 &&
       cardValue(h.cards[0]!) === cardValue(h.cards[1]!)
     );
@@ -135,16 +144,16 @@ export class BlackjackRound {
   split(): void {
     if (!this.canSplit()) return;
     const h = this.hand;
-    const second: PlayerHand = { cards: [h.cards.pop()!], bet: h.bet, done: false, doubled: false, fromSplit: true };
+    const second: PlayerHand = { cards: [h.cards.pop()!], bet: h.bet, done: false, doubled: false, fromSplit: true, spot: h.spot };
     h.fromSplit = true;
-    this.hands.push(second);
+    this.hands.splice(this.active + 1, 0, second);
     const aces = h.cards[0]!.rank === 14;
     h.cards.push(this.shoe.draw());
     second.cards.push(this.shoe.draw());
     if (aces) {
       h.done = true;
       second.done = true;
-      this.toDealer();
+      this.finishHand();
     }
   }
 
@@ -157,9 +166,9 @@ export class BlackjackRound {
 
   private toDealer(): void {
     this.phase = 'dealer';
-    const anyLive = this.hands.some((h) => handTotal(h.cards).total <= 21);
+    // the dealer only draws if some hand is still alive and isn't a natural
+    const anyLive = this.hands.some((h) => handTotal(h.cards).total <= 21 && !(isBlackjack(h.cards) && !h.fromSplit));
     if (anyLive) {
-      // stand on all 17s
       while (handTotal(this.dealer).total < 17) this.dealer.push(this.shoe.draw());
     }
     this.settle();
