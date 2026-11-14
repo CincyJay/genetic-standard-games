@@ -51,7 +51,7 @@ export class BlackjackScene extends Phaser.Scene {
     backdrop(this, 'table-blackjack');
     this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('room', { room: 'tables' }));
     this.dealer = new Dealer(this, 'blackjack');
-    this.time.delayedCall(600, () => this.dealer.say('hello'));
+    this.time.delayedCall(600, () => this.dealer.greet());
     this.betLayer = this.add.container(0, 0).setDepth(5);
     this.infoText = text(this, w / 2, BET_Y + 120, '', 34, '800', '#ffffff');
     this.bettingPhase();

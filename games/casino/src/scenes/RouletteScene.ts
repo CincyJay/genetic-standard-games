@@ -52,7 +52,7 @@ export class RouletteScene extends Phaser.Scene {
     frame(this);
     backdrop(this, 'table-roulette');
     this.dealer = new Dealer(this, 'roulette', 975, 250, true);
-    this.time.delayedCall(800, () => this.dealer.say('hello'));
+    this.time.delayedCall(800, () => this.dealer.greet());
     this.bets = new Map();
     this.history = [];
     this.spots = [];

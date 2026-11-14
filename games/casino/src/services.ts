@@ -35,6 +35,8 @@ export interface SaveData {
   avatar?: string;
   /** Display name at the tables. */
   name?: string;
+  /** Visits to each dealer's table (dealers remember regulars). */
+  dealerVisits?: Record<string, number>;
 }
 
 export interface Trophy {

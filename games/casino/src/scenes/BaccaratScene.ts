@@ -50,7 +50,7 @@ export class BaccaratScene extends Phaser.Scene {
     text(this, BX - 50, HAND_Y - 160, 'BANKER', 40, '900', '#ff8a9a', DISPLAY_FONT).setStroke('#000000', 6);
     this.info = text(this, VW / 2, 1290, '', 30, '800', '#ffffff').setDepth(8);
     const dealer = new Dealer(this, 'baccarat');
-    this.time.delayedCall(600, () => dealer.say('hello'));
+    this.time.delayedCall(600, () => dealer.greet());
     this.board = new BetBoard(this, SPOTS, () => this.updateInfo());
     this.drawRoad();
     this.betting();

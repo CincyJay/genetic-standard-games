@@ -45,7 +45,7 @@ export class UthScene extends Phaser.Scene {
       if (!this.busy && !this.hand) this.scene.start('room', { room: 'tables' });
     });
     const dealer = new Dealer(this, 'uth');
-    this.time.delayedCall(600, () => dealer.say('hello'));
+    this.time.delayedCall(600, () => dealer.greet());
     this.sprites = { dealer: [], board: [], mine: [] };
     this.hand = null;
     this.busy = false;

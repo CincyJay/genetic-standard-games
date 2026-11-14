@@ -44,7 +44,7 @@ export class WarScene extends Phaser.Scene {
     text(this, VW / 2, PLAYER_Y + 170, 'YOU', 34, '900', '#e9c8ff', DISPLAY_FONT).setStroke('#000000', 6);
     this.info = text(this, VW / 2, 1255, '', 30, '800', '#ffffff').setDepth(8);
     const dealer = new Dealer(this, 'war');
-    this.time.delayedCall(600, () => dealer.say('hello'));
+    this.time.delayedCall(600, () => dealer.greet());
     this.board = new BetBoard(this, SPOTS, () => this.updateInfo());
     this.betting();
     (globalThis as Record<string, unknown>).__war = {

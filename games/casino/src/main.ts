@@ -43,6 +43,21 @@ async function start(): Promise<void> {
     scene: [BootScene, LobbyScene, RoomScene, PokerLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene, BaccaratScene, ThreeCardScene, WarScene, CrapsScene, UthScene],
   });
   void setupBackButton(game);
+  // moving between rooms and tables: every scene fades up from black, and the
+  // table games settle in with a gentle "sitting down" zoom
+  const TABLES = ['blackjack', 'roulette', 'baccarat', 'threecard', 'war', 'craps', 'uth', 'holdem', 'videopoker', 'slots'];
+  game.events.once('ready', () => {
+    for (const sc of game.scene.scenes) {
+      sc.events.on('create', () => {
+        const cam = sc.cameras.main;
+        cam.fadeIn(380, 8, 2, 12);
+        if (TABLES.includes(sc.scene.key)) {
+          cam.setZoom(1.07);
+          cam.zoomTo(1, 650, 'Cubic.easeOut');
+        }
+      });
+    }
+  });
   // test hook (dev builds only): jump straight to a scene
   if (import.meta.env.DEV) Object.assign(globalThis, { __go: (key: string, data?: object) => game.scene.getScenes(true)[0]?.scene.start(key, data), __scene: () => game.scene.getScenes(true)[0] });
 }

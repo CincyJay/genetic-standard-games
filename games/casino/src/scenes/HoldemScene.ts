@@ -91,6 +91,7 @@ export class HoldemScene extends Phaser.Scene {
   private thinking: Phaser.Tweens.Tween | null = null;
   private bottom = VH;
   private start: HoldemStart = {};
+  private dealer!: Dealer;
   private mtt: MttRun | null = null;
   private bg!: Phaser.GameObjects.Image;
 
@@ -119,7 +120,8 @@ export class HoldemScene extends Phaser.Scene {
     this.stepping = false;
     this.botCursor = Phaser.Math.Between(0, BOTS.length - 1);
     this.refresh = coinBar(this, "Hold'em", () => this.leave());
-    new Dealer(this, 'holdem', 110, 330);
+    this.dealer = new Dealer(this, 'holdem', 110, 330);
+    this.time.delayedCall(700, () => this.dealer.greet());
     this.handLabel = text(this, SEATS[0]!.x, 1268, '', 34, '700', BRASS_HEX).setDepth(30);
     (globalThis as Record<string, unknown>).__holdem = {
       state: () => ({ toAct: this.table?.toAct ?? -1, street: this.table?.street ?? 'none', hand: this.table?.handNumber ?? 0, stack: this.table?.seats[0]!.stack ?? 0 }),
@@ -823,6 +825,7 @@ export class HoldemScene extends Phaser.Scene {
       }
       this.refresh();
     }
+    if (humanWon > 0) this.time.delayedCall(showdown ? 1300 : 600, () => this.dealer.say(humanWon >= t.bb * 40 ? 'bigwin' : 'win'));
     if (humanWon > 0) {
       this.time.delayedCall(showdown ? 1200 : 500, () => audio.complete());
       haptics.fire('success');

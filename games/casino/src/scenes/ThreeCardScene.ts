@@ -46,7 +46,7 @@ export class ThreeCardScene extends Phaser.Scene {
     this.handText = text(this, VW / 2, PLAYER_Y + 150, '', 40, '900', '#ffe14a').setDepth(8).setStroke('#000000', 6);
     this.info = text(this, VW / 2, 1255, '', 28, '800', '#ffffff').setDepth(8);
     const dealer = new Dealer(this, 'threecard');
-    this.time.delayedCall(600, () => dealer.say('hello'));
+    this.time.delayedCall(600, () => dealer.greet());
     this.board = new BetBoard(this, SPOTS, () => this.updateInfo());
     // the Play spot only takes chips when you decide to play
     this.board.add = ((orig) => (id: string, amount?: number) => (id === 'play' ? audio.invalid() : orig(id, amount)))(this.board.add.bind(this.board));

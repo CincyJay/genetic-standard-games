@@ -5,7 +5,7 @@ import { applyAvatar } from '../ui/avatar.ts';
 import { THEME, analytics, applySettings } from '../services.ts';
 
 /** Dealer photos (art/dealers/<name>.png). */
-export const DEALER_PHOTOS = ['sofia', 'marco', 'mei', 'fiona', 'jamal', 'elena', 'kenji', 'victor'];
+export const DEALER_PHOTOS = ['victoria', 'sofia', 'marcus', 'mei', 'fiona', 'viktor', 'jamal', 'kenji'];
 
 /** Portraits players can pick for their profile. */
 export const PICK_AVATARS = ['pick-ace', 'pick-queen', 'pick-king', 'pick-jack', 'pick-luna', 'pick-duke'];

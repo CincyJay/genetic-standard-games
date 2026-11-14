@@ -58,7 +58,7 @@ export class CrapsScene extends Phaser.Scene {
       if (!this.rolling) this.scene.start('room', { room: 'tables' });
     });
     this.dealer = new Dealer(this, 'craps', 110, 300);
-    this.time.delayedCall(600, () => this.dealer.say('hello'));
+    this.time.delayedCall(600, () => this.dealer.greet());
     this.rolling = false;
     this.dice = [];
     // printed layout
