@@ -1,7 +1,14 @@
 import Phaser from 'phaser';
 import { RANKS, SUITS, cardId } from '../logic/cards.ts';
 import { MACHINES } from '../logic/slots.ts';
+import { applyAvatar } from '../ui/avatar.ts';
 import { THEME, analytics, applySettings } from '../services.ts';
+
+/** Dealer photos (art/dealers/<name>.png). */
+export const DEALER_PHOTOS = ['sofia', 'marco', 'mei', 'fiona', 'jamal', 'elena', 'kenji', 'victor'];
+
+/** Portraits players can pick for their profile. */
+export const PICK_AVATARS = ['pick-ace', 'pick-queen', 'pick-king', 'pick-jack', 'pick-luna', 'pick-duke'];
 
 export const CHIP_VALUES = [10, 50, 100, 500, 1000, 5000];
 
@@ -77,9 +84,10 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`chip-${v}`, `art/ui/chip-${v}.png`);
       this.load.image(`chipside-${v}`, `art/ui/chipside-${v}.png`);
     }
-    for (const u of ['dealer', 'trophy-gold', 'trophy-silver', 'trophy-bronze', 'ring', 'pill-fold', 'pill-call', 'pill-raise', 'pill-dark', 'pill-gold', 'pill-purple', 'roulette-rotor', 'roulette-bowl', 'ball']) this.load.image(u, `art/ui/${u}.png`);
-    for (const t of ['table-blackjack', 'table-baccarat', 'table-threecard', 'table-war', 'table-roulette', 'cabinet-videopoker']) this.load.image(t, `art/${t}.jpg`);
+    for (const u of ['dealer', 'trophy-gold', 'trophy-silver', 'trophy-bronze', 'ring', 'pill-fold', 'pill-call', 'pill-raise', 'pill-dark', 'pill-gold', 'pill-purple', 'roulette-rotor', 'roulette-bowl', 'ball', 'die-1', 'die-2', 'die-3', 'die-4', 'die-5', 'die-6']) this.load.image(u, `art/ui/${u}.png`);
+    for (const t of ['table-blackjack', 'table-baccarat', 'table-threecard', 'table-war', 'table-roulette', 'table-craps', 'table-uth', 'cabinet-videopoker']) this.load.image(t, `art/${t}.jpg`);
     this.load.image('logo-poker-series', 'art/logos/poker-series.png');
+    for (const d of DEALER_PHOTOS) this.load.image(`dealer-${d}`, `art/dealers/${d}.png`);
     this.load.image('table-poker', 'art/table-poker.jpg');
     this.load.image('table-final', 'art/table-final.jpg');
     // slot symbols are 3D renders (art/casino/3d)
@@ -88,7 +96,7 @@ export class BootScene extends Phaser.Scene {
     for (const u of ['coin', 'btn-spin', 'btn-spin-lanterns', 'btn-spin-pharaoh', 'btn-spin-ocean', 'btn-spin-goldrush', 'btn-gamble', 'btn-stop', 'btn-plus', 'btn-minus', 'btn-auto', 'btn-auto-on', 'panel-bet']) this.load.image(u, `art/ui/${u}.png`);
     for (const m of MACHINES) this.load.image(`logo-${m.id}`, `art/logos/${m.id}.png`);
     for (const bg of ['bg-felt', 'bg-felt-red', 'bg-poker', 'room-lobby', 'room-slots', 'room-poker', 'room-tables', 'world-pharaoh', 'world-ocean', 'world-goldrush', 'world-lanterns']) this.load.image(bg, `art/${bg}.jpg`);
-    for (const a of ['you', 'rosa', 'dmitri', 'kwame', 'lena', 'hector', 'priya', 'sam', 'yuki']) {
+    for (const a of ['you', 'rosa', 'dmitri', 'kwame', 'lena', 'hector', 'priya', 'sam', 'yuki', ...PICK_AVATARS]) {
       this.load.svg(`av-${a}`, `art/avatars/${a}.svg`, { width: 256, height: 256 });
     }
   }
@@ -105,6 +113,8 @@ export class BootScene extends Phaser.Scene {
     darkened(this, 'room-slots', 'bg-floor', 0.45);
     for (const id of ['pharaoh', 'ocean', 'goldrush', 'lanterns']) darkened(this, `world-${id}`, `bg-machine-${id}`, 0.25);
     analytics.track('session_start', {});
-    this.scene.start('lobby');
+    // keep the default portrait under its own key, then apply the player's chosen picture
+    this.textures.addImage('av-default', this.textures.get('av-you').getSourceImage() as HTMLImageElement);
+    applyAvatar(this, () => this.scene.start('lobby'));
   }
 }

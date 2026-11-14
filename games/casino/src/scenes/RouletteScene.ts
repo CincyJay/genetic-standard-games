@@ -4,6 +4,7 @@ import { DISPLAY_FONT, SECONDARY, THEME, audio, fmt, haptics, player, wallet } f
 import { banner, chipPicker, coinBar, coinShower, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 import { paintRouletteWheel } from '../ui/wheel.ts';
+import { Dealer } from '../ui/dealer.ts';
 
 const CHIPS = [10, 50, 100, 500, 1000, 5000];
 // Table layout (portrait): 0 on top, 12 rows of 3 numbers, outside bets on the right.
@@ -27,6 +28,7 @@ interface Spot {
 }
 
 export class RouletteScene extends Phaser.Scene {
+  private dealer!: Dealer;
   private chip = 100;
   private bets = new Map<string, Bet>();
   private history: string[] = [];
@@ -49,6 +51,8 @@ export class RouletteScene extends Phaser.Scene {
     const h = VH;
     frame(this);
     backdrop(this, 'table-roulette');
+    this.dealer = new Dealer(this, 'roulette', 975, 250, true);
+    this.time.delayedCall(800, () => this.dealer.say('hello'));
     this.bets = new Map();
     this.history = [];
     this.spots = [];
@@ -392,6 +396,8 @@ export class RouletteScene extends Phaser.Scene {
     const staked = this.totalBet();
     if (bets.some((b) => (b.spot.type === 'inside' || b.spot.type === 'straight') && wins(b.spot, n))) player.event('roulette_inside_win');
     if (returned > staked) player.event('coins_won', returned - staked);
+    if (bets.some((b) => b.spot.type === 'straight' && wins(b.spot, n))) this.dealer.say('special');
+    else this.dealer.react(returned - staked, staked);
     this.recent.unshift(n);
     this.recent = this.recent.slice(0, 10);
     this.drawRecent();

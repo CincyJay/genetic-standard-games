@@ -99,6 +99,17 @@ export const ROOMS: Room[] = [
         art: (s, c) => cardsArt(s, c, 'Qh Kh Ah', false),
       },
       {
+        key: 'craps', title: 'Craps', sub: 'Pass line · odds · hardways', bg: 'table-craps', unlock: null, ribbon: 'NEW',
+        art: (s, c) => {
+          c.add(s.add.image(-60, -80, 'die-5').setDisplaySize(130, 130).setAngle(-12));
+          c.add(s.add.image(70, -60, 'die-2').setDisplaySize(130, 130).setAngle(14));
+        },
+      },
+      {
+        key: 'uth', title: "Ultimate Hold'em", sub: 'Play your hand vs the dealer', bg: 'table-uth', unlock: null, ribbon: 'NEW',
+        art: (s, c) => cardsArt(s, c, 'As Ks', true),
+      },
+      {
         key: 'war', title: 'Casino War', sub: 'High card wins', bg: 'table-war', unlock: null, ribbon: 'NEW',
         art: (s, c) => cardsArt(s, c, 'Ks Kh', true),
       },

@@ -4,6 +4,7 @@ import { ANTE_BONUS, PAIR_PLUS, rank3, settleThreeCard } from '../logic/threecar
 import { DISPLAY_FONT, audio, fmt, wallet } from '../services.ts';
 import { VW, backdrop, banner, coinBar, dealCard, flipCard, frame, outOfCoins, text } from '../ui/common.ts';
 import { BetBoard, bottomButtons, payout, type Spot } from '../ui/tablekit.ts';
+import { Dealer } from '../ui/dealer.ts';
 
 const DEALER_Y = 470;
 const PLAYER_Y = 1060;
@@ -44,6 +45,8 @@ export class ThreeCardScene extends Phaser.Scene {
     this.dealerText = text(this, VW / 2, DEALER_Y + 150, '', 34, '800', '#ffffff').setDepth(8);
     this.handText = text(this, VW / 2, PLAYER_Y + 150, '', 40, '900', '#ffe14a').setDepth(8).setStroke('#000000', 6);
     this.info = text(this, VW / 2, 1255, '', 28, '800', '#ffffff').setDepth(8);
+    const dealer = new Dealer(this, 'threecard');
+    this.time.delayedCall(600, () => dealer.say('hello'));
     this.board = new BetBoard(this, SPOTS, () => this.updateInfo());
     // the Play spot only takes chips when you decide to play
     this.board.add = ((orig) => (id: string, amount?: number) => (id === 'play' ? audio.invalid() : orig(id, amount)))(this.board.add.bind(this.board));

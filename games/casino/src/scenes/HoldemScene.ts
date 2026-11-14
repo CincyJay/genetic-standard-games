@@ -5,6 +5,7 @@ import { DISPLAY_FONT, GOLD, THEME, audio, fmt, haptics, player, trophies, walle
 import { MTT_EVENTS, MttField, SNG_BUYINS, START_CHIPS, blindsFor, mttBlinds, mttPrize, paidPlaces, prizeFor, type MttEvent } from '../logic/tournament.ts';
 import { CARD_H, CARD_W, banner, coinBar, dealCard, flipCard, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { CASH_STAKES } from './PokerLobbyScene.ts';
+import { Dealer } from '../ui/dealer.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
 const STAKES = CASH_STAKES;
@@ -118,6 +119,7 @@ export class HoldemScene extends Phaser.Scene {
     this.stepping = false;
     this.botCursor = Phaser.Math.Between(0, BOTS.length - 1);
     this.refresh = coinBar(this, "Hold'em", () => this.leave());
+    new Dealer(this, 'holdem', 110, 330);
     this.handLabel = text(this, SEATS[0]!.x, 1268, '', 34, '700', BRASS_HEX).setDepth(30);
     (globalThis as Record<string, unknown>).__holdem = {
       state: () => ({ toAct: this.table?.toAct ?? -1, street: this.table?.street ?? 'none', hand: this.table?.handNumber ?? 0, stack: this.table?.seats[0]!.stack ?? 0 }),

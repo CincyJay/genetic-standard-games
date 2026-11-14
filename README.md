@@ -39,12 +39,18 @@ and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) 
 | Baccarat | Punto banco, 8 decks, standard third-card rules; Player 1:1, Banker 0.95:1, Tie 8:1, Player/Banker Pair 11:1; bead road of recent results |
 | Three Card Poker | Ante/Play with ante bonus (straight 1, trips 4, straight flush 5), dealer qualifies with queen high, Pair Plus side bet (1/4/6/30/40 to 1) |
 | Casino War | High card wins 1:1; on a tie, go to war (raise wins 1:1, bet pushes) or surrender half; Tie bet 10:1 |
+| Craps | Pass Line with odds (up to 3x, true odds), Don't Pass, Field, Place 4-10, Hardways, Any Seven, Any Craps, Yo; place and hardways off on the come-out; ON/OFF puck |
+| Ultimate Texas Hold'em | Ante + Blind (+ Trips); one Play bet: 4x/3x preflop, 2x on the flop, 1x at the river or fold; dealer opens with a pair; Blind pays on a straight or better |
 
 **Progression** (`src/logic/progression.ts`): XP from every wager (1 per 10 coins) raises your
 level; each level pays coins (bigger every 5th) and unlocks content (Lucky Lanterns at 2, Pharaoh's Gold at 3, High
 Roller hold'em at 5, Deep Blue at 6, Gold Rush at 10, VIP Room at 15). VIP tiers (Bronze, Silver
 at 10, Gold 25, Platinum 50, Diamond 100) multiply the daily wheel. Three daily missions (from
 different games) and a once-a-day prize wheel live in the lobby.
+
+**Dealers:** each table game has its own dealer (photo portraits in `games/casino/public/art/dealers/`, supplied by the owner) who greets you and reacts to wins and losses.
+
+**Profile picture:** players can upload a photo (cropped to a circle, stored on the device) or pick an illustrated portrait; it shows in the lobby, the profile and at the poker table.
 
 **Presentation:** the lobby has a door to each room (Slots Room, Poker Room, Table Games), a
 jackpot marquee, and a bottom bar with the hourly bonus, daily wheel, missions and the player

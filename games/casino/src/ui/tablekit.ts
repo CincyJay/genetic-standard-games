@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GOLD, THEME, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { chipPicker, coinShower, makeButton, outOfCoins, text } from './common.ts';
+import type { Dealer } from './dealer.ts';
 
 export const TABLE_CHIPS = [10, 50, 100, 500, 1000, 5000];
 export const SPOT_MAX = 50_000;
@@ -144,6 +145,7 @@ export class BetBoard {
 
   /** The chip rack (pick a chip value). */
   showPicker(y: number): void {
+    (this.scene.data.get('dealer') as Dealer | undefined)?.say('bets');
     this.hidePicker();
     this.picker = chipPicker(this.scene, y, TABLE_CHIPS, this.chip, (v) => (this.chip = v));
   }
@@ -170,6 +172,7 @@ export function stackChips(scene: Phaser.Scene, layer: Phaser.GameObjects.Contai
 
 /** Pays out a round: adds coins, records wins, shows a shower and result banner text. */
 export function payout(scene: Phaser.Scene, back: number, staked: number, refresh: () => void, at: { x: number; y: number }): void {
+  (scene.data.get('dealer') as Dealer | undefined)?.react(back - staked, staked);
   if (back > 0) {
     wallet.add(back);
     refresh();

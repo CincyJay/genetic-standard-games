@@ -3,6 +3,7 @@ import { BaccaratShoe, settleBets, total, type BaccaratBet, type Coup, type Side
 import { DISPLAY_FONT, GOLD, audio, fmt } from '../services.ts';
 import { CARD_H, CARD_W, VW, backdrop, banner, coinBar, dealCard, frame, text } from '../ui/common.ts';
 import { BetBoard, bottomButtons, payout, type Spot } from '../ui/tablekit.ts';
+import { Dealer } from '../ui/dealer.ts';
 
 const SHOE = { x: 940, y: 330 };
 const HAND_Y = 600;
@@ -48,6 +49,8 @@ export class BaccaratScene extends Phaser.Scene {
     text(this, PX - 50, HAND_Y - 160, 'PLAYER', 40, '900', '#8ab8ff', DISPLAY_FONT).setStroke('#000000', 6);
     text(this, BX - 50, HAND_Y - 160, 'BANKER', 40, '900', '#ff8a9a', DISPLAY_FONT).setStroke('#000000', 6);
     this.info = text(this, VW / 2, 1290, '', 30, '800', '#ffffff').setDepth(8);
+    const dealer = new Dealer(this, 'baccarat');
+    this.time.delayedCall(600, () => dealer.say('hello'));
     this.board = new BetBoard(this, SPOTS, () => this.updateInfo());
     this.drawRoad();
     this.betting();

@@ -31,6 +31,10 @@ export interface SaveData {
   jackpot: number;
   /** Poker trophies won (tournament podium finishes). */
   trophies: Trophy[];
+  /** Profile picture: '' for the default, a portrait key ('pick-ace'), or an uploaded photo as a data URL. */
+  avatar?: string;
+  /** Display name at the tables. */
+  name?: string;
 }
 
 export interface Trophy {

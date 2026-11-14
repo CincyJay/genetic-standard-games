@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 
+import { Dealer } from '../ui/dealer.ts';
 import { BlackjackRound, Shoe, handTotal, type PlayerHand } from '../logic/blackjack.ts';
 import { PAIR_PAYS, SIDE_NAMES, THREE_PAYS, perfectPairs, twentyOnePlusThree } from '../logic/sidebets.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, player, wallet } from '../services.ts';
@@ -33,6 +34,8 @@ export class BlackjackScene extends Phaser.Scene {
   private sideWon = 0;
   private sideStaked = 0;
 
+  private dealer!: Dealer;
+
   constructor() {
     super('blackjack');
   }
@@ -47,6 +50,8 @@ export class BlackjackScene extends Phaser.Scene {
     // 3D-rendered table: printed felt, chip tray, shoe and padded rail
     backdrop(this, 'table-blackjack');
     this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('room', { room: 'tables' }));
+    this.dealer = new Dealer(this, 'blackjack');
+    this.time.delayedCall(600, () => this.dealer.say('hello'));
     this.betLayer = this.add.container(0, 0).setDepth(5);
     this.infoText = text(this, w / 2, BET_Y + 120, '', 34, '800', '#ffffff');
     this.bettingPhase();
@@ -413,6 +418,8 @@ export class BlackjackScene extends Phaser.Scene {
     if (r.hands.some((h) => h.result === 'blackjack')) player.event('blackjack_blackjack');
     if (net > 0) player.event('coins_won', net);
     this.refresh();
+    if (r.hands.some((h) => h.result === 'blackjack')) this.dealer.say('special');
+    else this.dealer.react(net, staked);
     if (r.hands.some((h) => h.result === 'blackjack')) {
       banner(this, 'Blackjack!', net > 0 ? `+${fmt(net)}` : '');
       audio.win();

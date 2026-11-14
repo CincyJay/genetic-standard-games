@@ -108,6 +108,12 @@ def avatar(skin, hair_color, top, shirt, bg, extras=()):
             parts.append('<circle cx="72" cy="130" r="7" fill="none" stroke="#e9c86a" stroke-width="3"/><circle cx="168" cy="130" r="7" fill="none" stroke="#e9c86a" stroke-width="3"/>')
         elif e == 'shades':
             parts.append('<path d="M84,66 Q120,54 156,66 L152,78 Q120,70 88,78 Z" fill="#1d1d22"/>')
+        elif e == 'dealer':
+            # casino dealer uniform: black vest over a white shirt, red bow tie, gold name pin
+            parts.append('<path d="M20,240 C24,190 70,170 120,170 C170,170 216,190 220,240 Z" fill="#f4f1ea"/>')
+            parts.append('<path d="M20,240 C24,196 60,178 96,174 L120,240 Z M220,240 C216,196 180,178 144,174 L120,240 Z" fill="#14101a"/>')
+            parts.append('<path d="M98,180 L120,190 L98,200 Z M142,180 L120,190 L142,200 Z" fill="#c8102e"/><circle cx="120" cy="190" r="6" fill="#a00d24"/>')
+            parts.append('<rect x="150" y="206" width="34" height="12" rx="3" fill="#e9c86a"/>')
         elif e == 'headphones':
             parts.append('<path d="M66,104 Q66,30 120,30 Q174,30 174,104" stroke="#1d1d22" stroke-width="9" fill="none"/><rect x="56" y="96" width="20" height="36" rx="8" fill="#2fd6c3"/><rect x="164" y="96" width="20" height="36" rx="8" fill="#2fd6c3"/>')
     parts.append('</g>')
@@ -126,6 +132,13 @@ AVATARS = {
     'sam': avatar('brown', '#2a1d1a', 'short', ('#3a3a42', '#55555f'), ('#3a3a42', '#1a1a20'), ('cap',)),
     'yuki': avatar('light', '#1a1416', 'bob', ('#5a1f2a', '#f2e6d8'), ('#4a2a32', '#22121a'), ('headphones',)),
     'you': avatar('tan', '#3a2a22', 'short', ('#1d1d22', '#c9a96a'), ('#5a4a2a', '#2a2012'), ()),
+    # extra portraits players can pick for their profile
+    'pick-ace': avatar('brown', '#1a1210', 'curly', ('#c8102e', '#f2e6d8'), ('#5a1a2a', '#2a0a12'), ('shades',)),
+    'pick-queen': avatar('light', '#c97a3a', 'long', ('#5a1a8a', '#f2e6d8'), ('#3a1a5a', '#1a0a2a'), ('earrings',)),
+    'pick-king': avatar('deep', '#1a1210', 'short', ('#e9b949', '#2a1a06'), ('#5a4a12', '#2a2006'), ('beard', 'fedora')),
+    'pick-jack': avatar('light', '#e3c27a', 'short', ('#1a5ac8', '#f2f2f2'), ('#1a3a6a', '#0a1428'), ('cap',)),
+    'pick-luna': avatar('tan', '#1a1416', 'bob', ('#0f8a5a', '#f2e6d8'), ('#0f4a3a', '#06221a'), ('headphones',)),
+    'pick-duke': avatar('tan', '#c9c4bc', 'bald', ('#2b3a55', '#e9e6df'), ('#2a2a3a', '#12121a'), ('glasses', 'mustache')),
 }
 
 os.makedirs(OUT, exist_ok=True)

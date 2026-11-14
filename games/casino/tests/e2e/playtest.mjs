@@ -57,7 +57,7 @@ const back = async () => {
 const ROOMS = {
   slots: ['sevens', 'lanterns', 'pharaoh', 'ocean', 'goldrush'],
   poker: ['holdem', 'jacks', 'deuces', 'ddb'],
-  tables: ['blackjack', 'roulette', 'baccarat', 'threecard', 'war'],
+  tables: ['blackjack', 'roulette', 'baccarat', 'threecard', 'craps', 'uth', 'war'],
 };
 const roomOf = (name) => Object.keys(ROOMS).find((r) => ROOMS[r].includes(name));
 const openTile = async (name) => {
@@ -217,6 +217,34 @@ await collectLevelUps();
 if (await page.evaluate(() => globalThis.__war.atWar())) await tap(820, 1840); // go to war
 await page.waitForFunction(() => !globalThis.__war.busy() && !globalThis.__war.atWar(), null, { timeout: 60000 });
 await shot('10d-war');
+await back();
+
+step('craps');
+await openTile('craps');
+await tap(540, 1210); // Pass Line
+await tap(540, 950); // Field
+for (let k = 0; k < 3; k++) {
+  await tap(800, 1840); // Roll
+  await wait(800);
+  await page.waitForFunction(() => !globalThis.__craps.rolling(), null, { timeout: 60000 });
+  await collectLevelUps();
+  if ((await page.evaluate(() => globalThis.__craps.point())) === null) await tap(540, 1210);
+}
+await shot('10e-craps');
+await back();
+
+step("ultimate texas hold'em");
+await openTile('uth');
+await tap(415, 1390); // Ante (+ Blind)
+await tap(820, 1840); // Deal
+await wait(2500);
+await collectLevelUps();
+await tap(190, 1840); // Check
+await wait(2000);
+await tap(820, 1840); // Bet 2x
+await wait(3000);
+await shot('10f-uth');
+await page.waitForFunction(() => !globalThis.__uth.busy(), null, { timeout: 60000 });
 await back();
 
 step("hold'em");

@@ -653,3 +653,41 @@ export function renderCabinet() {
   renderer.render(scene, cam);
   return renderer.domElement.toDataURL('image/jpeg', 0.88);
 }
+
+// ------------------------------------------------------------------ dice
+const PIPS = {
+  1: [[0, 0]],
+  2: [[-1, -1], [1, 1]],
+  3: [[-1, -1], [0, 0], [1, 1]],
+  4: [[-1, -1], [1, -1], [-1, 1], [1, 1]],
+  5: [[-1, -1], [1, -1], [0, 0], [-1, 1], [1, 1]],
+  6: [[-1, -1], [1, -1], [-1, 0], [1, 0], [-1, 1], [1, 1]],
+};
+
+/** A casino die (translucent red, white pips) with `top` facing up. */
+export function die(top) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new RoundedBoxGeometry(2, 2, 2, 6, 0.22), new THREE.MeshPhysicalMaterial({ color: 0xd0101c, roughness: 0.08, transmission: 0.25, thickness: 1, clearcoat: 1 }));
+  g.add(body);
+  const pipM = new THREE.MeshPhysicalMaterial({ color: 0xffffff, roughness: 0.3, clearcoat: 0.6 });
+  const face = (n, place) => {
+    for (const [u, v] of PIPS[n]) {
+      const pip = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.06, 24), pipM);
+      place(pip, u * 0.52, v * 0.52);
+      g.add(pip);
+    }
+  };
+  // opposite faces add to 7; front and right chosen next to the top
+  const front = top === 1 || top === 6 ? 2 : 1;
+  const right = [1, 2, 3, 4, 5, 6].find((x) => x !== top && x !== 7 - top && x !== front && x !== 7 - front);
+  face(top, (p, u, v) => p.position.set(u, 1.0, v));
+  face(front, (p, u, v) => {
+    p.rotation.x = Math.PI / 2;
+    p.position.set(u, v, 1.0);
+  });
+  face(right, (p, u, v) => {
+    p.rotation.z = Math.PI / 2;
+    p.position.set(1.0, u, v);
+  });
+  return g;
+}

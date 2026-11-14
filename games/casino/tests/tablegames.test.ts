@@ -84,3 +84,24 @@ describe('casino war', () => {
     expect(settleWar(cards('2h')[0]!, cards('Ks')[0]!, 100)).toBe(0);
   });
 });
+
+import { settleUth } from '../src/logic/uth.ts';
+describe("ultimate texas hold'em", () => {
+  it('pays ante, blind (straight or better) and play when you win', () => {
+    // player flush beats dealer pair: play 1:1, ante 1:1, blind 3:2, trips 7:1
+    const r = settleUth(cards('Ah Kh'), cards('Qs Qd'), cards('2h 7h 9h Jc 3s'), 100, 10, 400);
+    expect(r.outcome).toBe('win');
+    expect(r.back).toBe(800 + 200 + 250 + 80);
+  });
+  it('ante pushes when the dealer does not open', () => {
+    const r = settleUth(cards('2c 3d'), cards('Ah Kd'), cards('7s 8h 9c Jd 4s'), 100, 0, 100);
+    expect(r.dealerOpens).toBe(false);
+    expect(r.outcome).toBe('lose');
+    expect(r.back).toBe(100);
+  });
+  it('folding loses ante and blind but trips still pays', () => {
+    const r = settleUth(cards('7c 7d'), cards('Ah Kd'), cards('7s 2h 9c Jd 4s'), 100, 10, 0);
+    expect(r.outcome).toBe('fold');
+    expect(r.back).toBe(40);
+  });
+});

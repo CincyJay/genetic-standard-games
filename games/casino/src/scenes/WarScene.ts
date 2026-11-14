@@ -4,6 +4,7 @@ import { settleFirst, settleWar, surrender } from '../logic/war.ts';
 import { DISPLAY_FONT, audio, fmt, wallet } from '../services.ts';
 import { VW, backdrop, banner, coinBar, dealCard, frame, outOfCoins, text } from '../ui/common.ts';
 import { BetBoard, bottomButtons, payout, type Spot } from '../ui/tablekit.ts';
+import { Dealer } from '../ui/dealer.ts';
 
 const SHOE = { x: 940, y: 330 };
 const DEALER_Y = 520;
@@ -42,6 +43,8 @@ export class WarScene extends Phaser.Scene {
     text(this, VW / 2, DEALER_Y - 170, 'DEALER', 34, '900', '#e9c8ff', DISPLAY_FONT).setStroke('#000000', 6);
     text(this, VW / 2, PLAYER_Y + 170, 'YOU', 34, '900', '#e9c8ff', DISPLAY_FONT).setStroke('#000000', 6);
     this.info = text(this, VW / 2, 1255, '', 30, '800', '#ffffff').setDepth(8);
+    const dealer = new Dealer(this, 'war');
+    this.time.delayedCall(600, () => dealer.say('hello'));
     this.board = new BetBoard(this, SPOTS, () => this.updateInfo());
     this.betting();
     (globalThis as Record<string, unknown>).__war = {

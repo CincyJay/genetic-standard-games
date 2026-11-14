@@ -16,7 +16,7 @@
       import { renderRoom } from './rooms.js';
       import { UI } from './ui.js';
       import { renderWorld } from './worlds.js';
-      import { CHIP_COLORS, ball, chip, dealerButton, pill, renderCabinet, renderCardTable, renderTable, renderTopDown, ring, rouletteBowl, rouletteRotor, seriesLogo, trophy } from './poker.js';
+      import { CHIP_COLORS, ball, chip, dealerButton, die, pill, renderCabinet, renderCardTable, renderTable, renderTopDown, ring, rouletteBowl, rouletteRotor, seriesLogo, trophy } from './poker.js';
       await loadFonts();
       setupRenderer(320, 320);
       globalThis.renderSymbols = (sets) => {
@@ -59,11 +59,14 @@
           threecard: { felt: '#0c2a6e', tray: true, prints: [big('THREE CARD POKER'), small('Dealer plays with Queen high or better')], lines: [arc] },
           war: { felt: '#3a0f4a', tray: true, shoe: { x: 940, y: 330 }, prints: [big('CASINO WAR'), small('Ties: go to war, or surrender half your bet')], lines: [arc] },
           roulette: { felt: '#0f5a3a', railY: 1745, prints: [] },
+          craps: { felt: '#0f5a3a', railY: 1560, prints: [] },
+          uth: { felt: '#0c2a6e', tray: true, prints: [{ text: 'ULTIMATE TEXAS HOLD\'EM', font: '900 64px Georgia, serif', x: 540, y: 760 }, { text: 'Dealer needs a pair to open the Ante', font: '600 30px Georgia, serif', x: 540, y: 812, color: 'rgba(255,244,220,0.55)' }], lines: [arc] },
         };
         for (const [k, cfg] of Object.entries(T)) out[`table-${k}.jpg`] = renderCardTable(cfg);
         out['cabinet-videopoker.jpg'] = renderCabinet();
         out['ui/roulette-rotor.png'] = renderTopDown(rouletteRotor(920).grp, 920);
         out['ui/roulette-bowl.png'] = renderTopDown(rouletteBowl(920).grp, 1080);
+        for (let n = 1; n <= 6; n++) out[`ui/die-${n}.png`] = snapshot(die(n), { size: 160, pad: 0.04, tilt: [0.95, -0.5], fov: 24 });
         out['ui/ball.png'] = snapshot(ball(), { size: 64, pad: 0.02, tilt: [0, 0], fov: 20 });
         return out;
       };
