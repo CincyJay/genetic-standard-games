@@ -1,3 +1,5 @@
+import { LoungeMusic } from './music.ts';
+
 /**
  * Casino sound engine. Everything is synthesized with Web Audio, but modeled on
  * the physical sound (filtered noise for clay chips and cards, inharmonic partials
@@ -5,6 +7,9 @@
  */
 export class CasinoSound {
   enabled = true;
+  /** Background music on/off (separate from sound effects). */
+  musicOn = true;
+  readonly music = new LoungeMusic();
   private ctx: AudioContext | null = null;
   private out: GainNode | null = null;
   private noise: AudioBuffer | null = null;
@@ -29,6 +34,19 @@ export class CasinoSound {
     this.ctx = ctx;
     this.out = out;
     this.noise = buf;
+    // pause everything while the app is in the background
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) void ctx.suspend();
+      else void ctx.resume();
+    });
+    this.syncMusic();
+  }
+
+  /** Starts or stops the background loop to match `musicOn`. */
+  syncMusic(): void {
+    if (!this.ctx || !this.out || !this.noise) return;
+    if (this.musicOn) this.music.start(this.ctx, this.out, this.noise);
+    else this.music.stop();
   }
 
   private ready(): AudioContext | null {
@@ -234,6 +252,7 @@ export class CasinoSound {
 
   /** Big win: rising bell arpeggio over a shower of coins. */
   win(): void {
+    this.music.duck(2.5);
     [1047, 1319, 1568, 2093].forEach((f, i) => this.bell(f, 1.2, 0.12, i * 0.1));
     this.coins(14, 0.2);
   }

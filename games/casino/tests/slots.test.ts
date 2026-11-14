@@ -1,15 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '@tgs/kit/rng';
-import { DEEP_BLUE, GOLD_RUSH, LINES, LUCKY_SEVENS, MACHINES, PHARAOH, bonusEV, evaluate, pickBoard, simulateRtp, strips, type Grid } from '../src/logic/slots.ts';
+import {
+  DEEP_BLUE, GOLD_RUSH, LINES, LUCKY_LANTERNS, LUCKY_SEVENS, MACHINES, PHARAOH, bonusEV, evaluate, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, playHoldSpin,
+  simulateRtp, strips, type Grid,
+} from '../src/logic/slots.ts';
 
 /** Build a grid from rows (top to bottom). */
 const grid = (rows: string[][]): Grid => [0, 1, 2, 3, 4].map((reel) => rows.map((r) => r[reel]!));
 
 describe('slot engine', () => {
-  it('every machine has 9 symbols ending in wild and scatter, 5 strips, and pays for each symbol', () => {
+  it('every machine has its symbols ending in wild and scatter, 5 strips, and pays for each symbol', () => {
     expect(LINES).toHaveLength(20);
     for (const m of MACHINES) {
-      expect(m.symbols).toHaveLength(9);
+      expect(m.symbols.length).toBeGreaterThanOrEqual(9);
       expect(m.symbols.slice(-2)).toEqual(['wild', 'scatter']);
       expect(strips(m)).toHaveLength(5);
       for (const s of m.symbols.slice(0, -1)) expect(m.pays[s]).toHaveLength(3);
@@ -70,4 +73,45 @@ describe('slot engine', () => {
       expect(rtp, m.name).toBeLessThan(1.0);
     }
   }, 120_000);
+
+  describe('Hold & Spin (Lucky Lanterns)', () => {
+    const six: Grid = [0, 1, 2, 3, 4].map((r) => [0, 1, 2].map((row) => (r < 2 ? 'scatter' : 'ten')));
+
+    it('lanterns stack on the strips so six or more can land', () => {
+      const s0 = strips(LUCKY_LANTERNS)[0]!;
+      const runs = s0.filter((s, i) => s === 'scatter' && s0[(i + 1) % s0.length] === 'scatter' && s0[(i + 2) % s0.length] === 'scatter');
+      expect(runs.length).toBeGreaterThan(0);
+    });
+
+    it('six lanterns start the feature; five do not', () => {
+      expect(evaluate(LUCKY_LANTERNS, six, 1).bonus).toBe('holdspin');
+      const five = six.map((col, r) => col.map((s, row) => (r === 1 && row === 2 ? 'ten' : s)));
+      expect(evaluate(LUCKY_LANTERNS, five, 1).bonus).toBeNull();
+      expect(evaluate(LUCKY_LANTERNS, five, 1).coins).toBe(5);
+    });
+
+    it('locks the triggering lanterns and only fills empty cells', () => {
+      const rnd = createRng(3);
+      const board = holdSpinStart(LUCKY_LANTERNS, six, rnd);
+      expect(board.filter(Boolean)).toHaveLength(6);
+      const before = board.map((c) => c);
+      const landed = holdSpinRespin(LUCKY_LANTERNS, board, () => 0); // every empty cell lands
+      expect(landed).toHaveLength(9);
+      before.forEach((c, i) => c && expect(board[i]).toBe(c));
+    });
+
+    it('a full board adds the Grand jackpot', () => {
+      const board = Array.from({ length: 15 }, () => ({ mult: 1 }));
+      expect(holdSpinTotal(LUCKY_LANTERNS, board)).toEqual({ mult: 15 + LUCKY_LANTERNS.holdSpin!.grand, grand: true });
+      board[3] = null as never;
+      expect(holdSpinTotal(LUCKY_LANTERNS, board).grand).toBe(false);
+    });
+
+    it('the feature ends after three respins with no new lantern', () => {
+      let calls = 0;
+      const r = playHoldSpin(LUCKY_LANTERNS, six, () => (calls++ < 6 ? 0.5 : 0.99)); // values, then nothing lands
+      expect(r.board.filter(Boolean)).toHaveLength(6);
+      expect(r.grand).toBe(false);
+    });
+  });
 });

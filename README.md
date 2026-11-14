@@ -26,26 +26,33 @@ npm run playtest     # automated browser play-test (needs `npm run dev` running)
 ## Velvet Ace Casino
 
 Play-money social casino: **coins can never be cashed out or exchanged for anything of value.**
-Players start with 10,000 coins, collect a free bonus every 2 hours (grows with daily streaks),
+Players start with 10,000 coins, collect a free bonus every hour (grows with daily streaks),
 and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) in the stores.
 
 | Game | Rules (in `games/casino/src/logic/`, all unit-tested) |
 |---|---|
-| Slots (4 machines) | 5x3, 20 lines, wilds, scatters. Lucky Sevens: free spins pay 3x. Pharaoh's Gold: pick-3 bonus. Deep Blue: expanding wilds + free spins. Gold Rush: prize-wheel bonus. Shared progressive jackpot (5 wilds on a line, scaled by bet). Each ~95% return by simulation (`node games/casino/tests/rtp-sim.ts`) |
+| Slots (5 machines) | 5x3, 20 lines, wilds, scatters. Lucky Sevens: free spins pay 3x. Lucky Lanterns: Hold & Spin (6+ lanterns lock with coin values; 3 respins that reset on every new lantern; Mini/Minor/Major lanterns, fill all 15 for the Grand). Pharaoh's Gold: pick-3 bonus. Deep Blue: expanding wilds + free spins. Gold Rush: prize-wheel bonus. Shared progressive jackpot (5 wilds on a line, scaled by bet). Each ~95% return by simulation (`node games/casino/tests/rtp-sim.ts`) |
 | Blackjack | 6 decks, dealer stands on all 17s, 3:2 blackjack, double, split, dealer peek; play 1-3 hands at once; Perfect Pairs and 21+3 side bets |
 | Texas Hold'em | No-limit, 6 seats vs computer players with personalities; side pots, split pots; cash tables at 3 stakes plus Sit & Go tournaments (Bronze/Silver/Gold buy-ins, rising blinds, top 3 paid 50/30/20%) |
 | Video Poker | Jacks or Better (9/6), Deuces Wild, Double Double Bonus (with kicker pays); 1-5 coins, 5 denominations |
 | Roulette | European single zero: straight, red/black, odd/even, low/high, dozens, columns, splits, streets, corners, six-lines; racetrack with neighbour bets and the called bets (Voisins, Tiers, Orphelins, Jeu Zéro) |
 
 **Progression** (`src/logic/progression.ts`): XP from every wager (1 per 10 coins) raises your
-level; each level pays coins (bigger every 5th) and unlocks content (Pharaoh's Gold at 3, High
+level; each level pays coins (bigger every 5th) and unlocks content (Lucky Lanterns at 2, Pharaoh's Gold at 3, High
 Roller hold'em at 5, Deep Blue at 6, Gold Rush at 10, VIP Room at 15). VIP tiers (Bronze, Silver
 at 10, Gold 25, Platinum 50, Diamond 100) multiply the daily wheel. Three daily missions (from
 different games) and a once-a-day prize wheel live in the lobby.
 
+**Presentation:** the lobby is a casino floor (jackpot marquee, a sideways-scrolling wall of
+machine and table tiles, a bottom bar with the hourly bonus, daily wheel, missions and the
+player profile, which also holds the sound, music and vibration switches). Wins of 10x the bet
+or more get a full-screen celebration that climbs through BIG, SUPER, MEGA and EPIC WIN.
+Background music is a lounge-jazz loop synthesized live (`src/music.ts`), so there are no audio
+files to license; it ducks under big wins and pauses when the app is in the background.
+
 Shuffles use the browser's cryptographic random generator. Art (52-card deck, chips, slot
 symbols, felts) is drawn in code: `python3 art/casino/cards.py && python3 art/casino/slots.py &&
-python3 art/casino/backgrounds.py && node art/casino/build.mjs`.
+python3 art/casino/slots2.py && python3 art/casino/slots3.py && python3 art/casino/backgrounds.py && node art/casino/build.mjs`.
 
 ```bash
 npm run dev:casino                     # http://localhost:5174 (vite picks the port)

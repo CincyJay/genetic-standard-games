@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import { makeButton, popIn } from '@tgs/kit';
 import {
-  LINES, LINE_BETS, LUCKY_SEVENS, MACHINES, MAX_TOTAL_BET, evaluate, gridFromStops, pickBoard, spinBonusWheel, spinStops, type Machine, type SpinResult,
+  LINES, LINE_BETS, LUCKY_SEVENS, MACHINES, MAX_TOTAL_BET, evaluate, gridFromStops, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, spinBonusWheel,
+  spinStops, type Grid, type Lantern, type Machine, type SpinResult,
 } from '../logic/slots.ts';
+import { showBigWin, tierFor } from '../ui/bigwin.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { paintPrizeWheel } from '../ui/wheel.ts';
 import { VW, backdrop, banner, coinBar, coinShower, frame, makeButton as mb, outOfCoins, screenDim, text } from '../ui/common.ts';
@@ -13,6 +15,7 @@ const TOP = 440;
 const LINE_COLORS = [0xff4f8b, 0x4fd1ff, 0xffe14a, 0x7dff6a, 0xff9a3c, 0xc77dff, 0xffffff];
 
 export const machineBg = (m: Machine) => (m.id === 'sevens' ? 'bg-slots' : `bg-slots-${m.id}`);
+const JACKPOT_COLORS: Record<string, number> = { GRAND: 0xc8102e, MAJOR: 0x6b2fb3, MINOR: 0x1d6aa8, MINI: 0x0f8a5a };
 export const symKey = (m: Machine, s: string) => `sym-${m.id}-${s}`;
 
 const FEATURE_TEXT: Record<Machine['feature'], string> = {
@@ -20,6 +23,7 @@ const FEATURE_TEXT: Record<Machine['feature'], string> = {
   pick: 'Pick-a-sarcophagus bonus',
   expanding: 'Expanding wilds + free spins',
   wheel: 'Prize wheel bonus',
+  holdspin: '6+ lanterns start Hold & Spin',
 };
 export { FEATURE_TEXT };
 
@@ -37,6 +41,7 @@ export class SlotsScene extends Phaser.Scene {
   private betText!: Phaser.GameObjects.Text;
   private fsText!: Phaser.GameObjects.Text;
   private jackpotText!: Phaser.GameObjects.Text;
+  private jackpotBoxes: Phaser.GameObjects.Container | null = null;
   private lines!: Phaser.GameObjects.Graphics;
   private autoBtn!: Phaser.GameObjects.Container;
 
@@ -92,9 +97,9 @@ export class SlotsScene extends Phaser.Scene {
 
     text(this, w / 2, 270, this.m.name.toUpperCase(), 66, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
     this.jackpotText = text(this, w / 2, 350, '', 36, '800', '#ffffff').setStroke('#14071f', 8).setDepth(23);
-    this.updateJackpot();
+    this.jackpotBoxes = null;
     this.refresh = coinBar(this, 'Slots', () => {
-      if (!this.spinning) this.scene.start('slotlobby');
+      if (!this.spinning) this.scene.start('lobby');
     });
 
     this.winText = text(this, w / 2, 1150, '', 72, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
@@ -110,6 +115,7 @@ export class SlotsScene extends Phaser.Scene {
     makeButton(this, w / 2 - 380, 1395, '−', () => this.changeBet(-1), { width: 130, height: 120, fontSize: 70, ...SECONDARY, theme: THEME }).setDepth(24);
     makeButton(this, w / 2 + 380, 1395, '+', () => this.changeBet(1), { width: 130, height: 120, fontSize: 70, ...SECONDARY, theme: THEME }).setDepth(24);
     this.updateBet();
+    this.updateJackpot();
     makeButton(this, w / 2, 1640, 'SPIN', () => this.spin(), { width: 520, height: 170, fontSize: 80, theme: THEME }).setDepth(24);
     this.autoBtn = makeButton(this, w / 2, 1820, 'Auto ×10', () => this.toggleAuto(), { width: 320, height: 100, fontSize: 38, ...SECONDARY, theme: THEME }).setDepth(24);
     (globalThis as Record<string, unknown>).__slots = {
@@ -118,6 +124,19 @@ export class SlotsScene extends Phaser.Scene {
       machine: this.m.id,
       // test hooks: open this machine's bonus game directly
       bonus: () => (this.m.feature === 'pick' ? this.pickBonus(() => {}) : this.m.feature === 'wheel' ? this.wheelBonus(() => {}) : null),
+      // test hook: show the big-win celebration for a 60x win
+      bigWin: () => {
+        if (this.spinning) return;
+        this.spinning = true;
+        showBigWin(this, this.totalBet * 60, this.totalBet, () => (this.spinning = false));
+      },
+      // test hook: start Hold & Spin from a board with 6 lanterns
+      holdSpin: () => {
+        if (!this.m.holdSpin || this.spinning) return;
+        this.spinning = true;
+        const g: Grid = [0, 1, 2, 3, 4].map((r) => [0, 1, 2].map((row) => (r < 2 || (r === 2 && row < 2) ? 'scatter' : 'ten')));
+        this.holdSpin(g, () => (this.spinning = false));
+      },
     };
   }
 
@@ -126,7 +145,32 @@ export class SlotsScene extends Phaser.Scene {
   }
 
   private updateJackpot(): void {
-    this.jackpotText.setText(`JACKPOT ${fmt(player.jackpot)}  ·  five WILDs on a line`);
+    const hs = this.m.holdSpin;
+    if (!hs) {
+      this.jackpotText.setText(`JACKPOT ${fmt(player.jackpot)}  ·  five WILDs on a line`);
+      return;
+    }
+    // Hold & Spin machines show their four fixed jackpots, scaled to the bet
+    this.jackpotText.setVisible(false);
+    this.jackpotBoxes?.destroy();
+    const c = this.add.container(0, 0).setDepth(23);
+    this.jackpotBoxes = c;
+    const values: [string, number][] = [
+      ['GRAND', hs.grand],
+      ...(['MAJOR', 'MINOR', 'MINI'] as const).map((l): [string, number] => [l, hs.values.find((v) => v.lantern.label === l)!.lantern.mult]),
+    ];
+    const bw = 236;
+    values.forEach(([label, mult], i) => {
+      const x = VW / 2 + (i - 1.5) * (bw + 12);
+      const g = this.add.graphics();
+      g.fillStyle(0x000000, 0.5);
+      g.fillRoundedRect(x - bw / 2, 322, bw, 84, 18);
+      g.fillStyle(JACKPOT_COLORS[label]!, 1);
+      g.fillRoundedRect(x - bw / 2, 316, bw, 84, 18);
+      g.lineStyle(3, 0xffd76a, 1);
+      g.strokeRoundedRect(x - bw / 2, 316, bw, 84, 18);
+      c.add([g, text(this, x, 338, label, 24, '900', '#ffe9a8').setLetterSpacing(3), text(this, x, 375, fmt(mult * this.totalBet), 34, '900', '#ffffff')]);
+    });
   }
 
   private changeBet(d: number): void {
@@ -138,6 +182,7 @@ export class SlotsScene extends Phaser.Scene {
 
   private updateBet(): void {
     this.betText.setText(fmt(this.totalBet));
+    if (this.m.holdSpin && this.jackpotText) this.updateJackpot();
   }
 
   private toggleAuto(): void {
@@ -252,15 +297,7 @@ export class SlotsScene extends Phaser.Scene {
       this.refresh();
       this.showLines(res);
       this.countUp(win);
-      const x = win / this.totalBet;
-      if (x >= 50) banner(this, 'MEGA WIN', `+${fmt(win)}`);
-      else if (x >= 25) banner(this, 'HUGE WIN', `+${fmt(win)}`);
-      else if (x >= 10) banner(this, 'BIG WIN', `+${fmt(win)}`);
-      if (x >= 10) {
-        audio.win();
-        coinShower(this, VW / 2, 700, win);
-        haptics.fire('success');
-      } else audio.complete();
+      if (tierFor(win, this.totalBet) < 0) audio.complete();
     }
     analytics.track('level_complete', { level: 0, moves: 1, seconds: 0, stars: win > 0 ? 1 : 0, undos: 0 });
     let wait = win > 0 ? 1300 : 350;
@@ -279,22 +316,34 @@ export class SlotsScene extends Phaser.Scene {
       this.spinning = false;
       if (this.freeSpins > 0) return this.spin();
       if (this.freeTotal > 0) {
-        banner(this, 'Free spins total', `+${fmt(this.freeTotal)}`);
+        const total = this.freeTotal;
         this.freeTotal = 0;
         this.updateFsText();
+        if (tierFor(total, this.totalBet) >= 0) {
+          showBigWin(this, total, this.totalBet, () => this.continueAuto());
+          return;
+        }
+        banner(this, 'Free spins total', `+${fmt(total)}`);
         this.time.delayedCall(1800, () => this.continueAuto());
         return;
       }
       this.continueAuto();
     };
-    if (res.bonus) {
-      player.event('slots_bonus');
-      this.autoLeft = 0;
-      this.setLabel(this.autoBtn, 'Auto ×10');
-      this.time.delayedCall(wait, () => (res.bonus === 'pick' ? this.pickBonus(resume) : this.wheelBonus(resume)));
-      return;
-    }
-    this.time.delayedCall(wait, resume);
+    const next = () => {
+      if (res.bonus) {
+        player.event('slots_bonus');
+        this.autoLeft = 0;
+        this.setLabel(this.autoBtn, 'Auto ×10');
+        this.time.delayedCall(wait, () =>
+          res.bonus === 'pick' ? this.pickBonus(resume) : res.bonus === 'wheel' ? this.wheelBonus(resume) : this.holdSpin(res.grid, resume),
+        );
+        return;
+      }
+      this.time.delayedCall(wait, resume);
+    };
+    // big wins get the full-screen celebration before anything else happens
+    if (!free && tierFor(win, this.totalBet) >= 0) this.time.delayedCall(500, () => showBigWin(this, win, this.totalBet, next));
+    else next();
   }
 
   private continueAuto(): void {
@@ -364,10 +413,13 @@ export class SlotsScene extends Phaser.Scene {
                 wallet.recordWin(total);
                 player.event('coins_won', total);
                 this.refresh();
-                audio.win();
-                coinShower(this, VW / 2, 900, total);
                 close();
-                resume();
+                if (tierFor(total, bet) >= 0) showBigWin(this, total, bet, resume);
+                else {
+                  audio.win();
+                  coinShower(this, VW / 2, 900, total);
+                  resume();
+                }
               }, { width: 560, height: 130, fontSize: 48, theme: THEME }),
             );
           });
@@ -421,12 +473,134 @@ export class SlotsScene extends Phaser.Scene {
           (btn.list.find((o) => o instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text).setText('Collect');
           btn.once('pointerup', () => {
             close();
-            resume();
+            if (tierFor(win, bet) >= 0) showBigWin(this, win, bet, resume);
+            else resume();
           });
         },
       });
     }, { width: 460, height: 130, fontSize: 52, theme: THEME });
     panel.add(btn);
+  }
+
+  /**
+   * Hold & Spin: the lanterns that triggered it lock in place with their values;
+   * everything else respins. Three respins, and every new lantern resets them to
+   * three. Fill all 15 cells for the Grand jackpot.
+   */
+  private holdSpin(grid: Grid, resume: () => void): void {
+    const m = this.m;
+    const hs = m.holdSpin!;
+    const bet = this.totalBet;
+    const board = holdSpinStart(m, grid);
+    this.autoLeft = 0;
+    this.setLabel(this.autoBtn, 'Auto ×10');
+    this.lines.clear();
+    banner(this, 'HOLD & SPIN', `${board.filter(Boolean).length} lanterns locked`);
+    audio.win();
+    haptics.fire('success');
+    const layer = this.add.container(0, 0).setDepth(20.5);
+    const cellPos = (i: number) => ({ x: LEFT + CELL * (Math.floor(i / 3) + 0.5), y: TOP + CELL * ((i % 3) + 0.5) });
+    const bgs: Phaser.GameObjects.Rectangle[] = [];
+    const lit: Phaser.GameObjects.Container[] = [];
+    for (let i = 0; i < 15; i++) {
+      const { x, y } = cellPos(i);
+      const r = this.add.rectangle(x, y, CELL - 10, CELL - 10, 0x2a0408, 0.97).setStrokeStyle(2, 0xe9b949, 0.35);
+      r.setAlpha(0);
+      this.tweens.add({ targets: r, alpha: 1, duration: 300, delay: 200 + i * 25 });
+      bgs.push(r);
+      layer.add(r);
+    }
+    const light = (i: number, l: Lantern, pop: boolean) => {
+      const { x, y } = cellPos(i);
+      const c = this.add.container(x, y);
+      const img = this.add.image(0, -8, symKey(m, 'scatter')).setDisplaySize(CELL * 0.86, CELL * 0.86);
+      const label = l.label ?? fmt(Math.round(l.mult * bet));
+      const t = text(this, 0, 8, label, l.label ? 30 : 36, '900', l.label ? '#ffe14a' : '#ffffff').setStroke('#3a0000', 9);
+      c.add([img, t]);
+      layer.add(c);
+      lit[i] = c;
+      bgs[i]!.setStrokeStyle(4, 0xffd76a, 1);
+      if (pop) {
+        c.setScale(0);
+        this.tweens.add({ targets: c, scale: 1, duration: 360, ease: 'Back.easeOut' });
+      }
+    };
+    board.forEach((l, i) => l && this.time.delayedCall(500 + i * 30, () => light(i, l, true)));
+    const running = () => board.reduce((s, l) => s + (l?.mult ?? 0), 0) * bet;
+    let left = hs.respins;
+    const status = () => this.fsText.setText(`RESPINS ${'●'.repeat(left)}${'○'.repeat(hs.respins - left)}`);
+    status();
+    this.winText.setText(`${fmt(Math.round(running()))}`);
+    const step = () => {
+      if (left === 0 || board.every((c) => c)) return tally();
+      left--;
+      status();
+      audio.reelSpin(0.6);
+      // empty cells shimmer while they "spin"
+      board.forEach((c, i) => {
+        if (!c) this.tweens.add({ targets: bgs[i], fillAlpha: 0.6, duration: 90, yoyo: true, repeat: 3 });
+      });
+      this.time.delayedCall(800, () => {
+        const landed = holdSpinRespin(m, board);
+        landed.forEach((i, k) =>
+          this.time.delayedCall(k * 220, () => {
+            light(i, board[i]!, true);
+            audio.chips(3);
+            audio.complete();
+            haptics.fire('medium');
+            this.winText.setText(fmt(Math.round(running())));
+          }),
+        );
+        if (landed.length) left = hs.respins;
+        else audio.reelStop();
+        this.time.delayedCall(500 + landed.length * 220, () => {
+          status();
+          step();
+        });
+      });
+    };
+    this.time.delayedCall(1700, step);
+    const tally = () => {
+      const { mult, grand } = holdSpinTotal(m, board);
+      const order = board.map((l, i) => (l ? i : -1)).filter((i) => i >= 0);
+      let sum = 0;
+      this.fsText.setText('Collecting lanterns');
+      order.forEach((i, k) =>
+        this.time.delayedCall(k * 160, () => {
+          sum += board[i]!.mult * bet;
+          this.winText.setText(fmt(Math.round(sum)));
+          this.tweens.add({ targets: lit[i], scale: 1.18, duration: 120, yoyo: true });
+          audio.coins(2);
+        }),
+      );
+      const win = Math.round(mult * bet);
+      this.time.delayedCall(order.length * 160 + 500, () => {
+        const pay = () => {
+          wallet.add(win);
+          wallet.recordWin(win);
+          player.event('coins_won', win);
+          this.refresh();
+          this.winText.setText(`WIN ${fmt(win)}`);
+          const close = () => {
+            this.tweens.add({ targets: layer, alpha: 0, duration: 300, onComplete: () => layer.destroy() });
+            this.updateFsText();
+            resume();
+          };
+          if (tierFor(win, bet) >= 0) showBigWin(this, win, bet, close);
+          else {
+            banner(this, 'HOLD & SPIN', `+${fmt(win)}`);
+            audio.win();
+            this.time.delayedCall(1800, close);
+          }
+        };
+        if (grand) {
+          banner(this, 'GRAND JACKPOT!', `+${fmt(hs.grand * bet)}`, '#ff5a5a');
+          audio.win();
+          this.cameras.main.shake(500, 0.01);
+          this.time.delayedCall(2200, pay);
+        } else pay();
+      });
+    };
   }
 
   // ---------------------------------------------------------------- win display

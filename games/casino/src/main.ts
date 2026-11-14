@@ -10,7 +10,6 @@ import { BootScene } from './scenes/BootScene.ts';
 import { HoldemScene } from './scenes/HoldemScene.ts';
 import { LobbyScene } from './scenes/LobbyScene.ts';
 import { RouletteScene } from './scenes/RouletteScene.ts';
-import { SlotLobbyScene } from './scenes/SlotLobbyScene.ts';
 import { SlotsScene } from './scenes/SlotsScene.ts';
 import { VideoPokerScene } from './scenes/VideoPokerScene.ts';
 import { setupBackButton } from './native.ts';
@@ -34,9 +33,11 @@ async function start(): Promise<void> {
     scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
     render: { antialias: true },
     input: { activePointers: 1 },
-    scene: [BootScene, LobbyScene, SlotLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene],
+    scene: [BootScene, LobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene],
   });
   void setupBackButton(game);
+  // test hook (dev builds only): jump straight to a scene
+  if (import.meta.env.DEV) Object.assign(globalThis, { __go: (key: string, data?: object) => game.scene.getScenes(true)[0]?.scene.start(key, data), __scene: () => game.scene.getScenes(true)[0] });
 }
 
 void start();

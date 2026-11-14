@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { makeButton, popIn } from '@tgs/kit';
 import { WHEEL_PRIZES, levelReward, unlocksBetween } from '../logic/progression.ts';
-import { DISPLAY_FONT, GOLD, THEME, audio, fmt, haptics, player } from '../services.ts';
+import { DISPLAY_FONT, GOLD, THEME, applySettings, audio, fmt, haptics, player, save } from '../services.ts';
 import { VH, VW, coinShower, screenDim, text } from './common.ts';
 import { paintPrizeWheel } from './wheel.ts';
 
@@ -179,4 +179,72 @@ export function showDailyWheel(scene: Phaser.Scene, refresh: () => void): void {
     });
   }, { width: 520, height: 130, fontSize: 50, theme: THEME });
   panel.add(btn);
+}
+
+/** Player profile: level, VIP tier, stats and settings (sound, music, vibration). */
+export function showProfile(scene: Phaser.Scene, refresh: () => void): void {
+  const { panel, close } = modal(scene, 920, 1360);
+  const p = player.progress();
+  const vip = player.vip();
+  const d = save.get();
+  const ring = scene.add.graphics();
+  ring.fillStyle(vip.color, 1);
+  ring.fillCircle(0, -500, 104);
+  panel.add([ring, scene.add.image(0, -500, 'av-you').setDisplaySize(190, 190)]);
+  panel.add(text(scene, 0, -360, `Level ${p.level}`, 64, '900', GOLD, DISPLAY_FONT));
+  panel.add(text(scene, 0, -296, `${vip.name} VIP${vip.bonus > 1 ? `  ·  wheel ×${vip.bonus}` : ''}`, 36, '800', '#' + vip.color.toString(16).padStart(6, '0')));
+  const bar = scene.add.graphics();
+  bar.fillStyle(0x000000, 0.6);
+  bar.fillRoundedRect(-340, -250, 680, 30, 15);
+  bar.fillStyle(0x5ee08f, 1);
+  bar.fillRoundedRect(-340, -250, Math.max(30, 680 * p.fraction), 30, 15);
+  panel.add([bar, text(scene, 0, -194, `${fmt(p.into)} / ${fmt(p.needed)} XP to level ${p.level + 1}`, 28, '600', '#cbb6d6')]);
+  const stats: [string, string][] = [
+    ['Coins', fmt(d.coins)],
+    ['Biggest win', fmt(d.biggestWin)],
+    ['Games played', fmt(d.handsPlayed)],
+  ];
+  stats.forEach(([k, v], i) => {
+    const y = -110 + i * 76;
+    const g = scene.add.graphics();
+    g.fillStyle(0xffffff, 0.05);
+    g.fillRoundedRect(-380, y - 32, 760, 64, 16);
+    panel.add([g, text(scene, -350, y, k, 34, '700', '#cbb6d6').setOrigin(0, 0.5), text(scene, 350, y, v, 38, '900', '#ffffff').setOrigin(1, 0.5)]);
+  });
+  // settings toggles
+  const toggles: { label: string; get: () => boolean; set: (on: boolean) => void }[] = [
+    { label: 'Sound effects', get: () => save.get().settings.sound, set: (on) => save.update((s) => void (s.settings.sound = on)) },
+    { label: 'Music', get: () => save.get().settings.music !== false, set: (on) => save.update((s) => void (s.settings.music = on)) },
+    { label: 'Vibration', get: () => save.get().settings.haptics, set: (on) => save.update((s) => void (s.settings.haptics = on)) },
+  ];
+  toggles.forEach((t, i) => {
+    const y = 160 + i * 110;
+    panel.add(text(scene, -350, y, t.label, 38, '700', '#ffffff').setOrigin(0, 0.5));
+    const sw = scene.add.graphics();
+    const draw = () => {
+      const on = t.get();
+      sw.clear();
+      sw.fillStyle(on ? 0x18b860 : 0x3a2a44, 1);
+      sw.fillRoundedRect(210, y - 32, 140, 64, 32);
+      sw.fillStyle(0xffffff, 1);
+      sw.fillCircle(on ? 318 : 242, y, 26);
+    };
+    draw();
+    const z = scene.add.zone(280, y, 180, 90).setInteractive({ useHandCursor: true });
+    z.on('pointerup', () => {
+      t.set(!t.get());
+      applySettings();
+      audio.unlock();
+      audio.tap();
+      draw();
+    });
+    panel.add([sw, z]);
+  });
+  panel.add(
+    makeButton(scene, 0, 560, 'Close', () => {
+      audio.tap();
+      close();
+      refresh();
+    }, { width: 360, height: 110, fontSize: 42, color: 0x3a2a44, shadow: 0x120a16, textColor: '#ffffff', theme: THEME }),
+  );
 }

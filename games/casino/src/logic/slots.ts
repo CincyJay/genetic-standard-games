@@ -8,7 +8,25 @@ import { secureRandom, type Random } from './cards.ts';
  * machine's feature. Five wilds on a line wins the progressive jackpot share.
  * Pays are tuned by simulation (see tests) to return about 95%.
  */
-export type Feature = 'freespins' | 'pick' | 'expanding' | 'wheel';
+export type Feature = 'freespins' | 'pick' | 'expanding' | 'wheel' | 'holdspin';
+
+/** A lit lantern in Hold & Spin: worth a multiple of the total bet, or a named jackpot. */
+export interface Lantern {
+  mult: number;
+  label?: 'MINI' | 'MINOR' | 'MAJOR';
+}
+
+export interface HoldSpinConfig {
+  /** Lanterns (the machine's scatter symbol) needed on screen to start the feature. */
+  trigger: number;
+  /** Respins given at the start, and again each time a new lantern lands. */
+  respins: number;
+  /** Chance each empty cell lights a lantern on a respin. */
+  landChance: number;
+  values: { lantern: Lantern; weight: number }[];
+  /** Filling all 15 cells adds the Grand jackpot (multiple of total bet). */
+  grand: number;
+}
 
 export interface Machine {
   id: string;
@@ -30,6 +48,10 @@ export interface Machine {
   wheel?: { prizes: number[]; weights: number[] };
   /** Expanding wilds appear on these reels (0-based) and fill the whole reel. */
   expandReels?: number[];
+  /** Symbols placed on the strips in runs of this length (so several can show on one reel). */
+  stacks?: Record<string, number>;
+  /** Hold & Spin: lanterns lock in place while the rest respin. */
+  holdSpin?: HoldSpinConfig;
 }
 
 export const LINES: number[][] = [
@@ -115,7 +137,40 @@ export const GOLD_RUSH: Machine = {
   wheel: { prizes: [10, 12, 16, 20, 30, 45, 80, 200], weights: [20, 18, 16, 14, 12, 9, 6, 2] },
 };
 
-export const MACHINES = [LUCKY_SEVENS, PHARAOH, DEEP_BLUE, GOLD_RUSH];
+export const LUCKY_LANTERNS: Machine = {
+  id: 'lanterns',
+  name: 'Lucky Lanterns',
+  symbols: ['ten', 'jack', 'queen', 'king', 'ace', 'koi', 'fan', 'tiger', 'wild', 'scatter'],
+  pays: {
+    ten: [8, 18, 60], jack: [8, 18, 60], queen: [9, 23, 75], king: [12, 30, 105], ace: [15, 38, 135],
+    koi: [23, 75, 225], fan: [38, 135, 525], tiger: [75, 270, 1350], wild: [150, 675, 3300],
+  },
+  weights: {
+    ten: [6, 6, 6, 6, 6], jack: [6, 6, 6, 6, 6], queen: [6, 6, 6, 6, 6], king: [5, 5, 5, 5, 5], ace: [5, 5, 5, 5, 5],
+    koi: [4, 4, 4, 4, 4], fan: [3, 3, 3, 3, 3], tiger: [2, 2, 2, 2, 2], wild: [1, 2, 2, 2, 1], scatter: [3, 3, 3, 3, 3],
+  },
+  scatterPays: [0, 0, 0],
+  stacks: { scatter: 3 },
+  feature: 'holdspin',
+  holdSpin: {
+    trigger: 6,
+    respins: 3,
+    landChance: 0.0625,
+    values: [
+      { lantern: { mult: 0.75 }, weight: 30 },
+      { lantern: { mult: 1.5 }, weight: 26 },
+      { lantern: { mult: 2 }, weight: 18 },
+      { lantern: { mult: 3.5 }, weight: 10 },
+      { lantern: { mult: 6 }, weight: 6 },
+      { lantern: { mult: 15, label: 'MINI' }, weight: 2.4 },
+      { lantern: { mult: 40, label: 'MINOR' }, weight: 0.8 },
+      { lantern: { mult: 150, label: 'MAJOR' }, weight: 0.12 },
+    ],
+    grand: 1000,
+  },
+};
+
+export const MACHINES = [LUCKY_SEVENS, LUCKY_LANTERNS, PHARAOH, DEEP_BLUE, GOLD_RUSH];
 
 // ------------------------------------------------------------------ strips
 const stripCache = new Map<string, string[][]>();
@@ -126,7 +181,8 @@ export function strips(m: Machine): string[][] {
   if (cached) return cached;
   const out = [0, 1, 2, 3, 4].map((reel) => {
     const flat: string[] = [];
-    for (const s of m.symbols) for (let i = 0; i < (m.weights[s]?.[reel] ?? 0); i++) flat.push(s);
+    const stacked = m.stacks ?? {};
+    for (const s of m.symbols) if (!stacked[s]) for (let i = 0; i < (m.weights[s]?.[reel] ?? 0); i++) flat.push(s);
     const spread: string[] = [];
     const used = new Array(flat.length).fill(false);
     let idx = 0;
@@ -135,6 +191,14 @@ export function strips(m: Machine): string[][] {
       used[idx] = true;
       spread.push(flat[idx]!);
       idx = (idx + 7) % flat.length;
+    }
+    // stacked symbols go in as runs, spaced evenly along the strip
+    for (const [sym, len] of Object.entries(stacked)) {
+      const runs = Math.round((m.weights[sym]?.[reel] ?? 0) / len);
+      for (let k = 0; k < runs; k++) {
+        const at = Math.floor(((k + 0.5) * spread.length) / runs) + k * len;
+        spread.splice(Math.min(at, spread.length), 0, ...new Array(len).fill(sym));
+      }
     }
     return spread;
   });
@@ -177,7 +241,9 @@ export interface SpinResult {
   scatterWin: number;
   /** Feature awarded: free spins count, or a bonus game to play. */
   freeSpins: number;
-  bonus: 'pick' | 'wheel' | null;
+  bonus: 'pick' | 'wheel' | 'holdspin' | null;
+  /** Lanterns (scatter symbols) on screen, uncapped. */
+  coins: number;
   /** Five wilds on a line: wins the progressive jackpot (scaled by bet). */
   jackpot: boolean;
   total: number;
@@ -235,13 +301,15 @@ export function evaluate(m: Machine, grid: Grid, lineBet: number): SpinResult {
     if (w) lineWins.push(w);
   });
   const jackpot = lineWins.some((w) => w.symbol === 'wild' && w.count === 5) && expanded.length === 0;
-  const scatters = Math.min(5, grid.flat().filter((s) => s === 'scatter').length);
+  const coins = grid.flat().filter((s) => s === 'scatter').length;
+  const scatters = Math.min(5, coins);
   const k = scatters >= 3 ? scatters - 3 : -1;
   const scatterWin = k >= 0 ? m.scatterPays[k]! * lineBet * LINES.length : 0;
   const freeSpins = k >= 0 && m.freeSpins ? m.freeSpins[k]! : 0;
-  const bonus = k >= 0 && (m.feature === 'pick' || m.feature === 'wheel') ? m.feature : null;
+  let bonus: SpinResult['bonus'] = k >= 0 && (m.feature === 'pick' || m.feature === 'wheel') ? m.feature : null;
+  if (m.holdSpin && coins >= m.holdSpin.trigger) bonus = 'holdspin';
   const total = lineWins.reduce((s, w) => s + w.win, 0) + scatterWin;
-  return { grid, final, expanded, lineWins, scatters, scatterWin, freeSpins, bonus, jackpot, total };
+  return { grid, final, expanded, lineWins, scatters, scatterWin, freeSpins, bonus, coins, jackpot, total };
 }
 
 export function spin(m: Machine, lineBet: number, rnd: Random = secureRandom): SpinResult {
@@ -269,6 +337,59 @@ export function spinBonusWheel(m: Machine, rnd: Random = secureRandom): number {
     if (r <= 0) return i;
   }
   return w.length - 1;
+}
+
+// ------------------------------------------------------------------ hold & spin
+/** Cells are indexed reel * 3 + row. */
+export type LanternBoard = (Lantern | null)[];
+
+export function lanternValue(m: Machine, rnd: Random = secureRandom): Lantern {
+  const v = m.holdSpin!.values;
+  const total = v.reduce((a, b) => a + b.weight, 0);
+  let r = rnd() * total;
+  for (const x of v) {
+    r -= x.weight;
+    if (r <= 0) return { ...x.lantern };
+  }
+  return { ...v[0]!.lantern };
+}
+
+/** Lights every lantern that triggered the feature. */
+export function holdSpinStart(m: Machine, grid: Grid, rnd: Random = secureRandom): LanternBoard {
+  const board: LanternBoard = [];
+  grid.forEach((col) => col.forEach((s) => board.push(s === 'scatter' ? lanternValue(m, rnd) : null)));
+  return board;
+}
+
+/** One respin: each empty cell may light a lantern. Returns the cells that landed. */
+export function holdSpinRespin(m: Machine, board: LanternBoard, rnd: Random = secureRandom): number[] {
+  const landed: number[] = [];
+  board.forEach((c, i) => {
+    if (c) return;
+    if (rnd() < m.holdSpin!.landChance) {
+      board[i] = lanternValue(m, rnd);
+      landed.push(i);
+    }
+  });
+  return landed;
+}
+
+/** Feature total in multiples of the total bet (Grand included when the board is full). */
+export function holdSpinTotal(m: Machine, board: LanternBoard): { mult: number; grand: boolean } {
+  const grand = board.every((c) => c !== null);
+  const mult = board.reduce((s, c) => s + (c?.mult ?? 0), 0) + (grand ? m.holdSpin!.grand : 0);
+  return { mult, grand };
+}
+
+/** Plays a whole Hold & Spin feature (used by the simulation; the scene plays it step by step). */
+export function playHoldSpin(m: Machine, grid: Grid, rnd: Random = secureRandom): { mult: number; grand: boolean; board: LanternBoard } {
+  const board = holdSpinStart(m, grid, rnd);
+  let left = m.holdSpin!.respins;
+  while (left > 0 && board.some((c) => c === null)) {
+    left--;
+    if (holdSpinRespin(m, board, rnd).length) left = m.holdSpin!.respins;
+  }
+  return { ...holdSpinTotal(m, board), board };
 }
 
 /** Expected value of a bonus game, in multiples of total bet. */
@@ -301,7 +422,10 @@ export function simulateRtp(m: Machine, spins: number, rnd: Random): { rtp: numb
     const r = spin(m, 1, rnd);
     won += r.total;
     if (r.total > 0) hits++;
-    if (r.bonus) {
+    if (r.bonus === 'holdspin') {
+      features++;
+      won += playHoldSpin(m, r.grid, rnd).mult * total;
+    } else if (r.bonus) {
       features++;
       won += bonusEV(m) * total;
     }

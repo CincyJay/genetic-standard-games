@@ -33,9 +33,10 @@ export function levelReward(level: number): number {
 }
 
 // ---------------------------------------------------------------- unlocks
-export type UnlockId = 'slots-pharaoh' | 'slots-ocean' | 'slots-goldrush' | 'holdem-highroller' | 'holdem-vip';
+export type UnlockId = 'slots-lanterns' | 'slots-pharaoh' | 'slots-ocean' | 'slots-goldrush' | 'holdem-highroller' | 'holdem-vip';
 
 export const UNLOCKS: { id: UnlockId; level: number; name: string }[] = [
+  { id: 'slots-lanterns', level: 2, name: 'Lucky Lanterns slot' },
   { id: 'slots-pharaoh', level: 3, name: "Pharaoh's Gold slot" },
   { id: 'holdem-highroller', level: 5, name: "High Roller hold'em table" },
   { id: 'slots-ocean', level: 6, name: 'Deep Blue slot' },

@@ -16,7 +16,7 @@ export interface SaveData {
   bonusStreak: number;
   biggestWin: number;
   handsPlayed: number;
-  settings: { sound: boolean; haptics: boolean };
+  settings: { sound: boolean; haptics: boolean; music?: boolean };
   /** Experience from wagering; sets the player's level. */
   xp: number;
   /** Levels reached but not yet celebrated on screen. */
@@ -34,7 +34,7 @@ export interface SaveData {
 export const JACKPOT_SEED = 250_000;
 
 export const STARTING_COINS = 10_000;
-export const BONUS_EVERY_MS = 2 * 60 * 60 * 1000;
+export const BONUS_EVERY_MS = 60 * 60 * 1000;
 
 const defaults = (): SaveData => ({
   coins: STARTING_COINS,
@@ -69,6 +69,8 @@ export const ads = new AdsService(new FakeAdsProvider());
 export function applySettings(): void {
   const s = save.get().settings;
   audio.enabled = s.sound;
+  audio.musicOn = s.music !== false;
+  audio.syncMusic();
   haptics.enabled = s.haptics;
 }
 
