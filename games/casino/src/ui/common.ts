@@ -90,6 +90,11 @@ export function coinBar(scene: Phaser.Scene, title: string, onBack?: () => void)
       { size: 100, theme: THEME },
     ).setDepth(51);
     pin(back);
+    // Android back button / gesture does the same as the arrow
+    scene.events.on('back', () => {
+      audio.tap();
+      onBack();
+    });
   }
   pin(text(scene, onBack ? 160 : w / 2 - 200, 100, title, 52, '700', GOLD, DISPLAY_FONT).setOrigin(0, 0.5).setDepth(51));
   // coin pill

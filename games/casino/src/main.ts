@@ -12,6 +12,7 @@ import { LobbyScene } from './scenes/LobbyScene.ts';
 import { RouletteScene } from './scenes/RouletteScene.ts';
 import { SlotsScene } from './scenes/SlotsScene.ts';
 import { VideoPokerScene } from './scenes/VideoPokerScene.ts';
+import { setupBackButton } from './native.ts';
 import { THEME } from './services.ts';
 
 async function start(): Promise<void> {
@@ -23,7 +24,7 @@ async function start(): Promise<void> {
   } catch {
     /* system fonts */
   }
-  new Phaser.Game({
+  const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
     backgroundColor: THEME.bg,
@@ -34,6 +35,7 @@ async function start(): Promise<void> {
     input: { activePointers: 1 },
     scene: [BootScene, LobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene],
   });
+  void setupBackButton(game);
 }
 
 void start();
