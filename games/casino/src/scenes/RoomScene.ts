@@ -79,16 +79,28 @@ export const ROOMS: Room[] = [
   {
     id: 'tables',
     title: 'Table Games',
-    sub: 'Blackjack and roulette',
+    sub: 'Blackjack, roulette, baccarat and more',
     bg: 'room-tables',
     games: () => [
       {
-        key: 'blackjack', title: 'Blackjack', sub: 'Up to 3 hands · Perfect Pairs · 21+3', bg: 'bg-felt', unlock: null,
-        art: (s, c) => cardsArt(s, c, 'As Kh', true, -90, 1.15),
+        key: 'blackjack', title: 'Blackjack', sub: 'Up to 3 hands · side bets', bg: 'table-blackjack', unlock: null,
+        art: (s, c) => cardsArt(s, c, 'As Kh', true),
       },
       {
-        key: 'roulette', title: 'Roulette', sub: 'European single zero · racetrack', bg: 'bg-felt-red', unlock: null,
-        art: (s, c) => wheelArt(s, c, 0, -80, 150),
+        key: 'roulette', title: 'Roulette', sub: 'European · racetrack', bg: 'table-roulette', unlock: null,
+        art: (s, c) => c.add(s.add.image(0, -70, 'roulette-rotor').setDisplaySize(250, 250)),
+      },
+      {
+        key: 'baccarat', title: 'Baccarat', sub: 'Player · Banker · Tie', bg: 'table-baccarat', unlock: null, ribbon: 'NEW',
+        art: (s, c) => cardsArt(s, c, '9h Kd', true),
+      },
+      {
+        key: 'threecard', title: 'Three Card Poker', sub: 'Ante · Pair Plus', bg: 'table-threecard', unlock: null, ribbon: 'NEW',
+        art: (s, c) => cardsArt(s, c, 'Qh Kh Ah', false),
+      },
+      {
+        key: 'war', title: 'Casino War', sub: 'High card wins', bg: 'table-war', unlock: null, ribbon: 'NEW',
+        art: (s, c) => cardsArt(s, c, 'Ks Kh', true),
       },
     ],
   },

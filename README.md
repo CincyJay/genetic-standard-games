@@ -36,6 +36,9 @@ and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) 
 | Texas Hold'em | No-limit, 6 seats vs computer players with personalities; side pots, split pots. The Velvet Ace Poker Series lobby has multi-table tournaments (27-90 player fields, the rest of the field simulated, money bubble, final table, top ~15% paid, trophies and a champion's ring), Sit & Go tournaments and cash tables at 3 stakes. Trophies are kept in the trophy case |
 | Video Poker | Jacks or Better (9/6), Deuces Wild, Double Double Bonus (with kicker pays); 1-5 coins, 5 denominations |
 | Roulette | European single zero: straight, red/black, odd/even, low/high, dozens, columns, splits, streets, corners, six-lines; racetrack with neighbour bets and the called bets (Voisins, Tiers, Orphelins, Jeu Zéro) |
+| Baccarat | Punto banco, 8 decks, standard third-card rules; Player 1:1, Banker 0.95:1, Tie 8:1, Player/Banker Pair 11:1; bead road of recent results |
+| Three Card Poker | Ante/Play with ante bonus (straight 1, trips 4, straight flush 5), dealer qualifies with queen high, Pair Plus side bet (1/4/6/30/40 to 1) |
+| Casino War | High card wins 1:1; on a tie, go to war (raise wins 1:1, bet pushes) or surrender half; Tie bet 10:1 |
 
 **Progression** (`src/logic/progression.ts`): XP from every wager (1 per 10 coins) raises your
 level; each level pays coins (bigger every 5th) and unlocks content (Lucky Lanterns at 2, Pharaoh's Gold at 3, High
@@ -50,9 +53,9 @@ or more get a full-screen celebration that climbs through BIG, SUPER, MEGA and E
 Background music is a lounge-jazz loop synthesized live (`src/music.ts`), so there are no audio
 files to license; it ducks under big wins and pauses when the app is in the background.
 
-**3D art:** every slot symbol, each machine's themed world (desert temple, reef, gold mine, lantern street), machine logos, cabinet buttons, coins
+**3D art:** every slot symbol, the card tables (felt, chip tray, shoe, padded rail), the roulette wheel, the video poker cabinet, 3D pill buttons, each machine's themed world (desert temple, reef, gold mine, lantern street), machine logos, cabinet buttons, coins
 and the casino room backdrops are modelled and rendered with three.js in headless Chromium:
-`node art/casino/3d/render.mjs [sevens lanterns pharaoh ocean goldrush logos ui rooms worlds poker]` writes PNG/JPEG files into
+`node art/casino/3d/render.mjs [sevens lanterns pharaoh ocean goldrush logos ui rooms worlds poker tables]` writes PNG/JPEG files into
 `games/casino/public/art/`. Spinning reels use motion-blurred copies of the symbols; near-miss
 reels get an anticipation glow; wins light up with halos, sparkles and coins flying to the balance.
 

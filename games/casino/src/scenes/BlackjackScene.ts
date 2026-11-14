@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { makeButton as mkBtn } from '@tgs/kit';
+
 import { BlackjackRound, Shoe, handTotal, type PlayerHand } from '../logic/blackjack.ts';
 import { PAIR_PAYS, SIDE_NAMES, THREE_PAYS, perfectPairs, twentyOnePlusThree } from '../logic/sidebets.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, player, wallet } from '../services.ts';
@@ -44,16 +44,9 @@ export class BlackjackScene extends Phaser.Scene {
   create(): void {
     const w = VW;
     frame(this);
-    backdrop(this, 'bg-felt');
+    // 3D-rendered table: printed felt, chip tray, shoe and padded rail
+    backdrop(this, 'table-blackjack');
     this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('room', { room: 'tables' }));
-    text(this, w / 2, 760, 'BLACKJACK PAYS 3 TO 2', 44, '700', 'rgba(233,200,106,0.7)', DISPLAY_FONT);
-    text(this, w / 2, 818, 'Dealer stands on all 17s  ·  side bets 21+3 and Perfect Pairs', 28, '500', 'rgba(255,244,220,0.5)');
-    const arc = this.add.graphics();
-    arc.lineStyle(4, 0xe9c86a, 0.35);
-    arc.beginPath();
-    arc.arc(w / 2, 300, 620, Phaser.Math.DegToRad(52), Phaser.Math.DegToRad(128));
-    arc.strokePath();
-    for (let k = 0; k < 4; k++) this.add.image(SHOE.x + k * 3, SHOE.y - k * 3, 'card-back').setDisplaySize(CARD_W * 0.8, CARD_H * 0.8).setAngle(12);
     this.betLayer = this.add.container(0, 0).setDepth(5);
     this.infoText = text(this, w / 2, BET_Y + 120, '', 34, '800', '#ffffff');
     this.bettingPhase();
@@ -123,7 +116,7 @@ export class BlackjackScene extends Phaser.Scene {
 
   private toggleButton(x: number, y: number, label: string, on: boolean, fn: () => void, w = 200): void {
     this.controls.push(
-      mkBtn(this, x, y, label, fn, {
+      makeButton(this, x, y, label, fn, {
         width: w,
         height: 76,
         fontSize: 30,

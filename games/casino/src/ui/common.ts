@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { makeButton, makeIconButton, popIn } from '@tgs/kit';
+import { makeIconButton, popIn, type ButtonOptions } from '@tgs/kit';
 import type { Card } from '../logic/cards.ts';
 import { cardId } from '../logic/cards.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, ads, analytics, audio, bonus, fmt, haptics, player, wallet } from '../services.ts';
@@ -325,4 +325,51 @@ export function chipPicker(scene: Phaser.Scene, y: number, values: number[], sel
   return [ring, ...imgs];
 }
 
-export { makeButton };
+/** Which 3D pill a button colour maps to. */
+function pillFor(color: number | undefined): string {
+  if (color === undefined) return 'pill-gold';
+  const c = Phaser.Display.Color.IntegerToColor(color);
+  const hsv = Phaser.Display.Color.RGBToHSV(c.red, c.green, c.blue) as { h: number; s: number; v: number };
+  if (hsv.v < 0.3 || hsv.s < 0.25) return 'pill-dark';
+  const h = hsv.h;
+  if (h < 0.04 || h > 0.94) return 'pill-fold';
+  if (h < 0.17) return 'pill-gold';
+  if (h < 0.45) return 'pill-raise';
+  if (h < 0.72) return 'pill-call';
+  return 'pill-purple';
+}
+
+/**
+ * Buttons are 3D-rendered pills (gold, dark, red, blue, green or purple, picked
+ * from the requested colour), stretched with a nine-slice so the rounded ends
+ * keep their shape at any width. Same signature as the kit's makeButton.
+ */
+export function makeButton(scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void, opts: ButtonOptions = {}): Phaser.GameObjects.Container {
+  const w = opts.width ?? 420;
+  const h = opts.height ?? 130;
+  const key = pillFor(opts.color);
+  const face = scene.add.nineslice(0, 0, key, undefined, w * (153 / h), 153, 80, 80, 0, 0).setScale(h / 153);
+  const gold = key === 'pill-gold';
+  const t = scene.add
+    .text(0, -2, label, { fontFamily: THEME.font, fontSize: `${opts.fontSize ?? 56}px`, fontStyle: '800', color: gold ? '#3a1a00' : (opts.textColor && opts.textColor !== '#3a1a00' ? opts.textColor : '#ffffff') })
+    .setOrigin(0.5);
+  if (!gold) t.setShadow(0, 2, '#000000', 4, true, true);
+  const c = scene.add.container(x, y, [face, t]);
+  c.setSize(w, h);
+  c.setInteractive({ useHandCursor: true });
+  c.on('pointerdown', () => {
+    face.setTint(0xcccccc);
+    c.setScale(0.96);
+  });
+  const release = () => {
+    face.clearTint();
+    c.setScale(1);
+  };
+  c.on('pointerout', release);
+  c.on('pointerup', () => {
+    release();
+    scene.tweens.add({ targets: c, scale: { from: 0.94, to: 1 }, duration: 220, ease: 'Back.easeOut' });
+    onClick();
+  });
+  return c;
+}

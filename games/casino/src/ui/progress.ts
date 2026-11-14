@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { makeButton, popIn } from '@tgs/kit';
+import { popIn } from '@tgs/kit';
 import { WHEEL_PRIZES, levelReward, unlocksBetween } from '../logic/progression.ts';
 import { DISPLAY_FONT, GOLD, THEME, applySettings, audio, fmt, haptics, player, save } from '../services.ts';
-import { VH, VW, coinShower, screenDim, text } from './common.ts';
+import { VH, VW, coinShower, makeButton, screenDim, text } from './common.ts';
 import { paintPrizeWheel } from './wheel.ts';
 
 const PANEL = 0x1a0e22;

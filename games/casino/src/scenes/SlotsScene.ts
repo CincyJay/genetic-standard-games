@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { makeButton, popIn } from '@tgs/kit';
+import { popIn } from '@tgs/kit';
 import {
   LUCKY_WHEEL, LUCKY_WHEEL_CHANCE, rollWildReels, spinLuckyWheel,
   LINES, LINE_BETS, LUCKY_SEVENS, MACHINES, MAX_TOTAL_BET, evaluate, gridFromStops, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, spinBonusWheel,
@@ -9,7 +9,7 @@ import { showBigWin, tierFor } from '../ui/bigwin.ts';
 import { RANKS, SUITS, cardId, secureRandom, type Card } from '../logic/cards.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { paintPrizeWheel } from '../ui/wheel.ts';
-import { VW, backdrop, banner, coinBar, coinShower, frame, makeButton as mb, outOfCoins, screenDim, text } from '../ui/common.ts';
+import { VW, backdrop, banner, coinBar, coinShower, frame, makeButton, makeButton as mb, outOfCoins, screenDim, text } from '../ui/common.ts';
 
 const CELL = 186;
 const LEFT = (VW - CELL * 5) / 2;

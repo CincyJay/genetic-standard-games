@@ -57,7 +57,7 @@ const back = async () => {
 const ROOMS = {
   slots: ['sevens', 'lanterns', 'pharaoh', 'ocean', 'goldrush'],
   poker: ['holdem', 'jacks', 'deuces', 'ddb'],
-  tables: ['blackjack', 'roulette'],
+  tables: ['blackjack', 'roulette', 'baccarat', 'threecard', 'war'],
 };
 const roomOf = (name) => Object.keys(ROOMS).find((r) => ROOMS[r].includes(name));
 const openTile = async (name) => {
@@ -184,6 +184,39 @@ await wait(3000);
 await shot('09-roulette-wheel');
 await wait(9000);
 await shot('10-roulette-result');
+await back();
+
+step('baccarat');
+await openTile('baccarat');
+await tap(790, 1390); // Banker
+await tap(820, 1840); // Deal
+await wait(500);
+await page.waitForFunction(() => !globalThis.__baccarat.busy(), null, { timeout: 60000 });
+await wait(800);
+await shot('10b-baccarat');
+await back();
+
+step('three card poker');
+await openTile('threecard');
+await tap(540, 1390); // Ante
+await tap(820, 1840); // Deal
+await wait(2200);
+await collectLevelUps();
+await tap(820, 1840); // Play
+await wait(2500);
+await shot('10c-three-card');
+await page.waitForFunction(() => !globalThis.__threecard.busy(), null, { timeout: 60000 });
+await back();
+
+step('casino war');
+await openTile('war');
+await tap(700, 1390); // Bet
+await tap(820, 1840); // Deal
+await wait(2000);
+await collectLevelUps();
+if (await page.evaluate(() => globalThis.__war.atWar())) await tap(820, 1840); // go to war
+await page.waitForFunction(() => !globalThis.__war.busy() && !globalThis.__war.atWar(), null, { timeout: 60000 });
+await shot('10d-war');
 await back();
 
 step("hold'em");

@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { makeButton, popIn } from '@tgs/kit';
+import { popIn } from '@tgs/kit';
 import { HoldemTable, decide, type Personality } from '../logic/holdem.ts';
 import { DISPLAY_FONT, GOLD, THEME, audio, fmt, haptics, player, trophies, wallet } from '../services.ts';
 import { MTT_EVENTS, MttField, SNG_BUYINS, START_CHIPS, blindsFor, mttBlinds, mttPrize, paidPlaces, prizeFor, type MttEvent } from '../logic/tournament.ts';
-import { CARD_H, CARD_W, banner, coinBar, dealCard, flipCard, outOfCoins, text } from '../ui/common.ts';
+import { CARD_H, CARD_W, banner, coinBar, dealCard, flipCard, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { CASH_STAKES } from './PokerLobbyScene.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 

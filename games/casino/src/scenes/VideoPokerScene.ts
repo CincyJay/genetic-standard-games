@@ -42,14 +42,12 @@ export class VideoPokerScene extends Phaser.Scene {
     const w = VW;
     const h = VH;
     frame(this);
-    backdrop(this, 'room-poker');
+    // 3D-rendered machine cabinet: chrome bezel, lit topper and button deck
+    backdrop(this, 'cabinet-videopoker');
     this.refresh = coinBar(this, 'Video Poker', () => this.scene.start('room', { room: 'poker' }));
-    // machine screen
     const scr = this.add.graphics();
-    scr.fillStyle(0x0b1a5c, 1);
-    scr.fillRoundedRect(30, 230, w - 60, 1180, 30);
-    scr.lineStyle(6, 0xe9c86a, 0.9);
-    scr.strokeRoundedRect(30, 230, w - 60, 1180, 30);
+    scr.fillGradientStyle(0x0d2070, 0x0d2070, 0x081450, 0x081450, 1);
+    scr.fillRoundedRect(42, 242, w - 84, 1156, 24);
     this.table = this.add.container(0, 0);
     this.tabs = this.add.container(0, 0);
     this.drawTabs();

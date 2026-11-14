@@ -34,7 +34,7 @@ page.on('pageerror', (e) => console.log('[page error]', e.message));
 await page.goto(`http://localhost:${port}/art/casino/3d/page.html`);
 await page.waitForFunction(() => globalThis.ready === true, null, { timeout: 60000 });
 const ROOM_IDS = ['lobby', 'slots', 'poker', 'tables'];
-const symSets = sets.filter((x) => !['logos', 'rooms', 'ui', 'worlds', 'poker'].includes(x));
+const symSets = sets.filter((x) => !['logos', 'rooms', 'ui', 'worlds', 'poker', 'tables'].includes(x));
 const out = sets.length && !symSets.length ? {} : await page.evaluate(async (sets) => globalThis.renderSymbols(sets), symSets);
 for (const [set, syms] of Object.entries(out)) {
   await mkdir(join(pub, 'slots', set), { recursive: true });
@@ -56,6 +56,14 @@ if (!sets.length || sets.includes('poker')) {
     await writeFile(join(pub, name), Buffer.from(url.split(',')[1], 'base64'));
   }
   console.log(`poker: ${Object.keys(files).length} files`);
+}
+if (!sets.length || sets.includes('tables')) {
+  const files = await page.evaluate(() => globalThis.renderTables());
+  for (const [name, url] of Object.entries(files)) {
+    await mkdir(join(pub, name, '..'), { recursive: true });
+    await writeFile(join(pub, name), Buffer.from(url.split(',')[1], 'base64'));
+  }
+  console.log(`tables: ${Object.keys(files).length} files`);
 }
 if (!sets.length || sets.includes('worlds')) {
   for (const id of ['pharaoh', 'ocean', 'goldrush', 'lanterns']) {

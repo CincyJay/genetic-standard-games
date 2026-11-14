@@ -48,7 +48,7 @@ export class RouletteScene extends Phaser.Scene {
     const w = VW;
     const h = VH;
     frame(this);
-    backdrop(this, 'bg-felt');
+    backdrop(this, 'table-roulette');
     this.bets = new Map();
     this.history = [];
     this.spots = [];
@@ -351,10 +351,13 @@ export class RouletteScene extends Phaser.Scene {
     const dim = screenDim(this, 0, 60);
     this.tweens.add({ targets: dim, fillAlpha: 0.6, duration: 250 });
     const R = 400;
-    const wheel = this.add.container(0, 0, [this.add.image(0, 0, paintRouletteWheel(this, 'tex-roulette-wheel', R))]);
-    const ball = this.add.circle(0, -R * 0.93, 18, 0xffffff).setStrokeStyle(3, 0xbbbbbb);
+    // 3D-rendered wheel: a fixed wooden bowl and a spinning rotor (same proportions as the painted one)
+    const bowl = this.add.image(0, 0, 'roulette-bowl').setDisplaySize(R * 2.7, R * 2.7);
+    const wheel = this.add.container(0, 0, [this.add.image(0, 0, 'roulette-rotor').setDisplaySize(R * 2.3, R * 2.3)]);
+    const ball = this.add.image(0, -R * 1.04, 'ball').setDisplaySize(40, 40);
     const ballHolder = this.add.container(0, 0, [ball]);
-    const holder = this.add.container(w / 2, 900, [wheel, ballHolder]).setDepth(61).setScale(0.2).setAlpha(0);
+    const holder = this.add.container(w / 2, 900, [bowl, wheel, ballHolder]).setDepth(61).setScale(0.2).setAlpha(0);
+    void paintRouletteWheel;
     this.tweens.add({ targets: holder, scale: 1, alpha: 1, duration: 350, ease: 'Back.easeOut' });
 
     // land the ball on the winning pocket: wheel spins clockwise, ball counter-clockwise
@@ -367,7 +370,7 @@ export class RouletteScene extends Phaser.Scene {
     this.tweens.add({ targets: wheel, angle: wheelEnd, duration: dur, ease: 'Cubic.easeOut' });
     this.tweens.add({ targets: ballHolder, angle: ballEnd, duration: dur, ease: 'Cubic.easeOut' });
     // ball drops from the rim into the pockets
-    this.tweens.add({ targets: ball, y: -R * 0.74, duration: 800, delay: dur - 1300, ease: 'Bounce.easeOut' });
+    this.tweens.add({ targets: ball, y: -R * 0.68, duration: 800, delay: dur - 1300, ease: 'Bounce.easeOut' });
     audio.ballRoll(dur / 1000);
 
     this.time.delayedCall(dur + 200, () => {

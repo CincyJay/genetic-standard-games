@@ -16,7 +16,7 @@
       import { renderRoom } from './rooms.js';
       import { UI } from './ui.js';
       import { renderWorld } from './worlds.js';
-      import { CHIP_COLORS, chip, dealerButton, pill, renderTable, ring, seriesLogo, trophy } from './poker.js';
+      import { CHIP_COLORS, ball, chip, dealerButton, pill, renderCabinet, renderCardTable, renderTable, renderTopDown, ring, rouletteBowl, rouletteRotor, seriesLogo, trophy } from './poker.js';
       await loadFonts();
       setupRenderer(320, 320);
       globalThis.renderSymbols = (sets) => {
@@ -44,10 +44,27 @@
         for (const k of ['gold', 'silver', 'bronze']) out[`ui/trophy-${k}.png`] = sq(trophy(k), 300, [0.1, -0.3]);
         out['ui/ring.png'] = sq(ring(), 300, [0.2, -0.4]);
         out['logos/poker-series.png'] = snapshot(seriesLogo(), { width: 1000, height: 300, pad: 0.04, tilt: [0.2, 0], fov: 10 });
-        out['ui/pill-fold.png'] = snapshot(pill(0xb8101e), { width: 330, height: 120, pad: 0.02, tilt: [0, 0], fov: 12 });
-        out['ui/pill-call.png'] = snapshot(pill(0x1a5ac8), { width: 330, height: 120, pad: 0.02, tilt: [0, 0], fov: 12 });
-        out['ui/pill-raise.png'] = snapshot(pill(0x18a050), { width: 330, height: 120, pad: 0.02, tilt: [0, 0], fov: 12 });
-        out['ui/pill-dark.png'] = snapshot(pill(0x2a2430), { width: 330, height: 120, pad: 0.02, tilt: [0, 0], fov: 12 });
+        const pills = { fold: 0xb8101e, call: 0x1a5ac8, raise: 0x18a050, dark: 0x2a2430, gold: 0xe9b949, purple: 0x5a1a8a };
+        for (const [k, c] of Object.entries(pills)) out[`ui/pill-${k}.png`] = snapshot(pill(c), { width: 420, height: 153, pad: 0.02, tilt: [0, 0], fov: 12 });
+        return out;
+      };
+      globalThis.renderTables = () => {
+        const out = {};
+        const big = (t) => ({ text: t, font: '900 84px Georgia, serif', x: 540, y: 770 });
+        const small = (t) => ({ text: t, font: '600 30px Georgia, serif', x: 540, y: 826, color: 'rgba(255,244,220,0.55)' });
+        const arc = { x: 540, y: 300, r: 620, a0: (52 * Math.PI) / 180, a1: (128 * Math.PI) / 180 };
+        const T = {
+          blackjack: { felt: '#0f5a3a', tray: true, shoe: { x: 940, y: 330 }, prints: [big('BLACKJACK PAYS 3 TO 2'), small('Dealer stands on all 17s  ·  side bets 21+3 and Perfect Pairs')], lines: [arc] },
+          baccarat: { felt: '#6a0a18', tray: true, shoe: { x: 940, y: 330 }, prints: [big('BACCARAT'), small('Banker pays 0.95 to 1  ·  Tie pays 8 to 1')], lines: [arc] },
+          threecard: { felt: '#0c2a6e', tray: true, prints: [big('THREE CARD POKER'), small('Dealer plays with Queen high or better')], lines: [arc] },
+          war: { felt: '#3a0f4a', tray: true, shoe: { x: 940, y: 330 }, prints: [big('CASINO WAR'), small('Ties: go to war, or surrender half your bet')], lines: [arc] },
+          roulette: { felt: '#0f5a3a', railY: 1745, prints: [] },
+        };
+        for (const [k, cfg] of Object.entries(T)) out[`table-${k}.jpg`] = renderCardTable(cfg);
+        out['cabinet-videopoker.jpg'] = renderCabinet();
+        out['ui/roulette-rotor.png'] = renderTopDown(rouletteRotor(920).grp, 920);
+        out['ui/roulette-bowl.png'] = renderTopDown(rouletteBowl(920).grp, 1080);
+        out['ui/ball.png'] = snapshot(ball(), { size: 64, pad: 0.02, tilt: [0, 0], fov: 20 });
         return out;
       };
       globalThis.ready = true;

@@ -77,7 +77,8 @@ export class BootScene extends Phaser.Scene {
       this.load.image(`chip-${v}`, `art/ui/chip-${v}.png`);
       this.load.image(`chipside-${v}`, `art/ui/chipside-${v}.png`);
     }
-    for (const u of ['dealer', 'trophy-gold', 'trophy-silver', 'trophy-bronze', 'ring', 'pill-fold', 'pill-call', 'pill-raise', 'pill-dark']) this.load.image(u, `art/ui/${u}.png`);
+    for (const u of ['dealer', 'trophy-gold', 'trophy-silver', 'trophy-bronze', 'ring', 'pill-fold', 'pill-call', 'pill-raise', 'pill-dark', 'pill-gold', 'pill-purple', 'roulette-rotor', 'roulette-bowl', 'ball']) this.load.image(u, `art/ui/${u}.png`);
+    for (const t of ['table-blackjack', 'table-baccarat', 'table-threecard', 'table-war', 'table-roulette', 'cabinet-videopoker']) this.load.image(t, `art/${t}.jpg`);
     this.load.image('logo-poker-series', 'art/logos/poker-series.png');
     this.load.image('table-poker', 'art/table-poker.jpg');
     this.load.image('table-final', 'art/table-final.jpg');
