@@ -141,6 +141,5 @@ for s in 'shdc':
     for r in range(2, 15):
         write(os.path.join(ROOT, 'cards', f'{RANK_ID.get(r, str(r))}{s}.svg'), card(r, s))
 write(os.path.join(ROOT, 'cards', 'back.svg'), back())
-for v in CHIPS:
-    write(os.path.join(ROOT, 'chips', f'{v}.svg'), chip(v))
-print('cards + chips written')
+# chips are 3D renders now (art/casino/3d/render.mjs poker)
+print('cards written')

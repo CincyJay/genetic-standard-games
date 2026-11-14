@@ -16,6 +16,7 @@
       import { renderRoom } from './rooms.js';
       import { UI } from './ui.js';
       import { renderWorld } from './worlds.js';
+      import { CHIP_COLORS, chip, dealerButton, pill, renderTable, ring, seriesLogo, trophy } from './poker.js';
       await loadFonts();
       setupRenderer(320, 320);
       globalThis.renderSymbols = (sets) => {
@@ -30,6 +31,25 @@
       globalThis.renderRoom = (id) => renderRoom(id);
       globalThis.renderUi = () => Object.fromEntries(Object.entries(UI).map(([k, u]) => [k, snapshot(u.build(), { width: u.w, height: u.h, pad: 0.03, tilt: u.tilt, fov: 14 })]));
       globalThis.renderWorld = (id) => renderWorld(id);
+      globalThis.renderPoker = () => {
+        const out = {};
+        out['table-poker.jpg'] = renderTable('#0c2a6e');
+        out['table-final.jpg'] = renderTable('#6a0a18');
+        const sq = (o, size, tilt) => snapshot(o, { size, pad: 0.04, tilt, fov: 20 });
+        for (const v of Object.keys(CHIP_COLORS)) {
+          out[`ui/chip-${v}.png`] = sq(chip(Number(v)), 180, [Math.PI / 2 - 0.12, 0]);
+          out[`ui/chipside-${v}.png`] = snapshot(chip(Number(v)), { width: 160, height: 100, pad: 0.03, tilt: [0.55, 0], fov: 20 });
+        }
+        out['ui/dealer.png'] = sq(dealerButton(), 120, [Math.PI / 2 - 0.25, 0]);
+        for (const k of ['gold', 'silver', 'bronze']) out[`ui/trophy-${k}.png`] = sq(trophy(k), 300, [0.1, -0.3]);
+        out['ui/ring.png'] = sq(ring(), 300, [0.2, -0.4]);
+        out['logos/poker-series.png'] = snapshot(seriesLogo(), { width: 1000, height: 300, pad: 0.04, tilt: [0.2, 0], fov: 10 });
+        out['ui/pill-fold.png'] = snapshot(pill(0xb8101e), { width: 330, height: 120, pad: 0.02, tilt: [0, 0], fov: 12 });
+        out['ui/pill-call.png'] = snapshot(pill(0x1a5ac8), { width: 330, height: 120, pad: 0.02, tilt: [0, 0], fov: 12 });
+        out['ui/pill-raise.png'] = snapshot(pill(0x18a050), { width: 330, height: 120, pad: 0.02, tilt: [0, 0], fov: 12 });
+        out['ui/pill-dark.png'] = snapshot(pill(0x2a2430), { width: 330, height: 120, pad: 0.02, tilt: [0, 0], fov: 12 });
+        return out;
+      };
       globalThis.ready = true;
     </script>
   </body>

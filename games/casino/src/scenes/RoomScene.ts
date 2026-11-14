@@ -59,7 +59,7 @@ export const ROOMS: Room[] = [
     bg: 'room-poker',
     games: () => [
       {
-        key: 'holdem', title: "Texas Hold'em", sub: 'Cash tables · Sit & Go', bg: 'bg-poker', unlock: null, ribbon: 'HOT',
+        key: 'pokerlobby', title: 'Poker Series', sub: 'Tournaments · Sit & Go · Cash', bg: 'room-poker', unlock: null, ribbon: 'HOT',
         art: (s, c) => cardsArt(s, c, 'Ad Ac', true),
       },
       {

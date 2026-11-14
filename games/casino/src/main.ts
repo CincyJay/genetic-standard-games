@@ -11,6 +11,7 @@ import { HoldemScene } from './scenes/HoldemScene.ts';
 import { LobbyScene } from './scenes/LobbyScene.ts';
 import { RouletteScene } from './scenes/RouletteScene.ts';
 import { RoomScene } from './scenes/RoomScene.ts';
+import { PokerLobbyScene } from './scenes/PokerLobbyScene.ts';
 import { SlotsScene } from './scenes/SlotsScene.ts';
 import { VideoPokerScene } from './scenes/VideoPokerScene.ts';
 import { setupBackButton } from './native.ts';
@@ -34,7 +35,7 @@ async function start(): Promise<void> {
     scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
     render: { antialias: true },
     input: { activePointers: 1 },
-    scene: [BootScene, LobbyScene, RoomScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene],
+    scene: [BootScene, LobbyScene, RoomScene, PokerLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene],
   });
   void setupBackButton(game);
   // test hook (dev builds only): jump straight to a scene

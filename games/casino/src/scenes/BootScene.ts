@@ -73,7 +73,14 @@ export class BootScene extends Phaser.Scene {
       this.load.svg(`card-${id}`, `art/cards/${id}.svg`, cardSize);
     }
     this.load.svg('card-back', 'art/cards/back.svg', cardSize);
-    for (const v of CHIP_VALUES) this.load.svg(`chip-${v}`, `art/chips/${v}.svg`, { width: 180, height: 180 });
+    for (const v of CHIP_VALUES) {
+      this.load.image(`chip-${v}`, `art/ui/chip-${v}.png`);
+      this.load.image(`chipside-${v}`, `art/ui/chipside-${v}.png`);
+    }
+    for (const u of ['dealer', 'trophy-gold', 'trophy-silver', 'trophy-bronze', 'ring', 'pill-fold', 'pill-call', 'pill-raise', 'pill-dark']) this.load.image(u, `art/ui/${u}.png`);
+    this.load.image('logo-poker-series', 'art/logos/poker-series.png');
+    this.load.image('table-poker', 'art/table-poker.jpg');
+    this.load.image('table-final', 'art/table-final.jpg');
     // slot symbols are 3D renders (art/casino/3d)
     for (const m of MACHINES)
       for (const s of m.symbols) this.load.image(`sym-${m.id}-${s}`, `art/slots/${m.id}/${s}.png`);

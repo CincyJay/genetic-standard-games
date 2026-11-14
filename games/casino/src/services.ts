@@ -29,6 +29,16 @@ export interface SaveData {
   wheelDay: string;
   /** Progressive jackpot shared by every slot machine. */
   jackpot: number;
+  /** Poker trophies won (tournament podium finishes). */
+  trophies: Trophy[];
+}
+
+export interface Trophy {
+  kind: 'gold' | 'silver' | 'bronze' | 'ring';
+  event: string;
+  place: number;
+  prize: number;
+  at: number;
 }
 
 export const JACKPOT_SEED = 250_000;
@@ -50,6 +60,7 @@ const defaults = (): SaveData => ({
   missionsClaimed: [],
   wheelDay: '',
   jackpot: JACKPOT_SEED,
+  trophies: [],
 });
 
 export const save = new SaveStore<SaveData>({
@@ -131,6 +142,17 @@ export interface MissionState extends MissionDef {
 }
 
 /** Levels, XP, missions, the daily wheel and the jackpot. */
+export const trophies = {
+  all(): Trophy[] {
+    return save.get().trophies ?? [];
+  },
+  add(t: Omit<Trophy, 'at'>): void {
+    save.update((d) => {
+      d.trophies = [...(d.trophies ?? []), { ...t, at: Date.now() }];
+    });
+  },
+};
+
 export const player = {
   get xp(): number {
     return save.get().xp;

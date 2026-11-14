@@ -188,8 +188,11 @@ await back();
 
 step("hold'em");
 await openTile('holdem');
-await shot('11-holdem-stakes');
-await tap(540, 960 - 490); // Casual cash table
+await shot('11-poker-lobby');
+await page.evaluate(() => globalThis.__pokerlobby.tab('cash'));
+await wait(800);
+await tap(540, (await page.evaluate(() => globalThis.__pokerlobby.rowY(0))) + 100); // Casual cash table
+await wait(2500);
 const t0 = Date.now();
 let lastHand = 0;
 let shots = 0;
@@ -268,8 +271,10 @@ await page.evaluate(() => {
 await page.reload();
 await wait(5000);
 await openTile('holdem');
-await shot('20-holdem-chooser');
-await tap(540, 960 + 90); // Bronze Sit & Go
+await page.evaluate(() => globalThis.__pokerlobby.tab('sitngo'));
+await wait(800);
+await shot('20-sitngo-list');
+await tap(540, (await page.evaluate(() => globalThis.__pokerlobby.rowY(0))) + 100); // Bronze Sit & Go
 const t1 = Date.now();
 let snapped = false;
 let maxHand = 0;
@@ -289,6 +294,27 @@ while (Date.now() - t1 < 90000) {
 await wait(1500);
 await shot('22-sng-end');
 step(`sit & go: played ${maxHand} hands`);
+
+step('poker series tournament');
+await page.evaluate(() => globalThis.__go('pokerlobby'));
+await wait(2500);
+await shot('23-poker-series');
+await tap(540, (await page.evaluate(() => globalThis.__pokerlobby.rowY(0))) + 100); // Daily Deepstack
+const t2 = Date.now();
+let mttHands = 0;
+while (Date.now() - t2 < 90000) {
+  const s3 = await page.evaluate(() => globalThis.__holdem.state());
+  mttHands = Math.max(mttHands, s3.hand);
+  if (s3.hand >= 3) break;
+  if (s3.toAct === 0) {
+    const v = await page.evaluate(() => globalThis.__view);
+    await page.mouse.click(box.x + ((540 + (v.W - 1080) / 2) * box.width) / v.W, box.y + ((v.H - 105) * box.height) / v.H);
+    await wait(400);
+  }
+  await wait(250);
+}
+await shot('24-tournament-table');
+step(`tournament: played ${mttHands} hands`);
 
 await browser.close();
 if (errors.length) {
