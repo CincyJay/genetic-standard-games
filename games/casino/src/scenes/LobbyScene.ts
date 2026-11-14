@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { makeButton, popIn } from '@tgs/kit';
 import { cardId, cards } from '../logic/cards.ts';
-import { DISPLAY_FONT, GOLD, SECONDARY, THEME, audio, bonus, fmt, haptics, save } from '../services.ts';
+import { DISPLAY_FONT, GOLD, SECONDARY, THEME, audio, bonus, fmt, haptics, player, save } from '../services.ts';
+import { showDailyWheel, showMissions } from '../ui/progress.ts';
 import { CARD_H, CARD_W, coinBar, coinShower, formatWait, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 import { drawWheel } from '../ui/wheel.ts';
@@ -18,36 +19,109 @@ interface Tile {
 }
 
 export class LobbyScene extends Phaser.Scene {
+  private refreshAll: () => void = () => {};
+  private actionRow: Phaser.GameObjects.Container | null = null;
+
   constructor() {
     super('lobby');
+  }
+
+  /** Portrait, level, VIP tier and XP progress. */
+  private playerCard(): void {
+    const c = this.add.container(0, 0);
+    const g = this.add.graphics();
+    g.fillStyle(0x0d0414, 0.7);
+    g.fillRoundedRect(50, 225, VW - 100, 190, 30);
+    g.lineStyle(3, 0xe9c86a, 0.6);
+    g.strokeRoundedRect(50, 225, VW - 100, 190, 30);
+    const vip = player.vip();
+    const p = player.progress();
+    g.fillStyle(vip.color, 1);
+    g.fillCircle(150, 320, 74);
+    c.add(g);
+    c.add(this.add.image(150, 320, 'av-you').setDisplaySize(136, 136));
+    c.add(text(this, 260, 280, `Level ${p.level}`, 54, '900', GOLD, DISPLAY_FONT).setOrigin(0, 0.5));
+    c.add(text(this, VW - 90, 282, `${vip.name} VIP`, 36, '800', '#' + vip.color.toString(16).padStart(6, '0')).setOrigin(1, 0.5));
+    const bar = this.add.graphics();
+    bar.fillStyle(0x000000, 0.6);
+    bar.fillRoundedRect(260, 335, VW - 350, 26, 13);
+    bar.fillStyle(0x5ee08f, 1);
+    bar.fillRoundedRect(260, 335, Math.max(26, (VW - 350) * p.fraction), 26, 13);
+    c.add(bar);
+    c.add(text(this, 260, 388, `${fmt(p.into)} / ${fmt(p.needed)} XP to level ${p.level + 1}`, 28, '600', '#cbb6d6').setOrigin(0, 0.5));
+  }
+
+  /** Daily wheel, missions, free bonus. */
+  private actions(refresh: () => void): void {
+    this.actionRow?.destroy();
+    const row = this.add.container(0, 0);
+    this.actionRow = row;
+    const W3 = (VW - 100 - 40) / 3;
+    const tile = (i: number, title: string, sub: string, hot: boolean, onTap: () => void, badge = 0) => {
+      const x = 50 + i * (W3 + 20);
+      const g = this.add.graphics();
+      g.fillStyle(0x000000, 0.4);
+      g.fillRoundedRect(x, 448, W3, 150, 26);
+      g.fillStyle(hot ? 0x7a3a9a : 0x2a1238, 1);
+      g.fillRoundedRect(x, 440, W3, 150, 26);
+      g.lineStyle(3, 0xe9c86a, hot ? 1 : 0.4);
+      g.strokeRoundedRect(x, 440, W3, 150, 26);
+      const t1 = text(this, x + W3 / 2, 492, title, 36, '800', '#ffffff');
+      const t2 = text(this, x + W3 / 2, 546, sub, 30, '700', hot ? '#ffe14a' : '#a898b0');
+      const c = this.add.container(0, 0, [g, t1, t2]);
+      if (badge > 0) {
+        const b = this.add.graphics();
+        b.fillStyle(0xff3b5c, 1);
+        b.fillCircle(x + W3 - 16, 448, 24);
+        c.add([b, text(this, x + W3 - 16, 448, String(badge), 28, '900', '#ffffff')]);
+      }
+      const zone = this.add.zone(x + W3 / 2, 515, W3, 150).setInteractive({ useHandCursor: true });
+      zone.on('pointerup', () => {
+        audio.unlock();
+        audio.tap();
+        onTap();
+      });
+      c.add(zone);
+      if (hot) this.tweens.add({ targets: [t2], scale: 1.08, duration: 600, yoyo: true, repeat: -1 });
+      row.add(c);
+    };
+    const redraw = () => {
+      refresh();
+      this.actions(refresh);
+    };
+    const wheelReady = player.wheelReady();
+    tile(0, 'Daily Wheel', wheelReady ? 'Spin now!' : 'Tomorrow', wheelReady, () => showDailyWheel(this, redraw));
+    const ms = player.missions();
+    const done = ms.filter((m) => m.done).length;
+    const toClaim = player.unclaimedMissions();
+    tile(1, 'Missions', toClaim ? 'Claim reward!' : `${done} / 3 done`, toClaim > 0, () => showMissions(this, redraw), toClaim);
+    const wait = bonus.msUntilReady();
+    tile(2, 'Free Bonus', wait === 0 ? `+${fmt(bonus.amount())}` : formatWait(wait), wait === 0, () => {
+      const got = bonus.collect();
+      if (!got) return;
+      audio.win();
+      haptics.fire('success');
+      coinShower(this, VW - 50 - W3 / 2, 515, got);
+      redraw();
+    });
   }
 
   create(): void {
     const w = VW;
     const h = frame(this).bottom;
     backdrop(this, 'bg-lobby');
-    const refresh = coinBar(this, '');
+    const refresh = coinBar(this, 'Velvet Ace');
+    this.refreshAll = refresh;
 
-    // logo: a fanned ace and king behind the name
-    const fan = this.add.container(w / 2, 330);
-    for (const [id, a, dx] of [['As', -12, -60], ['Kh', 10, 60]] as const) {
-      fan.add(this.add.image(dx, 0, `card-${id}`).setDisplaySize(CARD_W * 0.9, CARD_H * 0.9).setAngle(a));
-    }
-    fan.setAlpha(0.35);
-    const logo = text(this, w / 2, 330, 'Velvet Ace', 140, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 16);
-    logo.setShadow(0, 8, 'rgba(0,0,0,0.5)', 10, true, true);
-    text(this, w / 2, 430, 'C A S I N O', 40, '600', '#ffffff').setLetterSpacing(10);
-    popIn(this, logo);
-
-    // free bonus
-    this.bonusButton(w / 2, 540, refresh);
+    this.playerCard();
+    this.actions(refresh);
 
     // game tiles
     const pad = 50;
     const full = w - pad * 2;
     const half = (full - 30) / 2;
     const tiles: Tile[] = [
-      { key: 'slots', title: 'Slots', sub: '20 lines · free spins', x: pad, y: 650, w: full, h: 340, art: (c, tw, th) => this.slotsArt(c, tw, th) },
+      { key: 'slotlobby', title: 'Slots', sub: '4 machines · progressive jackpot', x: pad, y: 650, w: full, h: 340, art: (c, tw, th) => this.slotsArt(c, tw, th) },
       { key: 'blackjack', title: 'Blackjack', sub: 'Beat the dealer to 21', x: pad, y: 1020, w: half, h: 330, art: (c, tw, th) => this.cardsArt(c, tw, th, 'As Kh', true) },
       { key: 'holdem', title: "Texas Hold'em", sub: '6-seat table', x: pad + half + 30, y: 1020, w: half, h: 330, art: (c, tw, th) => this.cardsArt(c, tw, th, 'Ad Ac', true) },
       { key: 'videopoker', title: 'Video Poker', sub: 'Jacks or Better', x: pad, y: 1380, w: half, h: 330, art: (c, tw, th) => this.cardsArt(c, tw, th, 'Th Jh Qh Kh Ah', false) },
@@ -59,33 +133,6 @@ export class LobbyScene extends Phaser.Scene {
     text(this, w / 2, h - 70, 'and can never be withdrawn or exchanged.', 30, '500', THEME.inkSoft);
     const best = save.get().biggestWin;
     if (best > 0) text(this, w / 2, 1760, `Biggest win  ${fmt(best)}`, 34, '700', GOLD);
-  }
-
-  private bonusButton(x: number, y: number, refresh: () => void): void {
-    const ms = bonus.msUntilReady();
-    if (ms === 0) {
-      const b = makeButton(
-        this,
-        x,
-        y,
-        `Collect free bonus  +${fmt(bonus.amount())}`,
-        () => {
-          const got = bonus.collect();
-          if (!got) return;
-          audio.win();
-          haptics.fire('success');
-          coinShower(this, x, y, got);
-          refresh();
-          b.destroy();
-          this.bonusButton(x, y, refresh);
-        },
-        { width: 760, height: 120, fontSize: 44, theme: THEME },
-      );
-      this.tweens.add({ targets: b, scale: 1.04, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    } else {
-      const label = text(this, x, y, `Next free bonus in ${formatWait(ms)}`, 38, '700', THEME.inkSoft);
-      this.time.addEvent({ delay: 30000, loop: true, callback: () => label.setText(`Next free bonus in ${formatWait(bonus.msUntilReady())}`) });
-    }
   }
 
   private tile(t: Tile, i: number): void {
@@ -121,7 +168,7 @@ export class LobbyScene extends Phaser.Scene {
     win.lineStyle(4, 0xe9c86a, 0.6);
     win.strokeRoundedRect(-330, -110, 660, 170, 20);
     c.add(win);
-    ['seven', 'wild', 'seven'].forEach((s, i) => c.add(this.add.image((i - 1) * 200, -25, `sym-${s}`).setDisplaySize(150, 150)));
+    ['seven', 'wild', 'seven'].forEach((s, i) => c.add(this.add.image((i - 1) * 200, -25, `sym-sevens-${s}`).setDisplaySize(150, 150)));
     void w;
   }
 

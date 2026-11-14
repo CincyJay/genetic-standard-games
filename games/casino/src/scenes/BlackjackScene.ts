@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { BlackjackRound, Shoe, handTotal, type PlayerHand } from '../logic/blackjack.ts';
-import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, wallet } from '../services.ts';
+import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { CARD_H, CARD_W, banner, chipPicker, coinBar, coinShower, dealCard, flipCard, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
@@ -103,6 +103,7 @@ export class BlackjackScene extends Phaser.Scene {
   private deal(): void {
     if (this.busy || this.bet <= 0) return;
     if (!wallet.spend(this.bet)) return outOfCoins(this, this.refresh);
+    player.wager(this.bet);
     this.refresh();
     audio.unlock();
     this.busy = true;
@@ -169,6 +170,7 @@ export class BlackjackScene extends Phaser.Scene {
     const r = this.round!;
     if (kind === 'double' || kind === 'split') {
       if (!wallet.spend(r.hand.bet)) return outOfCoins(this, this.refresh);
+      player.wager(r.hand.bet);
       this.refresh();
     }
     audio.tap();
@@ -261,6 +263,12 @@ export class BlackjackScene extends Phaser.Scene {
     this.refresh();
     r.hands.forEach((hh, i) => this.resultTag(hh, i));
     const net = payout - staked;
+    player.event('blackjack_hand', r.hands.length);
+    const wins = r.hands.filter((h) => h.result === 'win' || h.result === 'blackjack').length;
+    if (wins) player.event('blackjack_win', wins);
+    if (r.hands.some((h) => h.result === 'blackjack')) player.event('blackjack_blackjack');
+    if (net > 0) player.event('coins_won', net);
+    this.refresh();
     if (r.hands.some((h) => h.result === 'blackjack')) {
       banner(this, 'Blackjack!', `+${fmt(net)}`);
       audio.win();

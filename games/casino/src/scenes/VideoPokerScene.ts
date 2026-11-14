@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { PAYTABLE, VideoPokerRound, classify, payFor } from '../logic/videopoker.ts';
-import { GOLD, SECONDARY, THEME, audio, fmt, haptics, wallet } from '../services.ts';
+import { GOLD, SECONDARY, THEME, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { CARD_H, CARD_W, banner, coinBar, coinShower, dealCard, flipCard, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
@@ -137,6 +137,8 @@ export class VideoPokerScene extends Phaser.Scene {
   private deal(): void {
     const bet = this.coins * this.denom;
     if (!wallet.spend(bet)) return outOfCoins(this, this.refresh);
+    player.wager(bet);
+    player.event('videopoker_hand');
     this.refresh();
     this.busy = true;
     this.drawPaytable(null);
@@ -187,6 +189,8 @@ export class VideoPokerScene extends Phaser.Scene {
     const k = classify(r.hand);
     const win = payFor(k, this.coins) * this.denom;
     this.drawPaytable(k);
+    if (k && k !== 'jacks') player.event('videopoker_twopair');
+    if (win > 0) player.event('coins_won', win);
     if (win > 0) {
       wallet.add(win);
       wallet.recordWin(win);

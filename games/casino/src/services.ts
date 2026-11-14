@@ -1,5 +1,8 @@
 import { AdsService, DebugAnalytics, FakeAdsProvider, Haptics, SaveStore, DEFAULT_THEME, type Theme } from '@tgs/kit';
 import { CasinoSound } from './sfx.ts';
+import {
+  XP_PER_COIN, dayKey, levelForXp, levelProgress, levelReward, missionsFor, spinWheel, vipTier, WHEEL_PRIZES, type GameEvent, type MissionDef,
+} from './logic/progression.ts';
 
 /**
  * Play money only: coins can be earned free or bought, but never cashed out or
@@ -14,22 +17,47 @@ export interface SaveData {
   biggestWin: number;
   handsPlayed: number;
   settings: { sound: boolean; haptics: boolean };
+  /** Experience from wagering; sets the player's level. */
+  xp: number;
+  /** Levels reached but not yet celebrated on screen. */
+  pendingLevelUps: number[];
+  /** Mission progress for `missionDay` (resets daily). */
+  missionDay: string;
+  missionProgress: Record<string, number>;
+  missionsClaimed: string[];
+  /** Day the daily wheel was last spun. */
+  wheelDay: string;
+  /** Progressive jackpot shared by every slot machine. */
+  jackpot: number;
 }
+
+export const JACKPOT_SEED = 250_000;
 
 export const STARTING_COINS = 10_000;
 export const BONUS_EVERY_MS = 2 * 60 * 60 * 1000;
 
+const defaults = (): SaveData => ({
+  coins: STARTING_COINS,
+  lastBonus: 0,
+  bonusStreak: 0,
+  biggestWin: 0,
+  handsPlayed: 0,
+  settings: { sound: true, haptics: true },
+  xp: 0,
+  pendingLevelUps: [],
+  missionDay: '',
+  missionProgress: {},
+  missionsClaimed: [],
+  wheelDay: '',
+  jackpot: JACKPOT_SEED,
+});
+
 export const save = new SaveStore<SaveData>({
   key: 'velvet-ace.save',
-  version: 1,
-  defaults: () => ({
-    coins: STARTING_COINS,
-    lastBonus: 0,
-    bonusStreak: 0,
-    biggestWin: 0,
-    handsPlayed: 0,
-    settings: { sound: true, haptics: true },
-  }),
+  version: 2,
+  defaults,
+  // v1 had no progression: keep coins and stats, start at level 1
+  migrate: (data) => ({ ...defaults(), ...(data as Partial<SaveData>) }),
 });
 
 export const audio = new CasinoSound();
@@ -89,6 +117,120 @@ export const bonus = {
       d.coins += amount;
       d.lastBonus = now;
       d.bonusStreak = missedADay ? 1 : d.bonusStreak + 1;
+    });
+    return amount;
+  },
+};
+
+export interface MissionState extends MissionDef {
+  progress: number;
+  done: boolean;
+  claimed: boolean;
+}
+
+/** Levels, XP, missions, the daily wheel and the jackpot. */
+export const player = {
+  get xp(): number {
+    return save.get().xp;
+  },
+  get level(): number {
+    return levelForXp(save.get().xp);
+  },
+  progress() {
+    return levelProgress(save.get().xp);
+  },
+  vip() {
+    return vipTier(this.level);
+  },
+  /**
+   * Record a wager: earns XP (and funds the jackpot for slots). Level-ups pay
+   * their reward immediately and are queued for the level-up celebration.
+   */
+  wager(coins: number, slots = false): void {
+    const before = this.level;
+    save.update((d) => {
+      d.xp += Math.max(1, Math.round(coins * XP_PER_COIN));
+      if (slots) d.jackpot += Math.round(coins * 0.02);
+    });
+    const after = this.level;
+    if (after > before) {
+      save.update((d) => {
+        for (let l = before + 1; l <= after; l++) {
+          d.coins += levelReward(l);
+          d.pendingLevelUps.push(l);
+        }
+      });
+    }
+  },
+  takeLevelUps(): number[] {
+    const list = [...save.get().pendingLevelUps];
+    if (list.length) save.update((d) => (d.pendingLevelUps = []));
+    return list;
+  },
+  /** Reset mission progress when the day changes. */
+  ensureDay(): string {
+    const day = dayKey();
+    if (save.get().missionDay !== day) {
+      save.update((d) => {
+        d.missionDay = day;
+        d.missionProgress = {};
+        d.missionsClaimed = [];
+      });
+    }
+    return day;
+  },
+  /** A game reports something that happened (a spin, a win...). */
+  event(e: GameEvent, n = 1): void {
+    const day = this.ensureDay();
+    const relevant = missionsFor(day).filter((m) => m.event === e);
+    if (!relevant.length) return;
+    save.update((d) => {
+      for (const m of relevant) d.missionProgress[m.id] = Math.min(m.target, (d.missionProgress[m.id] ?? 0) + n);
+    });
+  },
+  missions(): MissionState[] {
+    const day = this.ensureDay();
+    const st = save.get();
+    return missionsFor(day).map((m) => {
+      const progress = st.missionProgress[m.id] ?? 0;
+      return { ...m, progress, done: progress >= m.target, claimed: st.missionsClaimed.includes(m.id) };
+    });
+  },
+  unclaimedMissions(): number {
+    return this.missions().filter((m) => m.done && !m.claimed).length;
+  },
+  claim(id: string): number {
+    const m = this.missions().find((x) => x.id === id);
+    if (!m || !m.done || m.claimed) return 0;
+    save.update((d) => {
+      d.missionsClaimed.push(id);
+      d.coins += m.reward;
+    });
+    this.wager(m.reward * 0.5); // claiming also gives XP
+    return m.reward;
+  },
+  wheelReady(): boolean {
+    return save.get().wheelDay !== dayKey();
+  },
+  /** Spin the daily wheel: returns the wedge index and the coins won (VIP bonus applied). */
+  spinDailyWheel(rnd: () => number = Math.random): { wedge: number; coins: number } {
+    const wedge = spinWheel(rnd);
+    const coins = Math.round(WHEEL_PRIZES[wedge]! * this.vip().bonus);
+    save.update((d) => {
+      d.wheelDay = dayKey();
+      d.coins += coins;
+    });
+    return { wedge, coins };
+  },
+  get jackpot(): number {
+    return save.get().jackpot;
+  },
+  /** Pay out `share` (0..1) of the jackpot and reseed it. */
+  winJackpot(share: number): number {
+    const amount = Math.round(save.get().jackpot * share);
+    save.update((d) => {
+      d.coins += amount;
+      d.jackpot = Math.max(JACKPOT_SEED, d.jackpot - amount);
     });
     return amount;
   },

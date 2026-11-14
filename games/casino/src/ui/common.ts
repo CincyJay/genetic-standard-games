@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { makeButton, makeIconButton, popIn } from '@tgs/kit';
 import type { Card } from '../logic/cards.ts';
 import { cardId } from '../logic/cards.ts';
-import { DISPLAY_FONT, GOLD, SECONDARY, THEME, ads, analytics, audio, bonus, fmt, haptics, wallet } from '../services.ts';
+import { DISPLAY_FONT, GOLD, SECONDARY, THEME, ads, analytics, audio, bonus, fmt, haptics, player, wallet } from '../services.ts';
+import { showLevelUps } from './progress.ts';
 
 /** Design size: every scene lays out in this 1080 x 1920 world. */
 export const VW = 1080;
@@ -105,8 +106,40 @@ export function coinBar(scene: Phaser.Scene, title: string, onBack?: () => void)
   pill.strokeRoundedRect(w - 380, 62, 340, 76, 38);
   pin(scene.add.image(w - 344, 100, 'chip-1000').setDisplaySize(64, 64).setDepth(52));
   const amount = pin(text(scene, w - 190, 100, '', 44, '800', '#ffffff').setDepth(52));
+  // level badge (VIP color) and XP bar under the coin pill
+  const badge = pin(scene.add.graphics().setDepth(52));
+  const lvlText = pin(text(scene, w - 448, 100, '', 34, '900', '#1a0e22').setDepth(53));
+  const xpBar = pin(scene.add.graphics().setDepth(52));
+  const drawLevel = () => {
+    const p = player.progress();
+    const vip = player.vip();
+    badge.clear();
+    badge.fillStyle(0x000000, 0.4);
+    badge.fillCircle(w - 446, 104, 40);
+    badge.fillStyle(vip.color, 1);
+    badge.fillCircle(w - 448, 100, 38);
+    badge.lineStyle(3, 0xffffff, 0.6);
+    badge.strokeCircle(w - 448, 100, 38);
+    lvlText.setText(String(p.level));
+    xpBar.clear();
+    xpBar.fillStyle(0x000000, 0.55);
+    xpBar.fillRoundedRect(w - 370, 150, 320, 12, 6);
+    xpBar.fillStyle(0x5ee08f, 1);
+    xpBar.fillRoundedRect(w - 370, 150, Math.max(12, 320 * p.fraction), 12, 6);
+  };
+  drawLevel();
   let shown = wallet.coins;
+  let celebrating = false;
   const refresh = () => {
+    drawLevel();
+    const ups = celebrating ? [] : player.takeLevelUps();
+    if (ups.length) {
+      celebrating = true;
+      showLevelUps(scene, ups, () => {
+        celebrating = false;
+        refresh();
+      });
+    }
     const target = wallet.coins;
     scene.tweens.addCounter({
       from: shown,

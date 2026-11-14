@@ -31,11 +31,17 @@ and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) 
 
 | Game | Rules (in `games/casino/src/logic/`, all unit-tested) |
 |---|---|
-| Slots "Lucky Sevens" | 5x3, 20 lines, wilds, scatter free spins with 3x wins; ~95% return verified by 1M-spin simulation (`tests/rtp-sim.ts`) |
+| Slots (4 machines) | 5x3, 20 lines, wilds, scatters. Lucky Sevens: free spins pay 3x. Pharaoh's Gold: pick-3 bonus. Deep Blue: expanding wilds + free spins. Gold Rush: prize-wheel bonus. Shared progressive jackpot (5 wilds on a line, scaled by bet). Each ~95% return by simulation (`node games/casino/tests/rtp-sim.ts`) |
 | Blackjack | 6 decks, dealer stands on all 17s, 3:2 blackjack, double, split, dealer peek |
 | Texas Hold'em | No-limit, 6 seats vs computer players with personalities; side pots, split pots; buy-in tables at 3 stakes |
 | Video Poker | Jacks or Better, full-pay 9/6 table, 1-5 coins, 5 denominations |
 | Roulette | European single zero: straight, red/black, odd/even, low/high, dozens, columns |
+
+**Progression** (`src/logic/progression.ts`): XP from every wager (1 per 10 coins) raises your
+level; each level pays coins (bigger every 5th) and unlocks content (Pharaoh's Gold at 3, High
+Roller hold'em at 5, Deep Blue at 6, Gold Rush at 10, VIP Room at 15). VIP tiers (Bronze, Silver
+at 10, Gold 25, Platinum 50, Diamond 100) multiply the daily wheel. Three daily missions (from
+different games) and a once-a-day prize wheel live in the lobby.
 
 Shuffles use the browser's cryptographic random generator. Art (52-card deck, chips, slot
 symbols, felts) is drawn in code: `python3 art/casino/cards.py && python3 art/casino/slots.py &&

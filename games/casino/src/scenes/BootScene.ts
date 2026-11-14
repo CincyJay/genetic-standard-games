@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { RANKS, SUITS, cardId } from '../logic/cards.ts';
-import { SYMBOLS } from '../logic/slots.ts';
+import { MACHINES } from '../logic/slots.ts';
 import { THEME, analytics, applySettings } from '../services.ts';
 
 export const CHIP_VALUES = [10, 50, 100, 500, 1000, 5000];
@@ -28,8 +28,8 @@ export class BootScene extends Phaser.Scene {
     }
     this.load.svg('card-back', 'art/cards/back.svg', cardSize);
     for (const v of CHIP_VALUES) this.load.svg(`chip-${v}`, `art/chips/${v}.svg`, { width: 180, height: 180 });
-    for (const s of SYMBOLS) this.load.svg(`sym-${s}`, `art/slots/${s}.svg`, { width: 260, height: 260 });
-    for (const bg of ['bg-lobby', 'bg-felt', 'bg-felt-red', 'bg-slots', 'bg-poker']) this.load.image(bg, `art/${bg}.jpg`);
+    for (const m of MACHINES) for (const s of m.symbols) this.load.svg(`sym-${m.id}-${s}`, `art/slots/${m.id}/${s}.svg`, { width: 260, height: 260 });
+    for (const bg of ['bg-lobby', 'bg-felt', 'bg-felt-red', 'bg-slots', 'bg-slots-pharaoh', 'bg-slots-ocean', 'bg-slots-goldrush', 'bg-poker']) this.load.image(bg, `art/${bg}.jpg`);
     for (const a of ['you', 'rosa', 'dmitri', 'kwame', 'lena', 'hector', 'priya', 'sam', 'yuki']) {
       this.load.svg(`av-${a}`, `art/avatars/${a}.svg`, { width: 256, height: 256 });
     }

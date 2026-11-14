@@ -27,22 +27,60 @@ await page.goto(url);
 await wait(5000);
 const box = await page.locator('canvas').boundingBox();
 // game coordinates are the 1080x1920 design; the canvas may be taller or wider (centered)
-const tap = async (x, y) => {
+const tapRaw = async (x, y) => {
   const v = await page.evaluate(() => globalThis.__view ?? { W: 1080, H: 1920 });
   const px = box.x + ((x + (v.W - 1080) / 2) * box.width) / v.W;
   const py = box.y + ((y + (v.H - 1920) / 2) * box.height) / v.H;
   await page.mouse.click(px, py);
 };
+const tap = async (x, y) => {
+  if (!(await page.evaluate(() => globalThis.__levelUp ?? null))) return tapRaw(x, y);
+  // a level-up popped up: collect it first, then tap
+  const lu = await page.evaluate(() => globalThis.__levelUp);
+  await tapRaw(540, lu.collectY);
+  await wait(1200);
+  return tapRaw(x, y);
+};
+// collect any level-up celebration that is covering the screen
+const collectLevelUps = async () => {
+  for (let k = 0; k < 5; k++) {
+    const lu = await page.evaluate(() => globalThis.__levelUp ?? null);
+    if (!lu) return;
+    await tap(540, lu.collectY);
+    await wait(1200);
+  }
+};
 // the back button is pinned to the screen's top-left corner
-const back = async () => { await page.mouse.click(box.x + (90 * box.width) / (await page.evaluate(() => globalThis.__view.W)), box.y + (100 * box.height) / (await page.evaluate(() => globalThis.__view.H))); await wait(2500); };
+const back = async () => {
+  await collectLevelUps(); await page.mouse.click(box.x + (90 * box.width) / (await page.evaluate(() => globalThis.__view.W)), box.y + (100 * box.height) / (await page.evaluate(() => globalThis.__view.H))); await wait(2500); };
 await shot('01-lobby');
 
-step('collect bonus');
-await tap(540, 540);
+step('daily wheel');
+await tap(207, 515);
+await wait(1500);
+await shot('01b-wheel');
+await tap(540, 960 + 520); // Spin
+await wait(6500);
+await shot('01c-wheel-won');
+await tap(540, 960 + 520); // Collect
+await wait(1500);
+
+step('missions');
+await tap(540, 515);
+await wait(1500);
+await shot('01d-missions');
+await tap(540, 960 + 460); // Close
+await wait(800);
+
+step('free bonus');
+await tap(873, 515);
 await wait(1500);
 
 step('slots');
 await tap(540, 820);
+await wait(2500);
+await shot('01e-slot-machines');
+await tap(540, 590); // Lucky Sevens
 await wait(2500);
 for (let i = 0; i < 4; i++) {
   await tap(540, 1640);
@@ -52,7 +90,8 @@ for (let i = 0; i < 4; i++) {
   await wait(600);
 }
 await shot('03-slots');
-await back();
+await back(); // to the machine picker
+await back(); // to the lobby
 
 step('blackjack');
 await tap(300, 1185);
@@ -124,6 +163,49 @@ step(`played ${(await page.evaluate(() => globalThis.__holdem.state())).hand} ha
 await back();
 await wait(1000);
 await shot('14-lobby-after');
+
+step('themed machines (unlocked by raising the level)');
+await page.evaluate(() => {
+  const raw = JSON.parse(localStorage.getItem('velvet-ace.save'));
+  raw.data.xp = 20000; // about level 14
+  raw.data.coins = 500000;
+  localStorage.setItem('velvet-ace.save', JSON.stringify(raw));
+});
+await page.reload();
+await wait(5000);
+await shot('15-lobby-level');
+await tap(540, 820);
+await wait(2500);
+await shot('16-slot-machines-unlocked');
+for (const [i, id] of [[1, 'pharaoh'], [2, 'ocean'], [3, 'goldrush']]) {
+  await tap(540, 590 + i * 360);
+  await wait(2500);
+  for (let k = 0; k < 3; k++) {
+    await tap(540, 1640);
+    await wait(800);
+    await page.waitForFunction(() => !globalThis.__slots.spinning(), null, { timeout: 120000 });
+  }
+  await wait(1500);
+  await shot(`17-${id}`);
+  if (id !== 'ocean') {
+    await page.evaluate(() => globalThis.__slots.bonus());
+    await wait(2500);
+    await shot(`18-${id}-bonus`);
+    if (id === 'pharaoh') {
+      for (const [x, y] of [[250, 630], [540, 910], [830, 1190]]) { await tap(x, y); await wait(700); }
+    } else {
+      await tap(540, 960 + 560);
+      await wait(6000);
+    }
+    await shot(`19-${id}-bonus-result`);
+    await page.reload();
+    await wait(5000);
+    await tap(540, 820);
+    await wait(2500);
+  } else {
+    await back();
+  }
+}
 
 await browser.close();
 if (errors.length) {

@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
 import { WHEEL_ORDER, colorOf, insideBets, settle, spin, spotKey, wins, type Bet, type BetSpot } from '../logic/roulette.ts';
-import { DISPLAY_FONT, SECONDARY, THEME, audio, fmt, haptics, wallet } from '../services.ts';
+import { DISPLAY_FONT, SECONDARY, THEME, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { banner, chipPicker, coinBar, coinShower, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
-import { drawWheel } from '../ui/wheel.ts';
+import { paintRouletteWheel } from '../ui/wheel.ts';
 
 const CHIPS = [10, 50, 100, 500, 1000, 5000];
 // Table layout (portrait): 0 on top, 12 rows of 3 numbers, outside bets on the right.
@@ -239,6 +239,8 @@ export class RouletteScene extends Phaser.Scene {
       return;
     }
     if (!wallet.spend(total)) return outOfCoins(this, this.refresh);
+    player.wager(total);
+    player.event('roulette_spin');
     this.refresh();
     audio.unlock();
     this.spinning = true;
@@ -252,9 +254,7 @@ export class RouletteScene extends Phaser.Scene {
     const dim = screenDim(this, 0, 60);
     this.tweens.add({ targets: dim, fillAlpha: 0.6, duration: 250 });
     const R = 400;
-    const g = this.add.graphics();
-    const labels = drawWheel(this, g, R);
-    const wheel = this.add.container(0, 0, [g, ...labels]);
+    const wheel = this.add.container(0, 0, [this.add.image(0, 0, paintRouletteWheel(this, 'tex-roulette-wheel', R))]);
     const ball = this.add.circle(0, -R * 0.93, 18, 0xffffff).setStrokeStyle(3, 0xbbbbbb);
     const ballHolder = this.add.container(0, 0, [ball]);
     const holder = this.add.container(w / 2, 900, [wheel, ballHolder]).setDepth(61).setScale(0.2).setAlpha(0);
@@ -290,6 +290,8 @@ export class RouletteScene extends Phaser.Scene {
     const bets = [...this.bets.values()];
     const returned = settle(bets, n);
     const staked = this.totalBet();
+    if (bets.some((b) => (b.spot.type === 'inside' || b.spot.type === 'straight') && wins(b.spot, n))) player.event('roulette_inside_win');
+    if (returned > staked) player.event('coins_won', returned - staked);
     this.recent.unshift(n);
     this.recent = this.recent.slice(0, 10);
     this.drawRecent();

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { makeButton, popIn } from '@tgs/kit';
 import { HoldemTable, decide, type Personality } from '../logic/holdem.ts';
-import { THEME, audio, fmt, haptics, wallet } from '../services.ts';
+import { THEME, audio, fmt, haptics, player, wallet } from '../services.ts';
+import { isUnlocked, UNLOCKS } from '../logic/progression.ts';
 import { CARD_H, CARD_W, coinBar, dealCard, flipCard, outOfCoins, text } from '../ui/common.ts';
 import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
 
@@ -126,8 +127,20 @@ export class HoldemScene extends Phaser.Scene {
         text(this, -340, 28, `Blinds ${fmt(s.sb)} / ${fmt(s.bb)}`, 30, '500', '#9a8f9e').setOrigin(0, 0.5),
         text(this, 340, 0, fmt(s.buyIn), 44, '800', BRASS_HEX).setOrigin(1, 0.5),
       ]);
+      const unlockId = i === 1 ? 'holdem-highroller' : i === 2 ? 'holdem-vip' : null;
+      const locked = unlockId ? !isUnlocked(unlockId, player.level) : false;
+      if (locked) {
+        const shade = this.add.graphics();
+        shade.fillStyle(0x000000, 0.65);
+        shade.fillRoundedRect(-380, -70, 760, 140, 24);
+        row.add([shade, text(this, 0, 0, `Locked  ·  reach level ${UNLOCKS.find((u) => u.id === unlockId)!.level}`, 38, '800', '#ffffff')]);
+      }
       row.setSize(760, 140).setInteractive({ useHandCursor: true });
       row.on('pointerup', () => {
+        if (locked) {
+          audio.invalid();
+          return;
+        }
         if (!wallet.spend(s.buyIn)) return outOfCoins(this, this.refresh);
         this.refresh();
         audio.unlock();
@@ -635,6 +648,15 @@ export class HoldemScene extends Phaser.Scene {
     msg.add([bg, tx]);
     msg.setAlpha(0);
     this.tweens.add({ targets: msg, alpha: 1, delay: showdown ? 700 : 200, duration: 250 });
+    if (!t.seats[0]!.out) {
+      player.wager(this.stake.bb * 10);
+      player.event('holdem_hand');
+      if (humanWon > 0) {
+        player.event('holdem_pot');
+        player.event('coins_won', humanWon);
+      }
+      this.refresh();
+    }
     if (humanWon > 0) {
       this.time.delayedCall(showdown ? 1200 : 500, () => audio.complete());
       haptics.fire('success');

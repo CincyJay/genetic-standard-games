@@ -1,6 +1,6 @@
 """Slot machine symbols (200x200 SVG) -> games/casino/public/art/slots/<sym>.svg"""
 import os
-OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'games', 'casino', 'public', 'art', 'slots')
+OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'games', 'casino', 'public', 'art', 'slots', 'sevens')
 
 def svg(body, defs):
     return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><defs>{defs}</defs>{body}</svg>'
