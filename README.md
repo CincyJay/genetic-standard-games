@@ -43,14 +43,20 @@ Roller hold'em at 5, Deep Blue at 6, Gold Rush at 10, VIP Room at 15). VIP tiers
 at 10, Gold 25, Platinum 50, Diamond 100) multiply the daily wheel. Three daily missions (from
 different games) and a once-a-day prize wheel live in the lobby.
 
-**Presentation:** the lobby is a casino floor (jackpot marquee, a sideways-scrolling wall of
-machine and table tiles, a bottom bar with the hourly bonus, daily wheel, missions and the
-player profile, which also holds the sound, music and vibration switches). Wins of 10x the bet
+**Presentation:** the lobby has a door to each room (Slots Room, Poker Room, Table Games), a
+jackpot marquee, and a bottom bar with the hourly bonus, daily wheel, missions and the player
+profile (which also holds the sound, music and vibration switches). Each room lists its games. Wins of 10x the bet
 or more get a full-screen celebration that climbs through BIG, SUPER, MEGA and EPIC WIN.
 Background music is a lounge-jazz loop synthesized live (`src/music.ts`), so there are no audio
 files to license; it ducks under big wins and pauses when the app is in the background.
 
-Shuffles use the browser's cryptographic random generator. Art (52-card deck, chips, slot
+**3D art:** slot symbols (Lucky Sevens, Lucky Lanterns), machine logos, cabinet buttons, coins
+and the casino room backdrops are modelled and rendered with three.js in headless Chromium:
+`node art/casino/3d/render.mjs [sevens lanterns logos ui rooms]` writes PNG/JPEG files into
+`games/casino/public/art/`. Spinning reels use motion-blurred copies of the symbols; near-miss
+reels get an anticipation glow; wins light up with halos, sparkles and coins flying to the balance.
+
+Shuffles use the browser's cryptographic random generator. Other art (52-card deck, chips, slot
 symbols, felts) is drawn in code: `python3 art/casino/cards.py && python3 art/casino/slots.py &&
 python3 art/casino/slots2.py && python3 art/casino/slots3.py && python3 art/casino/backgrounds.py && node art/casino/build.mjs`.
 

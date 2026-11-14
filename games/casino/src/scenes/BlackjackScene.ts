@@ -45,7 +45,7 @@ export class BlackjackScene extends Phaser.Scene {
     const w = VW;
     frame(this);
     backdrop(this, 'bg-felt');
-    this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('lobby'));
+    this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('room', { room: 'tables' }));
     text(this, w / 2, 760, 'BLACKJACK PAYS 3 TO 2', 44, '700', 'rgba(233,200,106,0.7)', DISPLAY_FONT);
     text(this, w / 2, 818, 'Dealer stands on all 17s  ·  side bets 21+3 and Perfect Pairs', 28, '500', 'rgba(255,244,220,0.5)');
     const arc = this.add.graphics();

@@ -53,17 +53,29 @@ const collectLevelUps = async () => {
 // the back button is pinned to the screen's top-left corner
 const back = async () => {
   await collectLevelUps(); await page.mouse.click(box.x + (90 * box.width) / (await page.evaluate(() => globalThis.__view.W)), box.y + (100 * box.height) / (await page.evaluate(() => globalThis.__view.H))); await wait(2500); };
-// lobby: tiles scroll sideways in two rows; the bottom bar holds bonus, wheel, missions, profile
-const TILE_ORDER = ['sevens', 'lanterns', 'pharaoh', 'ocean', 'goldrush', 'blackjack', 'holdem', 'videopoker', 'roulette'];
+// lobby has a door per room; each room lists its games
+const ROOMS = {
+  slots: ['sevens', 'lanterns', 'pharaoh', 'ocean', 'goldrush'],
+  poker: ['holdem', 'jacks', 'deuces', 'ddb'],
+  tables: ['blackjack', 'roulette'],
+};
+const roomOf = (name) => Object.keys(ROOMS).find((r) => ROOMS[r].includes(name));
 const openTile = async (name) => {
   await collectLevelUps();
-  const i = TILE_ORDER.indexOf(name);
-  const col = Math.floor(i / 2);
-  const row = i % 2;
-  await page.evaluate((c) => globalThis.__lobby.scrollTo(-(c * 466) + 300), col);
-  await wait(300);
-  const L = await page.evaluate(() => ({ x: globalThis.__lobby.stripX(), top: globalThis.__lobby.rowsTop }));
-  await tap(40 + col * 466 + 220 + L.x, L.top + row * 526 + 250);
+  if ((await page.evaluate(() => globalThis.__scene().scene.key)) !== 'lobby') {
+    await page.evaluate(() => globalThis.__go('lobby'));
+    await wait(2500);
+  }
+  const room = roomOf(name);
+  const door = Object.keys(ROOMS).indexOf(room);
+  await tap(540, await page.evaluate((i) => globalThis.__lobby.door(i), door));
+  await wait(2500);
+  const R = await page.evaluate(() => ({ top: globalThis.__room.top, ...globalThis.__room.tile }));
+  const i = ROOMS[room].indexOf(name);
+  const col = i % R.cols;
+  const row = Math.floor(i / R.cols);
+  const x = R.cols === 1 ? 540 : 40 + R.w / 2 + col * (R.w + R.gap);
+  await tap(x, R.top + R.h / 2 + row * (R.h + R.gap));
   await wait(2500);
 };
 const barTap = async (x) => tap(x, await page.evaluate(() => globalThis.__lobby.barY));
@@ -98,9 +110,9 @@ await tap(540, 960 + 560); // Close
 await wait(800);
 
 step('slots');
-await page.evaluate(() => globalThis.__lobby.scrollTo(-2000));
-await wait(800);
-await shot('01f-lobby-scrolled');
+await tap(540, await page.evaluate(() => globalThis.__lobby.door(0)));
+await wait(2500);
+await shot('01f-slots-room');
 await openTile('sevens');
 for (let i = 0; i < 4; i++) {
   await tap(540, 1640);
@@ -137,7 +149,7 @@ await shot('05-blackjack-result');
 await back();
 
 step('video poker');
-await openTile('videopoker');
+await openTile('jacks');
 await wait(2500);
 await tap(70 + 315 + 150, 289); // Deuces Wild tab
 await tap(860, 1780); // Deal

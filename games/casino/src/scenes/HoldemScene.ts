@@ -734,7 +734,7 @@ export class HoldemScene extends Phaser.Scene {
         this.newHand();
       }, { width: 620, height: 130, fontSize: 44, color: 0x3f7f3f, shadow: 0x173a17, textColor: '#ffffff', theme: THEME }),
     );
-    panel.add(makeButton(this, 0, 150, 'Leave table', () => this.scene.start('lobby'), { width: 620, height: 110, fontSize: 40, color: 0x2a242c, shadow: 0x0d0b0d, textColor: '#e9e4ea', theme: THEME }));
+    panel.add(makeButton(this, 0, 150, 'Leave table', () => this.scene.start('room', { room: 'poker' }), { width: 620, height: 110, fontSize: 40, color: 0x2a242c, shadow: 0x0d0b0d, textColor: '#e9e4ea', theme: THEME }));
     popIn(this, panel);
   }
 
@@ -756,7 +756,7 @@ export class HoldemScene extends Phaser.Scene {
       }
       this.table = null;
     }
-    this.time.delayedCall(t ? 700 : 0, () => this.scene.start('lobby'));
+    this.time.delayedCall(t ? 700 : 0, () => this.scene.start('room', { room: 'poker' }));
   }
 
   /** Finishing place for a knocked-out seat (6th is the first one out). */
@@ -811,7 +811,7 @@ export class HoldemScene extends Phaser.Scene {
         this.startSng(sg);
       }, { width: 620, height: 130, fontSize: 42, color: 0x3f7f3f, shadow: 0x173a17, textColor: '#ffffff', theme: THEME }),
     );
-    panel.add(makeButton(this, 0, 270, 'Lobby', () => this.scene.start('lobby'), { width: 620, height: 110, fontSize: 40, color: 0x2a242c, shadow: 0x0d0b0d, textColor: '#e9e4ea', theme: THEME }));
+    panel.add(makeButton(this, 0, 270, 'Lobby', () => this.scene.start('room', { room: 'poker' }), { width: 620, height: 110, fontSize: 40, color: 0x2a242c, shadow: 0x0d0b0d, textColor: '#e9e4ea', theme: THEME }));
     popIn(this, panel);
     if (prize > 0) {
       audio.win();

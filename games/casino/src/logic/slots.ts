@@ -140,14 +140,14 @@ export const GOLD_RUSH: Machine = {
 export const LUCKY_LANTERNS: Machine = {
   id: 'lanterns',
   name: 'Lucky Lanterns',
-  symbols: ['ten', 'jack', 'queen', 'king', 'ace', 'koi', 'fan', 'tiger', 'wild', 'scatter'],
+  symbols: ['ten', 'jack', 'queen', 'king', 'ace', 'koi', 'coin', 'ingot', 'wild', 'scatter'],
   pays: {
     ten: [8, 18, 60], jack: [8, 18, 60], queen: [9, 23, 75], king: [12, 30, 105], ace: [15, 38, 135],
-    koi: [23, 75, 225], fan: [38, 135, 525], tiger: [75, 270, 1350], wild: [150, 675, 3300],
+    koi: [23, 75, 225], coin: [38, 135, 525], ingot: [75, 270, 1350], wild: [150, 675, 3300],
   },
   weights: {
     ten: [6, 6, 6, 6, 6], jack: [6, 6, 6, 6, 6], queen: [6, 6, 6, 6, 6], king: [5, 5, 5, 5, 5], ace: [5, 5, 5, 5, 5],
-    koi: [4, 4, 4, 4, 4], fan: [3, 3, 3, 3, 3], tiger: [2, 2, 2, 2, 2], wild: [1, 2, 2, 2, 1], scatter: [3, 3, 3, 3, 3],
+    koi: [4, 4, 4, 4, 4], coin: [3, 3, 3, 3, 3], ingot: [2, 2, 2, 2, 2], wild: [1, 2, 2, 2, 1], scatter: [3, 3, 3, 3, 3],
   },
   scatterPays: [0, 0, 0],
   stacks: { scatter: 3 },

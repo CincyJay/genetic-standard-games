@@ -1,7 +1,7 @@
 """
 Symbols for the themed slot machines (200x200 SVG each) and their backdrops.
 Writes games/casino/public/art/slots/<machine>/<symbol>.svg and art/casino/out/bg-slots-<machine>.svg.
-Lucky Sevens symbols are produced by slots.py and copied into slots/sevens/.
+Lucky Sevens and Lucky Lanterns symbols are 3D renders (art/casino/3d/render.mjs).
 """
 import os, math, shutil
 
@@ -156,11 +156,6 @@ def write_set(machine, syms):
 write_set('pharaoh', PHARAOH)
 write_set('ocean', OCEAN)
 write_set('goldrush', GOLDRUSH)
-# Lucky Sevens: move the original symbols into their own folder
-os.makedirs(os.path.join(PUB, 'sevens'), exist_ok=True)
-for f in os.listdir(PUB):
-    if f.endswith('.svg'):
-        shutil.move(os.path.join(PUB, f), os.path.join(PUB, 'sevens', f))
 os.makedirs(OUT, exist_ok=True)
 for name, cols in {'pharaoh': ('#c98a3a', '#6a3a14', '#1e0e04', '#ffd98a'), 'ocean': ('#1f7aa8', '#0b3a5c', '#04121e', '#7fe0ff'), 'goldrush': ('#8a5a2a', '#3e2412', '#120a04', '#ffc24a')}.items():
     open(os.path.join(OUT, f'bg-slots-{name}.svg'), 'w').write(backdrop(name, *cols))

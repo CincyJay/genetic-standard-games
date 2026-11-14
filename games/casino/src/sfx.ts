@@ -243,6 +243,43 @@ export class CasinoSound {
     }
   }
 
+  /** Anticipation: a rising shimmer while the last reels keep spinning. */
+  tension(seconds: number): void {
+    const ctx = this.ready();
+    if (!ctx) return;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(220, t);
+    o.frequency.exponentialRampToValueAtTime(880, t + seconds);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 6;
+    f.frequency.setValueAtTime(600, t);
+    f.frequency.exponentialRampToValueAtTime(3200, t + seconds);
+    const lfo = ctx.createOscillator();
+    const lg = ctx.createGain();
+    lfo.frequency.value = 9;
+    lg.gain.value = 0.03;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.06, t + seconds * 0.8);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + seconds + 0.1);
+    lfo.connect(lg).connect(g.gain);
+    o.connect(f).connect(g).connect(this.out!);
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + seconds + 0.15);
+    lfo.stop(t + seconds + 0.15);
+  }
+
+  /** A feature symbol lands: bright bell ping. */
+  scatterLand(n = 1): void {
+    const notes = [1568, 1760, 2093, 2349, 2637, 3136];
+    this.bell(notes[Math.min(n - 1, notes.length - 1)]!, 0.9, 0.1);
+    this.partial(notes[Math.min(n - 1, notes.length - 1)]! * 2, 0.4, 0.03);
+  }
+
   /** Small win: two soft bell notes and a few coins. */
   complete(): void {
     this.bell(1318, 0.9, 0.12);

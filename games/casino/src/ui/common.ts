@@ -31,7 +31,8 @@ export function frame(scene: Phaser.Scene): { left: number; right: number; top: 
 export function backdrop(scene: Phaser.Scene, key: string, crop?: { y0: number; y1: number }): Phaser.GameObjects.Image {
   const W = scene.scale.width;
   const H = scene.scale.height;
-  const img = scene.add.image(W / 2, H / 2, key).setScrollFactor(0);
+  // always the full image ('__BASE'): adding a cropped frame elsewhere changes the texture's default frame
+  const img = scene.add.image(W / 2, H / 2, key, '__BASE').setScrollFactor(0);
   const s = Math.max(W / img.width, H / img.height);
   img.setScale(s);
   if (crop) {
@@ -104,7 +105,7 @@ export function coinBar(scene: Phaser.Scene, title: string, onBack?: () => void)
   pill.fillRoundedRect(w - 380, 62, 340, 76, 38);
   pill.lineStyle(3, 0xe9c86a, 0.8);
   pill.strokeRoundedRect(w - 380, 62, 340, 76, 38);
-  pin(scene.add.image(w - 344, 100, 'chip-1000').setDisplaySize(64, 64).setDepth(52));
+  pin(scene.add.image(w - 344, 100, 'coin').setDisplaySize(66, 66).setDepth(52));
   const amount = pin(text(scene, w - 190, 100, '', 44, '800', '#ffffff').setDepth(52));
   // level badge (VIP color) and XP bar under the coin pill
   const badge = pin(scene.add.graphics().setDepth(52));
@@ -212,12 +213,12 @@ export function flipCard(scene: Phaser.Scene, s: Phaser.GameObjects.Image, c: Ca
 /** Coins burst for wins. Bigger wins, more coins. */
 export function coinShower(scene: Phaser.Scene, x: number, y: number, amount: number): void {
   const qty = Math.min(60, 10 + Math.floor(Math.log10(Math.max(10, amount)) * 8));
-  const e = scene.add.particles(x, y, 'chip-1000', {
+  const e = scene.add.particles(x, y, 'coin', {
     speed: { min: 300, max: 900 },
     angle: { min: 220, max: 320 },
     gravityY: 1600,
     lifespan: 1400,
-    scale: { start: 0.35, end: 0.2 },
+    scale: { start: 0.5, end: 0.28 },
     rotate: { min: 0, max: 360 },
     emitting: false,
   });

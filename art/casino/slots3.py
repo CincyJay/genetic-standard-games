@@ -178,12 +178,7 @@ def backdrop():
 <rect width="{W}" height="{H}" filter="url(#noise)"/></svg>'''
 
 
-os.makedirs(PUB, exist_ok=True)
-for k, v in SYMS.items():
-    # unique gradient ids per file
-    for gid in ('f', 'rim', 'body', 'tail', 'gold', 'fur', 'jade', 'paper', 'glow'):
-        v = v.replace(f'id="{gid}"', f'id="{gid}-ln-{k}"').replace(f'url(#{gid})', f'url(#{gid}-ln-{k})')
-    open(os.path.join(PUB, f'{k}.svg'), 'w').write(v)
+# the symbols themselves are now 3D renders (art/casino/3d/render.mjs); only the backdrop is drawn here
 os.makedirs(OUT, exist_ok=True)
 open(os.path.join(OUT, 'bg-slots-lanterns.svg'), 'w').write(backdrop())
 print('lucky lanterns art written')

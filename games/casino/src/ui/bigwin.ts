@@ -77,12 +77,12 @@ export function showBigWin(scene: Phaser.Scene, win: number, bet: number, done?:
   scene.tweens.add({ targets: title, scale: 1, duration: 420, ease: 'Back.easeOut' });
 
   // coin fountain from the bottom of the screen
-  const fountain = scene.add.particles(cx, VH + 40, 'chip-1000', {
+  const fountain = scene.add.particles(cx, VH + 40, 'coin', {
     speedY: { min: -2300, max: -1500 },
     speedX: { min: -650, max: 650 },
     gravityY: 2600,
     lifespan: 2000,
-    scale: { min: 0.22, max: 0.42 },
+    scale: { min: 0.32, max: 0.6 },
     rotate: { min: 0, max: 360 },
     frequency: 26,
     quantity: 2,

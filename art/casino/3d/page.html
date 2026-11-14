@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script type="importmap">
+      { "imports": { "three": "/node_modules/three/build/three.module.js", "three/addons/": "/node_modules/three/examples/jsm/" } }
+    </script>
+  </head>
+  <body style="margin: 0; background: transparent">
+    <script type="module">
+      import { loadFonts, setupRenderer, snapshot } from './kit.js';
+      import { SETS } from './symbols.js';
+      import { LOGOS } from './logos.js';
+      import { renderRoom } from './rooms.js';
+      import { UI } from './ui.js';
+      await loadFonts();
+      setupRenderer(320, 320);
+      globalThis.renderSymbols = (sets) => {
+        const out = {};
+        for (const set of sets.length ? sets : Object.keys(SETS)) {
+          out[set] = {};
+          for (const [name, build] of Object.entries(SETS[set])) out[set][name] = snapshot(build(), { size: 320, pad: 0.08 });
+        }
+        return out;
+      };
+      globalThis.renderLogos = () => Object.fromEntries(Object.entries(LOGOS).map(([id, b]) => [id, snapshot(b(), { width: 1000, height: 180, pad: 0.04, tilt: [0.22, 0], fov: 10 })]));
+      globalThis.renderRoom = (id) => renderRoom(id);
+      globalThis.renderUi = () => Object.fromEntries(Object.entries(UI).map(([k, u]) => [k, snapshot(u.build(), { width: u.w, height: u.h, pad: 0.03, tilt: u.tilt, fov: 14 })]));
+      globalThis.ready = true;
+    </script>
+  </body>
+</html>

@@ -30,12 +30,20 @@ export class VideoPokerScene extends Phaser.Scene {
     super('videopoker');
   }
 
+  init(data: { variant?: Variant }): void {
+    if (data.variant) this.variant = data.variant;
+    this.sprites = [];
+    this.heldTags = [];
+    this.round = null;
+    this.busy = false;
+  }
+
   create(): void {
     const w = VW;
     const h = VH;
     frame(this);
-    backdrop(this, 'bg-lobby');
-    this.refresh = coinBar(this, 'Video Poker', () => this.scene.start('lobby'));
+    backdrop(this, 'room-poker');
+    this.refresh = coinBar(this, 'Video Poker', () => this.scene.start('room', { room: 'poker' }));
     // machine screen
     const scr = this.add.graphics();
     scr.fillStyle(0x0b1a5c, 1);
