@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
 import { makeButton, popIn } from '@tgs/kit';
 import {
+  LUCKY_WHEEL, LUCKY_WHEEL_CHANCE, rollWildReels, spinLuckyWheel,
   LINES, LINE_BETS, LUCKY_SEVENS, MACHINES, MAX_TOTAL_BET, evaluate, gridFromStops, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, spinBonusWheel,
   spinStops, type Grid, type Lantern, type Machine, type SpinResult,
 } from '../logic/slots.ts';
 import { showBigWin, tierFor } from '../ui/bigwin.ts';
+import { RANKS, SUITS, cardId, secureRandom, type Card } from '../logic/cards.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { paintPrizeWheel } from '../ui/wheel.ts';
 import { VW, backdrop, banner, coinBar, coinShower, frame, makeButton as mb, outOfCoins, screenDim, text } from '../ui/common.ts';
@@ -14,7 +16,27 @@ const LEFT = (VW - CELL * 5) / 2;
 const TOP = 440;
 const LINE_COLORS = [0xff4f8b, 0x4fd1ff, 0xffe14a, 0x7dff6a, 0xff9a3c, 0xc77dff, 0xffffff];
 
-export const machineBg = (m: Machine) => (m.id === 'sevens' ? 'bg-floor' : `bg-slots-${m.id}`);
+export const machineBg = (m: Machine) => (m.id === 'sevens' ? 'bg-floor' : `bg-machine-${m.id}`);
+
+/** Each machine's cabinet: bezel metal, bulb colour, reel tint and spin button. */
+interface CabinetTheme {
+  edge: number;
+  body: number;
+  shine: number;
+  inner: number;
+  bulb: number;
+  reelDark: number;
+  reelLight: number;
+  spin: string;
+  spinGlow: number;
+}
+const THEMES: Record<string, CabinetTheme> = {
+  sevens: { edge: 0x2a1406, body: 0xc98a1e, shine: 0xffe7a0, inner: 0x7a4a0a, bulb: 0xffe08a, reelDark: 0x1a0a24, reelLight: 0x3a2048, spin: 'btn-spin', spinGlow: 0x7dffb0 },
+  lanterns: { edge: 0x3a0006, body: 0xb8101e, shine: 0xffd76a, inner: 0xe9b949, bulb: 0xffb040, reelDark: 0x22040a, reelLight: 0x4a0c14, spin: 'btn-spin-lanterns', spinGlow: 0xff7a5a },
+  pharaoh: { edge: 0x0a1440, body: 0x1d3aa8, shine: 0xffe08a, inner: 0xe9b949, bulb: 0xffd890, reelDark: 0x14100a, reelLight: 0x30261a, spin: 'btn-spin-pharaoh', spinGlow: 0x7aa8ff },
+  ocean: { edge: 0x062a3a, body: 0x1a8aa8, shine: 0xbff4ff, inner: 0x7fe0ff, bulb: 0x7fe0ff, reelDark: 0x041828, reelLight: 0x0a3050, spin: 'btn-spin-ocean', spinGlow: 0x7fe0ff },
+  goldrush: { edge: 0x2a1006, body: 0x8a4a1a, shine: 0xffc070, inner: 0x5a2a0a, bulb: 0xffb050, reelDark: 0x140a04, reelLight: 0x2c1c0c, spin: 'btn-spin-goldrush', spinGlow: 0xffb050 },
+};
 const JACKPOT_COLORS: Record<string, number> = { GRAND: 0xc8102e, MAJOR: 0x6b2fb3, MINOR: 0x1d6aa8, MINI: 0x0f8a5a };
 export const symKey = (m: Machine, s: string) => `sym-${m.id}-${s}`;
 
@@ -29,6 +51,9 @@ export { FEATURE_TEXT };
 
 export class SlotsScene extends Phaser.Scene {
   private m: Machine = LUCKY_SEVENS;
+  private get theme(): CabinetTheme {
+    return THEMES[this.m.id] ?? THEMES.sevens!;
+  }
   private betIndex = 2;
   private reels: Phaser.GameObjects.Container[] = [];
   private finals: Phaser.GameObjects.Image[][] = [];
@@ -46,6 +71,10 @@ export class SlotsScene extends Phaser.Scene {
   private shade: Phaser.GameObjects.Graphics | null = null;
   /** Dev builds only: the next spin lands on this grid (for screenshots and tests). */
   private rigged: Grid | null = null;
+  private riggedExtras: { wildReels?: number[]; luckyWheel?: boolean } | null = null;
+  /** The last paid win that can still be gambled (0 when none). */
+  private gambleable = 0;
+  private gambleBtn!: Phaser.GameObjects.Image;
   private lines!: Phaser.GameObjects.Graphics;
   private autoBtn!: Phaser.GameObjects.Image;
 
@@ -80,9 +109,9 @@ export class SlotsScene extends Phaser.Scene {
     win.fillRoundedRect(LEFT - 16, TOP - 16, CELL * 5 + 32, CELL * 3 + 32, 28);
     // each reel a softly lit drum: brighter in the middle, dark at top and bottom
     for (let r = 0; r < 5; r++) {
-      win.fillGradientStyle(0x1a0a24, 0x1a0a24, 0x3a2048, 0x3a2048, 1);
+      win.fillGradientStyle(this.theme.reelDark, this.theme.reelDark, this.theme.reelLight, this.theme.reelLight, 1);
       win.fillRect(LEFT + r * CELL + 3, TOP, CELL - 6, CELL * 1.5);
-      win.fillGradientStyle(0x3a2048, 0x3a2048, 0x1a0a24, 0x1a0a24, 1);
+      win.fillGradientStyle(this.theme.reelLight, this.theme.reelLight, this.theme.reelDark, this.theme.reelDark, 1);
       win.fillRect(LEFT + r * CELL + 3, TOP + CELL * 1.5, CELL - 6, CELL * 1.5);
     }
     const start = gridFromStops(this.m, spinStops(this.m));
@@ -119,12 +148,14 @@ export class SlotsScene extends Phaser.Scene {
     this.pressButton(w / 2 + 370, 1380, 'btn-plus', 140, 140, () => this.changeBet(1));
     this.updateBet();
     this.updateJackpot();
-    const spinBtn = this.pressButton(w / 2, 1640, 'btn-spin', 300, 300, () => this.spin());
+    const spinBtn = this.pressButton(w / 2, 1640, this.theme.spin, 300, 300, () => this.spin());
     // the spin button breathes so it invites a tap
-    const glowRing = this.add.image(w / 2, 1640, 'fx-glow').setDisplaySize(420, 420).setDepth(23).setBlendMode(Phaser.BlendModes.ADD).setTint(0x7dffb0).setAlpha(0.35);
+    const glowRing = this.add.image(w / 2, 1640, 'fx-glow').setDisplaySize(420, 420).setDepth(23).setBlendMode(Phaser.BlendModes.ADD).setTint(this.theme.spinGlow).setAlpha(0.35);
     this.tweens.add({ targets: glowRing, alpha: 0.12, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     void spinBtn;
     this.autoBtn = this.pressButton(190, 1660, 'btn-auto', 270, 101, () => this.toggleAuto());
+    this.gambleBtn = this.pressButton(890, 1660, 'btn-gamble', 270, 101, () => this.openGamble()).setVisible(false);
+    this.gambleable = 0;
     (globalThis as Record<string, unknown>).__slots = {
       spinning: () => this.spinning,
       freeSpins: () => this.freeSpins,
@@ -132,9 +163,12 @@ export class SlotsScene extends Phaser.Scene {
       // test hooks: open this machine's bonus game directly
       bonus: () => (this.m.feature === 'pick' ? this.pickBonus(() => {}) : this.m.feature === 'wheel' ? this.wheelBonus(() => {}) : null),
       // dev test hook: the next spin lands on this grid (rows of symbol ids, top to bottom)
-      rig: (rows: string[][]) => {
-        if (import.meta.env.DEV) this.rigged = [0, 1, 2, 3, 4].map((r) => rows.map((row) => row[r]!));
+      rig: (rows: string[][], extras?: { wildReels?: number[]; luckyWheel?: boolean }) => {
+        if (!import.meta.env.DEV) return;
+        if (rows.length) this.rigged = [0, 1, 2, 3, 4].map((r) => rows.map((row) => row[r]!));
+        this.riggedExtras = extras ?? null;
       },
+      gamble: () => this.openGamble(),
       // test hook: show the big-win celebration for a 60x win
       bigWin: () => {
         if (this.spinning) return;
@@ -185,13 +219,14 @@ export class SlotsScene extends Phaser.Scene {
     const fh = CELL * 3 + 32;
     const g = this.add.graphics().setDepth(21);
     // outer bezel: dark edge, bright gold body, highlight and inner shadow lines
-    g.lineStyle(26, 0x2a1406, 1);
+    const t = this.theme;
+    g.lineStyle(26, t.edge, 1);
     g.strokeRoundedRect(x0 - 10, y0 - 10, fw + 20, fh + 20, 38);
-    g.lineStyle(18, 0xc98a1e, 1);
+    g.lineStyle(18, t.body, 1);
     g.strokeRoundedRect(x0 - 10, y0 - 10, fw + 20, fh + 20, 38);
-    g.lineStyle(6, 0xffe7a0, 1);
+    g.lineStyle(6, t.shine, 1);
     g.strokeRoundedRect(x0 - 14, y0 - 14, fw + 28, fh + 28, 40);
-    g.lineStyle(4, 0x7a4a0a, 1);
+    g.lineStyle(4, t.inner, 1);
     g.strokeRoundedRect(x0 - 2, y0 - 2, fw + 4, fh + 4, 30);
     g.lineStyle(3, 0x000000, 0.6);
     g.strokeRoundedRect(x0 + 2, y0 + 2, fw - 4, fh - 4, 26);
@@ -215,7 +250,7 @@ export class SlotsScene extends Phaser.Scene {
     const per = (n: number, f: (t: number) => [number, number]) => {
       for (let i = 0; i < n; i++) {
         const [bx, by] = f(i / (n - 1));
-        bulbs.push(this.add.image(bx, by, 'fx-spark').setDisplaySize(30, 30).setDepth(21).setBlendMode(Phaser.BlendModes.ADD));
+        bulbs.push(this.add.image(bx, by, 'fx-spark').setDisplaySize(30, 30).setDepth(21).setBlendMode(Phaser.BlendModes.ADD).setTint(t.bulb));
       }
     };
     const L = x0 - 10;
@@ -329,8 +364,15 @@ export class SlotsScene extends Phaser.Scene {
     this.updateFsText();
     haptics.fire('light');
     const grid = this.rigged ?? gridFromStops(this.m, spinStops(this.m));
+    const extras = this.riggedExtras;
+    const rigged = this.rigged !== null || extras !== null;
     this.rigged = null;
-    const result = evaluate(this.m, grid, this.lineBet);
+    this.riggedExtras = null;
+    // paid spins can turn whole reels wild or award the Lucky Wheel
+    const wildReels = extras?.wildReels ?? (free || rigged ? [] : rollWildReels());
+    const result = evaluate(this.m, grid, this.lineBet, wildReels);
+    result.luckyWheel = extras?.luckyWheel ?? (!free && !rigged && secureRandom() < LUCKY_WHEEL_CHANCE);
+    this.hideGamble();
     let stopped = 0;
     this.clearWinFx();
     // anticipation: when the feature is one or two symbols away, the last reels spin longer
@@ -387,6 +429,10 @@ export class SlotsScene extends Phaser.Scene {
 
   /** Deep Blue: wilds on reels 2-4 grow to fill the reel before lines are paid. */
   private expandThen(res: SpinResult, next: () => void): void {
+    if (res.wildReels.length) {
+      const after = () => (res.expanded.length ? this.expandThen({ ...res, wildReels: [] }, next) : next());
+      return this.wildReelsFx(res.wildReels, after);
+    }
     if (!res.expanded.length) return next();
     res.expanded.forEach((reel, k) => {
       this.time.delayedCall(k * 260, () => {
@@ -400,6 +446,208 @@ export class SlotsScene extends Phaser.Scene {
       });
     });
     this.time.delayedCall(res.expanded.length * 260 + 400, next);
+  }
+
+  /** Wild Reels: lightning down the chosen reels, which turn fully wild. */
+  private wildReelsFx(reels: number[], next: () => void): void {
+    banner(this, 'WILD REELS!', reels.length > 1 ? `${reels.length} reels turn wild` : 'A reel turns wild', '#7dffb0');
+    audio.tension(0.8);
+    this.cameras.main.shake(300, 0.006);
+    reels.forEach((reel, k) => {
+      this.time.delayedCall(600 + k * 380, () => {
+        const x = LEFT + CELL * (reel + 0.5);
+        const bolt = this.add.image(x, TOP + CELL * 1.5, 'fx-glow').setDisplaySize(CELL * 1.6, CELL * 3.6).setDepth(22).setBlendMode(Phaser.BlendModes.ADD).setTint(0xaaffdd);
+        this.tweens.add({ targets: bolt, alpha: { from: 1, to: 0 }, duration: 900, onComplete: () => bolt.destroy() });
+        const frameG = this.add.rectangle(x, TOP + CELL * 1.5, CELL - 6, CELL * 3, 0, 0).setStrokeStyle(8, 0x7dffb0, 1).setDepth(22);
+        this.fx.add(frameG);
+        this.tweens.add({ targets: frameG, alpha: { from: 1, to: 0.5 }, duration: 300, yoyo: true, repeat: -1 });
+        this.finals[reel]!.forEach((img, row) => {
+          img.setTexture(symKey(this.m, 'wild')).setDisplaySize(CELL * 0.86, CELL * 0.86).setData('sym', 'wild');
+          this.tweens.add({ targets: img, scale: { from: img.scale * 0.3, to: img.scale }, duration: 360, delay: row * 80, ease: 'Back.easeOut' });
+          this.time.delayedCall(row * 80, () => this.sparkBurst(x, img.y, 10));
+        });
+        audio.win();
+        haptics.fire('success');
+      });
+    });
+    this.time.delayedCall(600 + reels.length * 380 + 500, next);
+  }
+
+  // ---------------------------------------------------------------- Lucky Wheel
+  /** Side game on any machine: spin for a multiple of the bet. */
+  private luckyWheel(resume: () => void): void {
+    const bet = this.totalBet;
+    this.autoLeft = 0;
+    this.setAuto(false);
+    const { panel, close } = this.bonusPanel('LUCKY WHEEL', `Every wedge pays × your bet (${fmt(bet)})`);
+    banner(this, 'LUCKY WHEEL!', 'Spin to win', '#ffd23f');
+    audio.win();
+    const R = 400;
+    const n = LUCKY_WHEEL.prizes.length;
+    const cols = [0xc8102e, 0x1d3aa8, 0x0f8a5a, 0x6b2fb3, 0xd8701a, 0x0f8a9a];
+    const key = paintPrizeWheel(this, 'tex-lucky-wheel', LUCKY_WHEEL.prizes.map((p) => `×${p}`), LUCKY_WHEEL.prizes.map((p, i) => (p >= 100 ? 0xd4a017 : cols[i % cols.length]!)), R, { font: 54 });
+    const wheel = this.add.container(0, -40, [this.add.image(0, 0, key)]);
+    const hub = this.add.image(0, -40, 'coin').setDisplaySize(130, 130);
+    const ptr = this.add.graphics();
+    ptr.fillStyle(0xffffff, 1);
+    ptr.fillTriangle(-36, -40 - R - 66, 36, -40 - R - 66, 0, -40 - R + 8);
+    ptr.lineStyle(4, 0x3a2210, 1);
+    ptr.strokeTriangle(-36, -40 - R - 66, 36, -40 - R - 66, 0, -40 - R + 8);
+    // bulbs around the rim
+    const bulbs: Phaser.GameObjects.Image[] = [];
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      bulbs.push(this.add.image(Math.cos(a) * (R + 26), -40 + Math.sin(a) * (R + 26), 'fx-spark').setDisplaySize(34, 34).setBlendMode(Phaser.BlendModes.ADD));
+    }
+    let tick = 0;
+    const blink = this.time.addEvent({ delay: 120, loop: true, callback: () => bulbs.forEach((b, i) => b.setAlpha((i + ++tick) % 2 ? 1 : 0.3)) });
+    panel.add([wheel, hub, ptr, ...bulbs]);
+    let spun = false;
+    const btn = mb(this, 0, 590, 'SPIN', () => {
+      if (spun) return;
+      spun = true;
+      const idx = spinLuckyWheel();
+      const win = LUCKY_WHEEL.prizes[idx]! * bet;
+      let last = 0;
+      this.tweens.add({
+        targets: wheel,
+        angle: 360 * 7 - idx * (360 / n),
+        duration: 5200,
+        ease: 'Cubic.easeOut',
+        onUpdate: () => {
+          const k = Math.floor(wheel.angle / (360 / n));
+          if (k !== last) {
+            last = k;
+            audio.tap();
+          }
+        },
+        onComplete: () => {
+          wallet.add(win);
+          wallet.recordWin(win);
+          player.event('coins_won', win);
+          this.refresh();
+          this.sparkBurst(VW / 2, 960 - 40 - R, 30);
+          (btn.list.find((o) => o instanceof Phaser.GameObjects.Text) as Phaser.GameObjects.Text).setText('Collect');
+          btn.once('pointerup', () => {
+            blink.remove();
+            close();
+            if (tierFor(win, bet) >= 0) showBigWin(this, win, bet, resume);
+            else {
+              banner(this, `×${LUCKY_WHEEL.prizes[idx]}`, `+${fmt(win)}`);
+              audio.win();
+              this.time.delayedCall(1500, resume);
+            }
+          });
+        },
+      });
+    }, { width: 460, height: 130, fontSize: 56, theme: THEME });
+    panel.add(btn);
+  }
+
+  // ---------------------------------------------------------------- gamble
+  private showGamble(win: number): void {
+    this.gambleable = win;
+    if (this.autoLeft > 0 || this.freeSpins > 0) return;
+    this.gambleBtn.setVisible(true).setAlpha(0);
+    this.tweens.add({ targets: this.gambleBtn, alpha: 1, duration: 250 });
+  }
+
+  private hideGamble(): void {
+    this.gambleable = 0;
+    this.gambleBtn?.setVisible(false);
+  }
+
+  /**
+   * Double up: a face-down card; guess its colour (×2) or suit (×4). Win and
+   * keep going (up to 5 times), or lose the amount. The win is already in the
+   * balance, so a loss takes it back and a win adds the difference.
+   */
+  private openGamble(): void {
+    if (this.spinning || this.gambleable <= 0) return;
+    let amount = this.gambleable;
+    this.hideGamble();
+    this.spinning = true;
+    const { panel, close } = this.bonusPanel('GAMBLE', 'Red or black doubles it · the right suit pays ×4');
+    const stake = text(this, 0, -440, '', 64, '900', '#ffffff', DISPLAY_FONT);
+    const hint = text(this, 0, -370, '', 34, '700', '#cbb6d6');
+    const card = this.add.image(0, -100, 'card-back').setDisplaySize(250, 350);
+    const glow = this.add.image(0, -100, 'fx-glow').setDisplaySize(520, 620).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.35);
+    panel.add([glow, card, stake, hint]);
+    this.tweens.add({ targets: glow, alpha: 0.15, duration: 700, yoyo: true, repeat: -1 });
+    const history: Phaser.GameObjects.Image[] = [];
+    let rounds = 0;
+    let busy = false;
+    const draw = () => {
+      stake.setText(fmt(amount));
+      hint.setText(rounds < 5 ? `Win ${fmt(amount * 2)} on colour or ${fmt(amount * 4)} on suit` : 'Maximum reached: collect your win');
+    };
+    draw();
+    const buttons: Phaser.GameObjects.Container[] = [];
+    const finish = () => {
+      close();
+      this.spinning = false;
+      this.refresh();
+    };
+    const guess = (pick: 'red' | 'black' | Card['suit']) => {
+      if (busy || rounds >= 5 || amount <= 0) return;
+      busy = true;
+      const c: Card = { rank: RANKS[Math.floor(secureRandom() * 13)]!, suit: SUITS[Math.floor(secureRandom() * 4)]! };
+      const red = c.suit === 'h' || c.suit === 'd';
+      const right = pick === 'red' ? red : pick === 'black' ? !red : pick === c.suit;
+      const mult = pick === 'red' || pick === 'black' ? 2 : 4;
+      audio.flip();
+      this.tweens.add({
+        targets: card,
+        scaleX: 0,
+        duration: 140,
+        yoyo: true,
+        onYoyo: () => card.setTexture(`card-${cardId(c)}`).setDisplaySize(card.displayWidth || 1, 350),
+        onComplete: () => {
+          card.setDisplaySize(250, 350);
+          const h = this.add.image(-330 + history.length * 90, 170, `card-${cardId(c)}`).setDisplaySize(76, 106);
+          history.push(h);
+          panel.add(h);
+          rounds++;
+          if (right) {
+            wallet.add(amount * (mult - 1));
+            amount *= mult;
+            wallet.recordWin(amount);
+            audio.win();
+            this.sparkBurst(VW / 2, 860, 20);
+            draw();
+            this.time.delayedCall(700, () => {
+              card.setTexture('card-back').setDisplaySize(250, 350);
+              busy = false;
+            });
+          } else {
+            wallet.spend(amount);
+            audio.invalid();
+            haptics.fire('error');
+            amount = 0;
+            stake.setText('0');
+            hint.setText('Better luck next time');
+            this.time.delayedCall(1300, finish);
+          }
+          this.refresh();
+        },
+      });
+    };
+    const row = (y: number, items: [string, () => void, number][]) =>
+      items.forEach(([label, fn, color], i) => {
+        const w = 880 / items.length - 20;
+        const b = mb(this, -440 + w / 2 + 10 + i * (w + 20), y, label, fn, { width: w, height: 110, fontSize: label.length > 2 ? 40 : 56, color, shadow: 0x0a0408, textColor: '#ffffff', theme: THEME });
+        buttons.push(b);
+        panel.add(b);
+      });
+    row(300, [['RED ×2', () => guess('red'), 0xc8102e], ['BLACK ×2', () => guess('black'), 0x22222a]]);
+    row(430, [['♥', () => guess('h'), 0xa80e28], ['♦', () => guess('d'), 0xa80e28], ['♣', () => guess('c'), 0x22222a], ['♠', () => guess('s'), 0x22222a]]);
+    panel.add(
+      mb(this, 0, 590, 'Collect', () => {
+        if (busy) return;
+        audio.coins(6);
+        finish();
+      }, { width: 460, height: 120, fontSize: 48, theme: THEME }),
+    );
   }
 
   private updateFsText(): void {
@@ -465,7 +713,7 @@ export class SlotsScene extends Phaser.Scene {
       }
       this.continueAuto();
     };
-    const next = () => {
+    const afterWheel = () => {
       if (res.bonus) {
         player.event('slots_bonus');
         this.autoLeft = 0;
@@ -475,7 +723,13 @@ export class SlotsScene extends Phaser.Scene {
         );
         return;
       }
+      // a plain paid win can be gambled
+      if (!free && win > 0 && !res.freeSpins) this.showGamble(win);
       this.time.delayedCall(wait, resume);
+    };
+    const next = () => {
+      if (!res.luckyWheel) return afterWheel();
+      this.time.delayedCall(wait, () => this.luckyWheel(afterWheel));
     };
     // big wins get the full-screen celebration before anything else happens
     if (!free && tierFor(win, this.totalBet) >= 0) this.time.delayedCall(500, () => showBigWin(this, win, this.totalBet, next));

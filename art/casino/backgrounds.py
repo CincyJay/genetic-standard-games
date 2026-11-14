@@ -41,7 +41,8 @@ def slots_bg():
 <rect width="{W}" height="{H}" filter="url(#noise)"/></svg>'''
 
 os.makedirs(OUT, exist_ok=True)
-jobs = {'bg-lobby': lobby(), 'bg-felt': felt('#1f8a57', '#0f5a3a', '#06301e'), 'bg-felt-red': felt('#a3283f', '#6e1428', '#360812'), 'bg-slots': slots_bg()}
+# the lobby and slot backdrops are 3D renders now (art/casino/3d); only the table felts are drawn here
+jobs = {'bg-felt': felt('#1f8a57', '#0f5a3a', '#06301e'), 'bg-felt-red': felt('#a3283f', '#6e1428', '#360812')}
 for k, v in jobs.items():
     open(os.path.join(OUT, f'{k}.svg'), 'w').write(v)
 print('ok')

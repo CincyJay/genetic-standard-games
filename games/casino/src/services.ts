@@ -241,6 +241,7 @@ export const player = {
 /** 1,234 -> "1,234"; 12,345 -> "12.3K"; 1,234,567 -> "1.23M". */
 export function fmt(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 1 : 2).replace(/\.0+$/, '')}M`;
+  if (n >= 999_500) return `${(n / 1_000_000).toFixed(2).replace(/\.?0+$/, '')}M`;
   if (n >= 100_000) return `${Math.round(n / 1000)}K`;
   if (n >= 10_000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`;
   return n.toLocaleString('en-US');

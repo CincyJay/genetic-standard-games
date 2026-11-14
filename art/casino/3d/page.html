@@ -9,10 +9,13 @@
   <body style="margin: 0; background: transparent">
     <script type="module">
       import { loadFonts, setupRenderer, snapshot } from './kit.js';
-      import { SETS } from './symbols.js';
+      import { SETS as S1 } from './symbols.js';
+      import { SETS2 } from './symbols2.js';
+      const SETS = { ...S1, ...SETS2 };
       import { LOGOS } from './logos.js';
       import { renderRoom } from './rooms.js';
       import { UI } from './ui.js';
+      import { renderWorld } from './worlds.js';
       await loadFonts();
       setupRenderer(320, 320);
       globalThis.renderSymbols = (sets) => {
@@ -26,6 +29,7 @@
       globalThis.renderLogos = () => Object.fromEntries(Object.entries(LOGOS).map(([id, b]) => [id, snapshot(b(), { width: 1000, height: 180, pad: 0.04, tilt: [0.22, 0], fov: 10 })]));
       globalThis.renderRoom = (id) => renderRoom(id);
       globalThis.renderUi = () => Object.fromEntries(Object.entries(UI).map(([k, u]) => [k, snapshot(u.build(), { width: u.w, height: u.h, pad: 0.03, tilt: u.tilt, fov: 14 })]));
+      globalThis.renderWorld = (id) => renderWorld(id);
       globalThis.ready = true;
     </script>
   </body>

@@ -3,11 +3,24 @@ import { RANKS, SUITS, cardId } from '../logic/cards.ts';
 import { MACHINES } from '../logic/slots.ts';
 import { THEME, analytics, applySettings } from '../services.ts';
 
-const RENDERED = ['sevens', 'lanterns'];
-
 export const CHIP_VALUES = [10, 50, 100, 500, 1000, 5000];
 
 /** Loads every card, chip, slot symbol and backdrop, then opens the lobby. */
+function darkened(scene: Phaser.Scene, from: string, to: string, shade: number): void {
+  const src = scene.textures.get(from).getSourceImage() as HTMLImageElement;
+  const bg = scene.textures.createCanvas(to, src.width, src.height)!;
+  const ctx = bg.getContext();
+  ctx.drawImage(src, 0, 0);
+  ctx.fillStyle = `rgba(10,2,16,${shade})`;
+  ctx.fillRect(0, 0, src.width, src.height);
+  const v = ctx.createRadialGradient(src.width / 2, src.height * 0.4, src.width * 0.3, src.width / 2, src.height * 0.4, src.height * 0.75);
+  v.addColorStop(0, 'rgba(0,0,0,0)');
+  v.addColorStop(1, 'rgba(0,0,0,0.7)');
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, src.width, src.height);
+  bg.refresh();
+}
+
 /** Soft glow and sparkle sprites for win effects (drawn once into canvas textures). */
 function makeFxTextures(scene: Phaser.Scene): void {
   const glow = scene.textures.createCanvas('fx-glow', 256, 256)!;
@@ -61,15 +74,12 @@ export class BootScene extends Phaser.Scene {
     }
     this.load.svg('card-back', 'art/cards/back.svg', cardSize);
     for (const v of CHIP_VALUES) this.load.svg(`chip-${v}`, `art/chips/${v}.svg`, { width: 180, height: 180 });
-    // 3D-rendered machines ship PNGs; the rest are still vector art
+    // slot symbols are 3D renders (art/casino/3d)
     for (const m of MACHINES)
-      for (const s of m.symbols) {
-        if (RENDERED.includes(m.id)) this.load.image(`sym-${m.id}-${s}`, `art/slots/${m.id}/${s}.png`);
-        else this.load.svg(`sym-${m.id}-${s}`, `art/slots/${m.id}/${s}.svg`, { width: 260, height: 260 });
-      }
-    for (const u of ['coin', 'btn-spin', 'btn-stop', 'btn-plus', 'btn-minus', 'btn-auto', 'btn-auto-on', 'panel-bet']) this.load.image(u, `art/ui/${u}.png`);
+      for (const s of m.symbols) this.load.image(`sym-${m.id}-${s}`, `art/slots/${m.id}/${s}.png`);
+    for (const u of ['coin', 'btn-spin', 'btn-spin-lanterns', 'btn-spin-pharaoh', 'btn-spin-ocean', 'btn-spin-goldrush', 'btn-gamble', 'btn-stop', 'btn-plus', 'btn-minus', 'btn-auto', 'btn-auto-on', 'panel-bet']) this.load.image(u, `art/ui/${u}.png`);
     for (const m of MACHINES) this.load.image(`logo-${m.id}`, `art/logos/${m.id}.png`);
-    for (const bg of ['bg-lobby', 'bg-felt', 'bg-felt-red', 'bg-slots', 'bg-slots-pharaoh', 'bg-slots-ocean', 'bg-slots-goldrush', 'bg-slots-lanterns', 'bg-poker', 'room-lobby', 'room-slots', 'room-poker', 'room-tables']) this.load.image(bg, `art/${bg}.jpg`);
+    for (const bg of ['bg-felt', 'bg-felt-red', 'bg-poker', 'room-lobby', 'room-slots', 'room-poker', 'room-tables', 'world-pharaoh', 'world-ocean', 'world-goldrush', 'world-lanterns']) this.load.image(bg, `art/${bg}.jpg`);
     for (const a of ['you', 'rosa', 'dmitri', 'kwame', 'lena', 'hector', 'priya', 'sam', 'yuki']) {
       this.load.svg(`av-${a}`, `art/avatars/${a}.svg`, { width: 256, height: 256 });
     }
@@ -83,19 +93,9 @@ export class BootScene extends Phaser.Scene {
     d.generateTexture('dot', 16, 16);
     d.destroy();
     makeFxTextures(this);
-    // Lucky Sevens stands on the casino floor: the slots-room render, darkened with a vignette
-    const src = this.textures.get('room-slots').getSourceImage() as HTMLImageElement;
-    const bg = this.textures.createCanvas('bg-floor', src.width, src.height)!;
-    const ctx = bg.getContext();
-    ctx.drawImage(src, 0, 0);
-    ctx.fillStyle = 'rgba(10,2,16,0.45)';
-    ctx.fillRect(0, 0, src.width, src.height);
-    const v = ctx.createRadialGradient(src.width / 2, src.height * 0.4, src.width * 0.3, src.width / 2, src.height * 0.4, src.height * 0.75);
-    v.addColorStop(0, 'rgba(0,0,0,0)');
-    v.addColorStop(1, 'rgba(0,0,0,0.7)');
-    ctx.fillStyle = v;
-    ctx.fillRect(0, 0, src.width, src.height);
-    bg.refresh();
+    // each machine stands in its own 3D world, darkened with a vignette so the reels stand out
+    darkened(this, 'room-slots', 'bg-floor', 0.45);
+    for (const id of ['pharaoh', 'ocean', 'goldrush', 'lanterns']) darkened(this, `world-${id}`, `bg-machine-${id}`, 0.25);
     analytics.track('session_start', {});
     this.scene.start('lobby');
   }

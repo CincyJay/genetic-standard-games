@@ -48,6 +48,8 @@ export interface Machine {
   wheel?: { prizes: number[]; weights: number[] };
   /** Expanding wilds appear on these reels (0-based) and fill the whole reel. */
   expandReels?: number[];
+  /** Line pays are multiplied by this (tuned so every machine returns about 95% with all features). */
+  payScale?: number;
   /** Symbols placed on the strips in runs of this length (so several can show on one reel). */
   stacks?: Record<string, number>;
   /** Hold & Spin: lanterns lock in place while the rest respin. */
@@ -68,6 +70,7 @@ export const MAX_TOTAL_BET = LINE_BETS[LINE_BETS.length - 1]! * LINES.length;
 // ------------------------------------------------------------------ machines
 export const LUCKY_SEVENS: Machine = {
   id: 'sevens',
+  payScale: 0.575,
   name: 'Lucky Sevens',
   symbols: ['lemon', 'cherry', 'plum', 'bell', 'bar', 'seven', 'diamond', 'wild', 'scatter'],
   pays: {
@@ -86,6 +89,7 @@ export const LUCKY_SEVENS: Machine = {
 
 export const PHARAOH: Machine = {
   id: 'pharaoh',
+  payScale: 0.525,
   name: "Pharaoh's Gold",
   symbols: ['ankh', 'eye', 'scarab', 'cat', 'pyramid', 'mask', 'gem', 'wild', 'scatter'],
   pays: {
@@ -103,6 +107,7 @@ export const PHARAOH: Machine = {
 
 export const DEEP_BLUE: Machine = {
   id: 'ocean',
+  payScale: 0.605,
   name: 'Deep Blue',
   symbols: ['shell', 'starfish', 'fish', 'turtle', 'octopus', 'shark', 'pearl', 'wild', 'scatter'],
   pays: {
@@ -122,6 +127,7 @@ export const DEEP_BLUE: Machine = {
 
 export const GOLD_RUSH: Machine = {
   id: 'goldrush',
+  payScale: 0.512,
   name: 'Gold Rush',
   symbols: ['pick', 'lantern', 'pan', 'cart', 'dynamite', 'nugget', 'bar', 'wild', 'scatter'],
   pays: {
@@ -139,6 +145,7 @@ export const GOLD_RUSH: Machine = {
 
 export const LUCKY_LANTERNS: Machine = {
   id: 'lanterns',
+  payScale: 0.45,
   name: 'Lucky Lanterns',
   symbols: ['ten', 'jack', 'queen', 'king', 'ace', 'koi', 'coin', 'ingot', 'wild', 'scatter'],
   pays: {
@@ -236,6 +243,10 @@ export interface SpinResult {
   final: Grid;
   /** Reels whose wild expanded. */
   expanded: number[];
+  /** Reels turned fully wild by the Wild Reels feature. */
+  wildReels: number[];
+  /** The Lucky Wheel side game was awarded. */
+  luckyWheel: boolean;
   lineWins: LineWin[];
   scatters: number;
   scatterWin: number;
@@ -279,16 +290,17 @@ function lineWin(m: Machine, grid: Grid, line: number[], lineBet: number, idx: n
   let best: LineWin | null = null;
   for (const o of options) {
     if (o.count < 3) continue;
-    const win = m.pays[o.symbol]![o.count - 3]! * lineBet;
+    const win = Math.round(m.pays[o.symbol]![o.count - 3]! * (m.payScale ?? 1) * lineBet);
     if (!best || win > best.win) best = { line: idx, symbol: o.symbol, count: o.count, win };
   }
   return best;
 }
 
-export function evaluate(m: Machine, grid: Grid, lineBet: number): SpinResult {
-  // expanding wilds: a wild on an expanding reel fills that reel
+export function evaluate(m: Machine, grid: Grid, lineBet: number, wildReels: number[] = []): SpinResult {
+  // expanding wilds: a wild on an expanding reel fills that reel; Wild Reels turn whole reels wild
   const expanded: number[] = [];
   const final = grid.map((col, reel) => {
+    if (wildReels.includes(reel)) return ['wild', 'wild', 'wild'];
     if (m.expandReels?.includes(reel) && col.includes('wild')) {
       expanded.push(reel);
       return ['wild', 'wild', 'wild'];
@@ -300,7 +312,7 @@ export function evaluate(m: Machine, grid: Grid, lineBet: number): SpinResult {
     const w = lineWin(m, final, line, lineBet, i);
     if (w) lineWins.push(w);
   });
-  const jackpot = lineWins.some((w) => w.symbol === 'wild' && w.count === 5) && expanded.length === 0;
+  const jackpot = lineWins.some((w) => w.symbol === 'wild' && w.count === 5) && expanded.length === 0 && wildReels.length === 0;
   const coins = grid.flat().filter((s) => s === 'scatter').length;
   const scatters = Math.min(5, coins);
   const k = scatters >= 3 ? scatters - 3 : -1;
@@ -309,11 +321,53 @@ export function evaluate(m: Machine, grid: Grid, lineBet: number): SpinResult {
   let bonus: SpinResult['bonus'] = k >= 0 && (m.feature === 'pick' || m.feature === 'wheel') ? m.feature : null;
   if (m.holdSpin && coins >= m.holdSpin.trigger) bonus = 'holdspin';
   const total = lineWins.reduce((s, w) => s + w.win, 0) + scatterWin;
-  return { grid, final, expanded, lineWins, scatters, scatterWin, freeSpins, bonus, coins, jackpot, total };
+  return { grid, final, expanded, wildReels, lineWins, scatters, scatterWin, freeSpins, bonus, luckyWheel: false, coins, jackpot, total };
 }
 
-export function spin(m: Machine, lineBet: number, rnd: Random = secureRandom): SpinResult {
-  return evaluate(m, gridFromStops(m, spinStops(m, rnd)), lineBet);
+// ------------------------------------------------------------------ extras on every machine
+/** Chance per paid spin that 2 or 3 of the middle reels turn fully wild (a guaranteed big hit). */
+export const WILD_REELS_CHANCE = 1 / 75;
+/** Chance per paid spin of the Lucky Wheel side game. */
+export const LUCKY_WHEEL_CHANCE = 1 / 140;
+/** Lucky Wheel wedges: multiples of the total bet. */
+export const LUCKY_WHEEL = { prizes: [5, 8, 10, 15, 20, 30, 50, 100, 250], weights: [22, 20, 18, 14, 10, 7, 5, 3, 1] };
+
+export function luckyWheelEV(): number {
+  const tw = LUCKY_WHEEL.weights.reduce((a, b) => a + b, 0);
+  return LUCKY_WHEEL.prizes.reduce((s, p, i) => s + (p * LUCKY_WHEEL.weights[i]!) / tw, 0);
+}
+
+export function spinLuckyWheel(rnd: Random = secureRandom): number {
+  const w = LUCKY_WHEEL.weights;
+  let r = rnd() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < w.length; i++) {
+    r -= w[i]!;
+    if (r <= 0) return i;
+  }
+  return w.length - 1;
+}
+
+/** Which reels turn wild this spin (usually none). */
+export function rollWildReels(rnd: Random = secureRandom): number[] {
+  if (rnd() >= WILD_REELS_CHANCE) return [];
+  const r = rnd();
+  const n = r < 0.7 ? 2 : 3;
+  const pool = [1, 2, 3];
+  const out: number[] = [];
+  while (out.length < n) {
+    const k = pool.splice(Math.floor(rnd() * pool.length), 1)[0]!;
+    out.push(k);
+  }
+  return out.sort();
+}
+
+/** A paid spin (with the random extras) or a free spin (`extras` false). */
+export function spin(m: Machine, lineBet: number, rnd: Random = secureRandom, extras = false): SpinResult {
+  const grid = gridFromStops(m, spinStops(m, rnd));
+  if (!extras) return evaluate(m, grid, lineBet);
+  const res = evaluate(m, grid, lineBet, rollWildReels(rnd));
+  res.luckyWheel = rnd() < LUCKY_WHEEL_CHANCE;
+  return res;
 }
 
 // ------------------------------------------------------------------ bonus games
@@ -419,9 +473,10 @@ export function simulateRtp(m: Machine, spins: number, rnd: Random): { rtp: numb
   const total = LINES.length;
   for (let i = 0; i < spins; i++) {
     bet += total;
-    const r = spin(m, 1, rnd);
+    const r = spin(m, 1, rnd, true);
     won += r.total;
     if (r.total > 0) hits++;
+    if (r.luckyWheel) won += luckyWheelEV() * total;
     if (r.bonus === 'holdspin') {
       features++;
       won += playHoldSpin(m, r.grid, rnd).mult * total;

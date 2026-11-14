@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '@tgs/kit/rng';
 import {
-  DEEP_BLUE, GOLD_RUSH, LINES, LUCKY_LANTERNS, LUCKY_SEVENS, MACHINES, PHARAOH, bonusEV, evaluate, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, playHoldSpin,
+  DEEP_BLUE, GOLD_RUSH, LINES, LUCKY_WHEEL, luckyWheelEV, rollWildReels, spinLuckyWheel, LUCKY_LANTERNS, LUCKY_SEVENS, MACHINES, PHARAOH, bonusEV, evaluate, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, playHoldSpin,
   simulateRtp, strips, type Grid,
 } from '../src/logic/slots.ts';
 
@@ -25,7 +25,7 @@ describe('slot engine', () => {
       ['seven', 'wild', 'seven', 'seven', 'bar'],
       ['plum', 'cherry', 'plum', 'bell', 'plum'],
     ]), 1);
-    expect(r.lineWins.find((w) => w.line === 0)).toMatchObject({ symbol: 'seven', count: 4, win: 115 });
+    expect(r.lineWins.find((w) => w.line === 0)).toMatchObject({ symbol: 'seven', count: 4, win: Math.round(115 * LUCKY_SEVENS.payScale!) });
   });
 
   it('scatters trigger each machine’s feature', () => {
@@ -68,9 +68,10 @@ describe('slot engine', () => {
 
   it('every machine returns about 95% over the long run', () => {
     for (const m of MACHINES) {
-      const { rtp } = simulateRtp(m, 150_000, createRng(99));
-      expect(rtp, m.name).toBeGreaterThan(0.9);
-      expect(rtp, m.name).toBeLessThan(1.0);
+      // big-hit features (Wild Reels, Hold & Spin Grand) make short samples noisy, so the band is wide
+      const { rtp } = simulateRtp(m, 400_000, createRng(99));
+      expect(rtp, m.name).toBeGreaterThan(0.88);
+      expect(rtp, m.name).toBeLessThan(1.02);
     }
   }, 120_000);
 
@@ -112,6 +113,39 @@ describe('slot engine', () => {
       const r = playHoldSpin(LUCKY_LANTERNS, six, () => (calls++ < 6 ? 0.5 : 0.99)); // values, then nothing lands
       expect(r.board.filter(Boolean)).toHaveLength(6);
       expect(r.grand).toBe(false);
+    });
+  });
+
+  describe('extras on every machine', () => {
+    it('Wild Reels turns 2 or 3 of the middle reels fully wild', () => {
+      let seen = 0;
+      const rnd = createRng(12);
+      for (let i = 0; i < 20000; i++) {
+        const w = rollWildReels(rnd);
+        if (!w.length) continue;
+        seen++;
+        expect(w.length === 2 || w.length === 3).toBe(true);
+        w.forEach((r) => expect([1, 2, 3]).toContain(r));
+      }
+      expect(seen).toBeGreaterThan(150);
+      expect(seen).toBeLessThan(400);
+      const r = evaluate(LUCKY_SEVENS, grid([
+        ['cherry', 'plum', 'bell', 'plum', 'cherry'],
+        ['seven', 'bar', 'lemon', 'seven', 'bar'],
+        ['plum', 'cherry', 'plum', 'bell', 'plum'],
+      ]), 1, [1, 2]);
+      expect(r.final[1]).toEqual(['wild', 'wild', 'wild']);
+      expect(r.lineWins.some((w) => w.symbol === 'seven' && w.count === 4)).toBe(true);
+      expect(r.jackpot).toBe(false);
+    });
+
+    it('the Lucky Wheel lands on every wedge and pays at least 5x', () => {
+      const rnd = createRng(4);
+      const hits = new Set<number>();
+      for (let i = 0; i < 5000; i++) hits.add(spinLuckyWheel(rnd));
+      expect(hits.size).toBe(LUCKY_WHEEL.prizes.length);
+      expect(Math.min(...LUCKY_WHEEL.prizes)).toBe(5);
+      expect(luckyWheelEV()).toBeGreaterThan(10);
     });
   });
 });

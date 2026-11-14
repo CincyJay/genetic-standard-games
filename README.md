@@ -31,7 +31,7 @@ and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) 
 
 | Game | Rules (in `games/casino/src/logic/`, all unit-tested) |
 |---|---|
-| Slots (5 machines) | 5x3, 20 lines, wilds, scatters. Lucky Sevens: free spins pay 3x. Lucky Lanterns: Hold & Spin (6+ lanterns lock with coin values; 3 respins that reset on every new lantern; Mini/Minor/Major lanterns, fill all 15 for the Grand). Pharaoh's Gold: pick-3 bonus. Deep Blue: expanding wilds + free spins. Gold Rush: prize-wheel bonus. Shared progressive jackpot (5 wilds on a line, scaled by bet). Each ~95% return by simulation (`node games/casino/tests/rtp-sim.ts`) |
+| Slots (5 machines) | 5x3, 20 lines, wilds, scatters. On every machine: Wild Reels (1 in 75 paid spins, 2-3 middle reels turn wild), the Lucky Wheel side game (1 in 140, 5x-250x the bet) and Gamble after a win (colour doubles, suit pays 4x). Lucky Sevens: free spins pay 3x. Lucky Lanterns: Hold & Spin (6+ lanterns lock with coin values; 3 respins that reset on every new lantern; Mini/Minor/Major lanterns, fill all 15 for the Grand). Pharaoh's Gold: pick-3 bonus. Deep Blue: expanding wilds + free spins. Gold Rush: prize-wheel bonus. Shared progressive jackpot (5 wilds on a line, scaled by bet). Each ~95% return by simulation (`node games/casino/tests/rtp-sim.ts`) |
 | Blackjack | 6 decks, dealer stands on all 17s, 3:2 blackjack, double, split, dealer peek; play 1-3 hands at once; Perfect Pairs and 21+3 side bets |
 | Texas Hold'em | No-limit, 6 seats vs computer players with personalities; side pots, split pots; cash tables at 3 stakes plus Sit & Go tournaments (Bronze/Silver/Gold buy-ins, rising blinds, top 3 paid 50/30/20%) |
 | Video Poker | Jacks or Better (9/6), Deuces Wild, Double Double Bonus (with kicker pays); 1-5 coins, 5 denominations |
@@ -50,9 +50,9 @@ or more get a full-screen celebration that climbs through BIG, SUPER, MEGA and E
 Background music is a lounge-jazz loop synthesized live (`src/music.ts`), so there are no audio
 files to license; it ducks under big wins and pauses when the app is in the background.
 
-**3D art:** slot symbols (Lucky Sevens, Lucky Lanterns), machine logos, cabinet buttons, coins
+**3D art:** every slot symbol, each machine's themed world (desert temple, reef, gold mine, lantern street), machine logos, cabinet buttons, coins
 and the casino room backdrops are modelled and rendered with three.js in headless Chromium:
-`node art/casino/3d/render.mjs [sevens lanterns logos ui rooms]` writes PNG/JPEG files into
+`node art/casino/3d/render.mjs [sevens lanterns pharaoh ocean goldrush logos ui rooms worlds]` writes PNG/JPEG files into
 `games/casino/public/art/`. Spinning reels use motion-blurred copies of the symbols; near-miss
 reels get an anticipation glow; wins light up with halos, sparkles and coins flying to the balance.
 

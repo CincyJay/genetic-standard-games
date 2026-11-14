@@ -63,15 +63,15 @@ export const ROOMS: Room[] = [
         art: (s, c) => cardsArt(s, c, 'Ad Ac', true),
       },
       {
-        key: 'videopoker', title: 'Jacks or Better', sub: 'Classic video poker', bg: 'bg-slots-ocean', unlock: null, data: { variant: 'jacks' },
+        key: 'videopoker', title: 'Jacks or Better', sub: 'Classic video poker', bg: 'room-poker', unlock: null, data: { variant: 'jacks' },
         art: (s, c) => cardsArt(s, c, 'Jh Jd Ks 7c 2h', false),
       },
       {
-        key: 'videopoker', title: 'Deuces Wild', sub: 'Every 2 is wild', bg: 'bg-slots-ocean', unlock: null, data: { variant: 'deuces' },
+        key: 'videopoker', title: 'Deuces Wild', sub: 'Every 2 is wild', bg: 'room-poker', unlock: null, data: { variant: 'deuces' },
         art: (s, c) => cardsArt(s, c, '2s 2h Ac Ad Ah', false),
       },
       {
-        key: 'videopoker', title: 'Double Double', sub: 'Big four-of-a-kind bonuses', bg: 'bg-slots-ocean', unlock: null, data: { variant: 'ddb' },
+        key: 'videopoker', title: 'Double Double', sub: 'Big four-of-a-kind bonuses', bg: 'room-poker', unlock: null, data: { variant: 'ddb' },
         art: (s, c) => cardsArt(s, c, 'As Ah Ad Ac 2s', false),
       },
     ],

@@ -34,7 +34,7 @@ page.on('pageerror', (e) => console.log('[page error]', e.message));
 await page.goto(`http://localhost:${port}/art/casino/3d/page.html`);
 await page.waitForFunction(() => globalThis.ready === true, null, { timeout: 60000 });
 const ROOM_IDS = ['lobby', 'slots', 'poker', 'tables'];
-const symSets = sets.filter((x) => !['logos', 'rooms', 'ui'].includes(x));
+const symSets = sets.filter((x) => !['logos', 'rooms', 'ui', 'worlds'].includes(x));
 const out = sets.length && !symSets.length ? {} : await page.evaluate(async (sets) => globalThis.renderSymbols(sets), symSets);
 for (const [set, syms] of Object.entries(out)) {
   await mkdir(join(pub, 'slots', set), { recursive: true });
@@ -48,6 +48,13 @@ if (!sets.length || sets.includes('ui')) {
   await mkdir(join(pub, 'ui'), { recursive: true });
   for (const [id, url] of Object.entries(ui)) await writeFile(join(pub, 'ui', `${id}.png`), Buffer.from(url.split(',')[1], 'base64'));
   console.log(`ui: ${Object.keys(ui).length}`);
+}
+if (!sets.length || sets.includes('worlds')) {
+  for (const id of ['pharaoh', 'ocean', 'goldrush', 'lanterns']) {
+    const url = await page.evaluate((id) => globalThis.renderWorld(id), id);
+    await writeFile(join(pub, `world-${id}.jpg`), Buffer.from(url.split(',')[1], 'base64'));
+    console.log(`world ${id}`);
+  }
 }
 if (!sets.length || sets.includes('rooms')) {
   for (const id of ROOM_IDS) {
