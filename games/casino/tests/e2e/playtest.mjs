@@ -5,11 +5,12 @@
  */
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium, devices } = require('playwright');
 
 const url = process.argv[2] ?? 'http://localhost:5174/';
-const out = new URL('../../screenshots/', import.meta.url).pathname;
+const out = fileURLToPath(new URL('../../screenshots/', import.meta.url));
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch();
 // Galaxy S25 proportions (1080x2340 screen, ~384x832 CSS px)
@@ -134,7 +135,7 @@ await shot('01g-dressing-room');
   await shot('01h-dressing-confirmed');
   await page.evaluate(() => globalThis.__dressing.tab('photo'));
   await wait(500);
-  await page.setInputFiles('input[data-role="avatar-photo"]', new URL('./fixtures/test-photo.jpg', import.meta.url).pathname);
+  await page.setInputFiles('input[data-role="avatar-photo"]', fileURLToPath(new URL('./fixtures/test-photo.jpg', import.meta.url)));
   await page.waitForSelector('[data-role="crop-editor"]');
   await page.locator('[data-role="crop-zoom"]').fill('1.5');
   await shot('01j-photo-crop');

@@ -1,8 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { AVATAR_PRESETS, BOT_FACES, CUSTOM_CATEGORIES, DEFAULT_PRESET, canCustomize, presetById, presetOfValue } from '../src/logic/avatars.ts';
 
-const pub = (f: string) => new URL(`../public/${f}`, import.meta.url).pathname;
+const pub = (f: string) => fileURLToPath(new URL(`../public/${f}`, import.meta.url));
 const webpSize = (f: string) => {
   // VP8 / VP8L / VP8X header -> width x height
   const b = readFileSync(pub(f));

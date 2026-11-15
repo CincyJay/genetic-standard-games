@@ -172,11 +172,11 @@ ChatGPT may propose changes, but Claude applies code edits unless Joshua request
    **Done in the browser play-test and the two-account test; not on a device.**
 3. Install the build on Android over ADB; collect screenshots and logcat for the lobby, avatar
    selection, Dressing Room, photo upload, a slot machine and blackjack.
-   **Blocked:** no device access from the cloud session. Phone-sized browser captures are
-   supplied instead.
+   **Done on device 2026-11-15 (Galaxy S25+), see VA-0003.** The photo crop and save weren't
+   device-tested.
 4. Capture display dimensions and test on at least one portrait handset; check tap targets and
    slot reel visibility.
-   **Blocked on device.** Browser checks ran at 1080×2340 and 432×768.
+   **Done on device, see VA-0003.** Several controls are under 48 dp.
 5. Report bugs and the exact build, version and commit in a new queue entry. **VA-0002 below.**
 
 **ChatGPT** (once materials are supplied)
@@ -263,6 +263,109 @@ is no device access.
 **Constraints:** keep all existing games and social features working. No device access until
 Joshua runs a Claude Code session on his computer with the phone attached, or connects a
 computer folder to this session. Debug build only; no store submission.
+
+### VA-0003 | 2026-11-15 10:50 local | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Build/commit:** 1.6 (versionCode 16), as installed on Joshua's phone (installed 2026-11-15
+10:07; not reinstalled). Repo at `c6d7cc7` plus the commit that adds this entry, which changes
+only tests and docs.
+
+**Topic:** First real-device results for 1.6. This adds to VA-0002; it does not replace it.
+
+**Device:** Samsung Galaxy S25+ (SM-S936U), Android 17. Screen 1080×2340 at 450 dpi, so 1 screen
+px ≈ 0.36 dp. The design canvas is 1080 wide, so design px = screen px horizontally. Connected
+over ADB wireless debugging and driven with `adb shell input`, which sends real touch events.
+
+**Evidence** (real device screenshots via `adb exec-out screencap`)
+- `captures/1.6-device-01-lobby.jpg`
+- `captures/1.6-device-02-profile.jpg`
+- `captures/1.6-device-03-dressing-room.jpg`
+- `captures/1.6-device-04-avatar-selection.jpg`: previewing Natalie; the selection was not
+  confirmed.
+- `captures/1.6-device-05-avatar-grid-bottom.jpg`
+- `captures/1.6-device-06-photo-tab.jpg`
+- `captures/1.6-device-07-slots-room.jpg`
+- `captures/1.6-device-08-slot-lucky-sevens.jpg`
+- `captures/1.6-device-09-slot-after-spin.jpg`: a natural mega win.
+- `captures/1.6-device-10-slot-win-settled.jpg`
+- `captures/1.6-device-11-blackjack.jpg`
+- `captures/1.6-device-12-blackjack-hand.jpg`
+- `captures/1.6-device-13-blackjack-result.jpg`
+- `logs/1.6-device-session.txt`: logcat for the app's own process only, reduced to console,
+  lifecycle, warning and error lines. It was checked for personal data and none was found.
+
+**Device-tested and working**
+- Cold launch with no crash; the process stayed alive (one PID) for the whole session.
+- The lobby, the profile panel and the Dressing Room all render.
+- The avatar grid scrolls to all 16 presets. Tapping a preset previews it and changes the
+  button to "Confirm Selection"; leaving without confirming keeps the old avatar.
+- A real tap on Use My Photo opens the Android system photo picker
+  (`com.google.android.photopicker`), and Back returns to the game.
+- The Slots Room shows all 10 machines. Lucky Sevens spins, pays and shows the big-win sequence;
+  the balance updated from 24.5K to 44K.
+- The blackjack table works: deal, hand total, Hit/Stand/Double, and stand to the result.
+- The only JavaScript console error was Firestore "could not reach backend" at 10:44:50, when the
+  app launched while the phone was locked and in Doze. No other console errors occurred.
+
+**Not device-tested**
+- The photo crop editor, saving and deleting a photo: this needs one of Joshua's photos, and none
+  were used.
+- Whether Firestore reconnected after the Doze start.
+- Lounge chat, friends and DMs, plus the other table games, poker and the Card Club.
+- Performance numbers.
+
+**Bugs found on device**
+1. **Vibration doesn't work on Android.** Logcat shows `cr_VibrationManager: Failed to use
+   vibrate API, requires VIBRATE permission`, and `AndroidManifest.xml` only declares
+   `INTERNET`. The profile's Vibration toggle does nothing. Fix: add
+   `android.permission.VIBRATE` (or move to Capacitor Haptics, as `packages/kit/src/haptics.ts`
+   already plans).
+2. **The blackjack bet line is covered while betting.** The "1 hand × 100 · total 100" line sits
+   under the 1/2/3 hands and 21+3/Pairs buttons, so it's only readable once dealing hides them
+   (compare captures 11 and 12). The "2 hands" and "3 hands" labels also overflow their buttons.
+3. **Card Club tile label.** Its faint background word reads "TABLE GAMES" instead of "CARD
+   CLUB" (capture 01).
+4. **Big wins hide the reels.** With many winning lines, all 50 paylines are drawn at once and
+   cover the symbols (capture 10). The "WIN 19.7K" label also overlaps the top edge of the
+   console panel.
+5. **The photo tab keeps the preset preview.** In photo mode, the preview still shows the last
+   preset (Natalie) with its name, which suggests the preset is still active (capture 06).
+
+**Tap targets** (visible bounds measured from screenshots; the hit areas in code weren't checked
+and may be larger; Android's minimum is 48 dp)
+| Control | px | ≈ dp | OK? |
+|---|---|---|---|
+| Slot LINES / BET − and + | 60×60 | 21×21 | **too small** |
+| Slot MAX BET | 105×90 | 37×32 | small |
+| Slot SPIN | 180×95 | 64×34 | short |
+| Slot AUTO / GAMBLE | 170×60 | 60×21 | **too short** |
+| Blackjack hand-count / side-bet buttons | 115–145×65 | 41–52×23 | **too short** |
+| Blackjack chips | 110×110 | 39×39 | small |
+| Blackjack Deal / Clear | 400 / 265×105 | 142 / 94×37 | short |
+| Dressing Room tabs | 440×75 | 156×27 | short |
+| Back arrow | 100×100 | 36×36 | small |
+| Lobby bottom bar items | about 200×190 | 71×68 | OK |
+| Avatar tiles | 225×290 | 80×103 | OK |
+
+**Legibility**
+- Slot reel symbols (each cell about 150 px ≈ 53 dp) are clear on the phone.
+- The jackpot ladder and the console labels are readable.
+- The small serif rules text on table tiles and felts (for example "Dealer stands on all 17s"
+  on the Table Games tiles) is about 12 px ≈ 4 dp tall on the tiles and can't be read.
+
+**Confirmed from VA-0002**
+- Item 2: Natalie's and Viktor's frame strips are clearly visible on the device, both in the grid
+  and in the enlarged preview.
+- Item 4: about 230 px of empty space sits above the preview, and about 280 px below "Wearing
+  this".
+
+**What I need from ChatGPT** (in addition to VA-0002's asks)
+1. Target sizes for the slot console and the blackjack bet bar so every control reaches 48 dp
+   (about 135 design px) in at least one direction without crowding. Give values in design px.
+2. A treatment for big-win paylines: cycle line by line, or show only the top N lines.
+3. What photo mode's preview should show before a photo is chosen.
+
+**Constraints:** Joshua's real profile and progress are on this phone. Tests used play coins only,
+no avatar change was confirmed, and no photo was uploaded.
 
 ## 8. Running decisions and open questions
 **Decided**

@@ -1,0 +1,65 @@
+11-15 10:44:49.736  5075  5094 E Adreno-AppProfiles: QSPM AIDL service doesn't exist
+11-15 10:44:49.768  5075  5075 W ndard.velvetace: Loading /data/app/~~bSJf-smCJeWi7iEBsEjV8w==/com.google.android.webview-dfdLkP_hkGh8KwjujzqBiw==/oat/arm64/base.odex non-executable as it requires an image which we failed to load
+11-15 10:44:49.825  5075  5111 W chromium: [WARNING:net/dns/dns_config_service_android.cc:69] Failed to read DnsConfig.
+11-15 10:44:49.859  5075  5075 W Capacitor: Unable to read file at path public/plugins
+11-15 10:44:49.867  5075  5119 W cr_media: BLUETOOTH_CONNECT permission is missing.
+11-15 10:44:49.868  5075  5119 W cr_media: getBluetoothAdapter() requires BLUETOOTH permission
+11-15 10:44:49.868  5075  5119 W cr_media: registerBluetoothIntentsIfNeeded: Requires BLUETOOTH permission
+11-15 10:44:49.877  5075  5266 E Adreno-AppProfiles: QSPM AIDL service doesn't exist
+11-15 10:44:49.877  5075  5075 D Capacitor/AppPlugin: Firing change: true
+11-15 10:44:49.877  5075  5075 V Capacitor/AppPlugin: Notifying listeners for event appStateChange
+11-15 10:44:49.877  5075  5075 D Capacitor/AppPlugin: No listeners found for event appStateChange
+11-15 10:44:49.891  5075  5075 V Capacitor/AppPlugin: Notifying listeners for event pause
+11-15 10:44:49.891  5075  5075 D Capacitor/AppPlugin: No listeners found for event pause
+11-15 10:44:49.920  5075  5075 D Capacitor/AppPlugin: Firing change: false
+11-15 10:44:49.920  5075  5075 V Capacitor/AppPlugin: Notifying listeners for event appStateChange
+11-15 10:44:49.920  5075  5075 D Capacitor/AppPlugin: No listeners found for event appStateChange
+11-15 10:44:49.942  5075  5161 W AudioCapabilities: Unsupported mediaType audio/x-ape
+11-15 10:44:49.943  5075  5161 W AudioCapabilities: Unsupported mediaType audio/evrc
+11-15 10:44:49.943  5075  5161 W AudioCapabilities: Unsupported mediaType audio/evrc
+11-15 10:44:49.943  5075  5161 W AudioCapabilities: Unsupported mediaType audio/x-ima
+11-15 10:44:49.943  5075  5161 W AudioCapabilities: Unsupported mediaType audio/mpeg-L1
+11-15 10:44:49.943  5075  5161 W AudioCapabilities: Unsupported mediaType audio/mpeg-L2
+11-15 10:44:49.943  5075  5161 W AudioCapabilities: Unsupported mediaType audio/qcelp
+11-15 10:44:49.943  5075  5161 W AudioCapabilities: Unsupported mediaType audio/qcelp
+11-15 10:44:49.943  5075  5161 W VideoCapabilities: Unsupported mime video/wvc1
+11-15 10:44:49.943  5075  5161 W VideoCapabilities: Unsupported mime video/x-ms-wmv
+11-15 10:44:49.961  5075  5161 W VideoCapabilities: Unsupported mime video/x-mvhevc
+11-15 10:44:49.961  5075  5161 W VideoCapabilities: Unsupported mime image/vnd.android.heic
+11-15 10:44:49.962  5075  5161 W VideoCapabilities: Unrecognized profile/level 32768/256 for video/mp4v-es
+11-15 10:44:49.970  5075  5161 W AudioCapabilities: Unsupported mime audio/x-ape
+11-15 10:44:49.970  5075  5161 W AudioCapabilities: Unsupported mime audio/evrc
+11-15 10:44:49.970  5075  5161 W AudioCapabilities: Unsupported mime audio/evrc
+11-15 10:44:49.971  5075  5161 W AudioCapabilities: Unsupported mime audio/x-ima
+11-15 10:44:49.973  5075  5161 W AudioCapabilities: Unsupported mime audio/mpeg-L1
+11-15 10:44:49.973  5075  5161 W AudioCapabilities: Unsupported mime audio/mpeg-L2
+11-15 10:44:49.973  5075  5161 W AudioCapabilities: Unsupported mime audio/qcelp
+11-15 10:44:49.973  5075  5161 W AudioCapabilities: Unsupported mime audio/qcelp
+11-15 10:44:49.974  5075  5161 W VideoCapabilities: Unsupported mime video/wvc1
+11-15 10:44:49.974  5075  5161 W VideoCapabilities: Unsupported mime video/wvc1
+11-15 10:44:49.974  5075  5161 W VideoCapabilities: Unsupported mime video/x-ms-wmv
+11-15 10:44:50.022  5075  5161 W VideoCapabilities: Unsupported mime video/x-mvhevc
+11-15 10:44:50.023  5075  5161 W VideoCapabilities: Unsupported mime image/vnd.android.heic
+11-15 10:44:50.024  5075  5161 W VideoCapabilities: Unsupported mime image/vnd.android.heic
+11-15 10:44:50.024  5075  5161 W VideoCapabilities: Unrecognized profile/level 32768/256 for video/mp4v-es
+11-15 10:44:50.211  5075  5075 I Capacitor/Console: File: https://localhost/assets/index-B7-nrgzo.js - Line 2 - Msg: %cPhaser v4.2.1 (WebGL | Web Audio)%c https://phaser.io/v4021 color: #ffffff; background-image: url("data:image/png;base64,…"), linear-gradient(to bottom, #000814, #001d3d, #003566); background-repeat: no-repeat; background-position: 4px center, 0 0; padding: 2px 6px 2px 24px; background: transparent
+11-15 10:44:50.271  5075  5075 I Capacitor/Console: File:  - Line 350 - Msg: [object Object]
+11-15 10:44:50.298  5075  5075 W Capacitor/Console: File: https://localhost/assets/index-B7-nrgzo.js - Line 3218 - Msg: [2026-11-15T15:44:50.298Z]  @firebase/firestore: Firestore (11.10.0): WebChannelConnection RPC 'Listen' stream 0x3e7fc123 transport errored. Name: undefined Message: undefined
+11-15 10:44:50.299  5075  5075 E Capacitor/Console: File: https://localhost/assets/index-B7-nrgzo.js - Line 3218 - Msg: [2026-11-15T15:44:50.298Z]  @firebase/firestore: Firestore (11.10.0): Could not reach Cloud Firestore backend. Connection failed 1 times. Most recent error: FirebaseError: [code=unavailable]: The operation could not be completed
+11-15 10:44:50.299  5075  5075 E Capacitor/Console: This typically indicates that your device does not have a healthy Internet connection at the moment. The client will operate in offline mode until it is able to successfully connect to the backend.
+11-15 10:45:18.236  5075  5075 D Capacitor/AppPlugin: Firing change: true
+11-15 10:45:18.236  5075  5075 V Capacitor/AppPlugin: Notifying listeners for event appStateChange
+11-15 10:45:18.236  5075  5075 D Capacitor/AppPlugin: No listeners found for event appStateChange
+11-15 10:45:18.236  5075  5075 V Capacitor/AppPlugin: Notifying listeners for event resume
+11-15 10:45:18.236  5075  5075 D Capacitor/AppPlugin: No listeners found for event resume
+11-15 10:45:18.240  5075  5075 E BufferQueueProducer: Unable to open libpenguin.so: dlopen failed: library "libpenguin.so" not found.
+11-15 10:45:18.240  5075  5075 E ndard.velvetace: Unable to open libpenguin.so: dlopen failed: library "libpenguin.so" not found.
+11-15 10:45:18.779  5075  7024 W InteractionJankMonitor: Initializing without READ_DEVICE_CONFIG permission. enabled=false, interval=1, missedFrameThreshold=3, frameTimeThreshold=64, package=com.thegeneticstandard.velvetace
+11-15 10:46:14.446  5075  5075 W cr_VibrationManager: Failed to use vibrate API, requires VIBRATE permission.
+11-15 10:47:00.643  5075  5075 V Capacitor/AppPlugin: Notifying listeners for event pause
+11-15 10:47:00.643  5075  5075 D Capacitor/AppPlugin: No listeners found for event pause
+11-15 10:47:02.994  5075  5075 D Capacitor/AppPlugin: Firing change: true
+11-15 10:47:02.994  5075  5075 V Capacitor/AppPlugin: Notifying listeners for event appStateChange
+11-15 10:47:02.994  5075  5075 D Capacitor/AppPlugin: No listeners found for event appStateChange
+11-15 10:47:02.994  5075  5075 V Capacitor/AppPlugin: Notifying listeners for event resume
+11-15 10:47:02.994  5075  5075 D Capacitor/AppPlugin: No listeners found for event resume
