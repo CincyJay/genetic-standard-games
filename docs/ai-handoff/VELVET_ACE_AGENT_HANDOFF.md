@@ -755,6 +755,22 @@ monetization. The Firebase projects weren't touched.
 **Next validation:** review PR #1 for syntax and Android appearance with an isolated test save; no writes to player's production save. Report exact screen capture issues and required corrections. Do not merge without explicit approval. Do not change slot odds, paytables, or bonus logic under a graphics PR.
 
 
+### VA-0011 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: RESEARCHED
+**Topic:** Comparative research into a REAL realistic, customizable 3D avatar pipeline for Velvet Ace (hair color/styles, outfits, jewelry/accessories, face and body; optionally selfie). No purchase or SDK integration authorized yet.
+
+**Current app constraint:** Velvet Ace uses Phaser/TypeScript within an Android WebView-style app. Existing 16 preset photos are static portraits, not editable 3D models. For a vendor 3D creator, we must integrate a mobile web avatar editor and render/store its finished GLB via an appropriate 3D layer or obtain a consistently rendered portrait to use with the existing Phaser UI. No full engine migration warranted merely to enable customization.
+
+**Candidates investigated (2026-11-15):**
+1. **Avaturn** (https://avaturn.dev/ ; https://docs.avaturn.me/): lifelike selfie-to-3D, hairstyles/clothes/accessories, game-ready rigs and GLB; HTML/JS, Android support. Their embedded custom web SDK is paid, explicitly documented; public Pro pricing presently **$800/month for up to 1,000 avatars, $0.15 each extra** (https://avaturn.me/pricing/). Could pilot the free individual creator visually, but DO NOT assume free production embedding.
+2. **Avatar SDK / MetaPerson** (https://avatarsdk.com/): realistic customizable full-body models, selfie or presets, rigged GLB/glTF/FBX; browser-based creator. Current Pro price **$800/month for up to 6,000 avatars, $0.03 extra** (https://avatarsdk.com/pricing-cloud/). Commercial embedded editor / API feature and customization restrictions require written confirmation, as documentation sometimes distinguishes Pro and Enterprise.
+3. **Reallusion Character Creator 5** (https://www.reallusion.com/character-creator/): professional realistic character construction with morphs, clothes, hair and exported game assets; perpetual editor, listed ~$299; NOT a drop-in end-user app creator. Reallusion's official license explicitly says using CC assets in a user-facing character creation system needs direct Enterprise-license inquiry; purchased content also has in-app-purchase restrictions (https://www.reallusion.com/license/content.html). Useful offline art generation only if licensing allows.
+4. **Ready Player Me**: public platform reportedly shut down 2026-01-31; do not select it as new backend (https://avatarsdk.com/blog/2026/07/07/ready-player-me-migration-guide/).
+
+**Recommendation:** NO subscription purchases yet. Use Avaturn and MetaPerson *individual creator demos* first to compare realism, clothing/jewelry controls, available export, Android rendering/performance, privacy, and licensing. The commercial $800/month pricing does not fit an early-stage ad-supported casino until business economics justify it. Explore a hybrid alternative: ChatGPT creates controlled 3D/raster renders of a smaller owned character roster with a finite number of hairstyle/outfit/accessory variation combinations, if consistent quality can be obtained, while photos remain separate. This is feasible as a curated 2D customization system, not arbitrary independent edit of pixels.
+
+**Technical feasibility-only request to Claude:** report current rendering stack, how a GLB or remote editor would coexist with Phaser in Android; storage/download size estimates, portrait rendering options, permission/privacy issues and a no-production-change prototype scope. Do NOT generate cartoon substitute assets, buy services, rewrite avatar data, or change Firebase without approval.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
