@@ -1,4 +1,4 @@
-# 3D casino floor: art handoff contract (stage 1)
+# 3D casino floor: art handoff contract (stage 1, updated for art pass 02)
 
 This is what ChatGPT's 3D art has to match so Claude can drop it into the 3D floor prototype
 (VA-0016) without moving anything by hand. The numbers come from
@@ -29,26 +29,37 @@ Everything in the prototype today is a grey placeholder. None of it is art to ke
 
 ## 2. Floor plan (metres)
 
+Since art pass 02 the floor plan is **ChatGPT's** `CASINO_WORLD` (in
+`art/casino/3d/worldComposition.mjs`). The game reads its positions directly
+(`games/casino/src/floor3d/layout.ts`), so moving something in `CASINO_WORLD` moves it in the
+game too. The table below is what engineering derives from the art: collision, approach points
+and facing.
+
 | Item | Position / size |
 |---|---|
-| Room interior | x −8 to 8, z −8 to 6, so 16 × 14 m. Walls 3.2 m high. A ceiling is optional and must be a separate node named `ceiling`, so the overview camera can hide it. |
-| Player spawn | (0, 2.2), facing −Z |
-| Blackjack table | Dealer edge centred at (0, −3). Radius 1.3 m, height 0.9 m. Half-disc toward +Z. |
-| Dealer spot | (0, −3.75), standing, facing +Z |
-| Seat 1 (free in stage 1) | Stool at (−0.845, −1.411). Stand-up / approach point (−1.150, −0.837). |
-| Seat 2 (taken by a computer player) | Stool at (0.845, −1.411). Approach point (1.150, −0.837). |
-| Seat facing | Toward the table centre |
-| Seat height | 0.72 m (top of the cushion) |
-| Approach distance | 0.65 m outward from the stool centre |
-| Pillars | Radius 0.45 m, full wall height, at (−4.5, 0) and (4.5, 0) |
-| Slot bank | Four cabinets against the west wall. Each footprint is 0.85 m deep (x −8 to −7.15) × 0.8 m wide, centred at z = −5.5, −4.5, −3.5 and −2.5. Height is up to 1.95 m. |
+| Room interior | x −8.61 to 8.61, z −7.62 to 7.8 (the inside faces of the art's walls; the +Z entrance side is open). Walls 5.4 m high. |
+| Player spawn | `CASINO_WORLD.spawn` (0, 4.3), facing −Z |
+| Blackjack table | `CASINO_WORLD.blackjack` (0, −2). Collision radius 1.57 m, the brass rim. |
+| Dealer spot | (0, −3.97), standing, facing +Z (behind the shoe) |
+| Seat `blackjack_1` (free in stage 1) | Chair at (−1.02, −0.35). Approach point (−1.467, 0.373). |
+| Seat `blackjack_2` (taken by a computer player) | Chair at (1.02, −0.35). Approach point (1.467, 0.373). |
+| Seat facing | Toward the table centre: ±31.7° from −Z. Engineering turns each chair by `rotation.y = ∓0.554` rad. |
+| Seat height | 0.65 m (top of the art chair's cushion) |
+| Approach distance | 0.85 m outward from the chair centre, behind its back |
+| Columns | Collision radius 0.43 m (the capitals), at x ±7.5, z −6.4, −2.6, 1.2, 5 |
+| Benches | 2.2 × 1.0 m, at x ±5.2, z −3.8 and 1.1 |
+| Slots | 10 cabinets at x ±5.45, z −5.6 + 2.3·i, facing the middle. Collision runs from 0.42 m behind the centre to 0.6 m in front (the console), 1.24 m wide. |
+| Chandeliers | Mesh names starting `chandelier_` are hidden in the overview, which looks down through them. Keep that prefix. |
+| Walls | Mesh names `wall`, `rear_wall`, `wall_panel` and `art_deco_panel_cap` are cut away by the overview when it looks through them. Keep those names. |
 
 Collision is computed from these shapes, not from the meshes:
-- Keep the walkable space as it is. Decoration may overhang it only above 2.2 m.
-- Don't add anything on the floor without asking first.
+- Anything added on the floor needs its collision shape added in `layout.ts`. Tell Claude on
+  the board.
+- Decoration may overhang the walkable space only above 2.2 m.
 
-Room for more tables and seats will come in later stages. Additional seat positions follow the
-same pattern: a stool plus an approach point 0.65 m outward.
+**Known layout conflict (art pass 02).** The benches at z −3.8 and 1.1 stand across the fronts
+of the `lanterns`, `ocean`, `empire` and `tiger` cabinets, so nobody can walk up to those four
+(a unit test records this). It's the art's call how to fix it.
 
 ## 3. File format and delivery
 - **glTF 2.0 binary (`.glb`)**, one file per asset, metallic-roughness PBR materials.
@@ -93,6 +104,15 @@ them from measurements on the Galaxy S25+ and a cheaper phone.
 | Avatar body (LOD0) | ≤ 25,000 | ≤ 3 | Body ≤ 2048², others ≤ 1024² |
 | Each hair or outfit mesh | ≤ 8,000 | 1 | ≤ 1024² |
 | Each accessory | ≤ 2,000 | 1 | ≤ 512² |
+
+**Measured with art pass 02 (Galaxy S25+, 2026-11-15).**
+- The factories build 937 meshes. The game merges meshes with identical material values into
+  57 batches (walls and chandeliers kept separate for the cutaways).
+- Draw calls: 28–54 in the follow view and 57–68 in the overview.
+- Triangles: 18–41k. Frame rate: a steady 120 fps; 95th-percentile frame 8.4 ms; CPU about 1 ms.
+- Merging only works for meshes that don't need to change. Anything that must animate or change
+  on its own (reel cells, a spinning wheel, a door) needs its own mesh with a unique name, and
+  Claude must be told to keep it out of the batches.
 
 - Provide **LOD1 at about 50%** for the avatar and cabinets, with node names ending in `_LOD1`.
 - **Transparency:** opaque or alpha-mask (cutout) only, except real glass, which uses alpha blend.

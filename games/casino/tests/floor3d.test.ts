@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LIMITS, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, turnToward } from '../src/floor3d/camera.ts';
-import { AGENT_RADIUS, OBSTACLES, ROOM, SEATS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
+import { AGENT_RADIUS, OBSTACLES, ROOM, SEATS, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
+import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
 
 const nav = new NavGrid();
@@ -29,6 +30,27 @@ describe('3D floor layout', () => {
       expect((fx * tx + fz * tz) / Math.hypot(tx, tz)).toBeGreaterThan(0.99);
     }
   });
+  it('takes its seats, table, spawn and slots from ChatGPT’s art composition', () => {
+    expect(SEATS.map((s) => [s.id, s.x, s.z])).toEqual(CASINO_WORLD.seats.map((s) => [s.id, s.x, s.z]));
+    expect([TABLE.x, TABLE.z]).toEqual([CASINO_WORLD.blackjack.x, CASINO_WORLD.blackjack.z]);
+    expect([SPAWN.x, SPAWN.z]).toEqual([CASINO_WORLD.spawn.x, CASINO_WORLD.spawn.z]);
+    expect(SLOTS).toHaveLength(10);
+    // the room fits on the art's 18 x 16 m floor
+    expect(ROOM.x1 - ROOM.x0).toBeLessThanOrEqual(CASINO_WORLD.lobbyWidth);
+    expect(ROOM.z1 - ROOM.z0).toBeLessThanOrEqual(CASINO_WORLD.lobbyDepth);
+  });
+  it('every slot cabinet can be walked up to, except the four the art puts a bench in front of', () => {
+    // Art pass 02 places velvet benches (x ±5.2, z -3.8 and 1.1) across the fronts of these
+    // cabinets. Reported to ChatGPT (art owns placement); this test fails when it's fixed.
+    const blockedByBench = ['lanterns', 'ocean', 'empire', 'tiger'];
+    const blocked: string[] = [];
+    for (const s of SLOTS) {
+      const front = { x: s.x + (s.x < 0 ? 1 : -1) * 1.0, z: s.z };
+      if (!nav.walkableAt(front)) blocked.push(s.id);
+      else expect(nav.findPath(SPAWN, front), s.id).not.toBeNull();
+    }
+    expect(blocked.sort()).toEqual(blockedByBench.sort());
+  });
   it('has one free and one taken seat for stage 1', () => {
     expect(SEATS.filter((s) => !s.taken)).toHaveLength(1);
     expect(SEATS.filter((s) => s.taken)).toHaveLength(1);
@@ -50,17 +72,17 @@ describe('walking', () => {
     }
   });
   it('walks around the table instead of through it', () => {
-    const from = { x: 0, z: -0.5 }; // in front of the table
-    const to = { x: 0, z: -6.5 }; // behind the dealer's area
+    const from = { x: 0, z: 0.4 }; // in front of the table
+    const to = { x: 0, z: -6.8 }; // behind the dealer's area
     const path = nav.findPath(from, to)!;
     expect(path.length).toBeGreaterThan(1);
     expect(len(from, path)).toBeGreaterThan(6);
   });
   it('a tap on an obstacle walks to the nearest free spot', () => {
-    const path = nav.findPath(SPAWN, { x: -4.5, z: 0 })!; // the west pillar's centre
+    const path = nav.findPath(SPAWN, { x: -7.5, z: 1.2 })!; // a west column's centre
     const end = path[path.length - 1];
     expect(nav.pointFree(end)).toBe(true);
-    expect(Math.hypot(end.x + 4.5, end.z)).toBeLessThan(0.45 + AGENT_RADIUS + 0.35);
+    expect(Math.hypot(end.x + 7.5, end.z - 1.2)).toBeLessThan(0.43 + AGENT_RADIUS + 0.35);
   });
   it('a tap outside the room ends inside it', () => {
     const end = nav.findPath(SPAWN, { x: 30, z: 30 })!.at(-1)!;
@@ -72,8 +94,8 @@ describe('walking', () => {
     for (let i = 0; i < 100; i++) p = nav.slide(p, 0.1, 0.05);
     expect(p.x).toBeLessThanOrEqual(ROOM.x1 - AGENT_RADIUS);
     expect(p.z).toBeGreaterThan(2); // slid along the wall instead of stopping
-    let q = { x: -4.5, z: 2 };
-    for (let i = 0; i < 100; i++) q = nav.slide(q, 0, -0.05); // straight at the pillar
+    let q = { x: -7.5, z: 4 };
+    for (let i = 0; i < 100; i++) q = nav.slide(q, 0, -0.05); // straight at a column
     expect(nav.pointFree(q)).toBe(true);
     expect(OBSTACLES.some((o) => o.kind === 'circle' && Math.hypot(q.x - o.x, q.z - o.z) < o.r)).toBe(false);
   });

@@ -1,8 +1,7 @@
 /**
- * The 3D casino floor (stage 1, VA-0016): a Three.js canvas over the Phaser canvas with a
- * graybox room, a placeholder avatar, tap-to-walk, an optional joystick, the two cameras and
- * seat selection. Everything visible here is a TEMPORARY placeholder for ChatGPT's real GLB
- * art (see docs/design/3d-casino-art-contract.md); the mechanics are what this stage proves.
+ * The 3D casino floor (stage 1, VA-0016): a Three.js canvas over the Phaser canvas with
+ * ChatGPT's room, table, chairs and slot art (PR #2, see artScene.ts), placeholder capsule
+ * people, tap-to-walk, an optional joystick, the two cameras and seat selection.
  *
  * Loaded with a dynamic import, so Three.js is its own chunk and costs nothing until the
  * floor opens. `dispose()` frees every GPU resource and the WebGL context before a Phaser
@@ -10,6 +9,8 @@
  */
 import * as THREE from 'three';
 import { LIMITS, OVERVIEW_AXES, TRANSITION_MS, blendPose, clampZoom, cutawayWalls, desiredPose, turnToward, type CamMode, type CamPose } from './camera.ts';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { buildArtScene } from './artScene.ts';
 import { AVATAR_HEIGHT, DEALER_SPOT, OBSTACLES, ROOM, SEATS, SEAT_HEIGHT, TABLE, type Seat, type Vec2 } from './layout.ts';
 import { NavGrid } from './nav.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
@@ -51,6 +52,9 @@ export interface FloorStats {
   pixelRatio: number;
   canvas: [number, number];
   heapMB: number | null;
+  /** ChatGPT's art: meshes as authored, and the draw batches they were merged into. */
+  artMeshes: number;
+  artBatches: number;
 }
 
 export interface FloorHandle {
@@ -72,11 +76,7 @@ const CAM_FOLLOW_TURN = 2.2; // rad/s: how fast the follow camera swings behind 
 const SIT_MS = 450;
 
 const C = {
-  bg: 0x17111c,
-  floor: 0x7d7a82,
-  wall: 0xa9a5ae,
-  prop: 0x938f98,
-  dark: 0x5f5b64,
+  bg: 0x120c16,
   avatar: 0xe3ded6,
   npc: 0x8796a8,
   free: 0x37c76a,
@@ -101,89 +101,75 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 80);
-  scene.add(new THREE.HemisphereLight(0xfff3e6, 0x2c2232, 1.25));
-  const sun = new THREE.DirectionalLight(0xffffff, 1.3);
+  // ChatGPT's art uses physically based materials: they need tone mapping, an environment to
+  // reflect (metals look black without one) and warm key lights under the chandeliers
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const roomEnv = new RoomEnvironment();
+  const envMap = pmrem.fromScene(roomEnv, 0.04).texture;
+  roomEnv.dispose();
+  pmrem.dispose();
+  scene.environment = envMap;
+  scene.environmentIntensity = 0.55;
+  scene.add(new THREE.HemisphereLight(0xfff0dc, 0x2a1a24, 0.9));
+  const sun = new THREE.DirectionalLight(0xfff4e6, 1.1);
   sun.position.set(4, 9, 6);
   scene.add(sun);
+  for (const z of [-4, 2.6]) {
+    const lamp = new THREE.PointLight(0xffd59a, 14, 13, 1.6);
+    lamp.position.set(0, 3.9, z);
+    scene.add(lamp);
+  }
 
   const lambert = (color: number) => new THREE.MeshLambertMaterial({ color });
   const pickables: THREE.Object3D[] = [];
   /** Meshes the follow camera must not pass through. */
   const camBlockers: THREE.Object3D[] = [];
 
-  // ------------------------------------------------------------------ room
-  const w = ROOM.x1 - ROOM.x0;
-  const d = ROOM.z1 - ROOM.z0;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), lambert(C.floor));
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.set((ROOM.x0 + ROOM.x1) / 2, 0, (ROOM.z0 + ROOM.z1) / 2);
-  floor.userData.floor = true;
-  scene.add(floor);
-  pickables.push(floor);
-  // a 1 m grid so the scale reads in a graybox
-  const grid = new THREE.GridHelper(Math.max(w, d), Math.max(w, d), 0x9b98a1, 0x8b8891);
-  grid.position.set(floor.position.x, 0.005, floor.position.z);
-  scene.add(grid);
+  // ------------------------------------------------------------------ art (ChatGPT, PR #2)
+  // chairs face the table: a heading h faces (sin h, -cos h); an object turned by -h faces it
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, -s.facing])));
+  scene.add(art.root);
+  const walls = art.walls;
 
-  const walls: Record<'north' | 'south' | 'east' | 'west', THREE.Mesh> = {
-    north: wallMesh(w, ROOM.x0 + w / 2, ROOM.z0, 0),
-    south: wallMesh(w, ROOM.x0 + w / 2, ROOM.z1, 0),
-    west: wallMesh(d, ROOM.x0, ROOM.z0 + d / 2, Math.PI / 2),
-    east: wallMesh(d, ROOM.x1, ROOM.z0 + d / 2, Math.PI / 2),
-  };
-  function wallMesh(len: number, x: number, z: number, rot: number): THREE.Mesh {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(len, ROOM.wallHeight, 0.2), lambert(C.wall));
-    m.position.set(x, ROOM.wallHeight / 2, z);
-    m.rotation.y = rot;
-    m.userData.obstacle = true;
+  // ------------------------------------------------------------------ gameplay proxies
+  // Taps and the follow camera's collision use simple invisible shapes, not the detailed art.
+  const hidden = new THREE.MeshBasicMaterial({ visible: false });
+  const proxy = (geo: THREE.BufferGeometry, x: number, y: number, z: number, data: Record<string, unknown>, blocksCamera: boolean) => {
+    const m = new THREE.Mesh(geo, hidden);
+    m.position.set(x, y, z);
+    Object.assign(m.userData, data);
     scene.add(m);
     pickables.push(m);
-    camBlockers.push(m);
+    if (blocksCamera) camBlockers.push(m);
     return m;
-  }
-
-  // ------------------------------------------------------------------ props
+  };
+  const w = ROOM.x1 - ROOM.x0;
+  const d = ROOM.z1 - ROOM.z0;
+  proxy(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), (ROOM.x0 + ROOM.x1) / 2, 0, (ROOM.z0 + ROOM.z1) / 2, { floor: true }, false);
+  proxy(new THREE.BoxGeometry(w, ROOM.wallHeight, 0.2), (ROOM.x0 + ROOM.x1) / 2, ROOM.wallHeight / 2, ROOM.z0 - 0.1, { obstacle: 'wall' }, true);
+  for (const x of [ROOM.x0 - 0.1, ROOM.x1 + 0.1]) proxy(new THREE.BoxGeometry(0.2, ROOM.wallHeight, d), x, ROOM.wallHeight / 2, (ROOM.z0 + ROOM.z1) / 2, { obstacle: 'wall' }, true);
   for (const o of OBSTACLES) {
-    if (o.id === 'table' || o.id === 'dealer-area' || o.id.endsWith('-stool')) continue;
-    const mesh =
-      o.kind === 'circle'
-        ? new THREE.Mesh(new THREE.CylinderGeometry(o.r, o.r, o.h, 20), lambert(C.prop))
-        : new THREE.Mesh(new THREE.BoxGeometry(o.x1 - o.x0, o.h, o.z1 - o.z0), lambert(o.id.startsWith('slot') ? C.dark : C.prop));
-    if (o.kind === 'circle') mesh.position.set(o.x, o.h / 2, o.z);
-    else mesh.position.set((o.x0 + o.x1) / 2, o.h / 2, (o.z0 + o.z1) / 2);
-    mesh.userData.obstacle = o.id;
-    scene.add(mesh);
-    pickables.push(mesh);
-    camBlockers.push(mesh);
+    if (o.id.endsWith('-chair')) continue; // seats have their own tap volumes below
+    const data = o.id === 'table' ? { table: true } : { obstacle: o.id };
+    if (o.kind === 'circle') proxy(new THREE.CylinderGeometry(o.r, o.r, o.h, 16), o.x, o.h / 2, o.z, data, true);
+    else proxy(new THREE.BoxGeometry(o.x1 - o.x0, o.h, o.z1 - o.z0), (o.x0 + o.x1) / 2, o.h / 2, (o.z0 + o.z1) / 2, data, true);
   }
-  // the blackjack table: a half disc whose curved rail faces the players (+Z)
-  const table = new THREE.Mesh(new THREE.CylinderGeometry(TABLE.radius, TABLE.radius, TABLE.height, 32, 1, false, -Math.PI / 2, Math.PI), lambert(C.prop));
-  table.position.set(TABLE.x, TABLE.height / 2, TABLE.z);
-  table.userData.table = true;
-  scene.add(table);
-  pickables.push(table);
-  camBlockers.push(table);
-  // the dealer's area and a placeholder dealer
-  const rug = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.5), lambert(C.dark));
-  rug.rotation.x = -Math.PI / 2;
-  rug.position.set(TABLE.x, 0.01, TABLE.z - 0.75);
-  scene.add(rug);
+  // placeholder people (no rigged human art yet): the dealer
   scene.add(capsule(C.npc, DEALER_SPOT.x, DEALER_SPOT.z, 0, 0));
-  const labels = [label('BLACKJACK', TABLE.x, 2.3, TABLE.z - 0.3, 1.6)];
+  const labels = [label('BLACKJACK', TABLE.x, 2.6, TABLE.z - 0.6, 1.6)];
   scene.add(...labels);
 
-  // seats: stool, a state ring on the floor, and a bobbing marker over free seats
-  const seatViews = new Map<string, { ring: THREE.Mesh; marker: THREE.Mesh | null; stool: THREE.Mesh }>();
+  // seats: a state ring on the floor, a tap volume and a bobbing marker over free seats
+  const seatViews = new Map<string, { ring: THREE.Mesh; marker: THREE.Mesh | null }>();
   for (const s of SEATS) {
-    const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, SEAT_HEIGHT, 16), lambert(C.dark));
-    stool.position.set(s.x, SEAT_HEIGHT / 2, s.z);
-    stool.userData.seat = s.id;
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.42, 0.54, 40), new THREE.MeshBasicMaterial({ color: s.taken ? C.taken : C.free, side: THREE.DoubleSide }));
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.6, 40), new THREE.MeshBasicMaterial({ color: s.taken ? C.taken : C.free, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.set(s.x, 0.02, s.z);
     ring.userData.seat = s.id;
-    // a generous invisible tap target around the seat (bigger than the stool)
-    const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.6, 12), new THREE.MeshBasicMaterial({ visible: false }));
+    // a generous invisible tap target around the chair
+    const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.6, 12), hidden);
     hit.position.set(s.x, 0.8, s.z);
     hit.userData.seat = s.id;
     let marker: THREE.Mesh | null = null;
@@ -196,9 +182,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       // stage 1 has no multiplayer: a computer player shows what "taken" looks like
       scene.add(capsule(C.npc, s.x, s.z, s.facing, SEAT_HEIGHT - 0.45));
     }
-    scene.add(stool, ring, hit);
-    pickables.push(hit, stool, ring);
-    seatViews.set(s.id, { ring, marker, stool });
+    scene.add(ring, hit);
+    pickables.push(hit, ring);
+    seatViews.set(s.id, { ring, marker });
   }
 
   // ------------------------------------------------------------------ avatar
@@ -276,7 +262,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="rotate"></button>
     <button type="button" class="motion" aria-pressed="false"></button>
   </div>
-  <div class="badge">PROTOTYPE · GRAYBOX PLACEHOLDERS</div>
+  <div class="badge">PROTOTYPE · ART PASS 02 · PLACEHOLDER PEOPLE</div>
 </div>
 <div class="toast" role="status" aria-live="polite"></div>
 <div class="joy" aria-label="Walk joystick"><div class="knob"></div></div>
@@ -554,7 +540,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         seated = s;
         sitting = null;
         toast('Seated · opening Blackjack…', 2000);
-        window.setTimeout(() => !disposed && opts.onSit(s, { ...snapshot(), pos: { ...s.approach }, heading: s.facing + Math.PI }), reduced ? 250 : 650);
+        // on the way back you stand behind the chair facing the table, so the follow camera sits
+        // behind you (not between you and the table, where the chair back would fill the view)
+        window.setTimeout(() => !disposed && opts.onSit(s, { ...snapshot(), pos: { ...s.approach }, heading: s.facing }), reduced ? 250 : 650);
       }
     } else if (!seated) {
       let moving = false;
@@ -644,7 +632,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     // a sign right next to the camera would fill the screen: hide it up close
     for (const l of labels) l.visible = camera.position.distanceTo(l.position) > 3;
     const cut = cutawayWalls(pose.pos);
-    for (const [name, m] of Object.entries(walls)) m.visible = !cut.has(name as keyof typeof walls);
+    for (const [side, meshes] of Object.entries(walls)) for (const m of meshes) m.visible = !cut.has(side as keyof typeof walls);
+    // looking down from above, the chandeliers would hang between the camera and the floor
+    const showCeiling = pose.pos.y < 4;
+    for (const m of art.ceiling) m.visible = showCeiling;
   }
 
   const pct = (xs: number[], p: number) => {
@@ -671,6 +662,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       pixelRatio,
       canvas: [canvas.width, canvas.height],
       heapMB: mem ? Math.round(mem.usedJSHeapSize / 1e5) / 10 : null,
+      artMeshes: art.meshesAuthored,
+      artBatches: art.batches,
     };
   }
 
@@ -682,6 +675,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     cancelAnimationFrame(raf);
     clearTimeout(toastTimer);
     window.removeEventListener('resize', onResize);
+    envMap.dispose();
     scene.traverse((o) => {
       const m = o as THREE.Mesh;
       m.geometry?.dispose();

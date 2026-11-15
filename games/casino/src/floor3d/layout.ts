@@ -1,11 +1,15 @@
 /**
- * The stage-1 3D casino floor: one room, one blackjack table with two seats, two pillars and a
- * bank of slot placeholders. Everything is in metres, Y up, origin at the centre of the room's
- * floor. +Z points toward the entrance (where the player starts), -Z toward the back wall.
+ * The 3D casino floor's gameplay layout: walls, seats, the spawn point and everything you
+ * can't walk through. Everything is in metres, Y up, origin at the centre of the room's floor.
+ * +Z points toward the open entrance (where the player starts), -Z toward the back wall.
  *
- * This file is the single source of truth for the graybox AND for ChatGPT's art contract
- * (docs/design/3d-casino-art-contract.md): real GLB art must line up with these positions.
+ * Positions come from ChatGPT's art composition (CASINO_WORLD in
+ * art/casino/3d/worldComposition.mjs, PR #2), so the art and the gameplay always agree. What
+ * the art doesn't say (collision shapes, which way seats face, where you stand to sit down) is
+ * engineering's and is worked out here from the art's own dimensions.
  */
+import { CASINO_WORLD } from '../../../../art/casino/3d/worldComposition.mjs';
+
 
 export interface Vec2 {
   x: number;
@@ -51,56 +55,79 @@ export interface Seat {
   taken: boolean;
 }
 
-export const ROOM = { x0: -8, x1: 8, z0: -8, z1: 6, wallHeight: 3.2 } as const;
+/**
+ * The walkable room: inside faces of the side walls (art: 0.38 m thick at x ±8.8) and the back
+ * wall (0.36 m at z -7.8). The entrance side (+Z) has no wall; the floor ends at z +8.
+ */
+export const ROOM = { x0: -8.61, x1: 8.61, z0: -7.62, z1: 7.8, wallHeight: 5.4 } as const;
 
 /** The avatar is treated as a circle this wide for walking and collisions. */
 export const AGENT_RADIUS = 0.3;
 export const AVATAR_HEIGHT = 1.75;
-export const SEAT_HEIGHT = 0.72;
+/** Top of the art chair's cushion. */
+export const SEAT_HEIGHT = 0.65;
 
 export const TABLE = {
-  id: 'blackjack-1',
-  /** Centre of the table's flat (dealer) edge. The curved player rail faces +Z. */
-  x: 0,
-  z: -3,
-  radius: 1.3,
-  height: 0.9,
+  id: 'blackjack',
+  /** Centre of the round table (art: radius 1.57 to the brass rim, felt top at 1.17 m). */
+  x: CASINO_WORLD.blackjack.x,
+  z: CASINO_WORLD.blackjack.z,
+  radius: 1.57,
+  height: 1.19,
 };
 
-const SEAT_RING = 1.8;
-const APPROACH_RING = 2.45;
-const seatAt = (id: string, deg: number, taken: boolean): Seat => {
-  const a = (deg * Math.PI) / 180;
+/** How far from a seat's chair you stand before sitting down (clear of the chair's back). */
+const APPROACH_OUT = 0.85;
+
+/**
+ * Seats from the art. Each faces the table's centre; you walk up behind the chair. Stage 1 has
+ * no multiplayer, so the second seat is shown as taken by a computer player.
+ */
+export const SEATS: Seat[] = CASINO_WORLD.seats.map((s, i) => {
+  const dx = TABLE.x - s.x;
+  const dz = TABLE.z - s.z;
+  const len = Math.hypot(dx, dz);
   return {
-    id,
-    game: 'blackjack',
-    x: TABLE.x + SEAT_RING * Math.sin(a),
-    z: TABLE.z + SEAT_RING * Math.cos(a),
-    approach: { x: TABLE.x + APPROACH_RING * Math.sin(a), z: TABLE.z + APPROACH_RING * Math.cos(a) },
-    // seated players face the table centre
-    // (heading h walks along (sin h, -cos h), so facing back toward the centre is -a)
-    facing: -a,
-    taken,
+    id: s.id,
+    game: 'blackjack' as const,
+    x: s.x,
+    z: s.z,
+    approach: { x: s.x - (dx / len) * APPROACH_OUT, z: s.z - (dz / len) * APPROACH_OUT },
+    // heading h walks along (sin h, -cos h): face the table centre
+    facing: Math.atan2(dx, -dz),
+    taken: i === 1,
   };
-};
+});
 
-export const SEATS: Seat[] = [seatAt('blackjack-1-seat-1', -28, false), seatAt('blackjack-1-seat-2', 28, true)];
+/** Where the dealer stands: behind the table, on the shoe's side (an art socket; no dealer logic yet). */
+export const DEALER_SPOT: Vec2 = { x: TABLE.x, z: TABLE.z - TABLE.radius - 0.4 };
 
-/** Where the dealer stands, behind the flat edge (an art socket; no dealer logic yet). */
-export const DEALER_SPOT: Vec2 = { x: TABLE.x, z: TABLE.z - 0.75 };
+/** Start on the red carpet, facing the table. */
+export const SPAWN = { x: CASINO_WORLD.spawn.x, z: CASINO_WORLD.spawn.z, heading: 0 };
 
-export const SPAWN = { x: 0, z: 2.2, heading: 0 };
+/** Slot cabinets from the art. Each is 1.22 m wide; its console reaches 0.6 m in front of its centre. */
+export const SLOTS = CASINO_WORLD.slots.map((s) => ({ id: s.id, x: s.x, z: s.z, rotationY: s.rotationY }));
+
+/** Columns from the art (radius 0.43 at the brass capitals). */
+const COLUMNS: Vec2[] = [-7.5, 7.5].flatMap((x) => [-6.4, -2.6, 1.2, 5].map((z) => ({ x, z })));
+/** Velvet benches from the art: 2.2 × 1.0 m bases. */
+const BENCHES: Vec2[] = [-5.2, 5.2].flatMap((x) => [-3.8, 1.1].map((z) => ({ x, z })));
+
+const boxAround = (id: string, x: number, z: number, hx: number, hz: number, h: number): Obstacle => ({ kind: 'box', id, x0: x - hx, z0: z - hz, x1: x + hx, z1: z + hz, h });
 
 export const OBSTACLES: Obstacle[] = [
-  // the table: a half disc on the +Z side of its flat edge, approximated by a circle
-  { kind: 'circle', id: 'table', x: TABLE.x, z: TABLE.z + 0.15, r: TABLE.radius, h: TABLE.height },
+  { kind: 'circle', id: 'table', x: TABLE.x, z: TABLE.z, r: TABLE.radius, h: TABLE.height },
   // the dealer's area behind the table
-  { kind: 'box', id: 'dealer-area', x0: TABLE.x - 1.6, z0: TABLE.z - 1.5, x1: TABLE.x + 1.6, z1: TABLE.z, h: 1.0 },
-  // stools
-  ...SEATS.map((s): Obstacle => ({ kind: 'circle', id: `${s.id}-stool`, x: s.x, z: s.z, r: 0.25, h: SEAT_HEIGHT })),
-  // pillars
-  { kind: 'circle', id: 'pillar-w', x: -4.5, z: 0, r: 0.45, h: ROOM.wallHeight },
-  { kind: 'circle', id: 'pillar-e', x: 4.5, z: 0, r: 0.45, h: ROOM.wallHeight },
-  // a bank of four slot cabinets against the west wall (placeholders, not interactive yet)
-  ...[-5.5, -4.5, -3.5, -2.5].map((z, i): Obstacle => ({ kind: 'box', id: `slot-${i + 1}`, x0: ROOM.x0, z0: z - 0.4, x1: ROOM.x0 + 0.85, z1: z + 0.4, h: 1.95 })),
+  { kind: 'box', id: 'dealer-area', x0: TABLE.x - 1.2, z0: TABLE.z - TABLE.radius - 0.8, x1: TABLE.x + 1.2, z1: TABLE.z, h: 1.0 },
+  // chairs (0.69 m wide)
+  ...SEATS.map((s): Obstacle => ({ kind: 'circle', id: `${s.id}-chair`, x: s.x, z: s.z, r: 0.38, h: 1.55 })),
+  ...COLUMNS.map((c, i): Obstacle => ({ kind: 'circle', id: `column-${i + 1}`, x: c.x, z: c.z, r: 0.43, h: ROOM.wallHeight })),
+  ...BENCHES.map((b, i) => boxAround(`bench-${i + 1}`, b.x, b.z, 1.1, 0.5, 0.74)),
+  // slots face the middle of the room: a box from the cabinet's back to its console
+  ...SLOTS.map((s): Obstacle => {
+    const inward = s.x < 0 ? 1 : -1;
+    const xa = s.x - inward * 0.42;
+    const xb = s.x + inward * 0.6;
+    return { kind: 'box', id: `slot-${s.id}`, x0: Math.min(xa, xb), z0: s.z - 0.62, x1: Math.max(xa, xb), z1: s.z + 0.62, h: 2.4 };
+  }),
 ];

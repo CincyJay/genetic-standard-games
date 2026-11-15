@@ -42,34 +42,33 @@ ok(await until(() => page.evaluate(() => !!globalThis.__floor3d), 30000), 'the 3
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${out}/floor3d-01-follow.png` });
 const s0 = await st();
-ok(s0.mode === 'follow' && Math.abs(s0.pos.z - 2.2) < 0.01, 'starts at the entrance in the follow view');
+ok(s0.mode === 'follow' && Math.abs(s0.pos.z - 4.3) < 0.01, 'starts at the entrance in the follow view');
 
 // tap the floor a few metres ahead and to the right
-let p = await page.evaluate(() => globalThis.__floor3d.debug.screenOf(0.8, 0, 0.2));
+let p = await page.evaluate(() => globalThis.__floor3d.debug.screenOf(0.8, 0, 2.2));
 await page.touchscreen.tap(p.x, p.y);
 ok(p.x > 0 && p.x < 384 && p.y > 0 && p.y < 832, 'the tap point is on screen');
 ok(await until(async () => (await st()).walking), 'a floor tap starts a walk');
 ok(await until(async () => !(await st()).walking), 'the walk finishes');
 const s1 = await st();
-ok(Math.hypot(s1.pos.x - 0.8, s1.pos.z - 0.2) < 0.3, `arrives where tapped (${s1.pos.x.toFixed(2)}, ${s1.pos.z.toFixed(2)})`);
+ok(Math.hypot(s1.pos.x - 0.8, s1.pos.z - 2.2) < 0.3, `arrives where tapped (${s1.pos.x.toFixed(2)}, ${s1.pos.z.toFixed(2)})`);
 
 // switch to the overview with the on-screen button
 await page.locator('#va3d-hud .cam').tap();
 ok(await until(async () => (await st()).mode === 'overview'), 'the camera button switches to the overview');
-await page.waitForTimeout(700);
-ok(!(await st()).transitioning, 'the transition finishes');
+ok(await until(async () => !(await st()).transitioning, 3000), 'the transition finishes');
 await page.screenshot({ path: `${out}/floor3d-02-overview.png` });
 
 // a taken seat refuses
-p = await page.evaluate(() => globalThis.__floor3d.debug.seatScreen('blackjack-1-seat-2'));
+p = await page.evaluate(() => globalThis.__floor3d.debug.seatScreen('blackjack_2'));
 await page.touchscreen.tap(p.x, p.y);
 await page.waitForTimeout(300);
 ok((await page.locator('#va3d-hud .toast').textContent()).includes('taken'), 'tapping the taken seat says it is taken');
 
 // tap the free seat in the overview: walk, sit, open blackjack
-p = await page.evaluate(() => globalThis.__floor3d.debug.seatScreen('blackjack-1-seat-1'));
+p = await page.evaluate(() => globalThis.__floor3d.debug.seatScreen('blackjack_1'));
 await page.touchscreen.tap(p.x, p.y);
-ok(await until(async () => (await st())?.seat === 'blackjack-1-seat-1'), 'tapping the free seat claims it');
+ok(await until(async () => (await st())?.seat === 'blackjack_1'), 'tapping the free seat claims it');
 await until(async () => (await st())?.sitting, 6000);
 await page.screenshot({ path: `${out}/floor3d-03-sitting.png` });
 ok(await until(async () => (await scene()) === 'blackjack', 10000), 'sitting down opens the existing blackjack scene');
@@ -82,20 +81,22 @@ await page.evaluate(() => globalThis.__scene().events.emit('back'));
 ok(await until(() => page.evaluate(() => !!globalThis.__floor3d), 15000), 'Back from blackjack returns to the 3D floor');
 await page.waitForTimeout(800);
 const s2 = await st();
-ok(Math.hypot(s2.pos.x - -1.15, s2.pos.z - -0.84) < 0.1, `returns standing at the seat (${s2.pos.x.toFixed(2)}, ${s2.pos.z.toFixed(2)})`);
+ok(Math.hypot(s2.pos.x - -1.467, s2.pos.z - 0.373) < 0.1, `returns standing at the seat (${s2.pos.x.toFixed(2)}, ${s2.pos.z.toFixed(2)})`);
 ok(s2.mode === 'overview', 'the camera choice is kept');
 await page.screenshot({ path: `${out}/floor3d-05-returned.png` });
 
 // back to the follow view, try the joystick
 await page.locator('#va3d-hud .cam').tap();
-await page.waitForTimeout(700);
+await until(async () => { const q = await st(); return q.mode === 'follow' && !q.transitioning; }, 3000);
+await page.waitForTimeout(300);
 const box = await page.locator('#va3d-hud .joy').boundingBox();
 const cx = box.x + box.width / 2;
 const cy = box.y + box.height / 2;
 const cdp = await page.context().newCDPSession(page);
 const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
-// hold the stick up, then right: it walks away from the camera, then to its right
-for (const [name, dx, dy, along] of [['up', 0, -50, 'forward'], ['right', 50, 0, 'right']]) {
+// you come back facing the table (your chair is right ahead), so first hold the stick down to
+// step back, then up, then right: back toward the camera, away from it, then to its right
+for (const [name, dx, dy, along] of [['down', 0, 50, 'back'], ['up', 0, -50, 'forward'], ['right', 50, 0, 'right']]) {
   const b = await st();
   await touch('touchStart', cx, cy);
   await touch('touchMove', cx + dx, cy + dy);
@@ -105,7 +106,7 @@ for (const [name, dx, dy, along] of [['up', 0, -50, 'forward'], ['right', 50, 0,
   const mv = { x: a.pos.x - b.pos.x, z: a.pos.z - b.pos.z };
   const fl = Math.hypot(b.cam.target.x - b.cam.pos.x, b.cam.target.z - b.cam.pos.z);
   const f = { x: (b.cam.target.x - b.cam.pos.x) / fl, z: (b.cam.target.z - b.cam.pos.z) / fl };
-  const comp = along === 'forward' ? mv.x * f.x + mv.z * f.z : mv.x * -f.z + mv.z * f.x;
+  const comp = along === 'forward' ? mv.x * f.x + mv.z * f.z : along === 'back' ? -(mv.x * f.x + mv.z * f.z) : mv.x * -f.z + mv.z * f.x;
   ok(comp > 0.5 && comp > 0.9 * Math.hypot(mv.x, mv.z), `the joystick pushed ${name} walks ${along} relative to the camera (${comp.toFixed(2)} m)`);
 }
 await page.screenshot({ path: `${out}/floor3d-06-follow-joystick.png` });
