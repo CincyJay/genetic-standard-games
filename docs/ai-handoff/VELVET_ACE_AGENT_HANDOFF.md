@@ -809,6 +809,16 @@ monetization. The Firebase projects weren't touched.
 **Technical constraints:** Keep Phaser table/slot gameplay; use lightweight 3D floor as a separate scene or overlay, mobile performance/reduced-motion mode, tap-to-seat alternative, and preserve existing account/chips/auth. No new paid SDK, no changes to production Firebase or store release without approval.
 
 
+### VA-0015 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: DECIDED
+**Joshua's camera decision:** BOTH third-person follow camera and angled overhead/isometric-style overview for the walkable 3D casino floor. Players should be able to switch perspectives freely, without losing their avatar's location, seat selection, or current social context.
+
+**Experience spec:** Default to a close, eye-level/shoulder-follow cinematic view for exploring, seeing other avatars, and approaching tables. A single clear on-screen camera control toggles to a higher angled overview for quickly scanning the room, finding available seats and machines, and pathing via tap-to-move. Allow pinch zoom within performance-safe limits. Smoothly interpolate camera position, target, and FOV over ~350–600 ms rather than cutting or teleporting. Avoid clipping through walls, tables, chandeliers and avatars; camera collision and sensible distance bounds. Ensure tap targets and seat occupancy outlines are readable in either view.
+
+**Mobile accessibility:** Tap-to-walk in overview; joystick optional in follow mode; direct tap-to-seat in both. Respect reduced-motion settings (instant or minimal transition); persist camera preference locally. 3D rendering performance must be measured on Android. This is a design decision, not proof it is built.
+
+**Boundary:** ChatGPT owns the graphics, visual look and camera presentation; Claude supports integration architecture and tests only. No third-party paid avatar subscriptions.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
