@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { avatarTexture } from '../ui/avatar.ts';
 import { popIn } from '@tgs/kit';
 import { online, type ChatMessage, type FriendRequest, type Presence, type Profile } from '../online.ts';
 import { DISPLAY_FONT, GOLD, THEME, audio, haptics } from '../services.ts';
@@ -450,14 +451,13 @@ export class LoungeScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- helpers
-  /** A round avatar: portrait key, uploaded photo (data URL, loaded once), or the default. */
+  /** A round avatar: preset face, uploaded photo (loaded once, cached), or the monogram while loading or on failure. */
   private avatarImage(uid: string, avatar: string, x: number, y: number, size: number): Phaser.GameObjects.Image {
-    const key = avatar.startsWith('data:') ? `u-${uid}` : avatar && this.textures.exists(avatar) ? avatar : 'av-default';
-    const img = this.add.image(x, y, this.textures.exists(key) ? key : 'av-default').setDisplaySize(size, size);
-    if (avatar.startsWith('data:') && !this.textures.exists(key)) {
-      this.textures.once(`addtexture-${key}`, () => img.active && img.setTexture(key).setDisplaySize(size, size));
-      this.textures.addBase64(key, avatar);
-    }
+    const img = this.add.image(x, y, 'av-default').setDisplaySize(size, size);
+    const show = (v: string) => avatarTexture(this, v, (key) => img.active && img.setTexture(key).setDisplaySize(size, size));
+    show(avatar);
+    // a chat message carries the picture from when it was sent: swap in the sender's current one
+    void online.currentAvatar(uid).then((now) => now && now !== avatar && show(now));
     return img;
   }
 

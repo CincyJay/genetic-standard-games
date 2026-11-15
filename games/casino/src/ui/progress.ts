@@ -4,9 +4,7 @@ import { WHEEL_PRIZES, levelReward, unlocksBetween } from '../logic/progression.
 import { DISPLAY_FONT, GOLD, THEME, applySettings, audio, fmt, haptics, player, save } from '../services.ts';
 import { VH, VW, coinShower, makeButton, screenDim, text } from './common.ts';
 import { paintPrizeWheel } from './wheel.ts';
-import { photoInputOver, setAvatar } from './avatar.ts';
 
-const PICK_KEYS = ['av-pick-ace', 'av-pick-queen', 'av-pick-king', 'av-pick-jack', 'av-pick-luna', 'av-pick-duke'];
 
 const PANEL = 0x1a0e22;
 const BRASS = 0xc9a96a;
@@ -115,7 +113,7 @@ export function showMissions(scene: Phaser.Scene, refresh: () => void): void {
     makeButton(scene, 0, 460, 'Close', () => {
       audio.tap();
       close();
-    }, { width: 360, height: 110, fontSize: 42, color: 0x3a2a44, shadow: 0x120a16, textColor: '#ffffff', theme: THEME }),
+    }, { width: 340, height: 110, fontSize: 42, color: 0x3a2a44, shadow: 0x120a16, textColor: '#ffffff', theme: THEME }),
   );
 }
 
@@ -211,7 +209,7 @@ export function showProfile(scene: Phaser.Scene, refresh: () => void): void {
   const openPicker = () => {
     audio.tap();
     close();
-    showAvatarPicker(scene, () => showProfile(scene, refresh));
+    scene.scene.start('dressing', { back: scene.scene.key });
   };
   cam.on('pointerup', openPicker);
   panel.add(cam);
@@ -264,46 +262,12 @@ export function showProfile(scene: Phaser.Scene, refresh: () => void): void {
     });
     panel.add([sw, z]);
   });
+  panel.add(makeButton(scene, -200, 560, 'Dressing Room', openPicker, { width: 380, height: 110, fontSize: 38, theme: THEME }));
   panel.add(
-    makeButton(scene, 0, 560, 'Close', () => {
+    makeButton(scene, 200, 560, 'Close', () => {
       audio.tap();
       close();
       refresh();
-    }, { width: 360, height: 110, fontSize: 42, color: 0x3a2a44, shadow: 0x120a16, textColor: '#ffffff', theme: THEME }),
-  );
-}
-
-/** Choose a profile picture: upload a photo, or pick a portrait. */
-export function showAvatarPicker(scene: Phaser.Scene, after: () => void): void {
-  const { panel, close } = modal(scene, 920, 1180);
-  panel.add(text(scene, 0, -510, 'Profile picture', 56, '800', GOLD, DISPLAY_FONT));
-  const done = () => {
-    close();
-    after();
-  };
-  // browsers only open the photo chooser inside a real tap, so arm it on press
-  // and open it from the browser's own pointerup event
-  const upload = makeButton(scene, 0, -390, 'Upload a photo', () => {}, { width: 600, height: 120, fontSize: 44, theme: THEME });
-  panel.add(upload);
-  // an invisible real file input over the button: the tap lands on it directly
-  const overlay = photoInputOver(scene, VW / 2 + upload.x, VH / 2 + upload.y, 600, 120, done);
-  upload.once('destroy', () => overlay.remove());
-  panel.add(text(scene, 0, -290, 'or choose a portrait', 30, '600', '#a898b0'));
-  const keys = ['', ...PICK_KEYS];
-  keys.forEach((k, i) => {
-    const x = -280 + (i % 4) * 187;
-    const y = -150 + Math.floor(i / 4) * 210;
-    const img = scene.add.image(x, y, k ? k : 'av-default').setDisplaySize(160, 160).setInteractive({ useHandCursor: true });
-    img.on('pointerup', () => {
-      audio.tap();
-      setAvatar(scene, k, done);
-    });
-    panel.add(img);
-  });
-  panel.add(
-    makeButton(scene, 0, 480, 'Cancel', () => {
-      audio.tap();
-      done();
-    }, { width: 360, height: 110, fontSize: 42, color: 0x3a2a44, theme: THEME }),
+    }, { width: 340, height: 110, fontSize: 42, color: 0x3a2a44, shadow: 0x120a16, textColor: '#ffffff', theme: THEME }),
   );
 }

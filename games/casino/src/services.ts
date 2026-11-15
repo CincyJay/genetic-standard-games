@@ -31,8 +31,13 @@ export interface SaveData {
   jackpot: number;
   /** Poker trophies won (tournament podium finishes). */
   trophies: Trophy[];
-  /** Profile picture: '' for the default, a portrait key ('pick-ace'), or an uploaded photo as a data URL. */
+  /**
+   * Profile picture: '' for the Velvet Ace monogram, a preset face key
+   * ('av-ava', see logic/avatars.ts), or an uploaded photo as a data URL.
+   */
   avatar?: string;
+  /** The preset look last chosen in the Dressing Room (kept when a photo is worn, so removing it goes back). */
+  avatarLook?: { preset: string; custom: Record<string, string> };
   /** Display name at the tables. */
   name?: string;
   /** Visits to each dealer's table (dealers remember regulars). */

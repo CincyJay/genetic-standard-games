@@ -17,7 +17,7 @@ import { player, save, trophies } from './services.ts';
 export interface Profile {
   uid: string;
   name: string;
-  /** Portrait key ('av-pick-ace') or a small photo data URL. */
+  /** Preset face key ('av-ava') or a small photo data URL. */
   avatar: string;
   level: number;
   vip: string;
@@ -166,7 +166,7 @@ class Online {
     const p: Profile = {
       uid: this.uid,
       name,
-      avatar: smallAvatar(d.avatar ?? ''),
+      avatar: await smallAvatar(d.avatar ?? ''),
       level: player.level,
       vip: player.vip().name,
       favorite,
@@ -179,6 +179,17 @@ class Online {
     } catch {
       /* offline */
     }
+  }
+
+  /** Current profile pictures by player, re-read at most once a minute (chat rows show the latest picture). */
+  private avatars = new Map<string, { at: number; p: Promise<string | null> }>();
+  currentAvatar(uid: string): Promise<string | null> {
+    if (uid === this.uid) return Promise.resolve(this.profile?.avatar ?? null);
+    const hit = this.avatars.get(uid);
+    if (hit && Date.now() - hit.at < 60_000) return hit.p;
+    const p = this.getProfile(uid).then((pr) => pr?.avatar ?? null).catch(() => null);
+    this.avatars.set(uid, { at: Date.now(), p });
+    return p;
   }
 
   async getProfile(uid: string): Promise<Profile | null> {
@@ -348,17 +359,21 @@ class Online {
   }
 }
 
-/** Profile pictures go online small: a portrait key as is, a photo shrunk to 96px JPEG. */
-function smallAvatar(v: string): string {
+/**
+ * Profile pictures go online small: a preset key as is, a photo shrunk to a
+ * 96px round WebP (PNG where WebP isn't available), after it has decoded.
+ */
+async function smallAvatar(v: string): Promise<string> {
   if (!v.startsWith('data:')) return v;
   try {
     const img = new Image();
     img.src = v;
+    await img.decode();
     const c = document.createElement('canvas');
     c.width = c.height = 96;
-    const ctx = c.getContext('2d')!;
-    ctx.drawImage(img, 0, 0, 96, 96);
-    return c.toDataURL('image/jpeg', 0.8);
+    c.getContext('2d')!.drawImage(img, 0, 0, 96, 96);
+    const webp = c.toDataURL('image/webp', 0.82);
+    return webp.startsWith('data:image/webp') ? webp : c.toDataURL('image/png');
   } catch {
     return '';
   }

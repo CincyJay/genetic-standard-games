@@ -116,6 +116,43 @@ await shot('01e-profile');
 await tap(540, 960 + 560); // Close
 await wait(800);
 
+step('dressing room: presets, photo, remove');
+await page.evaluate(() => globalThis.__go('dressing'));
+await page.waitForFunction(() => globalThis.__dressing, null, { timeout: 30000 });
+await wait(2500);
+await shot('01g-dressing-room');
+{
+  // tap the Jasmine tile (7th) with a real tap, then Confirm Selection
+  const t = await page.evaluate(() => globalThis.__dressing.tilePos(6));
+  await tap(t.x, t.y);
+  await wait(600);
+  if ((await page.evaluate(() => globalThis.__dressing.draft().look.preset)) !== 'jasmine') throw new Error('dressing room: tile tap did not select');
+  await tap(540 + 230, await page.evaluate(() => globalThis.__dressing.footerY));
+  await wait(1200);
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('velvet-ace.save')).data.avatar);
+  if (saved !== 'av-jasmine') throw new Error(`dressing room: preset not saved (${saved})`);
+  await shot('01h-dressing-confirmed');
+  await page.evaluate(() => globalThis.__dressing.tab('customize'));
+  await wait(500);
+  await shot('01i-dressing-customize');
+  await page.evaluate(() => globalThis.__dressing.tab('photo'));
+  await wait(500);
+  await page.setInputFiles('input[data-role="avatar-photo"]', new URL('./fixtures/test-photo.jpg', import.meta.url).pathname);
+  await page.waitForSelector('[data-role="crop-editor"]');
+  await page.locator('[data-role="crop-zoom"]').fill('1.5');
+  await shot('01j-photo-crop');
+  await page.click('[data-role="crop-save"]');
+  await wait(1500);
+  if (!(await page.evaluate(() => JSON.parse(localStorage.getItem('velvet-ace.save')).data.avatar.startsWith('data:image/png')))) throw new Error('photo not saved');
+  await shot('01k-photo-saved');
+  await page.evaluate(() => globalThis.__dressing.removePhoto());
+  await wait(800);
+  const back = await page.evaluate(() => JSON.parse(localStorage.getItem('velvet-ace.save')).data.avatar);
+  if (back !== 'av-jasmine') throw new Error(`removing the photo did not restore the preset (${back})`);
+}
+await page.evaluate(() => globalThis.__go('lobby'));
+await wait(2000);
+
 step('slots');
 await tap(540, await page.evaluate(() => globalThis.__lobby.door(0)));
 await wait(2500);

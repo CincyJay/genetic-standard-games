@@ -18,6 +18,7 @@ import { WarScene } from './scenes/WarScene.ts';
 import { CrapsScene } from './scenes/CrapsScene.ts';
 import { UthScene } from './scenes/UthScene.ts';
 import { CardGameScene } from './scenes/CardGameScene.ts';
+import { DressingRoomScene } from './scenes/DressingRoomScene.ts';
 import { LoungeScene } from './scenes/LoungeScene.ts';
 import { online } from './online.ts';
 import { save } from './services.ts';
@@ -44,7 +45,7 @@ async function start(): Promise<void> {
     scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
     render: { antialias: true },
     input: { activePointers: 1 },
-    scene: [BootScene, LobbyScene, RoomScene, PokerLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene, BaccaratScene, ThreeCardScene, WarScene, CrapsScene, UthScene, CardGameScene, LoungeScene],
+    scene: [BootScene, LobbyScene, RoomScene, PokerLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene, BaccaratScene, ThreeCardScene, WarScene, CrapsScene, UthScene, CardGameScene, DressingRoomScene, LoungeScene],
   });
   void setupBackButton(game);
   // moving between rooms and tables: every scene fades up from black, and the

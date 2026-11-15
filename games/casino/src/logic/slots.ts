@@ -112,7 +112,7 @@ export const MAX_TOTAL_BET = LINE_BETS[LINE_BETS.length - 1]! * LINES.length;
 // ------------------------------------------------------------------ machines
 export const LUCKY_SEVENS: Machine = {
   id: 'sevens',
-  payScale: 0.575,
+  payScale: 0.584,
   name: 'Lucky Sevens',
   symbols: ['lemon', 'cherry', 'plum', 'bell', 'bar', 'seven', 'diamond', 'wild', 'scatter'],
   pays: {
@@ -131,7 +131,7 @@ export const LUCKY_SEVENS: Machine = {
 
 export const PHARAOH: Machine = {
   id: 'pharaoh',
-  payScale: 0.525,
+  payScale: 0.565,
   name: "Pharaoh's Gold",
   symbols: ['ankh', 'eye', 'scarab', 'cat', 'pyramid', 'mask', 'gem', 'wild', 'scatter'],
   pays: {
@@ -149,7 +149,7 @@ export const PHARAOH: Machine = {
 
 export const DEEP_BLUE: Machine = {
   id: 'ocean',
-  payScale: 0.605,
+  payScale: 0.405,
   name: 'Deep Blue',
   symbols: ['shell', 'starfish', 'fish', 'turtle', 'octopus', 'shark', 'pearl', 'wild', 'scatter'],
   pays: {
@@ -169,7 +169,7 @@ export const DEEP_BLUE: Machine = {
 
 export const GOLD_RUSH: Machine = {
   id: 'goldrush',
-  payScale: 0.512,
+  payScale: 0.559,
   name: 'Gold Rush',
   symbols: ['pick', 'lantern', 'pan', 'cart', 'dynamite', 'nugget', 'bar', 'wild', 'scatter'],
   pays: {
@@ -187,7 +187,7 @@ export const GOLD_RUSH: Machine = {
 
 export const LUCKY_LANTERNS: Machine = {
   id: 'lanterns',
-  payScale: 0.45,
+  payScale: 0.601,
   name: 'Lucky Lanterns',
   symbols: ['ten', 'jack', 'queen', 'king', 'ace', 'koi', 'coin', 'ingot', 'wild', 'scatter'],
   pays: {
@@ -237,7 +237,7 @@ export const DRAGONS_HOARD: Machine = {
   id: 'dragon',
   name: "Dragon's Hoard",
   ...royals('chalice', 'crown', 'chest'),
-  payScale: 0.457,
+  payScale: 0.883,
   targetRtp: HIGH_RTP,
   scatterPays: [0, 0, 0],
   stacks: { scatter: 3 },
@@ -267,7 +267,7 @@ export const DIAMOND_EMPIRE: Machine = {
   id: 'empire',
   name: 'Diamond Empire',
   ...royals('ring', 'goldbars', 'diamond'),
-  payScale: 0.829,
+  payScale: 0.885,
   targetRtp: HIGH_RTP,
   scatterPays: [2, 10, 50],
   feature: 'freespins',
@@ -282,7 +282,7 @@ export const THUNDER_PEAK: Machine = {
   id: 'thunder',
   name: 'Thunder Peak',
   ...royals('horn', 'hammer', 'bolt'),
-  payScale: 0.334,
+  payScale: 0.333,
   targetRtp: HIGH_RTP,
   scatterPays: [2, 10, 50],
   feature: 'freespins',
@@ -299,7 +299,7 @@ export const TIGERS_TREASURE: Machine = {
   id: 'tiger',
   name: "Tiger's Treasure",
   ...royals('emerald', 'idol', 'tiger'),
-  payScale: 0.452,
+  payScale: 0.662,
   targetRtp: HIGH_RTP,
   scatterPays: [2, 10, 50],
   feature: 'pick',
@@ -313,7 +313,7 @@ export const COSMIC_FORTUNE: Machine = {
   id: 'cosmic',
   name: 'Cosmic Fortune',
   ...royals('rocket', 'planet', 'star'),
-  payScale: 0.741,
+  payScale: 0.830,
   targetRtp: HIGH_RTP,
   scatterPays: [2, 10, 50],
   feature: 'wheel',

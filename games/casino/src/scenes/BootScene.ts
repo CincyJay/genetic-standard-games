@@ -2,13 +2,46 @@ import Phaser from 'phaser';
 import { RANKS, SUITS, cardId } from '../logic/cards.ts';
 import { MACHINES } from '../logic/slots.ts';
 import { applyAvatar } from '../ui/avatar.ts';
+import { AVATAR_PRESETS, BOT_FACES, faceFile, faceKey, portraitFile, portraitKey } from '../logic/avatars.ts';
 import { THEME, analytics, applySettings } from '../services.ts';
 
 /** Dealer photos (art/dealers/<name>.png). */
 export const DEALER_PHOTOS = ['victoria', 'sofia', 'marcus', 'mei', 'fiona', 'viktor', 'jamal', 'kenji'];
 
 /** Portraits players can pick for their profile. */
-export const PICK_AVATARS = ['pick-ace', 'pick-queen', 'pick-king', 'pick-jack', 'pick-luna', 'pick-duke'];
+/** Loads the Dressing Room's large portraits (once). */
+export function loadPortraits(scene: Phaser.Scene, done: () => void): void {
+  const missing = AVATAR_PRESETS.filter((p) => !scene.textures.exists(portraitKey(p.id)));
+  if (!missing.length) return done();
+  for (const p of missing) scene.load.image(portraitKey(p.id), portraitFile(p.id));
+  scene.load.once('complete', done);
+  scene.load.start();
+}
+
+/**
+ * The picture shown before a player picks one (and when an image can't load):
+ * the Velvet Ace spade in gold on black, not an illustrated face.
+ */
+function makeDefaultAvatar(scene: Phaser.Scene): void {
+  const S = 256;
+  const g = scene.make.graphics({}, false);
+  g.fillStyle(0x0d0810, 1);
+  g.fillCircle(S / 2, S / 2, S / 2);
+  g.fillStyle(0x3a0a1a, 1);
+  g.fillCircle(S / 2, S / 2, S / 2 - 14);
+  g.lineStyle(8, 0xe9c86a, 1);
+  g.strokeCircle(S / 2, S / 2, S / 2 - 8);
+  // spade
+  g.fillStyle(0xe9c86a, 1);
+  const cx = S / 2;
+  const cy = S / 2 - 6;
+  g.fillTriangle(cx - 58, cy + 8, cx + 58, cy + 8, cx, cy - 70);
+  g.fillCircle(cx - 30, cy + 14, 32);
+  g.fillCircle(cx + 30, cy + 14, 32);
+  g.fillTriangle(cx, cy + 20, cx - 26, cy + 76, cx + 26, cy + 76);
+  g.generateTexture('av-default', S, S);
+  g.destroy();
+}
 
 export const CHIP_VALUES = [10, 50, 100, 500, 1000, 5000];
 
@@ -96,9 +129,11 @@ export class BootScene extends Phaser.Scene {
     for (const u of ['coin', 'btn-spin', 'btn-spin-lanterns', 'btn-spin-pharaoh', 'btn-spin-ocean', 'btn-spin-goldrush', 'btn-gamble', 'btn-stop', 'btn-plus', 'btn-minus', 'btn-auto', 'btn-auto-on', 'panel-bet']) this.load.image(u, `art/ui/${u}.png`);
     for (const m of MACHINES) this.load.image(`logo-${m.id}`, `art/logos/${m.id}.png`);
     for (const bg of ['bg-felt', 'bg-felt-red', 'bg-poker', 'room-lobby', 'room-slots', 'room-poker', 'room-tables', 'world-pharaoh', 'world-ocean', 'world-goldrush', 'world-lanterns', 'world-dragon', 'world-empire', 'world-thunder', 'world-tiger', 'world-cosmic']) this.load.image(bg, `art/${bg}.jpg`);
-    for (const a of ['you', 'rosa', 'dmitri', 'kwame', 'lena', 'hector', 'priya', 'sam', 'yuki', ...PICK_AVATARS]) {
-      this.load.svg(`av-${a}`, `art/avatars/${a}.svg`, { width: 256, height: 256 });
-    }
+    // photorealistic avatars: a round face for every preset (small, used everywhere); the
+    // larger 3:4 portraits are only loaded when the Dressing Room opens
+    for (const p of AVATAR_PRESETS) this.load.image(faceKey(p.id), faceFile(p.id));
+    // computer players wear preset faces under their own keys
+    for (const [bot, preset] of Object.entries(BOT_FACES)) this.load.image(`av-${bot}`, faceFile(preset));
   }
 
   create(): void {
@@ -114,7 +149,7 @@ export class BootScene extends Phaser.Scene {
     for (const id of ['pharaoh', 'ocean', 'goldrush', 'lanterns', 'dragon', 'empire', 'thunder', 'tiger', 'cosmic']) darkened(this, `world-${id}`, `bg-machine-${id}`, 0.25);
     analytics.track('session_start', {});
     // keep the default portrait under its own key, then apply the player's chosen picture
-    this.textures.addImage('av-default', this.textures.get('av-you').getSourceImage() as HTMLImageElement);
+    makeDefaultAvatar(this);
     applyAvatar(this, () => this.scene.start('lobby'));
   }
 }

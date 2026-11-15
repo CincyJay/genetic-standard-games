@@ -56,7 +56,7 @@ different games) and a once-a-day prize wheel live in the lobby.
 
 **Dealers:** each table game has its own dealer (photo portraits in `games/casino/public/art/dealers/`, supplied by the owner) who greets you and reacts to wins and losses.
 
-**Profile picture:** players can upload a photo (cropped to a circle, stored on the device) or pick an illustrated portrait; it shows in the lobby, the profile and at the poker table.
+**Avatars and The Dressing Room:** 16 photorealistic preset characters cut from the official reference sheet, or the player's own photo (system photo picker, crop and reposition, replace or remove). The chosen picture shows in the lobby, the profile, chat, friends lists, messages and at the poker and Card Club tables, and goes online with the player's profile. The computer players also wear real portraits. Customisation categories (face, hair, facial hair, eyes, outfits, accessories) are in place and unlock per character as matching realistic artwork is added. Details, storage and the artwork still needed: `games/casino/AVATARS.md`.
 
 **Slot cabinets:** every machine is drawn as a full cabinet: chrome body with neon trim in the machine's colour, a crown topper, its 3D world and logo in the top box, a GRAND / MAJOR / MINOR / MINI jackpot ladder (Grand = the shared progressive, never less than 1,000x the bet, won with five WILDs on a line; Major 250x, Minor 100x and Mini 50x are Lucky Wheel wedges; Hold & Spin machines show their own jackpots), lit reel tiles and a LINES -/+ · BET/LINE -/+ · MAX BET · SPIN console (changing the lines shows the paylines in play).
 
