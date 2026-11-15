@@ -204,6 +204,23 @@ export class LobbyScene extends Phaser.Scene {
         tap: () => showMissions(this, redraw),
       },
       {
+        label: 'Lounge',
+        sub: 'Chat · friends',
+        hot: false,
+        icon: (ig) => {
+          // two speech bubbles
+          ig.fillStyle(0x6b2fb3, 1);
+          ig.fillRoundedRect(-38, -34, 52, 38, 12);
+          ig.fillTriangle(-30, 2, -18, 2, -32, 14);
+          ig.fillStyle(0xe9b949, 1);
+          ig.fillRoundedRect(-8, -12, 50, 36, 12);
+          ig.fillTriangle(32, 22, 20, 22, 36, 34);
+          ig.fillStyle(0x3a1a00, 1);
+          for (let k = 0; k < 3; k++) ig.fillCircle(6 + k * 12, 6, 3.5);
+        },
+        tap: () => this.scene.start('lounge'),
+      },
+      {
         label: 'Profile',
         sub: `Level ${player.level}`,
         hot: false,
@@ -211,7 +228,7 @@ export class LobbyScene extends Phaser.Scene {
         tap: () => showProfile(this, redraw),
       },
     ];
-    const widths = items.map((it) => (it.wide ? 360 : 200));
+    const widths = items.map((it) => (it.wide ? 300 : 180));
     const total = widths.reduce((a, b) => a + b, 0);
     let x = 24 + (VW - 48 - total) / 2;
     items.forEach((it, k) => {

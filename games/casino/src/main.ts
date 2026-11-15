@@ -17,6 +17,9 @@ import { ThreeCardScene } from './scenes/ThreeCardScene.ts';
 import { WarScene } from './scenes/WarScene.ts';
 import { CrapsScene } from './scenes/CrapsScene.ts';
 import { UthScene } from './scenes/UthScene.ts';
+import { LoungeScene } from './scenes/LoungeScene.ts';
+import { online } from './online.ts';
+import { save } from './services.ts';
 import { SlotsScene } from './scenes/SlotsScene.ts';
 import { VideoPokerScene } from './scenes/VideoPokerScene.ts';
 import { setupBackButton } from './native.ts';
@@ -40,15 +43,24 @@ async function start(): Promise<void> {
     scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
     render: { antialias: true },
     input: { activePointers: 1 },
-    scene: [BootScene, LobbyScene, RoomScene, PokerLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene, BaccaratScene, ThreeCardScene, WarScene, CrapsScene, UthScene],
+    scene: [BootScene, LobbyScene, RoomScene, PokerLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene, BaccaratScene, ThreeCardScene, WarScene, CrapsScene, UthScene, LoungeScene],
   });
   void setupBackButton(game);
   // moving between rooms and tables: every scene fades up from black, and the
   // table games settle in with a gentle "sitting down" zoom
   const TABLES = ['blackjack', 'roulette', 'baccarat', 'threecard', 'war', 'craps', 'uth', 'holdem', 'videopoker', 'slots'];
+  // sign in quietly in the background; the casino never waits for it
+  online.start();
   game.events.once('ready', () => {
     for (const sc of game.scene.scenes) {
       sc.events.on('create', () => {
+        // friends see where you are; the profile remembers your favourite game
+        const key = sc.scene.key;
+        if (key !== 'boot') online.setWhere(key);
+        if (TABLES.includes(key))
+          save.update((d) => {
+            d.gameCounts = { ...(d.gameCounts ?? {}), [key]: (d.gameCounts?.[key] ?? 0) + 1 };
+          });
         const cam = sc.cameras.main;
         cam.fadeIn(380, 8, 2, 12);
         if (TABLES.includes(sc.scene.key)) {

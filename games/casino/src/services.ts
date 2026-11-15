@@ -37,6 +37,8 @@ export interface SaveData {
   name?: string;
   /** Visits to each dealer's table (dealers remember regulars). */
   dealerVisits?: Record<string, number>;
+  /** Times each game was opened (the profile shows the favourite). */
+  gameCounts?: Record<string, number>;
 }
 
 export interface Trophy {

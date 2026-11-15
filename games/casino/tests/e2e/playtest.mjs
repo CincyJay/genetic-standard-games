@@ -82,7 +82,7 @@ const barTap = async (x) => tap(x, await page.evaluate(() => globalThis.__lobby.
 await shot('01-lobby');
 
 step('daily wheel');
-await barTap(460);
+await barTap(420);
 await wait(1500);
 await shot('01b-wheel');
 await tap(540, 960 + 520); // Spin
@@ -92,18 +92,18 @@ await tap(540, 960 + 520); // Collect
 await wait(1500);
 
 step('missions');
-await barTap(660);
+await barTap(600);
 await wait(1500);
 await shot('01d-missions');
 await tap(540, 960 + 460); // Close
 await wait(800);
 
 step('hourly bonus');
-await barTap(240);
+await barTap(180);
 await wait(1500);
 
 step('profile');
-await barTap(860);
+await barTap(960);
 await wait(1500);
 await shot('01e-profile');
 await tap(540, 960 + 560); // Close

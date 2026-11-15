@@ -18,10 +18,21 @@ service cloud.firestore {
       match /blocked/{other} { allow read, write: if isMe(uid); }
     }
 
-    // friend requests: the sender creates, the receiver reads and deletes
+    // usernames are unique: a claim document per lower-case name, owned by one player
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid && name.size() >= 3 && name.size() <= 20;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    // friend requests: the sender creates; the receiver accepts (status) or either side deletes
     match /friendRequests/{id} {
-      allow create: if signedIn() && request.resource.data.from == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.from == request.auth.uid
+        && request.resource.data.status == 'pending';
       allow read, delete: if signedIn() && (resource.data.to == request.auth.uid || resource.data.from == request.auth.uid);
+      allow update: if signedIn() && resource.data.to == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+        && request.resource.data.status == 'accepted';
     }
 
     // chat rooms (lobby, tables, lounge): post as yourself, short messages, never edited

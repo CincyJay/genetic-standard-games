@@ -48,6 +48,8 @@ Roller hold'em at 5, Deep Blue at 6, Gold Rush at 10, VIP Room at 15). VIP tiers
 at 10, Gold 25, Platinum 50, Diamond 100) multiply the daily wheel. Three daily missions (from
 different games) and a once-a-day prize wheel live in the lobby.
 
+**Online (Firebase, `games/casino/firebase/`):** every device signs in anonymously in the background (the casino never waits for it). The Lounge (lobby bottom bar) has lobby chat with quick-chat phrases, a unique username, friends with online status and where they are playing, friend requests, private messages between friends, and player cards with Add friend, Message, Block and Report. Chat is filtered for offensive words, limited to 200 characters and one message every two seconds; blocked players disappear from your chat; reports land in the `reports` collection for the owner to review in the Firebase console. Security rules in `firestore.rules` and `database.rules.json`.
+
 **Dealers:** each table game has its own dealer (photo portraits in `games/casino/public/art/dealers/`, supplied by the owner) who greets you and reacts to wins and losses.
 
 **Profile picture:** players can upload a photo (cropped to a circle, stored on the device) or pick an illustrated portrait; it shows in the lobby, the profile and at the poker table.
