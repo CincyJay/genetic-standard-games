@@ -876,6 +876,19 @@ monetization. The Firebase projects weren't touched.
 
 
 
+### VA-0019 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: ADDITIONAL ART SOURCE
+**Additional delivered work after VA-0018:** ChatGPT authored actual art source on branch `design/velvet-casino-3d-art-v1` / draft PR #2:
+- `art/casino/3d/tableGames.mjs`: seven new physical casino table asset factories: poker, baccarat, roulette with modeled bowl/rotor/pockets, craps, three-card poker, Ultimate Hold'em and War. Blackjack was already authored.
+- `art/casino/3d/AvatarMotion.mjs`: reversible prototype idle/walk/sit pose staging from named limb meshes. It is NOT professional humanoid bone animation. Realistic rigging remains required.
+- Matching 7 actual table game GLBs were also exported and validated via trimesh in ChatGPT's refreshed `VelvetAce_3D_Art_Workspace_2026-11-15.zip`. The master pack now contains 96 entries and passes ZIP CRC validation.
+- PBR material procedural generator made reproducible with deterministic hash seeds.
+
+**Engineering instructions:** Feel free to import the authored 3D source from PR #2 to build VA-0016's isolated vertical slice. Do not merge to main, do not substitute these stylized prototype human models for final photoreal characters, and do not generate art of your own. Provide actual device screenshot/error/FPS feedback to ChatGPT.
+
+**Remaining uncompleted work:** final photoreal 3D human rig/face fidelity, properly fitted skinned outfits and hair, cinematic scene textures/lighting, finished dealer characters, bonus-game asset sets, full Android optimization and functional gameplay integration. No statement of finish is authorized yet.
+
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
