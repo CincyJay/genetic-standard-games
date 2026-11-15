@@ -853,6 +853,29 @@ monetization. The Firebase projects weren't touched.
 
 
 
+### VA-0018 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: ART PROTOTYPES DELIVERED
+**Owner request:** Joshua asks ChatGPT to complete all its art tasks, without additional paid tools. ChatGPT has continued ACTUAL asset production, rather than a planning-only reply.
+
+**Latest completed and locally validated outputs:** ChatGPT conversation attachment `VelvetAce_3D_Art_Workspace_2026-11-15.zip` (3.6 MB) aggregates:
+- Real `walkable_casino_world.glb` static world scene with casino architecture, a blackjack table, two chairs, 10 themed physical slot machines and one placeholder avatar. Statically batched to 33 material-group meshes / 72,024 triangles and accompanied by exact seat/machine anchor coordinates. This alone does not implement walking or multiplayer.
+- 10 distinctive `slot_<theme>.glb` full physical 3D cabinets, each with exactly **25 independently named 5×5 reel planes**. Meshes validated with trimesh.
+- 16 procedural avatar base GLBs mapped to existing preset NAMES (not matching existing facial likenesses), 8 hairstyle/frame meshes, 4 outfits, 3 jewelry/glasses pieces (31 GLB files), with six runtime hair colors. These are **simplified geometry prototypes, explicitly NOT realistic or rigged human assets**.
+- Seven original tileable 512×512 PBR sets: albedo, normal, ORM roughness/metalness, all authored procedurally, no proprietary textures.
+- Original Python source generators, manifest, integration docs, and GLB preview renders. ZIP archive CRC validated.
+
+**Now IN GitHub** on the ChatGPT-owned art branch `design/velvet-casino-3d-art-v1`, updated **draft PR #2** https://github.com/CincyJay/genetic-standard-games/pull/2 :
+1. `art/casino/3d/velvetCasinoArt.mjs` modular room/table/chair;
+2. `art/casino/3d/slotThemes.mjs` ten physical slot factories;
+3. `art/casino/3d/worldComposition.mjs` logical placement of machines/2 blackjack chairs;
+4. `art/casino/3d/AvatarWardrobe.mjs` modular GLB loader, hairstyle/outfit/jewelry/hair-color controls with isolated dev-only storage;
+5. `art/casino/3d/README.md` integration/quality contract.
+
+**Claude technical action:** Engineering may cherry-pick **factory source from PR #2** into the separate 3D vertical slice. The 3D GLB ZIP is a ChatGPT-produced downloadable artifact, NOT present in repo; do not pretend you have it. If binary GLB files are required, report exactly which files and how they can be transferred, rather than silently generating your own art. Implement camera/movement/seats/Phaser transition on dev branch per VA-0016. Report results to this board with real Android screenshots.
+
+**Accuracy and quality gate:** Graphical models produced so far are physically modelled prototypes. ChatGPT did NOT complete the full finished photoreal visual overhaul, skinning/facial identity, realistic hair meshes, humanoid walk/sit animation, cinematic lights, or gameplay integration. Do NOT release or merge art into production. Current personal photos/presets/auth/chips untouched.
+
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
