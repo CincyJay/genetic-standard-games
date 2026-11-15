@@ -7,10 +7,11 @@ import { createServer } from 'node:http';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { extname, join } from 'node:path';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
-const root = new URL('../../../', import.meta.url).pathname;
+const root = fileURLToPath(new URL('../../../', import.meta.url));
 const pub = join(root, 'games/casino/public/art');
 const types = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.html': 'text/html' };
 const server = createServer(async (req, res) => {
@@ -33,8 +34,11 @@ page.on('console', (m) => console.log('[page]', m.text()));
 page.on('pageerror', (e) => console.log('[page error]', e.message));
 await page.goto(`http://localhost:${port}/art/casino/3d/page.html`);
 await page.waitForFunction(() => globalThis.ready === true, null, { timeout: 60000 });
-const ROOM_IDS = ['lobby', 'slots', 'poker', 'tables'];
-const symSets = sets.filter((x) => !['logos', 'rooms', 'ui', 'worlds', 'poker', 'tables'].includes(x));
+const ALL_ROOMS = ['lobby', 'slots', 'poker', 'tables', 'cards'];
+// `rooms` renders every room; `room-<id>` renders just that one
+const oneRooms = sets.filter((x) => x.startsWith('room-')).map((x) => x.slice(5));
+const ROOM_IDS = oneRooms.length ? oneRooms : ALL_ROOMS;
+const symSets = sets.filter((x) => !['logos', 'rooms', 'ui', 'worlds', 'poker', 'tables'].includes(x) && !x.startsWith('room-'));
 const out = sets.length && !symSets.length ? {} : await page.evaluate(async (sets) => globalThis.renderSymbols(sets), symSets);
 for (const [set, syms] of Object.entries(out)) {
   await mkdir(join(pub, 'slots', set), { recursive: true });
@@ -72,7 +76,7 @@ if (!sets.length || sets.includes('worlds')) {
     console.log(`world ${id}`);
   }
 }
-if (!sets.length || sets.includes('rooms')) {
+if (!sets.length || sets.includes('rooms') || oneRooms.length) {
   for (const id of ROOM_IDS) {
     const url = await page.evaluate((id) => globalThis.renderRoom(id), id);
     await writeFile(join(pub, `room-${id}.jpg`), Buffer.from(url.split(',')[1], 'base64'));

@@ -353,6 +353,9 @@ export function makeButton(scene: Phaser.Scene, x: number, y: number, label: str
   const t = scene.add
     .text(0, -2, label, { fontFamily: THEME.font, fontSize: `${opts.fontSize ?? 56}px`, fontStyle: '800', color: gold ? '#3a1a00' : (opts.textColor && opts.textColor !== '#3a1a00' ? opts.textColor : '#ffffff') })
     .setOrigin(0.5);
+  // never let a label spill past the pill's rounded ends
+  const room = w - Math.min(48, h * 0.45);
+  if (t.width > room) t.setScale(room / t.width);
   if (!gold) t.setShadow(0, 2, '#000000', 4, true, true);
   const c = scene.add.container(x, y, [face, t]);
   c.setSize(w, h);

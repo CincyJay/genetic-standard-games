@@ -14,12 +14,13 @@ import { VW, backdrop, banner, coinBar, coinShower, frame, makeButton, makeButto
 const CELL = 160;
 const LEFT = (VW - CELL * 5) / 2;
 const TOP = 776;
-const WIN_Y = 1636;
+const WIN_Y = 1630;
 const CONSOLE_Y = 1736;
 const ROW2_Y = 1846;
 const SPIN_X = 898;
 /** The cabinet's outline (the machine fills the screen like a real one). */
 const CAB = { x0: 34, x1: VW - 34, y0: 214, y1: 1902 };
+const MAX_LINES_AT_ONCE = 4;
 const LINE_COLORS = [0xff4f8b, 0x4fd1ff, 0xffe14a, 0x7dff6a, 0xff9a3c, 0xc77dff, 0xffffff];
 
 export const machineBg = (m: Machine) => (m.id === 'sevens' ? 'bg-floor' : `bg-machine-${m.id}`);
@@ -112,6 +113,8 @@ export class SlotsScene extends Phaser.Scene {
   private gambleBtn!: Phaser.GameObjects.Image;
   private lines!: Phaser.GameObjects.Graphics;
   private lineFlash: Phaser.Time.TimerEvent | null = null;
+  /** Steps through winning lines one at a time when there are too many to show at once. */
+  private lineCycle: Phaser.Time.TimerEvent | null = null;
   private autoBtn!: Phaser.GameObjects.Image;
 
   constructor() {
@@ -178,7 +181,7 @@ export class SlotsScene extends Phaser.Scene {
       if (!this.spinning) this.scene.start('room', { room: 'slots' });
     });
 
-    this.winText = text(this, w / 2, WIN_Y, '', 72, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
+    this.winText = text(this, w / 2, WIN_Y, '', 60, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
     this.fsText = text(this, w / 2, LADDER_Y - 36, featureText(this.m), 24, '800', '#ffffff').setStroke('#000000', 6).setDepth(24).setWordWrapWidth(860).setAlign('center');
     this.totalText = text(this, w / 2, ROW2_Y, '', 34, '900', '#ffe9a8').setStroke('#000000', 6).setDepth(24);
     this.console();
@@ -1269,6 +1272,8 @@ export class SlotsScene extends Phaser.Scene {
   }
 
   private clearWinFx(): void {
+    this.lineCycle?.remove();
+    this.lineCycle = null;
     this.lines.clear();
     this.fx.each((o: Phaser.GameObjects.GameObject) => this.tweens.killTweensOf(o));
     this.fx.removeAll(true);
@@ -1286,7 +1291,8 @@ export class SlotsScene extends Phaser.Scene {
     });
     if (res.scatterWin > 0) this.finals.flat().forEach((im) => im.getData('sym') === 'scatter' && winners.add(im));
     this.finals.flat().forEach((im) => !winners.has(im) && im.setAlpha(0.35));
-    res.lineWins.forEach((lw, k) => {
+    const drawLine = (k: number) => {
+      const lw = res.lineWins[k]!;
       const color = LINE_COLORS[k % LINE_COLORS.length]!;
       const pts = LINES[lw.line]!.map((row, reel) => new Phaser.Math.Vector2(LEFT + CELL * (reel + 0.5), TOP + CELL * (row + 0.5)));
       this.lines.lineStyle(22, color, 0.18);
@@ -1295,7 +1301,24 @@ export class SlotsScene extends Phaser.Scene {
       strokePath(this.lines, pts);
       this.lines.lineStyle(4, 0xffffff, 0.9);
       strokePath(this.lines, pts);
-    });
+    };
+    if (res.lineWins.length <= MAX_LINES_AT_ONCE) {
+      res.lineWins.forEach((_, k) => drawLine(k));
+    } else {
+      // Too many lines at once hide the symbols: show them one at a time, round and round.
+      let k = 0;
+      drawLine(0);
+      this.lineCycle = this.time.addEvent({
+        delay: 650,
+        loop: true,
+        callback: () => {
+          if (this.spinning || !this.lines.active) return;
+          k = (k + 1) % res.lineWins.length;
+          this.lines.clear();
+          drawLine(k);
+        },
+      });
+    }
     let i = 0;
     winners.forEach((img) => {
       const x = (img.parentContainer?.x ?? 0) + img.x;

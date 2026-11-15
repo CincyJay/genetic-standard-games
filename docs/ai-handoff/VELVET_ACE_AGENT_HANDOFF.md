@@ -29,10 +29,12 @@ back to Claude. Neither assistant should claim to have read updates it has not a
 
 ### Build
 - **Repository:** `genetic-standard-games` (GitHub). Branch `main`; the game is in `games/casino`.
-- **Version:** 1.6 (versionCode 16), built from the commit that adds this file. The previous
-  code commit is `26c9242`.
-- **APK:** `dist-apk/VelvetAceCasino-1.6.apk`, a debug build, not signed for release. It was
-  sent to Joshua's phone as a download; nobody has installed or played it on a device yet.
+- **Version:** 1.7 (versionCode 17), installed on Joshua's phone on 2026-11-15 over ADB from
+  Joshua's computer. See VA-0004 for what changed and what was device-tested.
+- **APK:** `dist-apk/VelvetAceCasino-1.7.apk`, a debug build, not signed for release. Builds
+  from Joshua's computer are signed with its debug key; 1.6 and earlier used the cloud key, so
+  1.7 needed an uninstall and a data restore (see VA-0004). Later builds from this computer
+  update in place.
 - **Web build of the same code:** a private Claude artifact for playing in a browser. The Lounge
   can't connect from the web link.
 
@@ -366,6 +368,54 @@ and may be larger; Android's minimum is 48 dp)
 
 **Constraints:** Joshua's real profile and progress are on this phone. Tests used play coins only,
 no avatar change was confirmed, and no photo was uploaded.
+
+### VA-0004 | 2026-11-15 12:55 local | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Build/commit:** 1.7 (versionCode 17), from the commit that adds this entry. Installed on the
+same Galaxy S25+ over ADB.
+
+**Topic:** The five device bugs from VA-0003 are fixed and device-verified. VA-0003's three asks
+are still open, except ask 2 (answered below by what shipped; critique welcome).
+
+**Install note:** 1.6 was signed with the cloud session's debug key, so Android refused 1.7 as
+an update. Claude backed up the app's data with `run-as`, uninstalled 1.6, installed 1.7 and
+restored the data. Level 23, 44.1K coins, the Derek avatar and the anonymous Firebase sign-in
+all survived.
+
+**Fixes, each checked on the phone unless marked**
+1. **Vibration:** `android.permission.VIBRATE` added. The phone's `dumpsys vibrator_manager`
+   shows `TOUCH` vibrations from `com.thegeneticstandard.velvetace` finishing.
+2. **Blackjack bet bar:** the hand-count and side-bet row now sits below the bet line, and on tall
+   phones the row, the chips and Deal/Clear spread into the spare height. Toggles are 96 design
+   px tall (were 76). `makeButton` now shrinks any label that doesn't fit, so "2 hands" and
+   "3 hands" fit (captures 02, 03).
+3. **Card Club:** its own rendered background, `room-cards.jpg`, with a "CARD CLUB" sign and
+   oval card tables (captures 01, 04).
+4. **Big wins:** with more than 4 winning lines, one line is drawn at a time, cycling every
+   650 ms; with 4 or fewer, all are drawn as before. The WIN label is smaller (60 px) and sits
+   above the console (capture 06). **Checked in the dev server at the phone's viewport
+   (360×780 at 3×), not on the device:** the rig hook only works in dev builds, and a natural
+   50-line win can't be forced.
+5. **Photo tab:** before a photo is chosen, the preview is an empty gold ring with a camera icon
+   and "Your photo goes here", with "Currently wearing Derek" above it (capture 05).
+
+**Evidence**
+- `captures/1.7-device-01-lobby.jpg`
+- `captures/1.7-device-02-blackjack-betting.jpg`
+- `captures/1.7-device-03-blackjack-2-hands.jpg`
+- `captures/1.7-device-04-card-club.jpg`
+- `captures/1.7-device-05-photo-tab-empty.jpg`
+- `captures/1.7-devserver-06-slot-line-cycle.jpg` (dev server, not device)
+
+**Still open, waiting on ChatGPT**
+- VA-0003 ask 1: tap-target sizes. The slot −/+ buttons are still about 21 dp, and AUTO is
+  still short.
+- VA-0003 ask 3 was answered by Claude's design above; critique it if you like.
+- The unreadable small rules text on table tiles.
+- VA-0002: Natalie's and Viktor's frame strips, and the other avatar UI asks.
+
+**Constraints:** One test spin on Joshua's save was undone by writing back a snapshot of his save
+taken just before it; the restored save matched it byte for byte. No avatar change was confirmed
+and no photo was uploaded.
 
 ## 8. Running decisions and open questions
 **Decided**

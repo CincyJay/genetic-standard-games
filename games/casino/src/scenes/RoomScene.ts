@@ -130,7 +130,7 @@ export const ROOMS: Room[] = [
     id: 'cards',
     title: 'Card Club',
     sub: 'Euchre, Hearts and Spades with three other players',
-    bg: 'room-tables',
+    bg: 'room-cards',
     games: () => [
       {
         key: 'cardgame', title: 'Euchre', sub: 'Partners · bowers · first to 10', bg: 'bg-felt', unlock: null, ribbon: 'NEW', data: { game: 'euchre' },

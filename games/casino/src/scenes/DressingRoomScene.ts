@@ -127,6 +127,29 @@ export class DressingRoomScene extends Phaser.Scene {
       this.preview.add(text(this, x, PREVIEW_Y + 230, 'Your photo', 44, '900', GOLD, DISPLAY_FONT));
       return;
     }
+    if (this.draft.tab === 'photo') {
+      // No photo worn yet: an empty frame, so the last previewed preset doesn't look chosen.
+      g.fillStyle(0x000000, 0.6);
+      g.fillCircle(x, PREVIEW_Y + 8, 196);
+      g.fillStyle(0x1a0c22, 1);
+      g.fillCircle(x, PREVIEW_Y, 192);
+      g.lineStyle(8, 0xe9c86a, 0.55);
+      g.strokeCircle(x, PREVIEW_Y, 188);
+      // camera glyph
+      g.fillStyle(0xe9c86a, 0.85);
+      g.fillRoundedRect(x - 80, PREVIEW_Y - 42, 160, 108, 18);
+      g.fillRoundedRect(x - 34, PREVIEW_Y - 62, 68, 30, 8);
+      g.fillStyle(0x1a0c22, 1);
+      g.fillCircle(x, PREVIEW_Y + 12, 38);
+      g.fillStyle(0xe9c86a, 0.85);
+      g.fillCircle(x, PREVIEW_Y + 12, 24);
+      this.preview.add(g);
+      this.preview.add(text(this, x, PREVIEW_Y + 230, 'Your photo goes here', 40, '900', GOLD, DISPLAY_FONT));
+      const s0 = save.get();
+      const wearing = s0.avatarMode === 'preset' ? presetById(s0.presetAvatarId ?? DEFAULT_PRESET)?.name : null;
+      if (wearing) this.preview.add(text(this, x, PREVIEW_Y - 230, `Currently wearing ${wearing}`, 26, '800', '#cbb6d6').setLetterSpacing(2));
+      return;
+    }
     const w = 320;
     const h = Math.round((w * 236) / 190);
     g.fillStyle(0x000000, 0.6);

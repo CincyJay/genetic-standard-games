@@ -175,6 +175,7 @@ const ROOMS = {
   slots: { sign: 'SLOTS', signColor: 0xff5ab0, carpet: ['#1a0624', '#c9962a', '#5a1a8a', '#c8102e'], kind: 'cabinets', fog: 0x14051c, hues: [320, 280, 200, 40, 0, 180] },
   poker: { sign: 'POKER ROOM', signColor: 0x7affb0, carpet: ['#081a12', '#c9962a', '#0f5a3a', '#7a1a1a'], kind: 'poker', fog: 0x06120c, hues: [140] },
   tables: { sign: 'TABLE GAMES', signColor: 0xffd060, carpet: ['#200808', '#c9962a', '#8a1a1a', '#0f5a3a'], kind: 'tables', fog: 0x160606, hues: [30] },
+  cards: { sign: 'CARD CLUB', signColor: 0xffc860, carpet: ['#1a0612', '#c9962a', '#6a1030', '#3a1a5a'], kind: 'tables', tableKinds: ['poker'], fog: 0x12040c, hues: [330] },
 };
 
 export function renderRoom(id, W = 1080, H = 1920) {
@@ -239,7 +240,7 @@ export function renderRoom(id, W = 1080, H = 1920) {
     }
   }
   if (cfg.kind === 'poker' || cfg.kind === 'tables') {
-    const kinds = cfg.kind === 'poker' ? ['poker'] : ['blackjack', 'roulette'];
+    const kinds = cfg.tableKinds ?? (cfg.kind === 'poker' ? ['poker'] : ['blackjack', 'roulette']);
     let k = 0;
     for (let z = -1; z > -30; z -= 5.5)
       for (const x of [-2.4, 2.4]) place(table(kinds[k++ % kinds.length]), x, z + (x > 0 ? 2.5 : 0), x > 0 ? -0.4 : 0.4);

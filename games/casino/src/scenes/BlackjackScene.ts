@@ -123,8 +123,8 @@ export class BlackjackScene extends Phaser.Scene {
     this.controls.push(
       makeButton(this, x, y, label, fn, {
         width: w,
-        height: 76,
-        fontSize: 30,
+        height: 96,
+        fontSize: 32,
         color: on ? 0xe9b949 : 0x24123a,
         shadow: on ? 0xa97a1c : 0x0d0414,
         textColor: on ? '#3a1a00' : '#e9c86a',
@@ -138,38 +138,43 @@ export class BlackjackScene extends Phaser.Scene {
     this.clearControls();
     this.showBets();
     const w = VW;
+    // Rows sit below the bet line (BET_Y + 120) and spread into the extra height of tall phones.
+    const extra = Math.max(0, Math.min(180, frame(this).bottom - 1920));
+    const rowY = 1615 + extra * 0.25;
+    const chipY = 1742 + extra * 0.55;
+    const dealY = 1860 + extra;
     // hands: 1 / 2 / 3, then side-bet toggles
     [1, 2, 3].forEach((n, i) =>
-      this.toggleButton(120 + i * 150, 1560, `${n} hand${n > 1 ? 's' : ''}`, this.spots === n, () => {
+      this.toggleButton(105 + i * 155, rowY, `${n} hand${n > 1 ? 's' : ''}`, this.spots === n, () => {
         audio.tap();
         this.spots = n;
         this.bettingPhase();
-      }, 140),
+      }, 145),
     );
-    this.toggleButton(w - 340, 1560, '21+3', this.side21, () => {
+    this.toggleButton(w - 330, rowY, '21+3', this.side21, () => {
       audio.chip();
       this.side21 = !this.side21;
       this.bettingPhase();
     }, 170);
-    this.toggleButton(w - 140, 1560, 'Pairs', this.sidePP, () => {
+    this.toggleButton(w - 125, rowY, 'Pairs', this.sidePP, () => {
       audio.chip();
       this.sidePP = !this.sidePP;
       this.bettingPhase();
     }, 170);
     this.controls.push(
-      ...chipPicker(this, 1690, CHIPS, this.chip, (v) => {
+      ...chipPicker(this, chipY, CHIPS, this.chip, (v) => {
         this.chip = v;
         this.bet = Math.min(this.bet + v, 50_000);
         this.showBets();
       }),
     );
     this.controls.push(
-      makeButton(this, w / 2 - 250, 1835, 'Clear', () => {
+      makeButton(this, w / 2 - 250, dealY, 'Clear', () => {
         audio.tap();
         this.bet = 0;
         this.showBets();
       }, { width: 300, height: 110, fontSize: 42, ...SECONDARY, theme: THEME }),
-      makeButton(this, w / 2 + 170, 1835, 'Deal', () => this.deal(), { width: 440, height: 120, fontSize: 52, theme: THEME }),
+      makeButton(this, w / 2 + 170, dealY, 'Deal', () => this.deal(), { width: 440, height: 120, fontSize: 52, theme: THEME }),
     );
   }
 
