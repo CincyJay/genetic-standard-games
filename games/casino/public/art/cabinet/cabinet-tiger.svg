@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+<title>tiger physical casino cabinet overlay</title>
+<defs>
+ <linearGradient id="body" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#07070d"/><stop offset=".12" stop-color="#74421a"/><stop offset=".28" stop-color="#160e20"/><stop offset=".5" stop-color="#74421a"/><stop offset=".72" stop-color="#160e20"/><stop offset=".88" stop-color="#74421a"/><stop offset="1" stop-color="#07070d"/></linearGradient>
+ <linearGradient id="steel"><stop stop-color="#201720"/><stop offset=".13" stop-color="#f8c46a"/><stop offset=".19" stop-color="#fff4d8"/><stop offset=".30" stop-color="#795c39"/><stop offset=".5" stop-color="#f8c46a"/><stop offset=".7" stop-color="#4a3042"/><stop offset=".83" stop-color="#fff9e4"/><stop offset="1" stop-color="#392637"/></linearGradient>
+ <linearGradient id="column"><stop stop-color="#110d18"/><stop offset=".16" stop-color="#f8c46a"/><stop offset=".26" stop-color="#fff0c4"/><stop offset=".38" stop-color="#3c2b37"/><stop offset=".65" stop-color="#74421a"/><stop offset=".86" stop-color="#f8c46a"/><stop offset="1" stop-color="#090a11"/></linearGradient>
+ <linearGradient id="metalY" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff9df"/><stop offset=".12" stop-color="#f8c46a"/><stop offset=".50" stop-color="#48322f"/><stop offset=".8" stop-color="#f8c46a"/><stop offset="1" stop-color="#21151a"/></linearGradient>
+ <radialGradient id="facet"><stop stop-color="#fffcda"/><stop offset=".25" stop-color="#f8c46a"/><stop offset="1" stop-color="#33232a"/></radialGradient>
+ <pattern id="lines" patternUnits="userSpaceOnUse" width="7" height="7"><path d="M0 1H7" stroke="#ffffff" stroke-opacity=".045" stroke-width="1"/></pattern>
+ <filter id="glow"><feGaussianBlur stdDeviation="8"/></filter>
+ <mask id="holes">
+  <rect width="1080" height="1920" fill="#fff"/>
+  <rect x="116" y="260" width="848" height="208" rx="18" fill="#000"/>
+  <rect x="135" y="768" width="810" height="818" rx="18" fill="#000"/>
+ </mask>
+</defs>
+<g mask="url(#holes)">
+ <rect x="34" y="214" width="1012" height="1690" rx="48" fill="url(#body)"/>
+ <rect x="38" y="218" width="1004" height="1682" rx="45" fill="url(#lines)" />
+ <rect x="38" y="214" width="1004" height="1690" rx="47" fill="none" stroke="#100914" stroke-width="28"/>
+ <rect x="44" y="220" width="992" height="1676" rx="42" fill="none" stroke="url(#steel)" stroke-width="19"/>
+ <rect x="62" y="238" width="956" height="1640" rx="35" fill="none" stroke="#fff7df" stroke-opacity=".48" stroke-width="3"/>
+ <rect x="61" y="245" width="42" height="1606" rx="18" fill="url(#column)" stroke="#f8c46a" stroke-width="4"/>
+ <rect x="977" y="245" width="42" height="1606" rx="18" fill="url(#column)" stroke="#f8c46a" stroke-width="4"/>
+ <rect x="114" y="251" width="852" height="220" rx="25" fill="none" stroke="#100a13" stroke-width="28"/>
+ <rect x="112" y="251" width="856" height="220" rx="26" fill="none" stroke="url(#metalY)" stroke-width="16"/>
+ <rect x="114" y="483" width="852" height="244" rx="22" fill="#100b15" fill-opacity=".34" stroke="url(#steel)" stroke-width="14"/>
+ <rect x="108" y="741" width="864" height="871" rx="31" fill="#04050a" stroke="#130c19" stroke-width="28"/>
+ <rect x="114" y="747" width="852" height="860" rx="29" fill="none" stroke="url(#steel)" stroke-width="25"/>
+ <rect x="130" y="762" width="820" height="828" rx="21" fill="none" stroke="#fff5d1" stroke-opacity=".7" stroke-width="5"/>
+ <rect x="110" y="1610" width="860" height="280" rx="29" fill="#080810" fill-opacity=".25" stroke="url(#metalY)" stroke-width="16"/>
+ <path d="M118 1688H963M118 1820H963" stroke="#f8c46a" stroke-opacity=".55" stroke-width="4"/>
+ <path d="M105 230C250 197 830 197 974 230" stroke="#fff8d9" stroke-opacity=".5" stroke-width="3" fill="none"/>
+ <path d="M79 265V1830M1002 265V1830" stroke="#fff6ce" stroke-opacity=".4" stroke-width="4"/>
+</g>
+<g fill="url(#facet)" stroke="#ffab49" stroke-width="1">
+<circle cx="84" cy="281" r="10"/><circle cx="998" cy="281" r="10"/><circle cx="84" cy="371" r="10"/><circle cx="998" cy="371" r="10"/><circle cx="84" cy="461" r="10"/><circle cx="998" cy="461" r="10"/><circle cx="84" cy="582" r="10"/><circle cx="998" cy="582" r="10"/><circle cx="84" cy="673" r="10"/><circle cx="998" cy="673" r="10"/><circle cx="84" cy="813" r="10"/><circle cx="998" cy="813" r="10"/><circle cx="84" cy="942" r="10"/><circle cx="998" cy="942" r="10"/><circle cx="84" cy="1071" r="10"/><circle cx="998" cy="1071" r="10"/><circle cx="84" cy="1200" r="10"/><circle cx="998" cy="1200" r="10"/><circle cx="84" cy="1329" r="10"/><circle cx="998" cy="1329" r="10"/><circle cx="84" cy="1458" r="10"/><circle cx="998" cy="1458" r="10"/><circle cx="84" cy="1591" r="10"/><circle cx="998" cy="1591" r="10"/><circle cx="84" cy="1740" r="10"/><circle cx="998" cy="1740" r="10"/><circle cx="84" cy="1846" r="10"/><circle cx="998" cy="1846" r="10"/>
+</g>
+<g fill="#ffab49" opacity=".35" filter="url(#glow)">
+ <path d="M45 225V1879M1034 225V1879" stroke="#ffab49" stroke-width="11"/>
+</g>
+</svg>
