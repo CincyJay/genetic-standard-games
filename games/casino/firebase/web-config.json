@@ -1,0 +1,11 @@
+{
+  "projectId": "velvet-ace-casino-app",
+  "appId": "1:42468157816:web:8ba7b8103c73856a66808d",
+  "storageBucket": "velvet-ace-casino-app.firebasestorage.app",
+  "apiKey": "AIzaSyBunadp2-rIPp-CnAsnyVdX-jdtEc8CUBE",
+  "authDomain": "velvet-ace-casino-app.firebaseapp.com",
+  "messagingSenderId": "42468157816",
+  "projectNumber": "42468157816",
+  "version": "2",
+  "databaseURL": "https://velvet-ace-casino-app-default-rtdb.firebaseio.com"
+}

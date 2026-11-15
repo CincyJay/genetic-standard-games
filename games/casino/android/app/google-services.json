@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "42468157816",
+    "project_id": "velvet-ace-casino-app",
+    "storage_bucket": "velvet-ace-casino-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:42468157816:android:9da89a2a58d44ca266808d",
+        "android_client_info": {
+          "package_name": "com.thegeneticstandard.velvetace"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBu2HbvwjkTdDOp95I3c2teE-PNWfcZ_i4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
