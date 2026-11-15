@@ -352,6 +352,7 @@ for (const id of ['dragon', 'empire', 'thunder', 'tiger', 'cosmic']) {
   await page.evaluate((id) => globalThis.__go('slots', { machine: id }), id);
   await wait(2500);
   for (let k = 0; k < 2; k++) {
+    if (k === 1) await page.evaluate(() => globalThis.__slots.rig(globalThis.__slots.plainRows(), { wildReels: [], luckyWheel: false }));
     await tapSpin();
     await wait(800);
     await page.waitForFunction(() => !globalThis.__slots.spinning(), null, { timeout: 120000 });
@@ -371,6 +372,8 @@ await back();
 for (const id of ['pharaoh', 'ocean', 'goldrush']) {
   await openTile(id);
   for (let k = 0; k < 3; k++) {
+    // plain spins: the bonus is played on purpose below
+    await page.evaluate(() => globalThis.__slots.rig(globalThis.__slots.plainRows(), { wildReels: [], luckyWheel: false }));
     await tapSpin();
     await wait(800);
     await page.waitForFunction(() => !globalThis.__slots.spinning(), null, { timeout: 120000 });

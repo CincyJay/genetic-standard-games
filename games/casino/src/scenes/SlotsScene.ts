@@ -176,6 +176,8 @@ export class SlotsScene extends Phaser.Scene {
     (globalThis as Record<string, unknown>).__slots = {
       spinning: () => this.spinning,
       spinXY: { x: SPIN_X, y: CONSOLE_Y },
+      // test hook: a grid with no line wins and no feature (so a scripted spin never stops for a bonus)
+      plainRows: () => [0, 1, 2].map(() => [0, 1, 0, 1, 0].map((k) => this.m.symbols[k]!)),
       freeSpins: () => this.freeSpins,
       machine: this.m.id,
       // test hooks: open this machine's bonus game directly
