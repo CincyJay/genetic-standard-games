@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { MACHINES, type Machine } from '../logic/slots.ts';
+import { LINES, MACHINES, type Machine } from '../logic/slots.ts';
+import { fmt } from '../services.ts';
 import type { UnlockId } from '../logic/progression.ts';
 import { VW, backdrop, coinBar, frame, text } from '../ui/common.ts';
 import { cardsArt, gameTile, reelArt, wheelArt, type Tile } from '../ui/tiles.ts';
@@ -13,6 +14,11 @@ const SLOT_UNLOCK: Record<string, UnlockId | null> = {
   pharaoh: 'slots-pharaoh',
   ocean: 'slots-ocean',
   goldrush: 'slots-goldrush',
+  dragon: 'slots-dragon',
+  empire: 'slots-empire',
+  thunder: 'slots-thunder',
+  tiger: 'slots-tiger',
+  cosmic: 'slots-cosmic',
 };
 export const SHOWCASE: Record<string, string[]> = {
   sevens: ['seven', 'wild', 'seven'],
@@ -20,14 +26,19 @@ export const SHOWCASE: Record<string, string[]> = {
   pharaoh: ['mask', 'wild', 'gem'],
   ocean: ['shark', 'wild', 'pearl'],
   goldrush: ['nugget', 'wild', 'bar'],
+  dragon: ['crown', 'scatter', 'chest'],
+  empire: ['diamond', 'wild', 'diamond'],
+  thunder: ['hammer', 'bolt', 'horn'],
+  tiger: ['idol', 'tiger', 'emerald'],
+  cosmic: ['planet', 'star', 'rocket'],
 };
-const RIBBON: Record<string, string> = { lanterns: 'NEW', sevens: 'HOT' };
+const RIBBON: Record<string, string> = { lanterns: 'HOT', sevens: 'HOT', dragon: 'HIGH LIMIT', empire: 'HIGH LIMIT', thunder: 'HIGH LIMIT', tiger: 'HIGH LIMIT', cosmic: 'HIGH LIMIT' };
 
 export function slotTile(m: Machine): Tile {
   return {
     key: 'slots',
     title: m.name,
-    sub: FEATURE_TEXT[m.feature],
+    sub: m.lineBets ? `Bets ${fmt(m.lineBets[0]! * LINES.length)} – ${fmt(m.lineBets[m.lineBets.length - 1]! * LINES.length)}` : FEATURE_TEXT[m.feature],
     bg: machineBg(m),
     unlock: SLOT_UNLOCK[m.id] ?? null,
     ribbon: RIBBON[m.id],

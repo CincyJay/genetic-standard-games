@@ -75,11 +75,12 @@ export function gameTile(
   c.add(text(scene, 0, h / 2 - (big ? 50 : 44), t.sub, 26, '700', '#f3e6f0').setStroke('#000000', 5));
   if (t.ribbon && !locked) {
     const r = scene.add.graphics();
-    r.fillStyle(t.ribbon === 'NEW' ? 0x18b860 : 0xe8283e, 1);
-    r.fillRoundedRect(w / 2 - 130, -h / 2 + 22, 112, 50, 14);
+    const rw = Math.max(112, t.ribbon.length * 19 + 28);
+    r.fillStyle(t.ribbon === 'NEW' ? 0x18b860 : t.ribbon === 'HIGH LIMIT' ? 0x6b2fb3 : 0xe8283e, 1);
+    r.fillRoundedRect(w / 2 - 18 - rw, -h / 2 + 22, rw, 50, 14);
     r.lineStyle(3, 0xffffff, 0.8);
-    r.strokeRoundedRect(w / 2 - 130, -h / 2 + 22, 112, 50, 14);
-    const rt = text(scene, w / 2 - 74, -h / 2 + 47, t.ribbon, 30, '900', '#ffffff');
+    r.strokeRoundedRect(w / 2 - 18 - rw, -h / 2 + 22, rw, 50, 14);
+    const rt = text(scene, w / 2 - 18 - rw / 2, -h / 2 + 47, t.ribbon, t.ribbon.length > 6 ? 26 : 30, '900', '#ffffff');
     c.add([r, rt]);
     scene.tweens.add({ targets: rt, scale: 1.12, duration: 500, yoyo: true, repeat: -1 });
   }

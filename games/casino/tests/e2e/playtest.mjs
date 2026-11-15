@@ -81,6 +81,10 @@ const openTile = async (name) => {
   await tap(x, R.top + R.h / 2 + row * (R.h + R.gap));
   await wait(2500);
 };
+const tapSpin = async () => {
+  const p = await page.evaluate(() => globalThis.__slots.spinXY);
+  await tap(p.x, p.y);
+};
 const barTap = async (x) => tap(x, await page.evaluate(() => globalThis.__lobby.barY));
 await shot('01-lobby');
 
@@ -118,7 +122,7 @@ await wait(2500);
 await shot('01f-slots-room');
 await openTile('sevens');
 for (let i = 0; i < 4; i++) {
-  await tap(540, 1640);
+  await tapSpin();
   await wait(800);
   if (i === 0) await shot('02-slots-spinning');
   await page.waitForFunction(() => !globalThis.__slots.spinning(), null, { timeout: 120000 });
@@ -343,6 +347,19 @@ await page.evaluate(() => {
 await page.reload();
 await wait(5000);
 await shot('15-lobby-level');
+step('high-limit machines');
+for (const id of ['dragon', 'empire', 'thunder', 'tiger', 'cosmic']) {
+  await page.evaluate((id) => globalThis.__go('slots', { machine: id }), id);
+  await wait(2500);
+  for (let k = 0; k < 2; k++) {
+    await tapSpin();
+    await wait(800);
+    await page.waitForFunction(() => !globalThis.__slots.spinning(), null, { timeout: 120000 });
+  }
+  await shot(`16h-${id}`);
+}
+await page.evaluate(() => globalThis.__go('lobby'));
+await wait(2500);
 step('lucky lanterns: hold & spin');
 await openTile('lanterns');
 await shot('16-lanterns');
@@ -354,7 +371,7 @@ await back();
 for (const id of ['pharaoh', 'ocean', 'goldrush']) {
   await openTile(id);
   for (let k = 0; k < 3; k++) {
-    await tap(540, 1640);
+    await tapSpin();
     await wait(800);
     await page.waitForFunction(() => !globalThis.__slots.spinning(), null, { timeout: 120000 });
   }

@@ -54,7 +54,25 @@ export interface Machine {
   stacks?: Record<string, number>;
   /** Hold & Spin: lanterns lock in place while the rest respin. */
   holdSpin?: HoldSpinConfig;
+  /** Line bets offered on this machine (high-limit machines go much higher). */
+  lineBets?: number[];
+  /** Free spins: the multiplier grows by this much after every free spin. */
+  freeSpinRamp?: number;
+  /** Every wild in a winning line multiplies it by this (capped at WILD_MULT_CAP). */
+  wildMultiplier?: number;
+  /** Pick bonus: how many tiles the player opens (default 3). */
+  picks?: number;
+  /** Return the pays are tuned to (default 95%). */
+  targetRtp?: number;
+  /** One-line description of the machine's feature for the cabinet and lobby. */
+  blurb?: string;
 }
+
+/** Highest total multiplier wilds can put on one line. */
+export const WILD_MULT_CAP = 8;
+export const lineBetsOf = (m: Machine) => m.lineBets ?? LINE_BETS;
+/** Free-spin multiplier for the `k`-th free spin of a feature (0-based). */
+export const freeSpinMult = (m: Machine, k: number) => (m.freeSpinMultiplier ?? 1) + (m.freeSpinRamp ?? 0) * k;
 
 export const LINES: number[][] = [
   [1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [2, 2, 2, 2, 2], [0, 1, 2, 1, 0], [2, 1, 0, 1, 2],
@@ -177,7 +195,111 @@ export const LUCKY_LANTERNS: Machine = {
   },
 };
 
-export const MACHINES = [LUCKY_SEVENS, LUCKY_LANTERNS, PHARAOH, DEEP_BLUE, GOLD_RUSH];
+// ------------------------------------------------------------------ high-limit machines
+// Bigger bets, richer features and a higher return (about 96.5%). They unlock as you level up.
+const ROYAL_PAYS = { ten: [5, 15, 50], jack: [5, 15, 50], queen: [6, 18, 60], king: [8, 22, 80], ace: [10, 28, 100] } as const;
+const ROYAL_WEIGHTS = { ten: [7, 7, 7, 7, 7], jack: [7, 7, 7, 7, 7], queen: [6, 6, 6, 6, 6], king: [6, 6, 6, 6, 6], ace: [5, 5, 5, 5, 5] };
+const royals = (p1: string, p2: string, p3: string): Pick<Machine, 'symbols' | 'pays' | 'weights'> => ({
+  symbols: ['ten', 'jack', 'queen', 'king', 'ace', p1, p2, p3, 'wild', 'scatter'],
+  pays: {
+    ...Object.fromEntries(Object.entries(ROYAL_PAYS).map(([k, v]) => [k, [...v] as [number, number, number]])),
+    [p1]: [16, 55, 180], [p2]: [25, 100, 400], [p3]: [50, 200, 1000], wild: [100, 500, 2500],
+  },
+  weights: { ...ROYAL_WEIGHTS, [p1]: [4, 4, 4, 4, 4], [p2]: [3, 3, 3, 3, 3], [p3]: [2, 2, 2, 2, 2], wild: [1, 2, 2, 2, 1], scatter: [1, 1, 2, 1, 1] },
+});
+const HIGH_RTP = 0.965;
+
+export const DRAGONS_HOARD: Machine = {
+  id: 'dragon',
+  name: "Dragon's Hoard",
+  ...royals('chalice', 'crown', 'chest'),
+  payScale: 0.457,
+  targetRtp: HIGH_RTP,
+  scatterPays: [0, 0, 0],
+  stacks: { scatter: 3 },
+  feature: 'holdspin',
+  blurb: '6+ dragon eggs start Hold & Spin · Grand 2,000×',
+  lineBets: [25, 50, 100, 250, 500, 1000, 2500],
+  holdSpin: {
+    trigger: 6,
+    respins: 3,
+    landChance: 0.065,
+    values: [
+      { lantern: { mult: 1 }, weight: 30 },
+      { lantern: { mult: 2 }, weight: 26 },
+      { lantern: { mult: 3 }, weight: 18 },
+      { lantern: { mult: 5 }, weight: 10 },
+      { lantern: { mult: 8 }, weight: 6 },
+      { lantern: { mult: 20, label: 'MINI' }, weight: 2.4 },
+      { lantern: { mult: 60, label: 'MINOR' }, weight: 0.8 },
+      { lantern: { mult: 250, label: 'MAJOR' }, weight: 0.12 },
+    ],
+    grand: 2000,
+  },
+};
+DRAGONS_HOARD.weights.scatter = [3, 3, 3, 3, 3];
+
+export const DIAMOND_EMPIRE: Machine = {
+  id: 'empire',
+  name: 'Diamond Empire',
+  ...royals('ring', 'goldbars', 'diamond'),
+  payScale: 0.829,
+  targetRtp: HIGH_RTP,
+  scatterPays: [2, 10, 50],
+  feature: 'freespins',
+  freeSpins: [10, 15, 25],
+  freeSpinMultiplier: 2,
+  freeSpinRamp: 1,
+  blurb: 'Free spins: multiplier climbs ×2, ×3, ×4… every spin',
+  lineBets: [50, 100, 250, 500, 1000, 2500, 5000],
+};
+
+export const THUNDER_PEAK: Machine = {
+  id: 'thunder',
+  name: 'Thunder Peak',
+  ...royals('horn', 'hammer', 'bolt'),
+  payScale: 0.334,
+  targetRtp: HIGH_RTP,
+  scatterPays: [2, 10, 50],
+  feature: 'freespins',
+  freeSpins: [8, 12, 20],
+  freeSpinMultiplier: 2,
+  wildMultiplier: 2,
+  blurb: 'Every wild doubles the line (up to ×8) · free spins pay ×2',
+  lineBets: [100, 250, 500, 1000, 2500, 5000, 10000],
+};
+
+THUNDER_PEAK.weights.wild = [0, 1, 2, 1, 0];
+
+export const TIGERS_TREASURE: Machine = {
+  id: 'tiger',
+  name: "Tiger's Treasure",
+  ...royals('emerald', 'idol', 'tiger'),
+  payScale: 0.452,
+  targetRtp: HIGH_RTP,
+  scatterPays: [2, 10, 50],
+  feature: 'pick',
+  picks: 4,
+  pickPrizes: [3, 5, 6, 8, 10, 15, 25, 40, 100],
+  blurb: 'Temple pick bonus: open 4 of 9 for up to 100×',
+  lineBets: [250, 500, 1000, 2500, 5000, 10000, 25000],
+};
+
+export const COSMIC_FORTUNE: Machine = {
+  id: 'cosmic',
+  name: 'Cosmic Fortune',
+  ...royals('rocket', 'planet', 'star'),
+  payScale: 0.741,
+  targetRtp: HIGH_RTP,
+  scatterPays: [2, 10, 50],
+  feature: 'wheel',
+  wheel: { prizes: [15, 20, 25, 40, 60, 100, 200, 500, 1000], weights: [24, 20, 16, 12, 9, 6, 3, 1, 0.3] },
+  blurb: 'Galaxy wheel bonus: up to 1,000×',
+  lineBets: [500, 1000, 2500, 5000, 10000, 25000, 50000],
+};
+
+export const HIGH_LIMIT = [DRAGONS_HOARD, DIAMOND_EMPIRE, THUNDER_PEAK, TIGERS_TREASURE, COSMIC_FORTUNE];
+export const MACHINES = [LUCKY_SEVENS, LUCKY_LANTERNS, PHARAOH, DEEP_BLUE, GOLD_RUSH, ...HIGH_LIMIT];
 
 // ------------------------------------------------------------------ strips
 const stripCache = new Map<string, string[][]>();
@@ -290,7 +412,12 @@ function lineWin(m: Machine, grid: Grid, line: number[], lineBet: number, idx: n
   let best: LineWin | null = null;
   for (const o of options) {
     if (o.count < 3) continue;
-    const win = Math.round(m.pays[o.symbol]![o.count - 3]! * (m.payScale ?? 1) * lineBet);
+    let mult = 1;
+    if (m.wildMultiplier && o.symbol !== 'wild') {
+      const wilds = syms.slice(0, o.count).filter((x) => x === 'wild').length;
+      mult = Math.min(WILD_MULT_CAP, m.wildMultiplier ** wilds);
+    }
+    const win = Math.round(m.pays[o.symbol]![o.count - 3]! * (m.payScale ?? 1) * lineBet * mult);
     if (!best || win > best.win) best = { line: idx, symbol: o.symbol, count: o.count, win };
   }
   return best;
@@ -450,7 +577,7 @@ export function playHoldSpin(m: Machine, grid: Grid, rnd: Random = secureRandom)
 export function bonusEV(m: Machine): number {
   if (m.feature === 'pick') {
     const p = m.pickPrizes!;
-    return (3 * p.reduce((a, b) => a + b, 0)) / p.length;
+    return ((m.picks ?? 3) * p.reduce((a, b) => a + b, 0)) / p.length;
   }
   if (m.feature === 'wheel') {
     const { prizes, weights } = m.wheel!;
@@ -470,10 +597,12 @@ export function simulateRtp(m: Machine, spins: number, rnd: Random): { rtp: numb
   let won = 0;
   let hits = 0;
   let features = 0;
-  const total = LINES.length;
+  // high-limit machines are simulated at their smallest real line bet (no rounding drift)
+  const lb = m.lineBets?.[0] ?? 1;
+  const total = LINES.length * lb;
   for (let i = 0; i < spins; i++) {
     bet += total;
-    const r = spin(m, 1, rnd, true);
+    const r = spin(m, lb, rnd, true);
     won += r.total;
     if (r.total > 0) hits++;
     if (r.luckyWheel) won += luckyWheelEV() * total;
@@ -486,10 +615,11 @@ export function simulateRtp(m: Machine, spins: number, rnd: Random): { rtp: numb
     }
     let fs = r.freeSpins;
     if (fs) features++;
+    let k = 0;
     while (fs > 0) {
       fs--;
-      const f = spin(m, 1, rnd);
-      won += f.total * (m.freeSpinMultiplier ?? 1);
+      const f = spin(m, lb, rnd);
+      won += f.total * freeSpinMult(m, k++);
       fs += f.freeSpins;
     }
   }

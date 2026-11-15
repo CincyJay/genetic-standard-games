@@ -66,7 +66,7 @@ if (!sets.length || sets.includes('tables')) {
   console.log(`tables: ${Object.keys(files).length} files`);
 }
 if (!sets.length || sets.includes('worlds')) {
-  for (const id of ['pharaoh', 'ocean', 'goldrush', 'lanterns']) {
+  for (const id of process.env.WORLDS ? process.env.WORLDS.split(',') : ['pharaoh', 'ocean', 'goldrush', 'lanterns', 'dragon', 'empire', 'thunder', 'tiger', 'cosmic']) {
     const url = await page.evaluate((id) => globalThis.renderWorld(id), id);
     await writeFile(join(pub, `world-${id}.jpg`), Buffer.from(url.split(',')[1], 'base64'));
     console.log(`world ${id}`);

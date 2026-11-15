@@ -33,7 +33,9 @@ export function levelReward(level: number): number {
 }
 
 // ---------------------------------------------------------------- unlocks
-export type UnlockId = 'slots-lanterns' | 'slots-pharaoh' | 'slots-ocean' | 'slots-goldrush' | 'holdem-highroller' | 'holdem-vip';
+export type UnlockId =
+  | 'slots-lanterns' | 'slots-pharaoh' | 'slots-ocean' | 'slots-goldrush' | 'holdem-highroller' | 'holdem-vip'
+  | 'slots-dragon' | 'slots-empire' | 'slots-thunder' | 'slots-tiger' | 'slots-cosmic';
 
 export const UNLOCKS: { id: UnlockId; level: number; name: string }[] = [
   { id: 'slots-lanterns', level: 2, name: 'Lucky Lanterns slot' },
@@ -41,7 +43,12 @@ export const UNLOCKS: { id: UnlockId; level: number; name: string }[] = [
   { id: 'holdem-highroller', level: 5, name: "High Roller hold'em table" },
   { id: 'slots-ocean', level: 6, name: 'Deep Blue slot' },
   { id: 'slots-goldrush', level: 10, name: 'Gold Rush slot' },
+  { id: 'slots-dragon', level: 12, name: "Dragon's Hoard high-limit slot" },
   { id: 'holdem-vip', level: 15, name: "VIP Room hold'em table" },
+  { id: 'slots-empire', level: 15, name: 'Diamond Empire high-limit slot' },
+  { id: 'slots-thunder', level: 18, name: 'Thunder Peak high-limit slot' },
+  { id: 'slots-tiger', level: 22, name: "Tiger's Treasure high-limit slot" },
+  { id: 'slots-cosmic', level: 26, name: 'Cosmic Fortune high-limit slot' },
 ];
 
 export function isUnlocked(id: UnlockId, level: number): boolean {

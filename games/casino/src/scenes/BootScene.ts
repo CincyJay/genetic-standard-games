@@ -95,7 +95,7 @@ export class BootScene extends Phaser.Scene {
       for (const s of m.symbols) this.load.image(`sym-${m.id}-${s}`, `art/slots/${m.id}/${s}.png`);
     for (const u of ['coin', 'btn-spin', 'btn-spin-lanterns', 'btn-spin-pharaoh', 'btn-spin-ocean', 'btn-spin-goldrush', 'btn-gamble', 'btn-stop', 'btn-plus', 'btn-minus', 'btn-auto', 'btn-auto-on', 'panel-bet']) this.load.image(u, `art/ui/${u}.png`);
     for (const m of MACHINES) this.load.image(`logo-${m.id}`, `art/logos/${m.id}.png`);
-    for (const bg of ['bg-felt', 'bg-felt-red', 'bg-poker', 'room-lobby', 'room-slots', 'room-poker', 'room-tables', 'world-pharaoh', 'world-ocean', 'world-goldrush', 'world-lanterns']) this.load.image(bg, `art/${bg}.jpg`);
+    for (const bg of ['bg-felt', 'bg-felt-red', 'bg-poker', 'room-lobby', 'room-slots', 'room-poker', 'room-tables', 'world-pharaoh', 'world-ocean', 'world-goldrush', 'world-lanterns', 'world-dragon', 'world-empire', 'world-thunder', 'world-tiger', 'world-cosmic']) this.load.image(bg, `art/${bg}.jpg`);
     for (const a of ['you', 'rosa', 'dmitri', 'kwame', 'lena', 'hector', 'priya', 'sam', 'yuki', ...PICK_AVATARS]) {
       this.load.svg(`av-${a}`, `art/avatars/${a}.svg`, { width: 256, height: 256 });
     }
@@ -111,7 +111,7 @@ export class BootScene extends Phaser.Scene {
     makeFxTextures(this);
     // each machine stands in its own 3D world, darkened with a vignette so the reels stand out
     darkened(this, 'room-slots', 'bg-floor', 0.45);
-    for (const id of ['pharaoh', 'ocean', 'goldrush', 'lanterns']) darkened(this, `world-${id}`, `bg-machine-${id}`, 0.25);
+    for (const id of ['pharaoh', 'ocean', 'goldrush', 'lanterns', 'dragon', 'empire', 'thunder', 'tiger', 'cosmic']) darkened(this, `world-${id}`, `bg-machine-${id}`, 0.25);
     analytics.track('session_start', {});
     // keep the default portrait under its own key, then apply the player's chosen picture
     this.textures.addImage('av-default', this.textures.get('av-you').getSourceImage() as HTMLImageElement);

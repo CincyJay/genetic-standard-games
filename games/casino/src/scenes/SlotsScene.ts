@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { popIn } from '@tgs/kit';
 import {
   LUCKY_WHEEL, LUCKY_WHEEL_CHANCE, rollWildReels, spinLuckyWheel,
-  LINES, LINE_BETS, LUCKY_SEVENS, MACHINES, MAX_TOTAL_BET, evaluate, gridFromStops, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, spinBonusWheel,
+  LINES, lineBetsOf, freeSpinMult, LUCKY_SEVENS, MACHINES, MAX_TOTAL_BET, evaluate, gridFromStops, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, spinBonusWheel,
   spinStops, type Grid, type Lantern, type Machine, type SpinResult,
 } from '../logic/slots.ts';
 import { showBigWin, tierFor } from '../ui/bigwin.ts';
@@ -13,7 +13,13 @@ import { VW, backdrop, banner, coinBar, coinShower, frame, makeButton, makeButto
 
 const CELL = 186;
 const LEFT = (VW - CELL * 5) / 2;
-const TOP = 440;
+const TOP = 850;
+const WIN_Y = 1478;
+const CONSOLE_Y = 1610;
+const ROW2_Y = 1748;
+const SPIN_X = 880;
+/** The cabinet's outline (the machine fills the screen like a real one). */
+const CAB = { x0: 34, x1: VW - 34, y0: 214, y1: 1832 };
 const LINE_COLORS = [0xff4f8b, 0x4fd1ff, 0xffe14a, 0x7dff6a, 0xff9a3c, 0xc77dff, 0xffffff];
 
 export const machineBg = (m: Machine) => (m.id === 'sevens' ? 'bg-floor' : `bg-machine-${m.id}`);
@@ -29,14 +35,30 @@ interface CabinetTheme {
   reelLight: number;
   spin: string;
   spinGlow: number;
+  /** Neon trim around the cabinet and the SPIN button colour. */
+  neon: number;
+  /** The bright (undimmed) world art shown in the cabinet's top box. */
+  art: string;
 }
 const THEMES: Record<string, CabinetTheme> = {
-  sevens: { edge: 0x2a1406, body: 0xc98a1e, shine: 0xffe7a0, inner: 0x7a4a0a, bulb: 0xffe08a, reelDark: 0x1a0a24, reelLight: 0x3a2048, spin: 'btn-spin', spinGlow: 0x7dffb0 },
-  lanterns: { edge: 0x3a0006, body: 0xb8101e, shine: 0xffd76a, inner: 0xe9b949, bulb: 0xffb040, reelDark: 0x22040a, reelLight: 0x4a0c14, spin: 'btn-spin-lanterns', spinGlow: 0xff7a5a },
-  pharaoh: { edge: 0x0a1440, body: 0x1d3aa8, shine: 0xffe08a, inner: 0xe9b949, bulb: 0xffd890, reelDark: 0x14100a, reelLight: 0x30261a, spin: 'btn-spin-pharaoh', spinGlow: 0x7aa8ff },
-  ocean: { edge: 0x062a3a, body: 0x1a8aa8, shine: 0xbff4ff, inner: 0x7fe0ff, bulb: 0x7fe0ff, reelDark: 0x041828, reelLight: 0x0a3050, spin: 'btn-spin-ocean', spinGlow: 0x7fe0ff },
-  goldrush: { edge: 0x2a1006, body: 0x8a4a1a, shine: 0xffc070, inner: 0x5a2a0a, bulb: 0xffb050, reelDark: 0x140a04, reelLight: 0x2c1c0c, spin: 'btn-spin-goldrush', spinGlow: 0xffb050 },
+  sevens: { edge: 0x2a1406, body: 0xc98a1e, shine: 0xffe7a0, inner: 0x7a4a0a, bulb: 0xffe08a, reelDark: 0x1a0a24, reelLight: 0x3a2048, spin: 'btn-spin', spinGlow: 0x7dffb0, neon: 0xb04cff, art: 'room-slots' },
+  lanterns: { edge: 0x3a0006, body: 0xb8101e, shine: 0xffd76a, inner: 0xe9b949, bulb: 0xffb040, reelDark: 0x22040a, reelLight: 0x4a0c14, spin: 'btn-spin-lanterns', spinGlow: 0xff7a5a, neon: 0xff2a3a, art: 'world-lanterns' },
+  pharaoh: { edge: 0x0a1440, body: 0x1d3aa8, shine: 0xffe08a, inner: 0xe9b949, bulb: 0xffd890, reelDark: 0x14100a, reelLight: 0x30261a, spin: 'btn-spin-pharaoh', spinGlow: 0x7aa8ff, neon: 0xffb020, art: 'world-pharaoh' },
+  ocean: { edge: 0x062a3a, body: 0x1a8aa8, shine: 0xbff4ff, inner: 0x7fe0ff, bulb: 0x7fe0ff, reelDark: 0x041828, reelLight: 0x0a3050, spin: 'btn-spin-ocean', spinGlow: 0x7fe0ff, neon: 0x2a9dff, art: 'world-ocean' },
+  goldrush: { edge: 0x2a1006, body: 0x8a4a1a, shine: 0xffc070, inner: 0x5a2a0a, bulb: 0xffb050, reelDark: 0x140a04, reelLight: 0x2c1c0c, spin: 'btn-spin-goldrush', spinGlow: 0xffb050, neon: 0xffa020, art: 'world-goldrush' },
 };
+/** Lucky Wheel wedges that are named jackpots (multiples of the total bet). */
+export const WHEEL_JACKPOTS = { MINI: 50, MINOR: 100, MAJOR: 250 } as const;
+const LADDER_Y = 574;
+/** The Grand never shows less than this many times the total bet. */
+const GRAND_MIN = 1000;
+Object.assign(THEMES, {
+  dragon: { edge: 0x2a0004, body: 0x9a0a14, shine: 0xffd76a, inner: 0xe9b949, bulb: 0xff8a3a, reelDark: 0x1a0204, reelLight: 0x3e0a0c, spin: '', spinGlow: 0xff5a3a, neon: 0xff3a1a, art: 'world-dragon' },
+  empire: { edge: 0x10102a, body: 0xc8ccd8, shine: 0xffffff, inner: 0xbfe8ff, bulb: 0xdff4ff, reelDark: 0x0c0a1e, reelLight: 0x2a2048, spin: '', spinGlow: 0xbfe8ff, neon: 0xc070ff, art: 'world-empire' },
+  thunder: { edge: 0x060a1a, body: 0x3a5a9a, shine: 0xcfe8ff, inner: 0x8ab8ff, bulb: 0xcfe8ff, reelDark: 0x060a18, reelLight: 0x1a2440, spin: '', spinGlow: 0x8ad8ff, neon: 0x3ab0ff, art: 'world-thunder' },
+  tiger: { edge: 0x1a0a02, body: 0xc8701a, shine: 0xffd08a, inner: 0x18a868, bulb: 0xffc060, reelDark: 0x0a1406, reelLight: 0x1e3010, spin: '', spinGlow: 0xffb040, neon: 0xff9a1a, art: 'world-tiger' },
+  cosmic: { edge: 0x0a0418, body: 0x5a2ad8, shine: 0xff9aff, inner: 0x2ad8ff, bulb: 0xff6ad8, reelDark: 0x06021a, reelLight: 0x1e0c40, spin: '', spinGlow: 0xff40c0, neon: 0xff40d0, art: 'world-cosmic' },
+});
 const JACKPOT_COLORS: Record<string, number> = { GRAND: 0xc8102e, MAJOR: 0x6b2fb3, MINOR: 0x1d6aa8, MINI: 0x0f8a5a };
 export const symKey = (m: Machine, s: string) => `sym-${m.id}-${s}`;
 
@@ -48,6 +70,7 @@ const FEATURE_TEXT: Record<Machine['feature'], string> = {
   holdspin: '6+ lanterns start Hold & Spin',
 };
 export { FEATURE_TEXT };
+export const featureText = (m: Machine) => m.blurb ?? FEATURE_TEXT[m.feature];
 
 export class SlotsScene extends Phaser.Scene {
   private m: Machine = LUCKY_SEVENS;
@@ -60,12 +83,13 @@ export class SlotsScene extends Phaser.Scene {
   private spinning = false;
   private freeSpins = 0;
   private freeTotal = 0;
+  /** Free spins played so far in this feature (the multiplier can climb with it). */
+  private fsPlayed = 0;
   private autoLeft = 0;
   private refresh!: () => void;
   private winText!: Phaser.GameObjects.Text;
   private betText!: Phaser.GameObjects.Text;
   private fsText!: Phaser.GameObjects.Text;
-  private jackpotText!: Phaser.GameObjects.Text;
   private jackpotBoxes: Phaser.GameObjects.Container | null = null;
   private fx!: Phaser.GameObjects.Container;
   private shade: Phaser.GameObjects.Graphics | null = null;
@@ -84,10 +108,14 @@ export class SlotsScene extends Phaser.Scene {
 
   init(data: { machine?: string }): void {
     this.m = MACHINES.find((x) => x.id === data.machine) ?? LUCKY_SEVENS;
+    this.betIndex = this.m.lineBets ? 0 : Math.min(this.betIndex, lineBetsOf(this.m).length - 1);
   }
 
   private get lineBet(): number {
-    return LINE_BETS[this.betIndex]!;
+    return this.bets[this.betIndex]!;
+  }
+  private get bets(): number[] {
+    return lineBetsOf(this.m);
   }
   private get totalBet(): number {
     return this.lineBet * LINES.length;
@@ -105,15 +133,18 @@ export class SlotsScene extends Phaser.Scene {
     this.autoLeft = 0;
 
     const win = this.add.graphics();
-    win.fillStyle(0x0d0414, 0.92);
-    win.fillRoundedRect(LEFT - 16, TOP - 16, CELL * 5 + 32, CELL * 3 + 32, 28);
-    // each reel a softly lit drum: brighter in the middle, dark at top and bottom
-    for (let r = 0; r < 5; r++) {
-      win.fillGradientStyle(this.theme.reelDark, this.theme.reelDark, this.theme.reelLight, this.theme.reelLight, 1);
-      win.fillRect(LEFT + r * CELL + 3, TOP, CELL - 6, CELL * 1.5);
-      win.fillGradientStyle(this.theme.reelLight, this.theme.reelLight, this.theme.reelDark, this.theme.reelDark, 1);
-      win.fillRect(LEFT + r * CELL + 3, TOP + CELL * 1.5, CELL - 6, CELL * 1.5);
-    }
+    win.fillStyle(0x07020c, 1);
+    win.fillRoundedRect(LEFT - 16, TOP - 16, CELL * 5 + 32, CELL * 3 + 32, 24);
+    // every symbol sits in its own lit tile, like a modern video cabinet
+    for (let r = 0; r < 5; r++)
+      for (let row = 0; row < 3; row++) {
+        const x = LEFT + r * CELL + 4;
+        const y = TOP + row * CELL + 4;
+        win.fillGradientStyle(this.theme.reelLight, this.theme.reelLight, this.theme.reelDark, this.theme.reelDark, 1);
+        win.fillRoundedRect(x, y, CELL - 8, CELL - 8, 14);
+        win.lineStyle(2, 0xe9c86a, 0.45);
+        win.strokeRoundedRect(x, y, CELL - 8, CELL - 8, 14);
+      }
     const start = gridFromStops(this.m, spinStops(this.m));
     for (let r = 0; r < 5; r++) {
       const col = this.add.container(LEFT + CELL * (r + 0.5), 0);
@@ -128,36 +159,23 @@ export class SlotsScene extends Phaser.Scene {
     this.lines = this.add.graphics().setDepth(22).setBlendMode(Phaser.BlendModes.ADD);
     this.fx = this.add.container(0, 0).setDepth(22);
 
-    // 3D logo with a slow shine
-    const logo = this.add.image(w / 2, 262, `logo-${this.m.id}`).setDisplaySize(900, 162).setDepth(23);
-    this.tweens.add({ targets: logo, scale: logo.scale * 1.03, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.jackpotText = text(this, w / 2, 350, '', 36, '800', '#ffffff').setStroke('#14071f', 8).setDepth(23);
+    this.topBox();
     this.jackpotBoxes = null;
-    this.refresh = coinBar(this, 'Slots', () => {
+    this.updateJackpot();
+    this.refresh = coinBar(this, this.m.name, () => {
       if (!this.spinning) this.scene.start('room', { room: 'slots' });
     });
 
-    this.winText = text(this, w / 2, 1150, '', 72, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
-    this.fsText = text(this, w / 2, 1240, FEATURE_TEXT[this.m.feature], 36, '700', '#ffffff').setDepth(23);
-
-    // cabinet controls (3D-rendered buttons)
-    this.add.image(w / 2, 1380, 'panel-bet').setDisplaySize(560, 149).setDepth(23);
-    text(this, w / 2, 1352, 'TOTAL BET', 26, '800', '#cbb6d6').setDepth(24).setLetterSpacing(4);
-    this.betText = text(this, w / 2, 1402, '', 50, '900', '#ffe9a8').setDepth(24);
-    this.pressButton(w / 2 - 370, 1380, 'btn-minus', 140, 140, () => this.changeBet(-1));
-    this.pressButton(w / 2 + 370, 1380, 'btn-plus', 140, 140, () => this.changeBet(1));
+    this.winText = text(this, w / 2, WIN_Y, '', 72, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
+    this.fsText = text(this, w / 2, ROW2_Y, featureText(this.m), 24, '800', '#ffffff').setStroke('#000000', 6).setDepth(24).setWordWrapWidth(480).setAlign('center');
+    this.console();
     this.updateBet();
-    this.updateJackpot();
-    const spinBtn = this.pressButton(w / 2, 1640, this.theme.spin, 300, 300, () => this.spin());
-    // the spin button breathes so it invites a tap
-    const glowRing = this.add.image(w / 2, 1640, 'fx-glow').setDisplaySize(420, 420).setDepth(23).setBlendMode(Phaser.BlendModes.ADD).setTint(this.theme.spinGlow).setAlpha(0.35);
-    this.tweens.add({ targets: glowRing, alpha: 0.12, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    void spinBtn;
-    this.autoBtn = this.pressButton(190, 1660, 'btn-auto', 270, 101, () => this.toggleAuto());
-    this.gambleBtn = this.pressButton(890, 1660, 'btn-gamble', 270, 101, () => this.openGamble()).setVisible(false);
+    this.autoBtn = this.pressButton(170, ROW2_Y, 'btn-auto', 200, 76, () => this.toggleAuto());
+    this.gambleBtn = this.pressButton(910, ROW2_Y, 'btn-gamble', 200, 76, () => this.openGamble()).setVisible(false);
     this.gambleable = 0;
     (globalThis as Record<string, unknown>).__slots = {
       spinning: () => this.spinning,
+      spinXY: { x: SPIN_X, y: CONSOLE_Y },
       freeSpins: () => this.freeSpins,
       machine: this.m.id,
       // test hooks: open this machine's bonus game directly
@@ -211,59 +229,74 @@ export class SlotsScene extends Phaser.Scene {
     return bk;
   }
 
-  /** Reel window frame: polished gold bezel with chasing marquee bulbs. */
+  /**
+   * The cabinet: chrome body with neon trim in the machine's colour, a crown
+   * topper, the reel window's gold bezel with chasing bulbs.
+   */
   private cabinet(): void {
-    const x0 = LEFT - 16;
-    const y0 = TOP - 16;
-    const fw = CELL * 5 + 32;
-    const fh = CELL * 3 + 32;
-    const g = this.add.graphics().setDepth(21);
-    // outer bezel: dark edge, bright gold body, highlight and inner shadow lines
     const t = this.theme;
-    g.lineStyle(26, t.edge, 1);
-    g.strokeRoundedRect(x0 - 10, y0 - 10, fw + 20, fh + 20, 38);
-    g.lineStyle(18, t.body, 1);
-    g.strokeRoundedRect(x0 - 10, y0 - 10, fw + 20, fh + 20, 38);
-    g.lineStyle(6, t.shine, 1);
-    g.strokeRoundedRect(x0 - 14, y0 - 14, fw + 28, fh + 28, 40);
-    g.lineStyle(4, t.inner, 1);
-    g.strokeRoundedRect(x0 - 2, y0 - 2, fw + 4, fh + 4, 30);
-    g.lineStyle(3, 0x000000, 0.6);
-    g.strokeRoundedRect(x0 + 2, y0 + 2, fw - 4, fh - 4, 26);
-    // inner shadow at top of window so the reels look recessed
-    g.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.65, 0.65, 0, 0);
-    g.fillRect(LEFT, TOP, CELL * 5, 46);
-    g.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.65, 0.65);
-    g.fillRect(LEFT, TOP + CELL * 3 - 46, CELL * 5, 46);
-    // separators between reels
-    for (let r = 1; r < 5; r++) {
-      g.fillStyle(0x000000, 0.55);
-      g.fillRect(LEFT + r * CELL - 3, TOP, 6, CELL * 3);
-      g.fillStyle(0xe9c86a, 0.35);
-      g.fillRect(LEFT + r * CELL - 1, TOP, 2, CELL * 3);
+    const { x0, x1, y0, y1 } = CAB;
+    const wx0 = LEFT - 16;
+    const wy0 = TOP - 16;
+    const ww = CELL * 5 + 32;
+    const wh = CELL * 3 + 32;
+    const g = this.add.graphics().setDepth(21);
+    // body: four panels around the reel window, so reels never show outside it
+    const body = (x: number, y: number, w: number, h: number) => {
+      g.fillGradientStyle(0x2a2233, 0x2a2233, 0x0c0812, 0x0c0812, 1);
+      g.fillRect(x, y, w, h);
+    };
+    body(x0, y0, x1 - x0, wy0 - y0);
+    body(x0, wy0 + wh, x1 - x0, y1 - wy0 - wh);
+    body(x0, wy0, wx0 - x0, wh);
+    body(wx0 + ww, wy0, x1 - wx0 - ww, wh);
+    // chrome edges and neon trim
+    const neon = this.add.graphics().setDepth(21).setBlendMode(Phaser.BlendModes.ADD);
+    for (const [w, a] of [[30, 0.12], [18, 0.22], [8, 0.6]] as const) {
+      neon.lineStyle(w, t.neon, a);
+      neon.strokeRoundedRect(x0 + 4, y0 + 4, x1 - x0 - 8, y1 - y0 - 8, 44);
     }
-    // glass glare
-    g.fillStyle(0xffffff, 0.05);
-    g.fillPoints([new Phaser.Math.Vector2(LEFT, TOP), new Phaser.Math.Vector2(LEFT + 260, TOP), new Phaser.Math.Vector2(LEFT + 60, TOP + CELL * 3), new Phaser.Math.Vector2(LEFT, TOP + CELL * 3)], true);
-    // bulbs around the bezel, chasing
+    g.lineStyle(10, 0xd9dde6, 1);
+    g.strokeRoundedRect(x0, y0, x1 - x0, y1 - y0, 46);
+    g.lineStyle(3, 0xffffff, 0.8);
+    g.strokeRoundedRect(x0 - 4, y0 - 4, x1 - x0 + 8, y1 - y0 + 8, 48);
+    g.lineStyle(4, 0x5a5466, 1);
+    g.strokeRoundedRect(x0 + 8, y0 + 8, x1 - x0 - 16, y1 - y0 - 16, 40);
+    this.tweens.add({ targets: neon, alpha: 0.65, duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    // reel window bezel
+    g.lineStyle(22, t.edge, 1);
+    g.strokeRoundedRect(wx0 - 8, wy0 - 8, ww + 16, wh + 16, 32);
+    g.lineStyle(14, t.body, 1);
+    g.strokeRoundedRect(wx0 - 8, wy0 - 8, ww + 16, wh + 16, 32);
+    g.lineStyle(4, t.shine, 1);
+    g.strokeRoundedRect(wx0 - 12, wy0 - 12, ww + 24, wh + 24, 34);
+    g.lineStyle(3, 0x000000, 0.7);
+    g.strokeRoundedRect(wx0, wy0, ww, wh, 24);
+    // inner shadow at the window's top and bottom so the reels look recessed
+    const sh = this.add.graphics().setDepth(21);
+    sh.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0.6, 0.6, 0, 0);
+    sh.fillRect(LEFT, TOP, CELL * 5, 40);
+    sh.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.6, 0.6);
+    sh.fillRect(LEFT, TOP + CELL * 3 - 40, CELL * 5, 40);
+    sh.fillStyle(0xffffff, 0.05);
+    sh.fillPoints([new Phaser.Math.Vector2(LEFT, TOP), new Phaser.Math.Vector2(LEFT + 260, TOP), new Phaser.Math.Vector2(LEFT + 60, TOP + CELL * 3), new Phaser.Math.Vector2(LEFT, TOP + CELL * 3)], true);
+    // chasing bulbs on the bezel
     const bulbs: Phaser.GameObjects.Image[] = [];
-    const per = (n: number, f: (t: number) => [number, number]) => {
+    const per = (n: number, f: (u: number) => [number, number]) => {
       for (let i = 0; i < n; i++) {
         const [bx, by] = f(i / (n - 1));
-        bulbs.push(this.add.image(bx, by, 'fx-spark').setDisplaySize(30, 30).setDepth(21).setBlendMode(Phaser.BlendModes.ADD).setTint(t.bulb));
+        bulbs.push(this.add.image(bx, by, 'fx-spark').setDisplaySize(26, 26).setDepth(22).setBlendMode(Phaser.BlendModes.ADD).setTint(t.bulb));
       }
     };
-    const L = x0 - 10;
-    const R = x0 + fw + 10;
-    const T = y0 - 10;
-    const B = y0 + fh + 10;
-    per(16, (t) => [L + 30 + t * (R - L - 60), T]);
-    per(8, (t) => [R, T + 30 + t * (B - T - 60)]);
-    per(16, (t) => [R - 30 - t * (R - L - 60), B]);
-    per(8, (t) => [L, B - 30 - t * (B - T - 60)]);
+    const L = wx0 - 8;
+    const R = wx0 + ww + 8;
+    const T = wy0 - 8;
+    const B = wy0 + wh + 8;
+    per(16, (u) => [L + 30 + u * (R - L - 60), T]);
+    per(16, (u) => [R - 30 - u * (R - L - 60), B]);
     let k = 0;
     this.time.addEvent({
-      delay: this.spinning ? 60 : 120,
+      delay: 110,
       loop: true,
       callback: () => {
         k++;
@@ -273,45 +306,184 @@ export class SlotsScene extends Phaser.Scene {
     });
   }
 
-  private updateJackpot(): void {
-    const hs = this.m.holdSpin;
-    if (!hs) {
-      this.jackpotText.setText(`JACKPOT ${fmt(player.jackpot)}  ·  five WILDs on a line`);
-      return;
+  /** The cabinet's top box: the machine's world art behind its 3D logo, under a crown. */
+  private topBox(): void {
+    const t = this.theme;
+    const bx0 = CAB.x0 + 34;
+    const bx1 = CAB.x1 - 34;
+    const by0 = CAB.y0 + 34;
+    const by1 = LADDER_Y - 14;
+    backdrop(this, t.art, { y0: by0, y1: by1 }).setDepth(22);
+    const g = this.add.graphics().setDepth(22);
+    // trim the art to the box: cover the strips beside it with the cabinet body
+    g.fillStyle(0x1f1928, 1);
+    g.fillRect(CAB.x0 - 40, by0 - 2, bx0 - CAB.x0 + 40, by1 - by0 + 4);
+    g.fillRect(bx1, by0 - 2, CAB.x1 - bx1 + 40, by1 - by0 + 4);
+    // soft vignette so the logo pops, then a chrome frame with neon lining
+    g.fillGradientStyle(0x000000, 0x000000, 0x000000, 0x000000, 0, 0, 0.6, 0.6);
+    g.fillRect(bx0, by0 + (by1 - by0) * 0.45, bx1 - bx0, (by1 - by0) * 0.55);
+    g.lineStyle(10, 0xd9dde6, 1);
+    g.strokeRoundedRect(bx0, by0, bx1 - bx0, by1 - by0, 26);
+    g.lineStyle(4, t.neon, 1);
+    g.strokeRoundedRect(bx0 + 7, by0 + 7, bx1 - bx0 - 14, by1 - by0 - 14, 20);
+    // rounded corners: paint the body colour over the art's square corners
+    const corner = (cx: number, cy: number, sx: number, sy: number) => {
+      g.fillStyle(0x1f1928, 1);
+      g.beginPath();
+      g.moveTo(cx, cy);
+      g.lineTo(cx + sx * 26, cy);
+      g.arc(cx + sx * 26, cy + sy * 26, 26, sy < 0 ? Math.PI / 2 : -Math.PI / 2, sx < 0 ? 0 : Math.PI, sx * sy > 0);
+      g.closePath();
+      g.fillPath();
+    };
+    void corner;
+    const logo = this.add.image(VW / 2, by1 - 92, `logo-${this.m.id}`).setDisplaySize(800, 144).setDepth(23);
+    this.tweens.add({ targets: logo, scale: logo.scale * 1.03, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.crown(VW / 2, CAB.y0 + 8);
+  }
+
+  /** A gold crown topper with jewels. */
+  private crown(x: number, y: number): void {
+    const g = this.add.graphics().setDepth(24);
+    const pts = [
+      [-95, 34], [-110, -30], [-55, 4], [0, -50], [55, 4], [110, -30], [95, 34],
+    ].map(([px, py]) => new Phaser.Math.Vector2(x + px!, y + py!));
+    g.fillStyle(0x6a4708, 1);
+    g.fillPoints(pts.map((p) => new Phaser.Math.Vector2(p.x + 3, p.y + 5)), true);
+    g.fillGradientStyle(0xfff0b0, 0xfff0b0, 0xc98a1e, 0xc98a1e, 1);
+    g.fillPoints(pts, true);
+    g.lineStyle(3, 0x7a4a0a, 1);
+    g.strokePoints(pts, true);
+    g.fillStyle(0xc98a1e, 1);
+    g.fillRoundedRect(x - 100, y + 26, 200, 26, 8);
+    g.lineStyle(3, 0x7a4a0a, 1);
+    g.strokeRoundedRect(x - 100, y + 26, 200, 26, 8);
+    for (const [jx, jy, c] of [[0, -50, 0xc8102e], [-110, -30, 0x2a9dff], [110, -30, 0x2a9dff], [-50, 39, 0x18a050], [0, 39, 0xc8102e], [50, 39, 0x18a050]] as const) {
+      g.fillStyle(0xfff0b0, 1);
+      g.fillCircle(x + jx, y + jy, 11);
+      g.fillStyle(c, 1);
+      g.fillCircle(x + jx, y + jy, 8);
+      g.fillStyle(0xffffff, 0.7);
+      g.fillCircle(x + jx - 3, y + jy - 3, 3);
     }
-    // Hold & Spin machines show their four fixed jackpots, scaled to the bet
-    this.jackpotText.setVisible(false);
+  }
+
+  /** BET − value + · MAX BET · SPIN, on a console under the reels. */
+  private console(): void {
+    const y = CONSOLE_Y;
+    const g = this.add.graphics().setDepth(23);
+    g.fillStyle(0x000000, 0.5);
+    g.fillRoundedRect(64, y - 66, VW - 128, 140, 34);
+    g.fillGradientStyle(0x2a2233, 0x2a2233, 0x0a0710, 0x0a0710, 1);
+    g.fillRoundedRect(60, y - 72, VW - 120, 140, 34);
+    g.lineStyle(3, 0xe9c86a, 0.8);
+    g.strokeRoundedRect(60, y - 72, VW - 120, 140, 34);
+    // bet box with − and +
+    g.fillStyle(0x05020a, 1);
+    g.fillRoundedRect(96, y - 48, 470, 96, 48);
+    g.lineStyle(3, 0x8a7a9a, 1);
+    g.strokeRoundedRect(96, y - 48, 470, 96, 48);
+    text(this, 331, y - 22, 'TOTAL BET', 20, '800', '#cbb6d6').setDepth(24).setLetterSpacing(3);
+    this.betText = text(this, 331, y + 14, '', 40, '900', '#ffe9a8').setDepth(24);
+    const round = (x: number, label: string, fn: () => void) => {
+      const c = this.add.container(x, y).setDepth(24);
+      const b = this.add.graphics();
+      b.fillGradientStyle(0x5a5466, 0x5a5466, 0x1a1622, 0x1a1622, 1);
+      b.fillCircle(0, 0, 38);
+      b.lineStyle(3, 0xd9dde6, 1);
+      b.strokeCircle(0, 0, 38);
+      c.add([b, text(this, 0, -2, label, 50, '900', '#ffffff')]);
+      c.setSize(84, 84).setInteractive({ useHandCursor: true });
+      c.on('pointerdown', () => c.setScale(0.9));
+      c.on('pointerout', () => c.setScale(1));
+      c.on('pointerup', () => {
+        c.setScale(1);
+        fn();
+      });
+    };
+    round(150, '−', () => this.changeBet(-1));
+    round(512, '+', () => this.changeBet(1));
+    makeButton(this, 676, y, 'MAX\nBET', () => this.maxBet(), { width: 150, height: 104, fontSize: 28, color: 0x2a2430, theme: THEME }).setDepth(24);
+    makeButton(this, SPIN_X, y, 'SPIN', () => this.spin(), { width: 250, height: 116, fontSize: 52, color: this.theme.neon, theme: THEME }).setDepth(24);
+  }
+
+  /** The biggest bet you can afford on this machine. */
+  private maxBet(): void {
+    if (this.spinning || this.freeSpins > 0) return;
+    let i = this.bets.length - 1;
+    while (i > 0 && this.bets[i]! * LINES.length > wallet.coins) i--;
+    this.betIndex = i;
+    audio.chips(3);
+    this.updateBet();
+  }
+
+  /**
+   * The four-line jackpot ladder. Grand is the shared progressive (your share
+   * at this bet: five WILDs on a line); Major, Minor and Mini are Lucky Wheel
+   * wedges. Hold & Spin machines show their own lantern jackpots instead.
+   */
+  private ladder(): [string, number][] {
+    const hs = this.m.holdSpin;
+    const bet = this.totalBet;
+    if (hs) {
+      return [
+        ['GRAND', hs.grand * bet],
+        ...(['MAJOR', 'MINOR', 'MINI'] as const).map((l): [string, number] => [l, hs.values.find((v) => v.lantern.label === l)!.lantern.mult * bet]),
+      ];
+    }
+    return [
+      ['GRAND', this.grandValue()],
+      ['MAJOR', WHEEL_JACKPOTS.MAJOR * bet],
+      ['MINOR', WHEEL_JACKPOTS.MINOR * bet],
+      ['MINI', WHEEL_JACKPOTS.MINI * bet],
+    ];
+  }
+
+  /** The Grand at this bet: your share of the progressive, never less than 1,000x the bet. */
+  private grandValue(): number {
+    return Math.max(GRAND_MIN * this.totalBet, Math.round(player.jackpot * Math.min(1, this.totalBet / MAX_TOTAL_BET)));
+  }
+
+  private updateJackpot(): void {
     this.jackpotBoxes?.destroy();
     const c = this.add.container(0, 0).setDepth(23);
     this.jackpotBoxes = c;
-    const values: [string, number][] = [
-      ['GRAND', hs.grand],
-      ...(['MAJOR', 'MINOR', 'MINI'] as const).map((l): [string, number] => [l, hs.values.find((v) => v.lantern.label === l)!.lantern.mult]),
-    ];
-    const bw = 236;
-    values.forEach(([label, mult], i) => {
-      const x = VW / 2 + (i - 1.5) * (bw + 12);
+    let y = LADDER_Y;
+    this.ladder().forEach(([label, value], i) => {
+      const grand = i === 0;
+      const h = grand ? 70 : 52;
+      const bw = grand ? 900 : 820;
+      const x0 = VW / 2 - bw / 2;
       const g = this.add.graphics();
-      g.fillStyle(0x000000, 0.5);
-      g.fillRoundedRect(x - bw / 2, 322, bw, 84, 18);
+      g.fillStyle(0x000000, 0.55);
+      g.fillRoundedRect(x0 + 2, y + 5, bw, h, h / 2);
+      g.fillGradientStyle(0x1a1024, 0x1a1024, 0x05020a, 0x05020a, 1);
+      g.fillRoundedRect(x0, y, bw, h, h / 2);
+      g.lineStyle(grand ? 4 : 3, 0xe9c86a, 1);
+      g.strokeRoundedRect(x0, y, bw, h, h / 2);
+      // coloured name tag on the left
+      const tw = grand ? 230 : 200;
       g.fillStyle(JACKPOT_COLORS[label]!, 1);
-      g.fillRoundedRect(x - bw / 2, 316, bw, 84, 18);
-      g.lineStyle(3, 0xffd76a, 1);
-      g.strokeRoundedRect(x - bw / 2, 316, bw, 84, 18);
-      c.add([g, text(this, x, 338, label, 24, '900', '#ffe9a8').setLetterSpacing(3), text(this, x, 375, fmt(mult * this.totalBet), 34, '900', '#ffffff')]);
+      g.fillRoundedRect(x0 + 6, y + 6, tw, h - 12, (h - 12) / 2);
+      g.fillStyle(0xffffff, 0.22);
+      g.fillRoundedRect(x0 + 14, y + 9, tw - 16, (h - 12) / 2 - 2, (h - 12) / 4);
+      c.add(g);
+      c.add(text(this, x0 + 6 + tw / 2, y + h / 2, label, grand ? 36 : 28, '900', '#ffe9a8').setStroke('#000000', 5).setLetterSpacing(2));
+      c.add(text(this, x0 + bw - 36, y + h / 2, fmt(value), grand ? 46 : 34, '900', grand ? '#ffe14a' : '#ffffff', grand ? DISPLAY_FONT : undefined).setOrigin(1, 0.5));
+      y += h + 8;
     });
   }
 
   private changeBet(d: number): void {
     if (this.spinning || this.freeSpins > 0) return;
     audio.chip();
-    this.betIndex = Phaser.Math.Clamp(this.betIndex + d, 0, LINE_BETS.length - 1);
+    this.betIndex = Phaser.Math.Clamp(this.betIndex + d, 0, this.bets.length - 1);
     this.updateBet();
   }
 
   private updateBet(): void {
     this.betText.setText(fmt(this.totalBet));
-    if (this.m.holdSpin && this.jackpotText) this.updateJackpot();
+    this.updateJackpot();
   }
 
   private toggleAuto(): void {
@@ -485,7 +657,9 @@ export class SlotsScene extends Phaser.Scene {
     const R = 400;
     const n = LUCKY_WHEEL.prizes.length;
     const cols = [0xc8102e, 0x1d3aa8, 0x0f8a5a, 0x6b2fb3, 0xd8701a, 0x0f8a9a];
-    const key = paintPrizeWheel(this, 'tex-lucky-wheel', LUCKY_WHEEL.prizes.map((p) => `×${p}`), LUCKY_WHEEL.prizes.map((p, i) => (p >= 100 ? 0xd4a017 : cols[i % cols.length]!)), R, { font: 54 });
+    // on ladder machines the top wedges are the named jackpots shown on the cabinet
+    const named = (p: number) => (this.m.holdSpin ? undefined : (Object.entries(WHEEL_JACKPOTS).find(([, v]) => v === p)?.[0]));
+    const key = paintPrizeWheel(this, this.m.holdSpin ? 'tex-lucky-wheel' : 'tex-lucky-wheel-jp', LUCKY_WHEEL.prizes.map((p) => named(p) ?? `×${p}`), LUCKY_WHEEL.prizes.map((p, i) => (p >= 100 ? 0xd4a017 : cols[i % cols.length]!)), R, { font: 54 });
     const wheel = this.add.container(0, -40, [this.add.image(0, 0, key)]);
     const hub = this.add.image(0, -40, 'coin').setDisplaySize(130, 130);
     const ptr = this.add.graphics();
@@ -653,21 +827,25 @@ export class SlotsScene extends Phaser.Scene {
   private updateFsText(): void {
     this.fsText.setText(
       this.freeSpins > 0 || this.freeTotal > 0
-        ? `FREE SPINS ${this.freeSpins}${(this.m.freeSpinMultiplier ?? 1) > 1 ? `  ·  wins ×${this.m.freeSpinMultiplier}` : ''}`
-        : FEATURE_TEXT[this.m.feature],
+        ? `FREE SPINS ${this.freeSpins}${freeSpinMult(this.m, this.fsPlayed) > 1 ? `  ·  wins ×${freeSpinMult(this.m, this.fsPlayed)}` : ''}`
+        : featureText(this.m),
     );
   }
 
   private done(res: SpinResult, free: boolean): void {
-    const mult = free ? (this.m.freeSpinMultiplier ?? 1) : 1;
+    const mult = free ? freeSpinMult(this.m, this.fsPlayed++) : 1;
     let win = res.total * mult;
     if (res.jackpot && !free) {
-      const jp = player.winJackpot(this.totalBet / MAX_TOTAL_BET);
+      // the progressive share, topped up to the Grand's floor
+      const grand = this.grandValue();
+      const jp = player.winJackpot(Math.min(1, this.totalBet / MAX_TOTAL_BET));
+      if (grand > jp) wallet.add(grand - jp);
+      const paid = Math.max(grand, jp);
       this.time.delayedCall(400, () => {
-        banner(this, 'JACKPOT!', `+${fmt(jp)}`);
+        banner(this, 'GRAND JACKPOT!', `+${fmt(paid)}`);
         audio.win();
-        coinShower(this, VW / 2, 700, jp);
-        wallet.recordWin(jp);
+        coinShower(this, VW / 2, 700, paid);
+        wallet.recordWin(paid);
         this.refresh();
         this.updateJackpot();
       });
@@ -689,8 +867,8 @@ export class SlotsScene extends Phaser.Scene {
       this.freeSpins += res.freeSpins;
       player.event('slots_bonus');
       this.time.delayedCall(win > 0 ? 900 : 300, () => {
-        const mult2 = this.m.freeSpinMultiplier ?? 1;
-        banner(this, 'FREE SPINS', `${res.freeSpins} spins${mult2 > 1 ? ` · wins ×${mult2}` : ''}`);
+        const mult2 = freeSpinMult(this.m, this.fsPlayed);
+        banner(this, 'FREE SPINS', `${res.freeSpins} spins${mult2 > 1 ? ` · wins ×${mult2}` : ''}${this.m.freeSpinRamp ? ' and climbing' : ''}`);
         audio.win();
       });
       wait += 1800;
@@ -702,6 +880,7 @@ export class SlotsScene extends Phaser.Scene {
       if (this.freeTotal > 0) {
         const total = this.freeTotal;
         this.freeTotal = 0;
+        this.fsPlayed = 0;
         this.updateFsText();
         if (tierFor(total, this.totalBet) >= 0) {
           showBigWin(this, total, this.totalBet, () => this.continueAuto());
@@ -762,8 +941,9 @@ export class SlotsScene extends Phaser.Scene {
   private pickBonus(resume: () => void): void {
     const tiles = pickBoard(this.m);
     const bet = this.totalBet;
-    const { panel, close } = this.bonusPanel('BONUS', `Pick 3 sarcophagi · prizes × your bet (${fmt(bet)})`);
-    banner(this, 'BONUS GAME', 'Pick 3!');
+    const n = this.m.picks ?? 3;
+    const { panel, close } = this.bonusPanel('BONUS', `Pick ${n} · prizes × your bet (${fmt(bet)})`);
+    banner(this, 'BONUS GAME', `Pick ${n}!`);
     audio.win();
     let picks = 0;
     let total = 0;
@@ -777,7 +957,7 @@ export class SlotsScene extends Phaser.Scene {
       covers.push(cover);
       panel.add(cover);
       cover.on('pointerup', () => {
-        if (picks >= 3 || !cover.input?.enabled) return;
+        if (picks >= n || !cover.input?.enabled) return;
         cover.disableInteractive();
         picks++;
         const prize = mult * bet;
@@ -789,7 +969,7 @@ export class SlotsScene extends Phaser.Scene {
         panel.add(t);
         popIn(this, t);
         totalText.setText(`Total ${fmt(total)}`);
-        if (picks === 3) {
+        if (picks === n) {
           // show what was left
           this.time.delayedCall(500, () => {
             tiles.forEach((m2, j) => {
@@ -885,7 +1065,7 @@ export class SlotsScene extends Phaser.Scene {
     this.autoLeft = 0;
     this.setAuto(false);
     this.lines.clear();
-    banner(this, 'HOLD & SPIN', `${board.filter(Boolean).length} lanterns locked`);
+    banner(this, 'HOLD & SPIN', `${board.filter(Boolean).length} ${this.m.id === 'dragon' ? 'dragon eggs' : 'lanterns'} locked`);
     audio.win();
     haptics.fire('success');
     const layer = this.add.container(0, 0).setDepth(20.5);
@@ -954,7 +1134,7 @@ export class SlotsScene extends Phaser.Scene {
       const { mult, grand } = holdSpinTotal(m, board);
       const order = board.map((l, i) => (l ? i : -1)).filter((i) => i >= 0);
       let sum = 0;
-      this.fsText.setText('Collecting lanterns');
+      this.fsText.setText(this.m.id === 'dragon' ? 'Collecting dragon eggs' : 'Collecting lanterns');
       order.forEach((i, k) =>
         this.time.delayedCall(k * 160, () => {
           sum += board[i]!.mult * bet;

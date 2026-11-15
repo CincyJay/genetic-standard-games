@@ -32,6 +32,7 @@ and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) 
 | Game | Rules (in `games/casino/src/logic/`, all unit-tested) |
 |---|---|
 | Slots (5 machines) | 5x3, 20 lines, wilds, scatters. On every machine: Wild Reels (1 in 75 paid spins, 2-3 middle reels turn wild), the Lucky Wheel side game (1 in 140, 5x-250x the bet) and Gamble after a win (colour doubles, suit pays 4x). Lucky Sevens: free spins pay 3x. Lucky Lanterns: Hold & Spin (6+ lanterns lock with coin values; 3 respins that reset on every new lantern; Mini/Minor/Major lanterns, fill all 15 for the Grand). Pharaoh's Gold: pick-3 bonus. Deep Blue: expanding wilds + free spins. Gold Rush: prize-wheel bonus. Shared progressive jackpot (5 wilds on a line, scaled by bet). Each ~95% return by simulation (`node games/casino/tests/rtp-sim.ts`) |
+| High-limit slots (5 more) | Unlock with levels, bigger bets and richer features, tuned to about 96%: Dragon's Hoard (level 12, bets 500-50K; Hold & Spin with dragon eggs, Grand 2,000x), Diamond Empire (15, 1K-100K; free spins whose multiplier climbs x2, x3, x4... every spin), Thunder Peak (18, 2K-200K; every wild doubles its line up to x8, free spins pay x2), Tiger's Treasure (22, 5K-500K; open 4 of 9 temple tiles for up to 100x), Cosmic Fortune (26, 10K-1M; galaxy wheel up to 1,000x) |
 | Blackjack | 6 decks, dealer stands on all 17s, 3:2 blackjack, double, split, dealer peek; play 1-3 hands at once; Perfect Pairs and 21+3 side bets |
 | Texas Hold'em | No-limit, 6 seats vs computer players with personalities; side pots, split pots. The Velvet Ace Poker Series lobby has multi-table tournaments (27-90 player fields, the rest of the field simulated, money bubble, final table, top ~15% paid, trophies and a champion's ring), Sit & Go tournaments and cash tables at 3 stakes. Trophies are kept in the trophy case |
 | Video Poker | Jacks or Better (9/6), Deuces Wild, Double Double Bonus (with kicker pays); 1-5 coins, 5 denominations |
@@ -41,7 +42,7 @@ and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) 
 | Casino War | High card wins 1:1; on a tie, go to war (raise wins 1:1, bet pushes) or surrender half; Tie bet 10:1 |
 | Craps | Pass Line with odds (up to 3x, true odds), Don't Pass, Field, Place 4-10, Hardways, Any Seven, Any Craps, Yo; place and hardways off on the come-out; ON/OFF puck |
 | Ultimate Texas Hold'em | Ante + Blind (+ Trips); one Play bet: 4x/3x preflop, 2x on the flop, 1x at the river or fold; dealer opens with a pair; Blind pays on a straight or better |
-| Card Club: Euchre | Partners (you and the player across) vs two computer players; 24-card deck, order up / name trump with stick-the-dealer, right and left bowers; makers score 1 (all five tricks: 2), euchred makers give the defenders 2; first to 10 |
+| Card Club: Euchre | Partners (you and the player across) vs two computer players; 24-card deck, order up / name trump with stick-the-dealer, right and left bowers; makers score 1 (all five tricks: 2), euchred makers give the defenders 2; first to 10. Score is kept the table-top way with each team's 4 and 6, plus a big scoreboard |
 | Card Club: Hearts | Four players, pass three (left, right, across, hold), 2 of clubs leads, no points on the first trick, hearts must be broken; hearts 1 point, queen of spades 13, shoot the moon; lowest score when someone reaches 50 wins |
 | Card Club: Spades | Partners; bid tricks (or Nil), spades always trump and can't be led until broken; 10 per trick bid plus 1 per bag, every 10 bags costs 100, set loses 10 per trick bid, Nil ±100; first to 250. Winning a Card Club game pays 1,500 coins |
 
@@ -56,6 +57,8 @@ different games) and a once-a-day prize wheel live in the lobby.
 **Dealers:** each table game has its own dealer (photo portraits in `games/casino/public/art/dealers/`, supplied by the owner) who greets you and reacts to wins and losses.
 
 **Profile picture:** players can upload a photo (cropped to a circle, stored on the device) or pick an illustrated portrait; it shows in the lobby, the profile and at the poker table.
+
+**Slot cabinets:** every machine is drawn as a full cabinet: chrome body with neon trim in the machine's colour, a crown topper, its 3D world and logo in the top box, a GRAND / MAJOR / MINOR / MINI jackpot ladder (Grand = the shared progressive, never less than 1,000x the bet, won with five WILDs on a line; Major 250x, Minor 100x and Mini 50x are Lucky Wheel wedges; Hold & Spin machines show their own jackpots), lit reel tiles and a BET -/+ · MAX BET · SPIN console.
 
 **Presentation:** the lobby has a door to each room (Slots Room, Poker Room, Table Games, Card Club), a
 jackpot marquee, and a bottom bar with the hourly bonus, daily wheel, missions and the player

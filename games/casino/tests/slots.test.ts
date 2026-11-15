@@ -3,6 +3,7 @@ import { createRng } from '@tgs/kit/rng';
 import {
   DEEP_BLUE, GOLD_RUSH, LINES, LUCKY_WHEEL, luckyWheelEV, rollWildReels, spinLuckyWheel, LUCKY_LANTERNS, LUCKY_SEVENS, MACHINES, PHARAOH, bonusEV, evaluate, holdSpinRespin, holdSpinStart, holdSpinTotal, pickBoard, playHoldSpin,
   simulateRtp, strips, type Grid,
+  HIGH_LIMIT, DIAMOND_EMPIRE, THUNDER_PEAK, TIGERS_TREASURE, MAX_TOTAL_BET, freeSpinMult, lineBetsOf,
 } from '../src/logic/slots.ts';
 
 /** Build a grid from rows (top to bottom). */
@@ -148,4 +149,38 @@ describe('slot engine', () => {
       expect(luckyWheelEV()).toBeGreaterThan(10);
     });
   });
+});
+
+describe('high-limit machines', () => {
+  it('have their own, much bigger bets', () => {
+    for (const m of HIGH_LIMIT) {
+      expect(lineBetsOf(m)[0]!).toBeGreaterThanOrEqual(25);
+      expect(lineBetsOf(m).at(-1)! * LINES.length).toBeGreaterThan(MAX_TOTAL_BET);
+    }
+  });
+  it('Diamond Empire free spins climb x2, x3, x4…', () => {
+    expect([0, 1, 2, 5].map((k) => freeSpinMult(DIAMOND_EMPIRE, k))).toEqual([2, 3, 4, 7]);
+  });
+  it('Thunder Peak wilds double a line, up to x8', () => {
+    const m = THUNDER_PEAK;
+    const rowsOf = (syms: string[]) => [syms, ['ten', 'ten', 'ten', 'ten', 'ten'], ['jack', 'jack', 'jack', 'jack', 'jack']];
+    const g = (syms: string[]) => grid(rowsOf(syms));
+    const plain = evaluate(m, g(['bolt', 'bolt', 'bolt', 'queen', 'king']), 100).lineWins.find((w) => w.line === 1)!.win;
+    const one = evaluate(m, g(['bolt', 'wild', 'bolt', 'queen', 'king']), 100).lineWins.find((w) => w.line === 1)!.win;
+    const four = evaluate(m, g(['bolt', 'wild', 'wild', 'wild', 'wild']), 100).lineWins.find((w) => w.line === 1)!;
+    expect(one).toBe(plain * 2);
+    expect(four.symbol).toBe('bolt');
+    expect(four.win).toBe(Math.round(m.pays.bolt![2]! * m.payScale! * 100 * 8));
+  });
+  it("Tiger's Treasure opens 4 tiles", () => {
+    const p = TIGERS_TREASURE.pickPrizes!;
+    expect(bonusEV(TIGERS_TREASURE)).toBeCloseTo((4 * p.reduce((a, b) => a + b, 0)) / p.length);
+  });
+  it('each returns roughly 96% over many spins', () => {
+    for (const m of HIGH_LIMIT) {
+      const { rtp } = simulateRtp(m, 200_000, createRng(99));
+      expect(rtp).toBeGreaterThan(0.85);
+      expect(rtp).toBeLessThan(1.05);
+    }
+  }, 120_000);
 });
