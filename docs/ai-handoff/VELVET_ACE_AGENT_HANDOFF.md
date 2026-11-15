@@ -445,6 +445,29 @@ and no photo was uploaded.
 **Requested VA-0005 validation:** List exact version/commit and files, effective tap-region measurements in dp (not just drawn bounds), phone plus small-viewport screenshots, rules-modal accessibility, clean Natalie/Viktor crops, avatar/photo persistence checks, and automated test results. Explicitly distinguish device-tested, browser-tested, and untested. Keep personal photos/private data out of the repo.
 
 
+### VA-0005 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: OPEN
+**Topic:** Joshua requests a comprehensive, cohesive visual overhaul of **all Velvet Ace Casino graphics**. This is an art-direction and asset-production initiative, not permission to blindly replace gameplay assets or release a build.
+
+**Source inventory observed:** `games/casino/public/art/` has room backgrounds (lobby, slots, tables, poker, cards), table backgrounds, slot-world images, `slots/` themed symbol directories, 8 dealer portraits, `ui/` button/chip/roulette assets and cards/logos. Existing `art/casino/` generation scripts should be audited before changing output paths.
+
+**Visual target:** A realistic upscale Las Vegas casino with mobile-game energy: photorealistic/cinematic materials and lighting; deep charcoal, burgundy, antique gold, restrained jewel-toned accents; crisp, readable UI. Avoid illustrations, flat cartoon art, inconsistent 3D, overly saturated neon, cheesy compositing, distorted text and baked-in fake buttons.
+
+**Workstreams and order:**
+1. **Audit and contact sheets:** Enumerate every displayed source art asset and rendered scene, actual pixel dimensions, where used, dimensions/aspect-ratios required by code, and any generated vs manual sources. Capture consistent v1.7 screens to compare. Make a graphics inventory and identify the most visible quality gaps.
+2. **Design system:** Set a common typography, metallic bezel language, lighting/exposure, depth/shadows, material finish, icon weight, and color tokens for room headers, table games, slot cabinets, chips and cards; minimum readable labels and mobile touch sizes remain priorities.
+3. **High-impact environments:** Upgrade lobby and the five room backdrops first, respecting clickable table positions and overlays. Environmental art must not contain unreadable fake interface labels.
+4. **Slots:** Across all 10 themes, maintain 5 columns × 5 visible rows and preserve independent animation layers. Unify cabinet, jackpot ladder, control panel and reel frames. Generate distinct machine header/world imagery and symbol sets at sharp resolutions, not a single flattened screenshot that Claude cannot animate. Preserve each game's theme and existing paytable logic.
+5. **Tables, poker and cards:** Upgrade felt textures, layouts, betting spots, legible labels, cards, chips, dealer frames and interactions. Keep exact game geometry and fairness logic. Avoid putting detailed rules into baked backgrounds.
+6. **Avatars and dealers:** Preserve the existing 16 preset identities and 8 dealer identities. Correct Natalie/Viktor frame strips using source-quality art. Do not silently regenerate portraits as different people. Use aligned high-res masters if available.
+7. **Finishing layer:** Harmonize transitions, overlays, win treatments, iconography and sound-reactive visual effects; include reduced-motion option and Android performance budgets.
+
+**Asset acceptance criteria:** Individual production-ready files per component; predictable names and dimensions, transparent layers where needed, source/master and optimized WebP/PNG exports, no UI text embedded in scenic background unless intentionally static; Android tests for legibility/texture artifacts, aspect scaling, performance, touch regions and contrast.
+
+**Implementation safety:** Do not change game logic, paytables, virtual balances or Firebase to improve graphics. Work in an isolated branch/PR per set of assets. Record before/after screenshots; get Joshua's approval before widespread swapping. Preserve all existing game and social functionality. Do not commit personal pictures, secrets, or huge unoptimized files.
+
+**Claude request now:** Produce a compact **asset matrix** containing file path, rendered role, current pixel size, target dimensions, screenshot evidence, whether runtime layout depends on it, and suggested priority. Return the matrix as the next handoff entry, plus current game screens. Hold broad asset replacement until the approved style direction and matching production assets are available.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
