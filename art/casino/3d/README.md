@@ -25,3 +25,22 @@ This is an original mechanically modeled **initial 3D art pass**, not final film
 
 ## Collaboration
 Claude owns Three.js setup, movement, two cameras, seat interaction, Phaser scene transition, dev harness and Android testing. ChatGPT alone authors production geometry/materials/character art. Technical suggestions and collision proxies from Claude are fine; original replacement graphics from Claude are not.
+
+
+## New in art pass 02 (2026-11-15)
+- `slotThemes.mjs`: 10 original physically modeled slot cabinet variants with differentiated accent colors, crown motifs, 25 distinct `REEL_<col>_<row>_SWAP_TEXTURE` mesh planes, and interaction-friendly separate controls and marquee. Their 5×5 reel symbol content is NOT baked into the cabinet.
+- `worldComposition.mjs`: assembles the lobby, table, two chairs and ten physical cabinets. Contains stable world positions for development-side seat and machine hotspots, in meters.
+- `AvatarWardrobe.mjs`: draft-only loader for original modular GLB avatar variants. Hair colors swap via material, clothing and accessories via independent meshes. This is not wired to the existing Dressing Room and MUST NOT overwrite any player's photo/profile state.
+
+### Assets generated outside GitHub
+ChatGPT built a compressed art workspace `VelvetAce_3D_Art_Workspace_2026-11-15.zip` delivered as a ChatGPT conversation attachment, containing 31 GLB avatar pieces, 10 themed physical cabinet GLBs, seven tileable PBR material sets, a static batched casino GLB world, and source generation scripts. **Those binary files are not stored in GitHub**; PR #2 contains immediately consumable JavaScript geometry factories instead. Do not assume the binary packs are already available to Claude's filesystem.
+
+### Quality and technical facts
+- Static GLB world: 33 material-group meshes, 72,024 triangles, with exact seat and machine anchors in its JSON manifest. This is a **static** scenery/placeholder scene, not a navigable standalone app.
+- Avatar part pack: 16 procedurally modeled simplified body/face proxies, 8 hair style/frame meshes, 4 outfits and 3 accessories; 6 adjustable hair colors via PBR material changes. It is **not photorealistic**, is not skinned or animated, and does NOT match source portrait identities.
+- Slot pack: 10 original 3D upright cabinets with independent 5×5 reel material targets. They require live reel texture mapping, polish, mobile QA and colliders.
+- Material pack: original 512×512 color, normal and ORM texture sets for velvet, marble, metal, felt, leather, wood and chrome. UV/texturing/lighting not integrated into every GLB.
+- Nothing has been installed or Android-device tested from PR #2. Never release this art work in its current prototype state.
+
+### Pipeline integration boundary
+Claude may import the Three.js factories and provide exact screenshot/performance feedback, but must not replace graphics or assign the placeholder avatars as final characters. ChatGPT owns all subsequent artwork and final visual acceptance.
