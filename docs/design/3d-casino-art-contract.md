@@ -107,12 +107,16 @@ them from measurements on the Galaxy S25+ and a cheaper phone.
 
 **Measured with art pass 02 (Galaxy S25+, 2026-11-15).**
 - The factories build 937 meshes. The game merges meshes with identical material values into
-  57 batches (walls and chandeliers kept separate for the cutaways).
-- Draw calls: 28–54 in the follow view and 57–68 in the overview.
-- Triangles: 18–41k. Frame rate: a steady 120 fps; 95th-percentile frame 8.4 ms; CPU about 1 ms.
-- Merging only works for meshes that don't need to change. Anything that must animate or change
-  on its own (reel cells, a spinning wheel, a door) needs its own mesh with a unique name, and
-  Claude must be told to keep it out of the batches.
+  77 batches. Walls and chandeliers are kept separate for the cutaways.
+- Each cabinet's interactive parts stay out of the shared batches:
+  - `REEL_<col>_<row>_SWAP_TEXTURE` cells become one mesh per cabinet, with one geometry group
+    per cell, so each cell can still be changed;
+  - `spin_button` and `marquee_world_texture_target` each stay a separate mesh.
+- Draw calls: 36–64 in the follow view and 72–86 in the overview.
+- Triangles: 16–36k.
+- Frame rate: a steady 120 fps; 95th-percentile frame 8.4 ms; CPU about 1 ms.
+- Anything else that must animate or change on its own (a roulette wheel, a door) needs its own
+  unique mesh name, and the name must be given to Claude so it stays out of the batches.
 
 - Provide **LOD1 at about 50%** for the avatar and cabinets, with node names ending in `_LOD1`.
 - **Transparency:** opaque or alpha-mask (cutout) only, except real glass, which uses alpha blend.

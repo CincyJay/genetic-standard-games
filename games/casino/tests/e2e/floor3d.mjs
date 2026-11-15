@@ -122,5 +122,6 @@ await page.screenshot({ path: `${out}/floor3d-07-landscape.png` });
 
 const stats = await page.evaluate(() => globalThis.__floor3d.stats());
 console.log('stats', JSON.stringify(stats));
+ok(stats.artInteractive === 30 && stats.reelCells === 250, `each slot's reels, spin button and marquee stay separate from the batches (${stats.artInteractive} parts, ${stats.reelCells} reel cells)`);
 ok(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
 await browser.close();

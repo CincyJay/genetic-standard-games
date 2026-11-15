@@ -55,6 +55,9 @@ export interface FloorStats {
   /** ChatGPT's art: meshes as authored, and the draw batches they were merged into. */
   artMeshes: number;
   artBatches: number;
+  /** Slot parts kept out of the batches (reels, spin buttons, marquees) and their reel cells. */
+  artInteractive: number;
+  reelCells: number;
 }
 
 export interface FloorHandle {
@@ -664,6 +667,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       heapMB: mem ? Math.round(mem.usedJSHeapSize / 1e5) / 10 : null,
       artMeshes: art.meshesAuthored,
       artBatches: art.batches,
+      artInteractive: art.interactive.size,
+      reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };
   }
 
