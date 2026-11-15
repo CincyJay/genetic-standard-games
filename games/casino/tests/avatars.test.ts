@@ -1,63 +1,59 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import {
-  AS_PICTURED, AVATAR_PRESETS, BOT_FACES, CUSTOM_CATEGORIES, VARIANT_ART, avatarValue, faceFile, groupsFor, lookFaceKey, optionAvailable,
-  portraitFile, presetById, presetOfValue, sanitizeLook,
-} from '../src/logic/avatars.ts';
+import { AVATAR_PRESETS, BOT_FACES, CUSTOM_CATEGORIES, DEFAULT_PRESET, canCustomize, presetById, presetOfValue } from '../src/logic/avatars.ts';
 
 const pub = (f: string) => new URL(`../public/${f}`, import.meta.url).pathname;
+const webpSize = (f: string) => {
+  // VP8 / VP8L / VP8X header -> width x height
+  const b = readFileSync(pub(f));
+  const kind = b.toString('ascii', 12, 16);
+  if (kind === 'VP8 ') return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+  if (kind === 'VP8L') {
+    const bits = b.readUInt32LE(21);
+    return [(bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1];
+  }
+  return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+};
 
-describe('avatar presets', () => {
-  it('are the 16 characters from the reference sheet, with unique ids', () => {
+describe('avatar art pack', () => {
+  it('has the 16 presets from the manifest, avatar_01 to avatar_16, in order', () => {
+    expect(AVATAR_PRESETS.map((p) => p.id)).toEqual(Array.from({ length: 16 }, (_, i) => `avatar_${String(i + 1).padStart(2, '0')}`));
     expect(AVATAR_PRESETS.map((p) => p.name)).toEqual([
       'Ava', 'Brooke', 'Carmen', 'Dakota', 'Elena', 'Fallon', 'Jasmine', 'Natalie',
       'Alex', 'Braden', 'Carlos', 'Derek', 'Jax', 'Luca', 'Mason', 'Viktor',
     ]);
-    expect(new Set(AVATAR_PRESETS.map((p) => p.id)).size).toBe(16);
-    expect(AVATAR_PRESETS.filter((p) => p.presentation === 'female')).toHaveLength(8);
+    expect(DEFAULT_PRESET).toBe('avatar_01');
   });
-  it('every preset has its portrait and round face as WebP', () => {
+  it('uses the supplied WebP portraits (192x240) and thumbnails (96x120), plus round crops of them', () => {
     for (const p of AVATAR_PRESETS) {
-      expect(existsSync(pub(portraitFile(p.id))), p.id).toBe(true);
-      expect(existsSync(pub(faceFile(p.id))), p.id).toBe(true);
+      for (const f of [p.portrait, p.thumbnail, p.round, p.roundThumb]) expect(existsSync(pub(f)), f).toBe(true);
+      expect(webpSize(p.portrait), p.id).toEqual([192, 240]);
+      expect(webpSize(p.thumbnail), p.id).toEqual([96, 120]);
     }
   });
-  it('computer players wear preset faces', () => {
-    for (const preset of Object.values(BOT_FACES)) expect(presetById(preset)).toBeTruthy();
+  it('computer players wear presets', () => {
+    for (const id of Object.values(BOT_FACES)) expect(presetById(id)).toBeTruthy();
+  });
+});
+
+describe('avatar values', () => {
+  it('recognises current ids and the version 1.5 keys', () => {
+    expect(presetOfValue('avatar_07')).toBe('avatar_07');
+    expect(presetOfValue('av-avatar_07')).toBe('avatar_07');
+    expect(presetOfValue('av-jasmine')).toBe('avatar_07');
+    expect(presetOfValue('jasmine')).toBe('avatar_07');
+    expect(presetOfValue('av-viktor')).toBe('avatar_16');
+  });
+  it('rejects photos and retired illustrated keys', () => {
+    expect(presetOfValue('data:image/png;base64,xx')).toBeNull();
+    expect(presetOfValue('av-pick-ace')).toBeNull();
+    expect(presetOfValue('')).toBeNull();
   });
 });
 
 describe('customisation', () => {
-  it('has the six categories with "As pictured" first in every group', () => {
+  it('is not offered: the art pack has no variation images', () => {
+    for (const p of AVATAR_PRESETS) expect(canCustomize(p.id)).toBe(false);
     expect(CUSTOM_CATEGORIES.map((c) => c.label)).toEqual(['Face', 'Hair', 'Facial Hair', 'Eyes', 'Outfits', 'Accessories']);
-    for (const c of CUSTOM_CATEGORIES) for (const g of c.groups) expect(g.options[0]!.id).toBe(AS_PICTURED);
-  });
-  it('facial hair is only offered where it applies', () => {
-    const fh = CUSTOM_CATEGORIES.find((c) => c.id === 'facialHair')!;
-    expect(groupsFor('alex', fh)).toHaveLength(1);
-    expect(groupsFor('ava', fh)).toHaveLength(0);
-  });
-  it('locks every option without realistic variant art, and unlocks it when art is registered', () => {
-    expect(optionAvailable('ava', 'hairstyle', 'curls')).toBe(false);
-    expect(optionAvailable('ava', 'hairstyle', AS_PICTURED)).toBe(true);
-    VARIANT_ART.ava = { 'hairstyle:curls': 'art/avatars/real/variants/ava-curls.webp' };
-    try {
-      expect(optionAvailable('ava', 'hairstyle', 'curls')).toBe(true);
-      expect(lookFaceKey({ preset: 'ava', custom: { hairstyle: 'curls' } })).toBe('av-ava--hairstyle-curls');
-    } finally {
-      delete VARIANT_ART.ava;
-    }
-  });
-  it('a saved look never keeps an option it cannot show', () => {
-    expect(sanitizeLook({ preset: 'ava', custom: { hairstyle: 'curls', outfit: AS_PICTURED } })).toEqual({ preset: 'ava', custom: {} });
-    expect(sanitizeLook({ preset: 'nobody', custom: {} }).preset).toBe('ava');
-  });
-  it('saved avatar values map back to their preset', () => {
-    const v = avatarValue({ preset: 'jax', custom: {} });
-    expect(v).toBe('av-jax');
-    expect(presetOfValue(v)).toBe('jax');
-    expect(presetOfValue('av-jax--hairstyle-curls')).toBe('jax');
-    expect(presetOfValue('data:image/png;base64,xx')).toBeNull();
-    expect(presetOfValue('av-pick-ace')).toBeNull();
   });
 });

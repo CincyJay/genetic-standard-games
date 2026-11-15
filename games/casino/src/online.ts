@@ -17,8 +17,15 @@ import { player, save, trophies } from './services.ts';
 export interface Profile {
   uid: string;
   name: string;
-  /** Preset face key ('av-ava') or a small photo data URL. */
+  /**
+   * The picture everyone can see: a preset id ('avatar_07'), or '' for the
+   * monogram. Never a photo: photos live in photos/{uid}, readable by the
+   * players the owner allows (see firestore.rules).
+   */
   avatar: string;
+  avatarMode?: 'preset' | 'photo';
+  presetAvatarId?: string | null;
+  photoAssetId?: string | null;
   level: number;
   vip: string;
   favorite: string;
@@ -166,28 +173,51 @@ class Online {
     const p: Profile = {
       uid: this.uid,
       name,
-      avatar: await smallAvatar(d.avatar ?? ''),
+      avatar: d.presetAvatarId ?? '',
+      avatarMode: d.avatarMode === 'photo' && d.photo ? 'photo' : d.avatarMode === 'preset' ? 'preset' : undefined,
+      presetAvatarId: d.presetAvatarId ?? null,
+      photoAssetId: d.avatarMode === 'photo' && d.photo ? (d.photoAssetId ?? null) : null,
       level: player.level,
       vip: player.vip().name,
       favorite,
       achievements: trophies.all().length + Math.floor(player.level / 5),
       since: this.profile?.since ?? Date.now(),
     };
+    if (!p.avatarMode) delete p.avatarMode;
     this.profile = p;
     try {
       await setDoc(doc(this.db, 'profiles', this.uid), p);
+      // the photo is its own document, with its own visibility; gone when not worn
+      const ref = doc(this.db, 'photos', this.uid);
+      if (p.avatarMode === 'photo') {
+        await setDoc(ref, { data: await smallAvatar(d.photo!), assetId: p.photoAssetId, visibility: d.photoVisibility ?? 'everyone', at: Date.now() });
+      } else await deleteDoc(ref);
     } catch {
-      /* offline */
+      /* offline: published again next time */
     }
   }
 
   /** Current profile pictures by player, re-read at most once a minute (chat rows show the latest picture). */
   private avatars = new Map<string, { at: number; p: Promise<string | null> }>();
   currentAvatar(uid: string): Promise<string | null> {
-    if (uid === this.uid) return Promise.resolve(this.profile?.avatar ?? null);
+    if (uid === this.uid) {
+      const d = save.get();
+      return Promise.resolve(d.avatarMode === 'photo' && d.photo ? d.photo : (d.presetAvatarId ?? null));
+    }
     const hit = this.avatars.get(uid);
     if (hit && Date.now() - hit.at < 60_000) return hit.p;
-    const p = this.getProfile(uid).then((pr) => pr?.avatar ?? null).catch(() => null);
+    const p = this.getProfile(uid)
+      .then(async (pr) => {
+        if (!pr) return null;
+        // a photo shows only where its owner allows it (the rules refuse the read otherwise)
+        if (pr.avatarMode === 'photo' && this.db) {
+          const ph = await getDoc(doc(this.db, 'photos', uid)).catch(() => null);
+          const data = ph?.exists() ? (ph.data().data as string) : '';
+          if (data.startsWith('data:image/')) return data;
+        }
+        return pr.avatar || null;
+      })
+      .catch(() => null);
     this.avatars.set(uid, { at: Date.now(), p });
     return p;
   }

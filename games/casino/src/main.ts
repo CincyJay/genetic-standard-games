@@ -19,6 +19,7 @@ import { CrapsScene } from './scenes/CrapsScene.ts';
 import { UthScene } from './scenes/UthScene.ts';
 import { CardGameScene } from './scenes/CardGameScene.ts';
 import { DressingRoomScene } from './scenes/DressingRoomScene.ts';
+import { migrateAvatar } from './ui/avatar.ts';
 import { LoungeScene } from './scenes/LoungeScene.ts';
 import { online } from './online.ts';
 import { save } from './services.ts';
@@ -52,7 +53,8 @@ async function start(): Promise<void> {
   // table games settle in with a gentle "sitting down" zoom
   const TABLES = ['blackjack', 'roulette', 'baccarat', 'threecard', 'war', 'craps', 'uth', 'holdem', 'videopoker', 'slots', 'cardgame'];
   // sign in quietly in the background; the casino never waits for it
-  online.start();
+  migrateAvatar();
+online.start();
   game.events.once('ready', () => {
     for (const sc of game.scene.scenes) {
       sc.events.on('create', () => {
@@ -73,7 +75,7 @@ async function start(): Promise<void> {
     }
   });
   // test hook (dev builds only): jump straight to a scene
-  if (import.meta.env.DEV) Object.assign(globalThis, { __go: (key: string, data?: object) => void game.scene.getScenes(true)[0]?.scene.start(key, data), __scene: () => game.scene.getScenes(true)[0] });
+  if (import.meta.env.DEV) Object.assign(globalThis, { __go: (key: string, data?: object) => void game.scene.getScenes(true)[0]?.scene.start(key, data), __online: online, __scene: () => game.scene.getScenes(true)[0] });
 }
 
 void start();

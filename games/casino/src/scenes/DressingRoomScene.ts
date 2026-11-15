@@ -1,10 +1,7 @@
 import Phaser from 'phaser';
-import {
-  AS_PICTURED, AVATAR_PRESETS, CUSTOM_CATEGORIES, groupsFor, optionAvailable, portraitKey, presetById, presetOfValue, sanitizeLook,
-  type AvatarLook, type CategoryId,
-} from '../logic/avatars.ts';
+import { AVATAR_PRESETS, CUSTOM_CATEGORIES, DEFAULT_PRESET, canCustomize, portraitKey, presetById, type CategoryId } from '../logic/avatars.ts';
 import { DISPLAY_FONT, GOLD, THEME, audio, haptics, save } from '../services.ts';
-import { hasPhoto, photoInputOver, removePhoto, wearLook } from '../ui/avatar.ts';
+import { hasPhoto, photoInputOver, photoVisibility, removePhoto, setPhotoVisibility, wearPreset, wearSavedPhoto, wearingPhoto } from '../ui/avatar.ts';
 import { VW, backdrop, banner, coinBar, frame, makeButton, text } from '../ui/common.ts';
 import { loadPortraits } from './BootScene.ts';
 
@@ -12,7 +9,8 @@ type Tab = 'presets' | 'customize' | 'photo';
 
 /** What the player is trying on; kept between visits so browsing never loses progress. */
 interface Draft {
-  look: AvatarLook;
+  /** The preset being previewed. */
+  preset: string;
   tab: Tab;
   category: CategoryId;
 }
@@ -55,8 +53,13 @@ export class DressingRoomScene extends Phaser.Scene {
     this.add.rectangle(VW / 2, (view.top + view.bottom) / 2, VW, view.bottom - view.top, 0x07030a, 0.78);
     coinBar(this, 'Dressing Room', () => this.scene.start(this.back));
     const saved = save.get();
-    const worn = saved.avatarLook ?? { preset: presetOfValue(saved.avatar ?? '') ?? AVATAR_PRESETS[0]!.id, custom: {} };
-    this.draft = (this.registry.get('dressing.draft') as Draft | undefined) ?? { look: sanitizeLook(worn), tab: hasPhoto() ? 'photo' : 'presets', category: 'face' };
+    this.draft = (this.registry.get('dressing.draft') as Draft | undefined) ?? {
+      preset: presetById(saved.presetAvatarId) ? saved.presetAvatarId! : DEFAULT_PRESET,
+      tab: wearingPhoto() ? 'photo' : 'presets',
+      category: 'face',
+    };
+    // Customize only exists when real variation art does
+    if (this.draft.tab === 'customize' && !canCustomize(this.draft.preset)) this.draft.tab = 'presets';
     // the scrolling grid passes under the preview area: cover it with the same backdrop
     backdrop(this, 'room-lobby', { y0: -10000, y1: CONTENT_TOP - 8 }).setDepth(4.5);
     this.add.rectangle(VW / 2, (view.top + CONTENT_TOP - 8) / 2, VW, CONTENT_TOP - 8 - view.top, 0x07030a, 0.78).setDepth(4.6);
@@ -109,8 +112,8 @@ export class DressingRoomScene extends Phaser.Scene {
   // ---------------------------------------------------------------- preview
   private renderPreview(): void {
     this.preview.removeAll(true);
-    const photo = this.draft.tab === 'photo' && hasPhoto();
-    const p = presetById(this.draft.look.preset)!;
+    const photo = this.draft.tab === 'photo' && wearingPhoto();
+    const p = presetById(this.draft.preset)!;
     const x = VW / 2;
     const g = this.add.graphics();
     if (photo) {
@@ -145,17 +148,17 @@ export class DressingRoomScene extends Phaser.Scene {
     plate.lineStyle(3, 0xe9c86a, 1);
     plate.strokeRoundedRect(x - 130, PREVIEW_Y + h / 2 - 30, 260, 62, 16);
     this.preview.add([plate, text(this, x, PREVIEW_Y + h / 2 + 1, p.name.toUpperCase(), 34, '900', '#ffe9a8', DISPLAY_FONT).setLetterSpacing(3)]);
-    const current = save.get().avatarLook?.preset === p.id && !hasPhoto();
+    const current = save.get().presetAvatarId === p.id && save.get().avatarMode === 'preset';
     this.preview.add(text(this, x, PREVIEW_Y - h / 2 - 34, current ? 'Your current look' : 'Previewing', 26, '800', current ? '#7dffb0' : '#cbb6d6').setLetterSpacing(2));
   }
 
   // ---------------------------------------------------------------- tabs
   private renderTabs(): void {
     this.tabs.removeAll(true);
-    const tabs: [Tab, string][] = [['presets', 'AVATARS'], ['customize', 'CUSTOMIZE'], ['photo', 'USE MY PHOTO']];
-    const w = 320;
+    const tabs: [Tab, string][] = [['presets', 'AVATARS'], ...(canCustomize(this.draft.preset) ? [['customize', 'CUSTOMIZE'] as [Tab, string]] : []), ['photo', 'USE MY PHOTO']];
+    const w = tabs.length === 3 ? 320 : 440;
     tabs.forEach(([id, label], i) => {
-      const x = VW / 2 + (i - 1) * (w + 12);
+      const x = VW / 2 + (i - (tabs.length - 1) / 2) * (w + 12);
       const on = this.draft.tab === id;
       const g = this.add.graphics();
       g.fillStyle(on ? BURGUNDY : 0x16101c, 1);
@@ -203,7 +206,7 @@ export class DressingRoomScene extends Phaser.Scene {
     const h = 300;
     AVATAR_PRESETS.forEach((p, i) => {
       const { x, y } = this.tilePos(i);
-      const on = this.draft.look.preset === p.id;
+      const on = this.draft.preset === p.id;
       const c = this.add.container(x, y);
       const g = this.add.graphics();
       if (on) {
@@ -238,78 +241,30 @@ export class DressingRoomScene extends Phaser.Scene {
     audio.tap();
     haptics.fire('light');
     // a different preset starts from its own look (variants belong to each character)
-    if (this.draft.look.preset !== id) this.draft.look = { preset: id, custom: {} };
+    this.draft.preset = id;
     const keep = this.scroll;
     this.renderAll();
     this.scroll = Math.min(keep, this.maxScroll);
     this.content.y = -this.scroll;
   }
 
-  /** Category chips, then each group's options. Locked options say why. */
+  /**
+   * Cosmetic variants for the previewed preset, grouped by category. Only
+   * reachable when the art pack's manifest lists real variation images for it.
+   */
   private customizer(): void {
-    const preset = presetById(this.draft.look.preset)!;
-    const cats = CUSTOM_CATEGORIES;
-    const cw = 160;
-    cats.forEach((cat, i) => {
-      const x = VW / 2 + (i - (cats.length - 1) / 2) * (cw + 8);
-      const y = CONTENT_TOP + 44;
-      const on = this.draft.category === cat.id;
-      const g = this.add.graphics();
-      g.fillStyle(on ? BURGUNDY : 0x16101c, 1);
-      g.fillRoundedRect(x - cw / 2, y - 34, cw, 68, 16);
-      g.lineStyle(on ? 3 : 2, 0xe9c86a, on ? 1 : 0.4);
-      g.strokeRoundedRect(x - cw / 2, y - 34, cw, 68, 16);
-      const z = this.add.zone(x, y, cw, 68).setInteractive({ useHandCursor: true });
-      z.on('pointerup', () => this.setCategory(cat.id));
-      this.content.add([g, text(this, x, y, cat.label, 24, '900', on ? '#ffe9a8' : '#cbb6d6'), z]);
-    });
-    const cat = cats.find((c) => c.id === this.draft.category)!;
-    let y = CONTENT_TOP + 130;
-    const groups = groupsFor(preset.id, cat);
-    if (!groups.length) {
-      this.content.add(text(this, VW / 2, y + 40, `${cat.label} options don't apply to ${preset.name}.`, 30, '700', '#cbb6d6'));
-      return;
-    }
-    let locked = 0;
-    for (const grp of groups) {
-      this.content.add(text(this, 70, y, grp.label.toUpperCase(), 24, '900', GOLD).setOrigin(0, 0.5).setLetterSpacing(3));
-      y += 46;
-      let x = 70;
-      for (const o of grp.options) {
-        const ok = optionAvailable(preset.id, grp.id, o.id);
-        if (!ok) locked++;
-        const chosen = (this.draft.look.custom[grp.id] ?? AS_PICTURED) === o.id;
-        const t = text(this, 0, 0, o.label, 24, '800', chosen ? '#2a1400' : ok ? '#ffffff' : '#6e6276');
-        const bw = t.width + 48;
-        if (x + bw > VW - 60) {
-          x = 70;
-          y += 66;
-        }
-        const g = this.add.graphics();
-        g.fillStyle(chosen ? 0xe9c86a : ok ? 0x2a2233 : 0x120e16, 1);
-        g.fillRoundedRect(x, y - 26, bw, 52, 26);
-        g.lineStyle(2, ok ? 0xe9c86a : 0x3a3244, ok ? 0.8 : 1);
-        g.strokeRoundedRect(x, y - 26, bw, 52, 26);
-        t.setPosition(x + bw / 2, y);
-        this.content.add([g, t]);
-        if (ok && !chosen) {
-          const z = this.add.zone(x + bw / 2, y, bw, 52).setInteractive({ useHandCursor: true });
-          z.on('pointerup', () => {
-            audio.tap();
-            if (o.id === AS_PICTURED) delete this.draft.look.custom[grp.id];
-            else this.draft.look.custom[grp.id] = o.id;
-            this.renderAll();
-          });
-          this.content.add(z);
-        }
-        x += bw + 12;
+    const preset = presetById(this.draft.preset)!;
+    let y = CONTENT_TOP + 60;
+    for (const cat of CUSTOM_CATEGORIES) {
+      const vs = preset.variants.filter((v) => cat.groups.includes(v.key.split(':')[0]!));
+      if (!vs.length) continue;
+      this.content.add(text(this, 70, y, cat.label.toUpperCase(), 24, '900', GOLD).setOrigin(0, 0.5).setLetterSpacing(3));
+      y += 56;
+      for (const v of vs) {
+        this.content.add(text(this, 90, y, v.label, 30, '700', '#ffffff').setOrigin(0, 0.5));
+        y += 56;
       }
-      y += 84;
     }
-    if (locked)
-      this.content.add(
-        text(this, VW / 2, Math.min(y + 10, FOOTER_Y - 130), 'Greyed options unlock as realistic artwork for this character is added.\nYour avatar is never drawn over or altered.', 24, '600', '#a898b0').setAlign('center'),
-      );
     this.maxScroll = Math.max(0, y + 60 - (FOOTER_Y - 90));
   }
 
@@ -319,37 +274,74 @@ export class DressingRoomScene extends Phaser.Scene {
     this.renderAll();
   }
 
-  /** USE MY PHOTO: pick from the phone, crop, save; replace or remove it later. */
+  /** USE MY PHOTO: pick from the phone, crop, save; choose who sees it; replace or remove it. */
   private photoPanel(): void {
-    const y = CONTENT_TOP + 90;
-    const photo = hasPhoto();
+    let y = CONTENT_TOP + 70;
+    const saved = hasPhoto();
+    const worn = wearingPhoto();
     this.content.add(
-      text(this, VW / 2, y, photo ? 'Your photo shows in chat, your profile, friends lists,\nmessages and at the tables.' : 'Use a photo from your phone instead of a preset.\nYou can move and zoom it to fit the frame.', 28, '600', '#e9d6ee').setAlign('center'),
+      text(this, VW / 2, y, saved ? 'Your photo shows in chat, your profile, friends lists,\nmessages and at the tables.' : 'Use a photo from your phone instead of a preset.\nYou can move and zoom it to fit the frame.', 26, '600', '#e9d6ee').setAlign('center'),
     );
-    const by = y + 180;
-    const label = photo ? 'Replace photo' : 'USE MY PHOTO';
-    const btn = makeButton(this, VW / 2, by, label, () => {}, { width: 560, height: 120, fontSize: 44, theme: THEME });
+    y += 150;
+    if (saved && !worn) {
+      this.content.add(
+        makeButton(this, VW / 2, y, 'Wear my photo', () => {
+          audio.tap();
+          wearSavedPhoto(this, () => this.renderAll());
+        }, { width: 560, height: 110, fontSize: 40, theme: THEME }),
+      );
+      y += 140;
+    }
+    const label = saved ? 'Replace photo' : 'USE MY PHOTO';
+    const btn = makeButton(this, VW / 2, y, label, () => {}, { width: 560, height: 110, fontSize: 40, color: saved && !worn ? 0x2a2430 : undefined, theme: THEME });
     this.content.add(btn);
     // a real file input over the button opens the photo picker from the tap itself
-    photoInputOver(this, VW / 2, by, 560, 120, (savedPhoto) => {
+    photoInputOver(this, VW / 2, y, 560, 110, (savedPhoto) => {
       if (!savedPhoto) return;
       haptics.fire('success');
       banner(this, 'Photo saved', 'It now shows wherever you appear');
       this.renderAll();
     });
-    if (photo)
+    y += 140;
+    if (saved) {
+      // who may see it
+      this.content.add(text(this, VW / 2, y, 'WHO CAN SEE MY PHOTO', 24, '900', GOLD).setLetterSpacing(3));
+      y += 64;
+      const vis = photoVisibility();
+      ([['everyone', 'All players'], ['friends', 'Friends only']] as const).forEach(([v, l], i) => {
+        const x = VW / 2 + (i - 0.5) * 300;
+        const on = vis === v;
+        const g = this.add.graphics();
+        g.fillStyle(on ? 0xe9c86a : 0x16101c, 1);
+        g.fillRoundedRect(x - 140, y - 34, 280, 68, 34);
+        g.lineStyle(2, 0xe9c86a, on ? 1 : 0.5);
+        g.strokeRoundedRect(x - 140, y - 34, 280, 68, 34);
+        const z = this.add.zone(x, y, 280, 68).setInteractive({ useHandCursor: true });
+        z.on('pointerup', () => {
+          audio.tap();
+          setPhotoVisibility(v);
+          this.renderAll();
+        });
+        this.content.add([g, text(this, x, y, l, 28, '900', on ? '#2a1400' : '#ffffff'), z]);
+      });
+      y += 60;
+      this.content.add(text(this, VW / 2, y, 'Everyone else sees your preset avatar.', 22, '600', '#a898b0'));
+      y += 80;
       this.content.add(
-        makeButton(this, VW / 2, by + 160, 'Remove photo', () => {
+        makeButton(this, VW / 2, y, 'Remove photo', () => {
           audio.tap();
           removePhoto(this, () => {
             this.draft.tab = 'presets';
             this.renderAll();
           });
-        }, { width: 460, height: 100, fontSize: 36, color: 0x3a2a44, theme: THEME }),
+        }, { width: 440, height: 96, fontSize: 34, color: 0x3a2a44, theme: THEME }),
       );
+      y += 90;
+    }
     this.content.add(
-      text(this, VW / 2, by + (photo ? 300 : 170), 'Photos are only visible to signed-in Velvet Ace players.\nShare only photos of yourself. Players can report pictures.', 22, '600', '#8a7a94').setAlign('center'),
+      text(this, VW / 2, y + 30, 'Photos are only shown to signed-in Velvet Ace players.\nShare only photos of yourself. Players can report or block anyone.', 22, '600', '#8a7a94').setAlign('center'),
     );
+    this.maxScroll = Math.max(0, y + 120 - (FOOTER_Y - 90));
   }
 
   // ---------------------------------------------------------------- footer
@@ -363,14 +355,15 @@ export class DressingRoomScene extends Phaser.Scene {
     g.fillRect(0, FOOTER_Y - 90, VW, view.bottom - FOOTER_Y + 200);
     this.footer.add(g);
     if (this.draft.tab === 'photo') return;
-    const wearing = !hasPhoto() && JSON.stringify(sanitizeLook(this.draft.look)) === JSON.stringify(save.get().avatarLook ?? null);
-    if (this.draft.tab === 'presets')
+    const wearing = save.get().avatarMode === 'preset' && save.get().presetAvatarId === this.draft.preset;
+    const custom = this.draft.tab === 'presets' && canCustomize(this.draft.preset);
+    if (custom)
       this.footer.add(
         makeButton(this, VW / 2 - 250, FOOTER_Y, 'Customize', () => this.setTab('customize'), { width: 420, height: 112, fontSize: 40, color: 0x2a2430, theme: THEME }),
       );
     this.footer.add(
-      makeButton(this, this.draft.tab === 'presets' ? VW / 2 + 230 : VW / 2, FOOTER_Y, wearing ? 'Wearing this' : 'Confirm Selection', () => this.confirm(), {
-        width: this.draft.tab === 'presets' ? 460 : 600, height: 112, fontSize: 40, theme: THEME,
+      makeButton(this, custom ? VW / 2 + 230 : VW / 2, FOOTER_Y, wearing ? 'Wearing this' : 'Confirm Selection', () => this.confirm(), {
+        width: custom ? 460 : 600, height: 112, fontSize: 40, theme: THEME,
       }),
     );
   }
@@ -378,8 +371,8 @@ export class DressingRoomScene extends Phaser.Scene {
   private confirm(): void {
     audio.chips(2);
     haptics.fire('success');
-    wearLook(this, this.draft.look, () => {
-      banner(this, 'Looking sharp', `${presetById(this.draft.look.preset)!.name} is now your avatar`);
+    wearPreset(this, this.draft.preset, () => {
+      banner(this, 'Looking sharp', `${presetById(this.draft.preset)!.name} is now your avatar`);
       this.renderAll();
     });
   }

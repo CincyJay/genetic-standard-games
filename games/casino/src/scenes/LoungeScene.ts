@@ -451,10 +451,11 @@ export class LoungeScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------- helpers
-  /** A round avatar: preset face, uploaded photo (loaded once, cached), or the monogram while loading or on failure. */
+  /** A round avatar: preset portrait, the player's photo where they allow it, or the monogram while loading or on failure. */
   private avatarImage(uid: string, avatar: string, x: number, y: number, size: number): Phaser.GameObjects.Image {
     const img = this.add.image(x, y, 'av-default').setDisplaySize(size, size);
-    const show = (v: string) => avatarTexture(this, v, (key) => img.active && img.setTexture(key).setDisplaySize(size, size));
+    // small faces (chat rows, lists) use the art pack's thumbnails; big ones the portraits
+    const show = (v: string) => avatarTexture(this, v, (key) => img.active && img.setTexture(key).setDisplaySize(size, size), size <= 100);
     show(avatar);
     // a chat message carries the picture from when it was sent: swap in the sender's current one
     void online.currentAvatar(uid).then((now) => now && now !== avatar && show(now));

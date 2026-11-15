@@ -31,12 +31,18 @@ export interface SaveData {
   jackpot: number;
   /** Poker trophies won (tournament podium finishes). */
   trophies: Trophy[];
-  /**
-   * Profile picture: '' for the Velvet Ace monogram, a preset face key
-   * ('av-ava', see logic/avatars.ts), or an uploaded photo as a data URL.
-   */
+  /** Picture mode: one of the 16 presets, or the player's own photo (see logic/avatars.ts). */
+  avatarMode?: 'preset' | 'photo';
+  /** The preset chosen ('avatar_07'); kept while a photo is worn, so removing it goes back. */
+  presetAvatarId?: string | null;
+  /** Names the uploaded photo while one is worn ('photo-<hash>'), else null. */
+  photoAssetId?: string | null;
+  /** The player's photo on this device: a 256px round PNG data URL. */
+  photo?: string;
+  /** Who may see the photo online: every signed-in player (default) or friends only. */
+  photoVisibility?: 'everyone' | 'friends';
+  /** Version 1.5 fields, migrated on start-up (ui/avatar.ts) and then removed. */
   avatar?: string;
-  /** The preset look last chosen in the Dressing Room (kept when a photo is worn, so removing it goes back). */
   avatarLook?: { preset: string; custom: Record<string, string> };
   /** Display name at the tables. */
   name?: string;

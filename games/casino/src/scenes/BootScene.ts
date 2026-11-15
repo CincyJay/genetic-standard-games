@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { RANKS, SUITS, cardId } from '../logic/cards.ts';
 import { MACHINES } from '../logic/slots.ts';
 import { applyAvatar } from '../ui/avatar.ts';
-import { AVATAR_PRESETS, BOT_FACES, faceFile, faceKey, portraitFile, portraitKey } from '../logic/avatars.ts';
+import { AVATAR_PRESETS, BOT_FACES, faceKey, portraitKey, presetById, thumbKey } from '../logic/avatars.ts';
 import { THEME, analytics, applySettings } from '../services.ts';
 
 /** Dealer photos (art/dealers/<name>.png). */
@@ -13,7 +13,7 @@ export const DEALER_PHOTOS = ['victoria', 'sofia', 'marcus', 'mei', 'fiona', 'vi
 export function loadPortraits(scene: Phaser.Scene, done: () => void): void {
   const missing = AVATAR_PRESETS.filter((p) => !scene.textures.exists(portraitKey(p.id)));
   if (!missing.length) return done();
-  for (const p of missing) scene.load.image(portraitKey(p.id), portraitFile(p.id));
+  for (const p of missing) scene.load.image(portraitKey(p.id), p.portrait);
   scene.load.once('complete', done);
   scene.load.start();
 }
@@ -131,9 +131,12 @@ export class BootScene extends Phaser.Scene {
     for (const bg of ['bg-felt', 'bg-felt-red', 'bg-poker', 'room-lobby', 'room-slots', 'room-poker', 'room-tables', 'world-pharaoh', 'world-ocean', 'world-goldrush', 'world-lanterns', 'world-dragon', 'world-empire', 'world-thunder', 'world-tiger', 'world-cosmic']) this.load.image(bg, `art/${bg}.jpg`);
     // photorealistic avatars: a round face for every preset (small, used everywhere); the
     // larger 3:4 portraits are only loaded when the Dressing Room opens
-    for (const p of AVATAR_PRESETS) this.load.image(faceKey(p.id), faceFile(p.id));
-    // computer players wear preset faces under their own keys
-    for (const [bot, preset] of Object.entries(BOT_FACES)) this.load.image(`av-${bot}`, faceFile(preset));
+    for (const p of AVATAR_PRESETS) {
+      this.load.image(faceKey(p.id), p.round);
+      this.load.image(thumbKey(p.id), p.roundThumb);
+    }
+    // computer players wear preset portraits under their own keys
+    for (const [bot, preset] of Object.entries(BOT_FACES)) this.load.image(`av-${bot}`, presetById(preset)!.round);
   }
 
   create(): void {

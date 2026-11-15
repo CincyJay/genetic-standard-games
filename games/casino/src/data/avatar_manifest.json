@@ -1,0 +1,144 @@
+{
+  "pack": "Velvet Ace Casino Avatar Art Pack",
+  "version": "1.0",
+  "format": "WebP",
+  "portraitSize": [
+    192,
+    240
+  ],
+  "thumbnailSize": [
+    96,
+    120
+  ],
+  "note": "These are 16 distinct photographic-looking flat portraits cropped from one generated reference image. They are NOT layer-editable; no usable hairstyle, face, clothing, or accessory variants are included.",
+  "avatars": [
+    {
+      "id": "avatar_01",
+      "name": "Ava",
+      "portrait": "assets/avatars/portraits/01_ava.webp",
+      "thumbnail": "assets/avatars/thumbnails/01_ava.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_02",
+      "name": "Brooke",
+      "portrait": "assets/avatars/portraits/02_brooke.webp",
+      "thumbnail": "assets/avatars/thumbnails/02_brooke.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_03",
+      "name": "Carmen",
+      "portrait": "assets/avatars/portraits/03_carmen.webp",
+      "thumbnail": "assets/avatars/thumbnails/03_carmen.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_04",
+      "name": "Dakota",
+      "portrait": "assets/avatars/portraits/04_dakota.webp",
+      "thumbnail": "assets/avatars/thumbnails/04_dakota.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_05",
+      "name": "Elena",
+      "portrait": "assets/avatars/portraits/05_elena.webp",
+      "thumbnail": "assets/avatars/thumbnails/05_elena.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_06",
+      "name": "Fallon",
+      "portrait": "assets/avatars/portraits/06_fallon.webp",
+      "thumbnail": "assets/avatars/thumbnails/06_fallon.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_07",
+      "name": "Jasmine",
+      "portrait": "assets/avatars/portraits/07_jasmine.webp",
+      "thumbnail": "assets/avatars/thumbnails/07_jasmine.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_08",
+      "name": "Natalie",
+      "portrait": "assets/avatars/portraits/08_natalie.webp",
+      "thumbnail": "assets/avatars/thumbnails/08_natalie.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_09",
+      "name": "Alex",
+      "portrait": "assets/avatars/portraits/09_alex.webp",
+      "thumbnail": "assets/avatars/thumbnails/09_alex.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_10",
+      "name": "Braden",
+      "portrait": "assets/avatars/portraits/10_braden.webp",
+      "thumbnail": "assets/avatars/thumbnails/10_braden.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_11",
+      "name": "Carlos",
+      "portrait": "assets/avatars/portraits/11_carlos.webp",
+      "thumbnail": "assets/avatars/thumbnails/11_carlos.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_12",
+      "name": "Derek",
+      "portrait": "assets/avatars/portraits/12_derek.webp",
+      "thumbnail": "assets/avatars/thumbnails/12_derek.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_13",
+      "name": "Jax",
+      "portrait": "assets/avatars/portraits/13_jax.webp",
+      "thumbnail": "assets/avatars/thumbnails/13_jax.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_14",
+      "name": "Luca",
+      "portrait": "assets/avatars/portraits/14_luca.webp",
+      "thumbnail": "assets/avatars/thumbnails/14_luca.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_15",
+      "name": "Mason",
+      "portrait": "assets/avatars/portraits/15_mason.webp",
+      "thumbnail": "assets/avatars/thumbnails/15_mason.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    },
+    {
+      "id": "avatar_16",
+      "name": "Viktor",
+      "portrait": "assets/avatars/portraits/16_viktor.webp",
+      "thumbnail": "assets/avatars/thumbnails/16_viktor.webp",
+      "source": "cropped from supplied composite",
+      "customizationVariants": []
+    }
+  ]
+}

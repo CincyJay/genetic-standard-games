@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { avatarValue, presetOfValue, sanitizeLook, type AvatarLook } from '../logic/avatars.ts';
+import { faceKey, presetById, presetOfValue, thumbKey, type PhotoVisibility } from '../logic/avatars.ts';
 import { online } from '../online.ts';
 import { save } from '../services.ts';
 
@@ -8,13 +8,49 @@ const PHOTO = 256;
 /** Biggest photo file accepted from the picker. */
 export const MAX_PHOTO_BYTES = 20 * 1024 * 1024;
 
+/** Short content hash, used to name a photo ('photo-<hash>') and cache its texture. */
+export const hashOf = (v: string) => {
+  let h = 0;
+  for (let i = 0; i < v.length; i += 7) h = (h * 31 + v.charCodeAt(i)) | 0;
+  return `${v.length.toString(36)}${(h >>> 0).toString(36)}`;
+};
+
+/** Moves a version 1.5 save ('avatar' + 'avatarLook') to the preset/photo fields. Safe to call often. */
+export function migrateAvatar(): void {
+  const d = save.get();
+  if (d.avatar === undefined && d.avatarLook === undefined) return;
+  save.update((s) => {
+    const old = s.avatar ?? '';
+    const preset = presetOfValue(s.avatarLook?.preset) ?? presetOfValue(old);
+    s.presetAvatarId = s.presetAvatarId ?? preset;
+    if (old.startsWith('data:')) {
+      s.avatarMode = 'photo';
+      s.photo = old;
+      s.photoAssetId = `photo-${hashOf(old)}`;
+    } else if (preset) s.avatarMode = 'preset';
+    delete s.avatar;
+    delete s.avatarLook;
+  });
+}
+
+/** What the player shows right now: their photo, a preset id, or '' (the Velvet Ace monogram). */
+export function myAvatarValue(): string {
+  const d = save.get();
+  if (d.avatarMode === 'photo' && d.photo) return d.photo;
+  if (d.avatarMode === 'preset' && presetById(d.presetAvatarId)) return d.presetAvatarId!;
+  return '';
+}
+
+export const hasPhoto = () => Boolean(save.get().photo);
+export const wearingPhoto = () => save.get().avatarMode === 'photo' && hasPhoto();
+
 /**
- * Draws the player's chosen picture into the 'av-you' canvas texture: a
- * preset portrait, an uploaded photo, or the Velvet Ace monogram. The texture
- * is redrawn in place, so every image already showing it updates and nothing
- * ever points at a removed texture. Calls `done` once it's drawn.
+ * Draws the player's picture into the 'av-you' canvas texture (used across
+ * the casino). It is redrawn in place, so every image already showing it
+ * updates. Calls `done` once it's drawn.
  */
 export function applyAvatar(scene: Phaser.Scene, done: () => void = () => {}): void {
+  migrateAvatar();
   const tex = scene.textures;
   if (!tex.exists('av-you')) tex.createCanvas('av-you', PHOTO, PHOTO);
   const canvas = tex.get('av-you') as Phaser.Textures.CanvasTexture;
@@ -26,7 +62,7 @@ export function applyAvatar(scene: Phaser.Scene, done: () => void = () => {}): v
     canvas.refresh();
     done();
   };
-  const v = save.get().avatar ?? '';
+  const v = myAvatarValue();
   if (v.startsWith('data:')) {
     const img = new Image();
     img.onload = () => draw(img);
@@ -34,35 +70,58 @@ export function applyAvatar(scene: Phaser.Scene, done: () => void = () => {}): v
     img.src = v;
     return;
   }
-  // a preset (or a registered variant of one); older saves may hold retired keys
-  const key = tex.exists(v) ? v : presetOfValue(v) && tex.exists(`av-${presetOfValue(v)}`) ? `av-${presetOfValue(v)}` : '';
-  draw(key ? (tex.get(key).getSourceImage() as HTMLImageElement) : fallback());
+  draw(v && tex.exists(faceKey(v)) ? (tex.get(faceKey(v)).getSourceImage() as HTMLImageElement) : fallback());
 }
 
-/** Saves and shows a value, then tells the online profile (chat, friends, tables pick it up). */
-function setAvatar(scene: Phaser.Scene, value: string, done?: () => void): void {
-  save.update((d) => {
-    d.avatar = value;
-  });
+/** Shows the change here and on the online profile (chat, friends, tables pick it up). */
+function changed(scene: Phaser.Scene, done?: () => void): void {
   applyAvatar(scene, done);
   void online.publish();
 }
 
-/** Wears a preset look (and remembers it, so removing a photo goes back to it). */
-export function wearLook(scene: Phaser.Scene, look: AvatarLook, done?: () => void): void {
-  const s = sanitizeLook(look);
+/** Wears one of the 16 presets. A saved photo stays on the device (and offline) for later. */
+export function wearPreset(scene: Phaser.Scene, id: string, done?: () => void): void {
+  if (!presetById(id)) return;
   save.update((d) => {
-    d.avatarLook = s;
+    d.avatarMode = 'preset';
+    d.presetAvatarId = id;
+    d.photoAssetId = null;
   });
-  setAvatar(scene, avatarValue(s), done);
+  changed(scene, done);
 }
 
-export const hasPhoto = () => (save.get().avatar ?? '').startsWith('data:');
+/** Wears a newly cropped photo. */
+export function wearPhoto(scene: Phaser.Scene, dataUrl: string, done?: () => void): void {
+  save.update((d) => {
+    d.avatarMode = 'photo';
+    d.photo = dataUrl;
+    d.photoAssetId = `photo-${hashOf(dataUrl)}`;
+  });
+  changed(scene, done);
+}
 
-/** Removes the uploaded photo: back to the last preset worn, or the monogram. */
+/** Switches back to the saved photo (after wearing a preset for a while). */
+export function wearSavedPhoto(scene: Phaser.Scene, done?: () => void): void {
+  const p = save.get().photo;
+  if (p) wearPhoto(scene, p, done);
+}
+
+/** Deletes the photo from the device and the profile; back to the preset (or the monogram). */
 export function removePhoto(scene: Phaser.Scene, done?: () => void): void {
-  const look = save.get().avatarLook;
-  setAvatar(scene, look ? avatarValue(look) : '', done);
+  save.update((d) => {
+    delete d.photo;
+    d.photoAssetId = null;
+    d.avatarMode = presetById(d.presetAvatarId) ? 'preset' : undefined;
+  });
+  changed(scene, done);
+}
+
+export const photoVisibility = (): PhotoVisibility => save.get().photoVisibility ?? 'everyone';
+export function setPhotoVisibility(v: PhotoVisibility): void {
+  save.update((d) => {
+    d.photoVisibility = v;
+  });
+  void online.publish();
 }
 
 /**
@@ -103,7 +162,7 @@ export function photoInputOver(scene: Phaser.Scene, x: number, y: number, w: num
     if (file.size > MAX_PHOTO_BYTES) return void notice('That photo is too large (20 MB at most).');
     if (!file.type.startsWith('image/')) return void notice('Please choose a photo.');
     cropPhoto(file, (url) => {
-      if (url) setAvatar(scene, url, () => done(true));
+      if (url) wearPhoto(scene, url, () => done(true));
       else done(false);
     });
   });
@@ -278,28 +337,25 @@ function openEditor(src: HTMLCanvasElement, done: (dataUrl: string | null) => vo
 
 /** Photos already turned into textures (or loading), by content hash. */
 const photoKeys = new Map<string, Promise<string | null>>();
-const hash = (v: string) => {
-  let h = 0;
-  for (let i = 0; i < v.length; i += 7) h = (h * 31 + v.charCodeAt(i)) | 0;
-  return `${v.length}-${(h >>> 0).toString(36)}`;
-};
 
 /**
- * Resolves any player's avatar value (from a profile or chat message) to a
- * texture key and calls `ready` with it: preset faces at once, photos once
- * decoded (each distinct photo once, so a changed photo shows as new). Values
- * that can't be shown (retired keys, broken images) stay on the monogram.
+ * Resolves any player's picture value (profile, chat message, photo) to a
+ * texture key and calls `ready` with it: preset portraits at once (the small
+ * thumbnail when `small`), photos once decoded (each distinct photo once).
+ * Values that can't be shown (retired keys, broken images) leave the
+ * monogram in place.
  */
-export function avatarTexture(scene: Phaser.Scene, value: string, ready: (key: string) => void): void {
+export function avatarTexture(scene: Phaser.Scene, value: string, ready: (key: string) => void, small = false): void {
   const v = value ?? '';
   if (!v) return;
   if (!v.startsWith('data:')) {
     const preset = presetOfValue(v);
-    const key = scene.textures.exists(v) ? v : preset && scene.textures.exists(`av-${preset}`) ? `av-${preset}` : null;
-    if (key) ready(key);
+    if (!preset) return;
+    const key = small && scene.textures.exists(thumbKey(preset)) ? thumbKey(preset) : faceKey(preset);
+    if (scene.textures.exists(key)) ready(key);
     return;
   }
-  const key = `photo-${hash(v)}`;
+  const key = `photo-${hashOf(v)}`;
   if (scene.textures.exists(key)) return ready(key);
   let p = photoKeys.get(key);
   if (!p) {

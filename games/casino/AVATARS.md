@@ -1,79 +1,76 @@
 # Velvet Ace avatars
 
-## Source artwork
-- Official reference: `assets/avatar-references/a_cinematic_high_detail_promotional_game_asset_sh.png`
-  (a 1774x887 composite preview of the 16 characters, as supplied).
-- Cut out without retouching, filters or upscaling into
-  `games/casino/public/art/avatars/real/`:
-  - `<id>.webp`: 190x236 portrait (inside the gold frame, above the nameplate).
-  - `<id>-face.webp`: 170x170 round head-and-shoulders crop (transparent corners).
-  - 32 files, about 300 KB in total. The faces are loaded at start-up (about 8 KB each); the portraits (about 11 KB each) load
-    only when the Dressing Room opens.
-- Presets (ids in brackets): Ava, Brooke, Carmen, Dakota, Elena, Fallon, Jasmine, Natalie,
-  Alex, Braden, Carlos, Derek, Jax, Luca, Mason, Viktor (`ava` … `viktor`).
-  The names are preset labels; players choose their own usernames in the Lounge.
-- The computer players at the poker and Card Club tables wear preset faces too
-  (`BOT_FACES` in `src/logic/avatars.ts`). No illustrated faces remain in the app.
+## The art pack
+`VelvetAce_Avatar_Art_Pack.zip` (v1.0), integrated as supplied:
 
-## Data
-- Device (`velvet-ace.save` in local storage):
-  - `avatar`: `''` (Velvet Ace monogram), a preset key (`av-jasmine`), or the player's photo as
-    a 256px round PNG data URL.
-  - `avatarLook`: `{ preset, custom }`, the last preset look confirmed. It is kept while a photo is
-    worn, so removing the photo restores it.
-- Online (Firestore `profiles/{uid}.avatar`, the existing profile document, written by
-  `online.publish()` whenever the avatar changes): the preset key, or the photo shrunk to a
-  96px round WebP (about 3-6 KB). Chat and direct messages also carry the sender's picture,
-  and chat rows swap in the sender's current one (re-read at most once a minute).
-- Rules (`firebase/firestore.rules`, deployed): profiles and chat are readable only by signed-in
-  players. Only the owner can write their own profile. An avatar value is limited to 20,000
-  characters.
+| From the pack | In the project |
+|---|---|
+| `assets/avatars/portraits/NN_name.webp` (192x240) | `games/casino/public/assets/avatars/portraits/`, unchanged |
+| `assets/avatars/thumbnails/NN_name.webp` (96x120) | `games/casino/public/assets/avatars/thumbnails/`, unchanged |
+| `assets/avatars/avatar_manifest.json` | `games/casino/src/data/avatar_manifest.json`, unchanged (its paths are relative to the web root) |
+| `reference/*`, `docs/CLAUDE_HANDOFF.md` | `assets/avatar-references/` |
 
-## Customisation
-`CUSTOM_CATEGORIES` lists Face, Hair, Facial Hair, Eyes, Outfits and Accessories with all their
-options. Every group's first option is "As pictured". Any other option unlocks only when
-`VARIANT_ART[presetId]['group:option']` names a realistic portrait of that same character with
-that change. The option then becomes selectable, and the look's texture key becomes
-`av-<preset>--<group>-<option>`. No image is ever drawn over a photograph.
+Round frames (chat, lists, tables, profile) use round crops of the same files: `public/assets/avatars/round/`
+(176px, from the portraits) and `round-thumbs/` (88px, from the thumbnails). They are made by
+`art/casino/avatars/make_round.py`, which only crops and masks: no resizing up, no filters, no colour
+changes. Natalie (`avatar_08`) and Viktor (`avatar_16`) are cropped off-centre there, because the
+supplied portraits include a strip of the card frame on their left edge.
 
-## Photo uploads
+Where each image is used:
+- Portraits: the avatar selection grid and the Dressing Room preview (loaded only when the
+  Dressing Room opens).
+- Round thumbnails: chat rows and player lists.
+- Round portraits: the player's own picture, the tables, and the player card.
+
+The presets are `avatar_01` … `avatar_16` from the manifest (Ava … Viktor). The names are preset
+labels; players choose their own usernames. Computer players at the poker and Card Club tables
+wear presets too (`BOT_FACES` in `src/logic/avatars.ts`).
+
+## Data (the handoff's suggested shape, in the existing save and profile)
+- Device save: `avatarMode` ('preset' or 'photo'), `presetAvatarId` ('avatar_07'), `photoAssetId`
+  ('photo-<hash>' while a photo is worn, else null), `photo` (256px round PNG, on the device only)
+  and `photoVisibility` ('everyone' or 'friends').
+  Version 1.5 saves (`avatar: 'av-jasmine'` or a photo) are migrated at start-up.
+- Firestore `profiles/{uid}` (the existing profile): `avatar` (the preset id: what everyone may see),
+  `avatarMode`, `presetAvatarId` and `photoAssetId`.
+- Firestore `photos/{uid}`: `{ data (96px round WebP), assetId, visibility, at }`.
+  - It exists only while the photo is worn; removing the photo or switching to a preset deletes it.
+  - The rules let the owner read it, plus every signed-in player when visibility is 'everyone', or
+    only the owner's friends when it is 'friends'. Everyone else sees the preset.
+  - Writes are limited to the owner, an image data URL of 40,000 characters or fewer, and a valid
+    visibility.
+- Chat and direct messages carry only the preset id, never a photo. Rows show the sender's current
+  picture (re-read at most once a minute), and the rules refuse photos in message and profile
+  `avatar` fields.
+
+## Photo mode
 USE MY PHOTO works like this:
 - It opens the system photo picker (an image file input; Android shows its photo picker).
 - Files over 20 MB and non-images are refused.
-- The crop editor lets the player drag, pinch or use the slider to zoom.
-- It saves a round 256px PNG on the device and a 96px WebP online.
-- The photo can be replaced or removed at any time. The image is only moved, scaled and
-  cropped; the face is never altered.
+- The crop editor lets the player drag, pinch or use the slider to zoom. The image is only moved,
+  scaled and cropped.
+- The player chooses who can see it: all players or friends only.
+- The photo can be replaced, and "Remove photo" deletes it from the device and online.
+- Players can report ("Inappropriate photo or name") or block from any player card. Reports go to
+  the `reports` collection for review in the Firebase console.
 
-## Limitations
-- The supplied sheet is a 1774x887 preview, so each portrait is only about 190x236 pixels.
-  That is fine for the round faces (shown at up to 190px), but soft when the Dressing Room
-  preview enlarges it to 320px.
-- No customisation option beyond "As pictured" is unlocked yet, because no variant artwork
-  exists.
-- Photo moderation is limited to:
-  - visibility only to signed-in players;
-  - the in-app Report button (reports go to the `reports` collection, reviewed in the Firebase
-    console);
-  - blocking.
+## Customisation
+The pack has no variation images, so no cosmetic controls are shown: the Customize tab and button
+appear only for a preset whose manifest entry lists `customizationVariants`. Each variant would be
+`{ key: 'group:option', label, portrait, thumbnail }`, with groups under Face, Hair, Facial Hair,
+Eyes, Outfits and Accessories (`CUSTOM_CATEGORIES`). Nothing is ever drawn over a portrait.
 
-  Automatic image screening needs a server function (Cloud Vision SafeSearch via Cloud
-  Functions), which requires the Blaze plan.
-- Photos are stored in the profile document, not Firebase Storage (Storage also needs Blaze),
-  which is why they are small.
-
-## Artwork needed
-1. **Full-resolution originals of all 16 portraits:** at least 1024x1280 each, without the frame
-   and nameplate, same framing.
-2. **For each character, a portrait of that same person (same pose and lighting) for each look
-   to unlock.** Possible variants:
-   - Hair: style, colour and length.
-   - Facial hair (men): clean-shaven, stubble, mustache, short beard, full beard.
-   - Eyes: eye colours, brows.
-   - Outfits: casual casino, formal suit, tuxedo, evening dress, luxury fashion, VIP.
-   - Accessories: sunglasses, eyeglasses, jewelry, watch, earrings, hats.
-   - Face: skin tone, expression.
-
-   Add each as `public/art/avatars/real/variants/<id>-<group>-<option>.webp`, register it in
-   `VARIANT_ART`, and load its face key.
-3. **Any new base characters,** in the same style.
+## Limitations and artwork needed
+1. **Resolution:** the portraits are 192x240, cropped from one 1774x887 composite. They are fine at
+   card and avatar sizes, but soft when enlarged (the Dressing Room shows them at about 1.7x).
+   Full-resolution individual portraits (at least 1024x1280) would replace them with no code
+   changes.
+2. **Framing:** Natalie and Viktor include a frame strip on the left; a clean crop of those two
+   would fix it.
+3. **Customisation:** this needs aligned render variants of each character (or rigged 3D
+   characters), listed per preset in `customizationVariants`.
+4. **Moderation:** there is no automatic image screening. That needs a server function (Cloud
+   Vision SafeSearch via Cloud Functions, which requires the Blaze plan). Photos are kept small
+   (96px) because they live in Firestore rather than Storage, which also needs Blaze.
+5. **Older clients:** version 1.5 clients write photos into the profile, which the rules now
+   refuse, so they should update.

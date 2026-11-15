@@ -4,8 +4,9 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function isMe(uid) { return signedIn() && request.auth.uid == uid; }
-    // a profile picture is a preset key ('av-ava') or a small photo (96px JPEG data URL)
-    function okAvatar(d) { return !('avatar' in d) || (d.avatar is string && d.avatar.size() <= 20000); }
+    // the picture in a profile or message is a preset id ('avatar_07'), never a photo
+    function okAvatar(d) { return !('avatar' in d) || (d.avatar is string && d.avatar.size() <= 40 && !d.avatar.matches('data:.*')); }
+    function isFriend(owner) { return signedIn() && exists(/databases/$(database)/documents/profiles/$(owner)/friends/$(request.auth.uid)); }
 
     // public profile: anyone signed in can read; only the owner writes it
     match /profiles/{uid} {
@@ -19,6 +20,17 @@ service cloud.firestore {
       // friends and blocks are private lists kept by their owner
       match /friends/{other} { allow read, write: if isMe(uid); }
       match /blocked/{other} { allow read, write: if isMe(uid); }
+    }
+
+    // a player's own photo: kept apart from the profile; the owner chooses who may see it
+    // (every signed-in player, or friends only); at most ~30 KB; deleted when not worn
+    match /photos/{uid} {
+      allow read: if isMe(uid) || (signedIn() && resource.data.visibility == 'everyone') || isFriend(uid);
+      allow create, update: if isMe(uid)
+        && request.resource.data.data is string && request.resource.data.data.size() <= 40000
+        && request.resource.data.data.matches('data:image/(webp|png|jpeg);base64,.*')
+        && request.resource.data.visibility in ['everyone', 'friends'];
+      allow delete: if isMe(uid);
     }
 
     // usernames are unique: a claim document per lower-case name, owned by one player
