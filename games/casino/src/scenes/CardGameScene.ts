@@ -6,6 +6,7 @@ import { HEARTS_TARGET, HeartsRound, PASS_NAMES } from '../logic/hearts.ts';
 import { SPADES_TARGET, SpadesRound, addSpadesScore } from '../logic/spades.ts';
 import { same, type Played } from '../logic/tricks.ts';
 import { DISPLAY_FONT, GOLD, THEME, audio, fmt, haptics, player, wallet } from '../services.ts';
+import { fourSix } from '../ui/fourSix.ts';
 import { CARD_H, CARD_W, VW, backdrop, banner, coinBar, coinShower, frame, makeButton, screenDim, text } from '../ui/common.ts';
 
 export type CardGameId = 'hearts' | 'spades' | 'euchre';
@@ -16,14 +17,14 @@ const NAMES: Record<CardGameId, string> = { hearts: 'Hearts', spades: 'Spades', 
 const SEAT_POS = [
   { x: 540, y: 1330 },
   { x: 120, y: 860 },
-  { x: 540, y: 330 },
+  { x: 540, y: 420 },
   { x: 960, y: 860 },
 ];
 const TRICK_POS = [
-  { x: 540, y: 1010 },
-  { x: 380, y: 860 },
-  { x: 540, y: 700 },
-  { x: 700, y: 860 },
+  { x: 540, y: 1040 },
+  { x: 380, y: 880 },
+  { x: 540, y: 730 },
+  { x: 700, y: 880 },
 ];
 const BOTS = [
   { name: 'You', key: 'you' },
@@ -58,6 +59,9 @@ interface Rules {
   winner(): number | null;
   /** The live round object. */
   round(): unknown;
+  /** Big scoreboard columns. */
+  board(): { name: string; score: number; note?: string }[];
+  goal: string;
 }
 
 function heartsRules(): Rules {
@@ -69,6 +73,8 @@ function heartsRules(): Rules {
     target: HEARTS_TARGET,
     lowWins: true,
     round: () => r,
+    goal: `Game ends at ${HEARTS_TARGET} · lowest wins`,
+    board: () => BOTS.map((b, i) => ({ name: b.name, score: totals[i]! })),
     newRound: () => (r = new HeartsRound(round++)),
     phase: () => r.phase,
     turn: () => (r.phase === 'pass' ? 0 : r.turn),
@@ -109,6 +115,11 @@ function spadesRules(): Rules {
     target: SPADES_TARGET,
     lowWins: false,
     round: () => r,
+    goal: `First to ${SPADES_TARGET}`,
+    board: () => [
+      { name: 'You & Kwame', score: totals[0], note: `${bags[0]} bags` },
+      { name: 'Rosa & Lena', score: totals[1], note: `${bags[1]} bags` },
+    ],
     newRound: () => {
       dealer = (dealer + 1) % 4;
       r = new SpadesRound(dealer);
@@ -142,6 +153,11 @@ function euchreRules(): Rules {
     target: EUCHRE_TARGET,
     lowWins: false,
     round: () => r,
+    goal: `First to ${EUCHRE_TARGET}`,
+    board: () => [
+      { name: 'You & Kwame', score: totals[0] },
+      { name: 'Rosa & Lena', score: totals[1] },
+    ],
     newRound: () => {
       dealer = (dealer + 1) % 4;
       r = new EuchreRound(dealer);
@@ -191,7 +207,8 @@ export class CardGameScene extends Phaser.Scene {
   private trickLayer!: Phaser.GameObjects.Container;
   private seatLayer!: Phaser.GameObjects.Container;
   private ui!: Phaser.GameObjects.Container;
-  private hud!: Phaser.GameObjects.Text;
+  private scoreLayer!: Phaser.GameObjects.Container;
+  private boardTop = 0;
   private trumpText!: Phaser.GameObjects.Text;
   private selected: Card[] = [];
   private busy = false;
@@ -213,8 +230,9 @@ export class CardGameScene extends Phaser.Scene {
     backdrop(this, 'bg-felt');
     coinBar(this, NAMES[this.gameId], () => this.scene.start('room', { room: 'cards' }));
     this.rules = this.gameId === 'hearts' ? heartsRules() : this.gameId === 'spades' ? spadesRules() : euchreRules();
-    this.hud = text(this, VW / 2, view.top + 236, '', 26, '800', GOLD).setDepth(30);
-    this.trumpText = text(this, VW / 2, 545, '', 30, '800', '#ffffff').setDepth(4).setAlpha(0.85);
+    this.boardTop = view.top + 208;
+    this.scoreLayer = this.add.container(0, 0).setDepth(30);
+    this.trumpText = text(this, VW / 2, 590, '', 30, '800', '#ffffff').setDepth(4).setAlpha(0.85);
     this.seatLayer = this.add.container(0, 0).setDepth(6);
     this.trickLayer = this.add.container(0, 0).setDepth(8);
     this.handLayer = this.add.container(0, 0).setDepth(20);
@@ -280,8 +298,47 @@ export class CardGameScene extends Phaser.Scene {
         }
       }
     });
-    this.hud.setText(this.rules.scoreLine());
+    this.drawScores();
     this.trumpText.setText(this.rules.trumpLabel());
+  }
+
+  /** Big digital scoreboard under the top bar; Euchre also keeps score with a 4 and a 6. */
+  private drawScores(): void {
+    this.scoreLayer.removeAll(true);
+    const cols = this.rules.board();
+    const top = this.boardTop;
+    const h = 128;
+    const g = this.add.graphics();
+    g.fillStyle(0x0d0b10, 0.82);
+    g.fillRoundedRect(40, top, VW - 80, h, 22);
+    g.lineStyle(3, 0xe9c86a, 0.7);
+    g.strokeRoundedRect(40, top, VW - 80, h, 22);
+    this.scoreLayer.add(g);
+    const w = (VW - 80) / cols.length;
+    const totals = this.rules.totals();
+    const leader = this.rules.lowWins ? Math.min(...totals) : Math.max(...totals);
+    cols.forEach((c, i) => {
+      const x = 40 + w * (i + 0.5);
+      const mine = i === 0;
+      if (i > 0) {
+        g.lineStyle(2, 0xe9c86a, 0.3);
+        g.lineBetween(40 + w * i, top + 18, 40 + w * i, top + h - 18);
+      }
+      this.scoreLayer.add(text(this, x, top + 30, c.name.toUpperCase(), cols.length > 2 ? 26 : 28, '800', mine ? '#7dffb0' : '#ffffff'));
+      const lead = c.score === leader && totals.some((t) => t !== leader);
+      this.scoreLayer.add(text(this, x, top + 82, String(c.score), 60, '900', lead ? '#ffe14a' : GOLD, DISPLAY_FONT));
+      if (c.note) this.scoreLayer.add(text(this, x + 120, top + 90, c.note, 22, '700', '#cbb6d6'));
+    });
+    this.scoreLayer.add(text(this, VW / 2, top + h + 22, this.rules.goal, 24, '800', '#e9d6ee').setStroke('#000000', 5));
+    if (this.gameId === 'euchre') {
+      // the table-top way: your team's red 4 and 6, theirs black
+      const cards = this.add.container(0, 0);
+      this.scoreLayer.add(cards);
+      fourSix(this, cards, 175, 1370, totals[0]!, 'h');
+      this.scoreLayer.add(text(this, 175, 1500, 'US', 26, '900', '#7dffb0').setStroke('#000000', 5));
+      fourSix(this, cards, 905, 1370, totals[1]!, 's');
+      this.scoreLayer.add(text(this, 905, 1500, 'THEM', 26, '900', '#ffffff').setStroke('#000000', 5));
+    }
   }
 
   /** Your hand, fanned along the bottom. Playable cards stand up; others are dimmed. */
@@ -473,7 +530,7 @@ export class CardGameScene extends Phaser.Scene {
 
   private showUpcard(r: EuchreRound): void {
     this.trickLayer.removeAll(true);
-    const img = this.add.image(VW / 2, 860, `card-${cardId(r.upcard)}`).setDisplaySize(CARD_W, CARD_H);
+    const img = this.add.image(VW / 2, 880, `card-${cardId(r.upcard)}`).setDisplaySize(CARD_W, CARD_H);
     this.trickLayer.add(img);
   }
 
