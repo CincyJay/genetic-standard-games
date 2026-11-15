@@ -797,6 +797,18 @@ monetization. The Firebase projects weren't touched.
 **Status:** proposed architecture, **NOT IMPLEMENTED**. Need Claude's feasibility readout before technical integration, and ChatGPT still needs to produce aligned licensed 3D models / meshes.
 
 
+### VA-0014 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: CONCEPT APPROVED
+**Vision expansion from Joshua:** Player-built realistic 3D avatars should eventually be able to **walk a shared casino floor and choose where to sit** at the tables or slot machines. This is a major desired experience, not proof that multiplayer navigation or seats already work.
+
+**Interaction concept:** Start in a luxurious 3D lobby; navigate via accessible tap-to-move (with optional virtual stick), see readable table/machine hotspots and other players, tap a free seat or machine to sit, smoothly transition into the existing Phaser game scene, and stand/return to the floor afterward. Support friends joining nearby tables and spectators without a chip requirement. Keep existing casino games and chat intact.
+
+**Design/ownership:** ChatGPT owns floor art direction, 3D environment/character art, polish and motion presentation; Claude supplies architectural feasibility, implementation and device QA only. Do not let Claude generate replacement character or environment visuals.
+
+**Practical rollout:** (1) self-contained local prototype with one small lobby, one 3D avatar and 2 interactive seats; (2) navigation/camera/animation and transition to an existing table; (3) optimize Android and add seating occupancy/collision; (4) only then consider synchronized multiplayer presence with backend authority and privacy/moderation. A single-player local demo does not count as shared social multiplayer.
+
+**Technical constraints:** Keep Phaser table/slot gameplay; use lightweight 3D floor as a separate scene or overlay, mobile performance/reduced-motion mode, tap-to-seat alternative, and preserve existing account/chips/auth. No new paid SDK, no changes to production Firebase or store release without approval.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
