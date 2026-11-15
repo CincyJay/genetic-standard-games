@@ -54,15 +54,44 @@ export function makeVelvetCasinoRoom(T) {
      }
    }
  }
- for(const x of [-5.2,5.2])for(const z of [-3.8,1.1]){
-   box(T,g,m.burgundy,[x,.55,z],[2.1,.38,.9],'velvet_bench');
-   box(T,g,m.brass,[x,.27,z],[2.2,.12,1.0],'bench_base');
+ // Lounge benches are clustered near the entrance, well away from the four blocked slot fronts.
+ // Keep four benches so the existing collision/visibility budget remains representative.
+ for(const x of [-5.15,-2.75,2.75,5.15]){
+   const z=6.35;
+   box(T,g,m.burgundy,[x,.55,z],[1.70,.34,.78],'velvet_bench');
+   box(T,g,m.brass,[x,.29,z],[1.78,.10,.84],'bench_base');
+   box(T,g,m.burgundy,[x,.91,z+.31],[1.62,.64,.14],'bench_back_cushion');
  }
+ // Decorative overhead architecture is named chandelier_* to follow the prototype cutaway convention:
+ // engineering hides these along with light fixtures in the Sims-style overview.
+ box(T,g,m.darkWood,[0,5.72,0],[17.5,.18,15.5],'chandelier_ceiling');
+ box(T,g,m.brass,[0,5.61,0],[16.75,.028,14.8],'chandelier_coffer_frame');
+ for(const x of [-6,-3,0,3,6]){
+   box(T,g,m.ivory,[x,5.59,0],[.09,.035,13.8],'chandelier_coffer_rib');
+ }
+ for(const z of [-5,-2,1,4]){
+   box(T,g,m.ivory,[0,5.58,z],[16,.035,.09],'chandelier_coffer_rib');
+ }
+ for(const z of [-4,2.6]){
+   cylinder(T,g,m.brass,[0,5.43,z],.10,.62,'chandelier_support_rod');
+   cylinder(T,g,m.brass,[0,5.65,z],.27,.07,'chandelier_canopy');
+ }
+ // Lobby front remains traversable through a broad center arch; the vestibule hides black void.
+ for(const x of [-6.95,6.95]){
+   box(T,g,m.darkWood,[x,2.55,7.65],[3.1,5.1,.28],'chandelier_entrance_wing');
+   box(T,g,m.brass,[x>0?5.37:-5.37,2.58,7.47],[.11,4.98,.11],'chandelier_portal_edge');
+ }
+ box(T,g,m.darkWood,[0,4.94,7.65],[10.5,.45,.30],'chandelier_arch_lintel');
+ box(T,g,m.brass,[0,4.70,7.46],[10.5,.065,.08],'chandelier_arch_trim');
+ box(T,g,m.marble,[0,2.65,9.05],[10.8,5.15,.14],'chandelier_vestibule_backdrop');
+ for(const x of [-4.65,4.65])box(T,g,m.brass,[x,2.55,9.0],[.09,4.85,.09],'chandelier_vestibule_trim');
  return g;
 }
 export function makeVelvetBlackjackTable(T) {
  const m=velvetMaterials(T),g=new T.Group();g.name='VelvetBlackjackTable';
- box(T,g,m.black,[0,.49,0],[.56,.98,.6],'table_pedestal');
+ cylinder(T,g,m.darkWood,[0,.49,0],.36,.98,'turned_table_pedestal',24);
+ cylinder(T,g,m.brass,[0,.13,0],.48,.10,'pedestal_base',24);
+ cylinder(T,g,m.brass,[0,.94,0],.44,.09,'pedestal_cap',24);
  cylinder(T,g,m.darkWood,[0,1.03,0],1.55,.17,'mahogany_top',48);
  cylinder(T,g,m.brass,[0,1.13,0],1.57,.044,'gold_rim',48);
  cylinder(T,g,m.felt,[0,1.17,0],1.46,.024,'live_felt',48);
@@ -95,9 +124,26 @@ export function makeVelvetChair(T) {
  const m=velvetMaterials(T),g=new T.Group();g.name='VelvetCasinoChair';
  for(const x of [-.25,.25])for(const z of [-.22,.22])
    cylinder(T,g,m.brass,[x,.24,z],.035,.48,'brass_leg',12);
- box(T,g,m.burgundy,[0,.56,0],[.63,.18,.60],'tufted_seat');
- box(T,g,m.brass,[0,.49,0],[.65,.035,.62],'seat_gilding');
- box(T,g,m.brass,[0,1.12,.29],[.69,.86,.10],'back_frame');
- box(T,g,m.burgundy,[0,1.13,.36],[.60,.76,.05],'back_upholstery');
+ // Sculpted upholstery instead of flat backed slabs.
+ const shape=new T.Shape();
+ shape.moveTo(-.33,.0);
+ shape.quadraticCurveTo(-.42,.05,-.40,.22);
+ shape.lineTo(-.36,.68);
+ shape.quadraticCurveTo(-.28,.88,0,.90);
+ shape.quadraticCurveTo(.28,.88,.36,.68);
+ shape.lineTo(.40,.22);
+ shape.quadraticCurveTo(.42,.05,.33,0);
+ shape.closePath();
+ const outer=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.095,bevelEnabled:true,bevelThickness:.027,bevelSize:.025,bevelSegments:2,curveSegments:8}),m.brass);
+ outer.name='sculpted_chair_back_frame';outer.position.set(0,.74,.28);outer.castShadow=true;g.add(outer);
+ const cushion=new T.Mesh(new T.ExtrudeGeometry(shape,{depth:.047,bevelEnabled:true,bevelThickness:.035,bevelSize:.030,bevelSegments:2,curveSegments:8}),m.burgundy);
+ cushion.name='velvet_rounded_back_cushion';cushion.scale.set(.86,.90,1);cushion.position.set(0,.79,.39);cushion.castShadow=true;g.add(cushion);
+ const seat=new T.Mesh(new T.SphereGeometry(1,16,10),m.burgundy);
+ seat.name='velvet_sculpted_seat';seat.scale.set(.34,.105,.31);seat.position.set(0,.59,0);seat.castShadow=true;g.add(seat);
+ box(T,g,m.brass,[0,.485,0],[.66,.035,.62],'seat_gilding');
+ for(const px of [-.18,0,.18])for(const py of [1.05,1.31]){
+  const stud=new T.Mesh(new T.SphereGeometry(.018,8,6),m.lightGold);
+  stud.position.set(px,py,.482);stud.name='chair_tuft_button';g.add(stud);
+ }
  return g;
 }
