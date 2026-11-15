@@ -38,7 +38,7 @@ export function slotTile(m: Machine): Tile {
   return {
     key: 'slots',
     title: m.name,
-    sub: m.lineBets ? `Bets ${fmt(m.lineBets[0]! * LINES.length)} – ${fmt(m.lineBets[m.lineBets.length - 1]! * LINES.length)}` : FEATURE_TEXT[m.feature],
+    sub: m.lineBets ? `${fmt(m.lineBets[0]!)} – ${fmt(m.lineBets[m.lineBets.length - 1]!)} per line · ${LINES.length} lines` : FEATURE_TEXT[m.feature],
     bg: machineBg(m),
     unlock: SLOT_UNLOCK[m.id] ?? null,
     ribbon: RIBBON[m.id],

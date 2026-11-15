@@ -24,7 +24,7 @@ export interface HoldSpinConfig {
   /** Chance each empty cell lights a lantern on a respin. */
   landChance: number;
   values: { lantern: Lantern; weight: number }[];
-  /** Filling all 15 cells adds the Grand jackpot (multiple of total bet). */
+  /** Filling every cell adds the Grand jackpot (multiple of total bet). */
   grand: number;
 }
 
@@ -64,25 +64,49 @@ export interface Machine {
   picks?: number;
   /** Return the pays are tuned to (default 95%). */
   targetRtp?: number;
+  /** Non-scatter symbols are repeated this many times more on the strips (default STRIP_SCALE). */
+  stripScale?: number;
   /** One-line description of the machine's feature for the cabinet and lobby. */
   blurb?: string;
 }
 
+export const STRIP_SCALE = 2;
 /** Highest total multiplier wilds can put on one line. */
 export const WILD_MULT_CAP = 8;
 export const lineBetsOf = (m: Machine) => m.lineBets ?? LINE_BETS;
 /** Free-spin multiplier for the `k`-th free spin of a feature (0-based). */
 export const freeSpinMult = (m: Machine, k: number) => (m.freeSpinMultiplier ?? 1) + (m.freeSpinRamp ?? 0) * k;
 
-export const LINES: number[][] = [
-  [1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [2, 2, 2, 2, 2], [0, 1, 2, 1, 0], [2, 1, 0, 1, 2],
-  [0, 0, 1, 2, 2], [2, 2, 1, 0, 0], [1, 0, 0, 0, 1], [1, 2, 2, 2, 1], [1, 0, 1, 0, 1],
-  [1, 2, 1, 2, 1], [0, 1, 0, 1, 0], [2, 1, 2, 1, 2], [0, 1, 1, 1, 0], [2, 1, 1, 1, 2],
-  [1, 1, 0, 1, 1], [1, 1, 2, 1, 1], [0, 2, 0, 2, 0], [2, 0, 2, 0, 2], [0, 0, 2, 0, 0],
-];
+/** Rows showing on each reel (a 5x5 video-slot grid). */
+export const ROWS = 5;
 
-/** Bet levels offered to the player (per line; total bet = x20). */
-export const LINE_BETS = [1, 2, 5, 10, 25, 50, 100, 250, 500];
+/**
+ * 50 paylines over the 5x5 grid: the five rows, then V, zigzag, step and
+ * bump shapes started from every row where they fit.
+ */
+export const LINES: number[][] = (() => {
+  const shapes = [
+    [0, 1, 2, 1, 0], [0, -1, -2, -1, 0], [0, 1, 1, 1, 0], [0, -1, -1, -1, 0], [0, 1, 0, 1, 0], [0, -1, 0, -1, 0],
+    [0, 0, 1, 0, 0], [0, 0, -1, 0, 0], [0, 1, 2, 3, 4], [0, -1, -2, -3, -4], [0, 0, 1, 2, 2], [0, 0, -1, -2, -2],
+    [0, 1, 1, 1, 2], [0, -1, -1, -1, -2], [0, 2, 0, 2, 0], [0, -2, 0, -2, 0],
+  ];
+  const out: number[][] = [0, 1, 2, 3, 4].map((r) => [r, r, r, r, r]);
+  const seen = new Set(out.map((l) => l.join()));
+  for (const sh of shapes)
+    for (const start of [2, 1, 3, 0, 4]) {
+      const line = sh.map((d) => start + d);
+      if (line.some((r) => r < 0 || r >= ROWS) || seen.has(line.join()) || out.length >= 50) continue;
+      seen.add(line.join());
+      out.push(line);
+    }
+  return out;
+})();
+
+/** How many lines the player can choose to play (pay by line: total bet = lines x bet per line). */
+export const LINE_CHOICES = [1, 5, 10, 25, 50];
+/** Bets per line offered on the regular machines. */
+export const LINE_BETS = [1, 2, 4, 10, 20, 40, 100, 200];
+/** The biggest total bet on a regular machine (all lines at the top line bet). */
 export const MAX_TOTAL_BET = LINE_BETS[LINE_BETS.length - 1]! * LINES.length;
 
 // ------------------------------------------------------------------ machines
@@ -178,9 +202,9 @@ export const LUCKY_LANTERNS: Machine = {
   stacks: { scatter: 3 },
   feature: 'holdspin',
   holdSpin: {
-    trigger: 6,
+    trigger: 7,
     respins: 3,
-    landChance: 0.0625,
+    landChance: 0.05,
     values: [
       { lantern: { mult: 0.75 }, weight: 30 },
       { lantern: { mult: 1.5 }, weight: 26 },
@@ -218,12 +242,12 @@ export const DRAGONS_HOARD: Machine = {
   scatterPays: [0, 0, 0],
   stacks: { scatter: 3 },
   feature: 'holdspin',
-  blurb: '6+ dragon eggs start Hold & Spin · Grand 2,000×',
-  lineBets: [25, 50, 100, 250, 500, 1000, 2500],
+  blurb: '7+ dragon eggs start Hold & Spin · Grand 2,000×',
+  lineBets: [10, 20, 40, 100, 200, 400, 1000],
   holdSpin: {
-    trigger: 6,
+    trigger: 7,
     respins: 3,
-    landChance: 0.065,
+    landChance: 0.05,
     values: [
       { lantern: { mult: 1 }, weight: 30 },
       { lantern: { mult: 2 }, weight: 26 },
@@ -251,7 +275,7 @@ export const DIAMOND_EMPIRE: Machine = {
   freeSpinMultiplier: 2,
   freeSpinRamp: 1,
   blurb: 'Free spins: multiplier climbs ×2, ×3, ×4… every spin',
-  lineBets: [50, 100, 250, 500, 1000, 2500, 5000],
+  lineBets: [20, 40, 100, 200, 400, 1000, 2000],
 };
 
 export const THUNDER_PEAK: Machine = {
@@ -266,7 +290,7 @@ export const THUNDER_PEAK: Machine = {
   freeSpinMultiplier: 2,
   wildMultiplier: 2,
   blurb: 'Every wild doubles the line (up to ×8) · free spins pay ×2',
-  lineBets: [100, 250, 500, 1000, 2500, 5000, 10000],
+  lineBets: [40, 100, 200, 400, 1000, 2000, 4000],
 };
 
 THUNDER_PEAK.weights.wild = [0, 1, 2, 1, 0];
@@ -282,7 +306,7 @@ export const TIGERS_TREASURE: Machine = {
   picks: 4,
   pickPrizes: [3, 5, 6, 8, 10, 15, 25, 40, 100],
   blurb: 'Temple pick bonus: open 4 of 9 for up to 100×',
-  lineBets: [250, 500, 1000, 2500, 5000, 10000, 25000],
+  lineBets: [100, 200, 400, 1000, 2000, 4000, 10000],
 };
 
 export const COSMIC_FORTUNE: Machine = {
@@ -295,7 +319,7 @@ export const COSMIC_FORTUNE: Machine = {
   feature: 'wheel',
   wheel: { prizes: [15, 20, 25, 40, 60, 100, 200, 500, 1000], weights: [24, 20, 16, 12, 9, 6, 3, 1, 0.3] },
   blurb: 'Galaxy wheel bonus: up to 1,000×',
-  lineBets: [500, 1000, 2500, 5000, 10000, 25000, 50000],
+  lineBets: [200, 400, 1000, 2000, 4000, 10000, 20000],
 };
 
 export const HIGH_LIMIT = [DRAGONS_HOARD, DIAMOND_EMPIRE, THUNDER_PEAK, TIGERS_TREASURE, COSMIC_FORTUNE];
@@ -311,7 +335,9 @@ export function strips(m: Machine): string[][] {
   const out = [0, 1, 2, 3, 4].map((reel) => {
     const flat: string[] = [];
     const stacked = m.stacks ?? {};
-    for (const s of m.symbols) if (!stacked[s]) for (let i = 0; i < (m.weights[s]?.[reel] ?? 0); i++) flat.push(s);
+    // with five rows showing, the strips are longer (scatters rarer per cell) so features land about as often as before
+    const scale = (sym: string) => (sym === 'scatter' ? 1 : (m.stripScale ?? STRIP_SCALE));
+    for (const s of m.symbols) if (!stacked[s]) for (let i = 0; i < (m.weights[s]?.[reel] ?? 0) * scale(s); i++) flat.push(s);
     const spread: string[] = [];
     const used = new Array(flat.length).fill(false);
     let idx = 0;
@@ -342,7 +368,7 @@ export function gridFromStops(m: Machine, stops: number[]): Grid {
   const st = strips(m);
   return stops.map((stop, r) => {
     const strip = st[r]!;
-    return [0, 1, 2].map((row) => strip[(stop + row) % strip.length]!);
+    return Array.from({ length: ROWS }, (_, row) => strip[(stop + row) % strip.length]!);
   });
 }
 
@@ -423,19 +449,20 @@ function lineWin(m: Machine, grid: Grid, line: number[], lineBet: number, idx: n
   return best;
 }
 
-export function evaluate(m: Machine, grid: Grid, lineBet: number, wildReels: number[] = []): SpinResult {
+/** Line wins on the first `lines` paylines (pay by line); scatters pay on the total bet. */
+export function evaluate(m: Machine, grid: Grid, lineBet: number, wildReels: number[] = [], lines = LINES.length): SpinResult {
   // expanding wilds: a wild on an expanding reel fills that reel; Wild Reels turn whole reels wild
   const expanded: number[] = [];
   const final = grid.map((col, reel) => {
-    if (wildReels.includes(reel)) return ['wild', 'wild', 'wild'];
+    if (wildReels.includes(reel)) return new Array(ROWS).fill('wild');
     if (m.expandReels?.includes(reel) && col.includes('wild')) {
       expanded.push(reel);
-      return ['wild', 'wild', 'wild'];
+      return new Array(ROWS).fill('wild');
     }
     return [...col];
   });
   const lineWins: LineWin[] = [];
-  LINES.forEach((line, i) => {
+  LINES.slice(0, lines).forEach((line, i) => {
     const w = lineWin(m, final, line, lineBet, i);
     if (w) lineWins.push(w);
   });
@@ -443,7 +470,7 @@ export function evaluate(m: Machine, grid: Grid, lineBet: number, wildReels: num
   const coins = grid.flat().filter((s) => s === 'scatter').length;
   const scatters = Math.min(5, coins);
   const k = scatters >= 3 ? scatters - 3 : -1;
-  const scatterWin = k >= 0 ? m.scatterPays[k]! * lineBet * LINES.length : 0;
+  const scatterWin = k >= 0 ? m.scatterPays[k]! * lineBet * lines : 0;
   const freeSpins = k >= 0 && m.freeSpins ? m.freeSpins[k]! : 0;
   let bonus: SpinResult['bonus'] = k >= 0 && (m.feature === 'pick' || m.feature === 'wheel') ? m.feature : null;
   if (m.holdSpin && coins >= m.holdSpin.trigger) bonus = 'holdspin';
@@ -521,7 +548,7 @@ export function spinBonusWheel(m: Machine, rnd: Random = secureRandom): number {
 }
 
 // ------------------------------------------------------------------ hold & spin
-/** Cells are indexed reel * 3 + row. */
+/** Cells are indexed reel * ROWS + row. */
 export type LanternBoard = (Lantern | null)[];
 
 export function lanternValue(m: Machine, rnd: Random = secureRandom): Lantern {
@@ -598,7 +625,7 @@ export function simulateRtp(m: Machine, spins: number, rnd: Random): { rtp: numb
   let hits = 0;
   let features = 0;
   // high-limit machines are simulated at their smallest real line bet (no rounding drift)
-  const lb = m.lineBets?.[0] ?? 1;
+  const lb = 10;
   const total = LINES.length * lb;
   for (let i = 0; i < spins; i++) {
     bet += total;
