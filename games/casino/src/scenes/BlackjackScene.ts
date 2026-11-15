@@ -4,7 +4,7 @@ import { Dealer } from '../ui/dealer.ts';
 import { BlackjackRound, Shoe, handTotal, type PlayerHand } from '../logic/blackjack.ts';
 import { PAIR_PAYS, SIDE_NAMES, THREE_PAYS, perfectPairs, twentyOnePlusThree } from '../logic/sidebets.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, player, wallet } from '../services.ts';
-import { CARD_H, CARD_W, VW, backdrop, banner, chipPicker, coinBar, coinShower, dealCard, flipCard, frame, makeButton, outOfCoins, text } from '../ui/common.ts';
+import { CARD_H, CARD_W, VW, backdrop, banner, chipPicker, coinBar, coinShower, dealCard, flipCard, frame, makeButton, minTap, outOfCoins, padHit, text } from '../ui/common.ts';
 
 const SHOE = { x: 940, y: 330 };
 const DEALER_Y = 470;
@@ -49,7 +49,7 @@ export class BlackjackScene extends Phaser.Scene {
     frame(this);
     // 3D-rendered table: printed felt, chip tray, shoe and padded rail
     backdrop(this, 'table-blackjack');
-    this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('room', { room: 'tables' }));
+    this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('room', { room: 'tables' }), 'blackjack');
     this.dealer = new Dealer(this, 'blackjack');
     this.time.delayedCall(600, () => this.dealer.greet());
     this.betLayer = this.add.container(0, 0).setDepth(5);
@@ -119,9 +119,9 @@ export class BlackjackScene extends Phaser.Scene {
     this.infoText.setText(this.bet > 0 ? `${this.spots} hand${this.spots > 1 ? 's' : ''} × ${fmt(this.bet)}${this.side21 || this.sidePP ? ` + side bets` : ''}  ·  total ${fmt(total)}` : 'Tap chips to bet');
   }
 
-  private toggleButton(x: number, y: number, label: string, on: boolean, fn: () => void, w = 200): void {
+  private toggleButton(x: number, y: number, label: string, on: boolean, fn: () => void, w = 200, hitH = 96): void {
     this.controls.push(
-      makeButton(this, x, y, label, fn, {
+      padHit(makeButton(this, x, y, label, fn, {
         width: w,
         height: 96,
         fontSize: 32,
@@ -129,7 +129,7 @@ export class BlackjackScene extends Phaser.Scene {
         shadow: on ? 0xa97a1c : 0x0d0414,
         textColor: on ? '#3a1a00' : '#e9c86a',
         theme: THEME,
-      }),
+      }), w, hitH),
     );
   }
 
@@ -143,38 +143,44 @@ export class BlackjackScene extends Phaser.Scene {
     const rowY = 1615 + extra * 0.25;
     const chipY = 1742 + extra * 0.55;
     const dealY = 1860 + extra;
+    // touch targets: 48 dp tall where the rows have room (tall phones); on 16:9 screens each
+    // row's hit area stops where the next row's begins, so they never overlap
+    const t = minTap(this);
+    const rowH = Math.min(t, chipY - rowY);
+    const chipH = Math.min(t, chipY - rowY, dealY - chipY);
+    const dealH = Math.min(t, dealY - chipY);
     // hands: 1 / 2 / 3, then side-bet toggles
     [1, 2, 3].forEach((n, i) =>
       this.toggleButton(105 + i * 155, rowY, `${n} hand${n > 1 ? 's' : ''}`, this.spots === n, () => {
         audio.tap();
         this.spots = n;
         this.bettingPhase();
-      }, 145),
+      }, 145, rowH),
     );
     this.toggleButton(w - 330, rowY, '21+3', this.side21, () => {
       audio.chip();
       this.side21 = !this.side21;
       this.bettingPhase();
-    }, 170);
+    }, 170, rowH);
     this.toggleButton(w - 125, rowY, 'Pairs', this.sidePP, () => {
       audio.chip();
       this.sidePP = !this.sidePP;
       this.bettingPhase();
-    }, 170);
+    }, 170, rowH);
     this.controls.push(
       ...chipPicker(this, chipY, CHIPS, this.chip, (v) => {
         this.chip = v;
         this.bet = Math.min(this.bet + v, 50_000);
         this.showBets();
-      }),
+      }, chipH),
     );
     this.controls.push(
-      makeButton(this, w / 2 - 250, dealY, 'Clear', () => {
+      padHit(makeButton(this, w / 2 - 250, dealY, 'Clear', () => {
         audio.tap();
         this.bet = 0;
         this.showBets();
-      }, { width: 300, height: 110, fontSize: 42, ...SECONDARY, theme: THEME }),
-      makeButton(this, w / 2 + 170, dealY, 'Deal', () => this.deal(), { width: 440, height: 120, fontSize: 52, theme: THEME }),
+      }, { width: 300, height: 110, fontSize: 42, ...SECONDARY, theme: THEME }), 300, dealH),
+      padHit(makeButton(this, w / 2 + 170, dealY, 'Deal', () => this.deal(), { width: 440, height: 120, fontSize: 52, theme: THEME }), 440, dealH),
     );
   }
 

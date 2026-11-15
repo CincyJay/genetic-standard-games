@@ -9,15 +9,16 @@ import { showBigWin, tierFor } from '../ui/bigwin.ts';
 import { RANKS, SUITS, cardId, secureRandom, type Card } from '../logic/cards.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, analytics, audio, fmt, haptics, player, wallet } from '../services.ts';
 import { paintPrizeWheel } from '../ui/wheel.ts';
-import { VW, backdrop, banner, coinBar, coinShower, frame, makeButton, makeButton as mb, outOfCoins, screenDim, text } from '../ui/common.ts';
+import { VW, backdrop, banner, coinBar, coinShower, frame, makeButton, makeButton as mb, minTap, outOfCoins, padHit, pressVisuals, screenDim, text } from '../ui/common.ts';
 
 const CELL = 160;
 const LEFT = (VW - CELL * 5) / 2;
 const TOP = 776;
-const WIN_Y = 1630;
-const CONSOLE_Y = 1736;
-const ROW2_Y = 1846;
-const SPIN_X = 898;
+// below the reels (window bottom 1592): win label, then two console rows. On tall phones
+// the rows and the cabinet spread into the spare height (see create()).
+const WIN_Y = 1624;
+const CONSOLE_Y = 1722;
+const ROW2_Y = 1858;
 /** The cabinet's outline (the machine fills the screen like a real one). */
 const CAB = { x0: 34, x1: VW - 34, y0: 214, y1: 1902 };
 const MAX_LINES_AT_ONCE = 4;
@@ -116,6 +117,12 @@ export class SlotsScene extends Phaser.Scene {
   /** Steps through winning lines one at a time when there are too many to show at once. */
   private lineCycle: Phaser.Time.TimerEvent | null = null;
   private autoBtn!: Phaser.GameObjects.Image;
+  /** Console layout for this screen: win label, the two control rows and the cabinet's bottom edge. */
+  private lay = { win: WIN_Y, row1: CONSOLE_Y, row2: ROW2_Y, cab: CAB.y1 };
+  /** Where SPIN sits (tests tap it). */
+  private spinX = 0;
+  /** Every console control, for the touch-target check (dev hook `__slots.hits`). */
+  private hits: { name: string; obj: Phaser.GameObjects.Container | Phaser.GameObjects.Image }[] = [];
 
   constructor() {
     super('slots');
@@ -138,7 +145,9 @@ export class SlotsScene extends Phaser.Scene {
 
   create(): void {
     const w = VW;
-    frame(this);
+    const extra = Phaser.Math.Clamp(frame(this).bottom - 1920, 0, 200);
+    this.lay = { win: WIN_Y + extra * 0.15, row1: CONSOLE_Y + extra * 0.4, row2: ROW2_Y + extra * 0.8, cab: CAB.y1 + extra };
+    this.hits = [];
     backdrop(this, machineBg(this.m));
     this.reels = [];
     this.finals = [];
@@ -181,17 +190,25 @@ export class SlotsScene extends Phaser.Scene {
       if (!this.spinning) this.scene.start('room', { room: 'slots' });
     });
 
-    this.winText = text(this, w / 2, WIN_Y, '', 60, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
+    this.winText = text(this, w / 2, this.lay.win, '', 56, '900', GOLD, DISPLAY_FONT).setStroke('#14071f', 12).setDepth(23);
     this.fsText = text(this, w / 2, LADDER_Y - 36, featureText(this.m), 24, '800', '#ffffff').setStroke('#000000', 6).setDepth(24).setWordWrapWidth(860).setAlign('center');
-    this.totalText = text(this, w / 2, ROW2_Y, '', 34, '900', '#ffe9a8').setStroke('#000000', 6).setDepth(24);
     this.console();
     this.updateBet();
-    this.autoBtn = this.pressButton(170, ROW2_Y, 'btn-auto', 200, 76, () => this.toggleAuto());
-    this.gambleBtn = this.pressButton(910, ROW2_Y, 'btn-gamble', 200, 76, () => this.openGamble()).setVisible(false);
+    this.autoBtn = this.pressButton(170, this.lay.row2, 'btn-auto', 200, 84, () => this.toggleAuto());
+    this.gambleBtn = this.pressButton(910, this.lay.row2, 'btn-gamble', 200, 84, () => this.openGamble()).setVisible(false);
+    this.hits.push({ name: 'AUTO', obj: this.autoBtn }, { name: 'GAMBLE', obj: this.gambleBtn });
     this.gambleable = 0;
     (globalThis as Record<string, unknown>).__slots = {
       spinning: () => this.spinning,
-      spinXY: { x: SPIN_X, y: CONSOLE_Y },
+      spinXY: { x: this.spinX, y: this.lay.row1 },
+      // touch-target check: each console control's hit area and where it sits (design px)
+      hits: () =>
+        this.hits.map(({ name, obj }) => {
+          const r = obj.input?.hitArea as Phaser.Geom.Rectangle | undefined;
+          const w = Math.round((r?.width ?? 0) * Math.abs(obj.scaleX));
+          const h = Math.round((r?.height ?? 0) * Math.abs(obj.scaleY));
+          return { name, x: Math.round(obj.x - w / 2), y: Math.round(obj.y - h / 2), w, h };
+        }),
       // test hook: a grid with no line wins and no feature (so a scripted spin never stops for a bonus)
       plainRows: () => Array.from({ length: ROWS }, () => [0, 1, 0, 1, 0].map((k) => this.m.symbols[k]!)),
       freeSpins: () => this.freeSpins,
@@ -254,7 +271,8 @@ export class SlotsScene extends Phaser.Scene {
    */
   private cabinet(): void {
     const t = this.theme;
-    const { x0, x1, y0, y1 } = CAB;
+    const { x0, x1, y0 } = CAB;
+    const y1 = this.lay.cab;
     const wx0 = LEFT - 16;
     const wy0 = TOP - 16;
     const ww = CELL * 5 + 32;
@@ -388,48 +406,76 @@ export class SlotsScene extends Phaser.Scene {
   }
 
   /** BET − value + · MAX BET · SPIN, on a console under the reels. */
+  /**
+   * The control console, two rows sized for thumbs. Every control's hit area is at least
+   * 48 dp (minTap) wide and tall, and no two hit areas overlap:
+   *   row 1: [ - BET / LINE + ] [MAX BET] [   SPIN   ]
+   *   row 2: [AUTO] [ - LINES + ] [GAMBLE]
+   * The bet box also shows the total bet.
+   */
   private console(): void {
-    const y = CONSOLE_Y;
+    const t = minTap(this);
+    const y1 = this.lay.row1;
+    const y2 = this.lay.row2;
+    // the rows never overlap, even on short screens: a hit is at most the gap between rows
+    const hh = Math.min(t, y2 - y1);
     const g = this.add.graphics().setDepth(23);
     g.fillStyle(0x000000, 0.5);
-    g.fillRoundedRect(64, y - 66, VW - 128, 140, 34);
+    g.fillRoundedRect(64, y1 - 64, VW - 128, 140, 34);
     g.fillGradientStyle(0x2a2233, 0x2a2233, 0x0a0710, 0x0a0710, 1);
-    g.fillRoundedRect(60, y - 72, VW - 120, 140, 34);
+    g.fillRoundedRect(60, y1 - 70, VW - 120, 140, 34);
     g.lineStyle(3, 0xe9c86a, 0.8);
-    g.strokeRoundedRect(60, y - 72, VW - 120, 140, 34);
-    // two steppers: how many lines, and the bet on each line
-    const round = (x: number, label: string, fn: () => void) => {
-      const c = this.add.container(x, y + 6).setDepth(24);
+    g.strokeRoundedRect(60, y1 - 70, VW - 120, 140, 34);
+    const round = (x: number, y: number, label: string, name: string, fn: () => void) => {
+      const c = this.add.container(x, y).setDepth(24);
       const b = this.add.graphics();
       b.fillGradientStyle(0x5a5466, 0x5a5466, 0x1a1622, 0x1a1622, 1);
-      b.fillCircle(0, 0, 28);
-      b.lineStyle(3, 0xd9dde6, 1);
-      b.strokeCircle(0, 0, 28);
-      c.add([b, text(this, 0, -2, label, 40, '900', '#ffffff')]);
-      c.setSize(64, 64).setInteractive({ useHandCursor: true });
-      c.on('pointerdown', () => c.setScale(0.9));
-      c.on('pointerout', () => c.setScale(1));
+      b.fillCircle(0, 0, 40);
+      b.lineStyle(4, 0xd9dde6, 1);
+      b.strokeCircle(0, 0, 40);
+      const glyph = text(this, 0, -3, label, 54, '900', '#ffffff');
+      c.add([b, glyph]);
+      c.setSize(80, 80).setInteractive({ useHandCursor: true });
+      padHit(c, t, hh);
+      const fx = pressVisuals([b, glyph], 0.9);
+      c.on('pointerdown', fx.press);
+      c.on('pointerout', fx.release);
       c.on('pointerup', () => {
-        c.setScale(1);
+        fx.release();
         fn();
       });
+      this.hits.push({ name, obj: c });
     };
-    const box = (x0: number, w: number, label: string) => {
+    // a stepper box spanning x0..x0+w; its - and + each own a t-wide strip at the ends
+    const box = (x0: number, w: number, y: number, label: string) => {
       g.fillStyle(0x05020a, 1);
-      g.fillRoundedRect(x0, y - 52, w, 104, 30);
+      g.fillRoundedRect(x0, y - 56, w, 112, 30);
       g.lineStyle(3, 0x8a7a9a, 1);
-      g.strokeRoundedRect(x0, y - 52, w, 104, 30);
-      text(this, x0 + w / 2, y - 30, label, 18, '800', '#cbb6d6').setDepth(24).setLetterSpacing(2);
-      return text(this, x0 + w / 2, y + 10, '', 36, '900', '#ffe9a8').setDepth(24);
+      g.strokeRoundedRect(x0, y - 56, w, 112, 30);
+      text(this, x0 + w / 2, y - 36, label, 18, '800', '#cbb6d6').setDepth(24).setLetterSpacing(2);
+      return text(this, x0 + w / 2, y + 2, '', 40, '900', '#ffe9a8').setDepth(24);
     };
-    this.linesText = box(80, 236, 'LINES');
-    round(118, '−', () => this.changeLines(-1));
-    round(278, '+', () => this.changeLines(1));
-    this.betText = box(328, 264, 'BET / LINE');
-    round(366, '−', () => this.changeBet(-1));
-    round(554, '+', () => this.changeBet(1));
-    makeButton(this, 694, y, 'MAX\nBET', () => this.maxBet(), { width: 140, height: 104, fontSize: 28, color: 0x2a2430, theme: THEME }).setDepth(24);
-    makeButton(this, SPIN_X, y, 'SPIN', () => this.spin(), { width: 220, height: 116, fontSize: 50, color: this.theme.neon, theme: THEME }).setDepth(24);
+    const stepW = 2 * t + 120;
+    // row 1: the bet stepper from x 70, then MAX BET and SPIN share the rest up to x 1010
+    this.betText = box(70, stepW, y1, 'BET / LINE');
+    this.totalText = text(this, 70 + stepW / 2, y1 + 38, '', 20, '800', '#cbb6d6').setDepth(24);
+    round(70 + t / 2, y1, '−', 'BET -', () => this.changeBet(-1));
+    round(70 + stepW - t / 2, y1, '+', 'BET +', () => this.changeBet(1));
+    const maxX0 = 70 + stepW + 10;
+    const maxW = Math.max(t, 150);
+    const maxBtn = makeButton(this, maxX0 + maxW / 2, y1, 'MAX\nBET', () => this.maxBet(), { width: 150, height: 112, fontSize: 30, color: 0x2a2430, theme: THEME }).setDepth(24);
+    padHit(maxBtn, maxW, hh);
+    const spinX0 = maxX0 + maxW + 10;
+    const spinW = 1010 - spinX0;
+    this.spinX = spinX0 + spinW / 2;
+    const spinBtn = makeButton(this, this.spinX, y1, 'SPIN', () => this.spin(), { width: Math.min(300, spinW), height: 120, fontSize: 54, color: this.theme.neon, theme: THEME }).setDepth(24);
+    padHit(spinBtn, spinW, hh);
+    this.hits.push({ name: 'MAX BET', obj: maxBtn }, { name: 'SPIN', obj: spinBtn });
+    // row 2: the lines stepper sits centred between AUTO (x 70..270) and GAMBLE (x 810..1010)
+    const linesX0 = VW / 2 - stepW / 2;
+    this.linesText = box(linesX0, stepW, y2, 'LINES');
+    round(linesX0 + t / 2, y2, '−', 'LINES -', () => this.changeLines(-1));
+    round(linesX0 + stepW - t / 2, y2, '+', 'LINES +', () => this.changeLines(1));
   }
 
   /** The biggest bet you can afford on this machine. */
@@ -538,7 +584,7 @@ export class SlotsScene extends Phaser.Scene {
   private updateBet(): void {
     this.linesText.setText(String(this.lineCount));
     this.betText.setText(fmt(this.lineBet));
-    this.totalText.setText(`TOTAL BET ${fmt(this.totalBet)}`);
+    this.totalText.setText(`TOTAL ${fmt(this.totalBet)}`);
     this.updateJackpot();
   }
 
@@ -552,12 +598,15 @@ export class SlotsScene extends Phaser.Scene {
   /** An image button that presses in when tapped. */
   private pressButton(x: number, y: number, key: string, w: number, h: number, onTap: () => void): Phaser.GameObjects.Image {
     const img = this.add.image(x, y, key).setDisplaySize(w, h).setDepth(24).setInteractive({ useHandCursor: true });
+    padHit(img, w, Math.min(minTap(this), this.lay.row2 - this.lay.row1));
     const sx = img.scaleX;
     const sy = img.scaleY;
-    img.on('pointerdown', () => img.setScale(sx * 0.93, sy * 0.93));
-    img.on('pointerout', () => img.setScale(sx, sy));
+    // press feedback is a tint: scaling the image would shrink its hit area mid-tap
+    img.on('pointerdown', () => img.setTint(0xcccccc));
+    img.on('pointerout', () => img.clearTint());
     img.on('pointerup', () => {
-      this.tweens.add({ targets: img, scaleX: sx, scaleY: sy, duration: 140, ease: 'Back.easeOut' });
+      img.clearTint();
+      this.tweens.add({ targets: img, scaleX: { from: sx * 0.93, to: sx }, scaleY: { from: sy * 0.93, to: sy }, duration: 140, ease: 'Back.easeOut' });
       onTap();
     });
     return img;

@@ -13,9 +13,10 @@ ROOT = 'games/casino/public'
 manifest = json.load(open('games/casino/src/data/avatar_manifest.json'))
 
 
-# portraits whose supplied crop includes a strip of the card frame on the left:
-# centre the circle on the face instead (fraction of the image width)
-SHIFT = {'avatar_08': 0.09, 'avatar_16': 0.09}
+# per-portrait horizontal shift of the circle (fraction of the image width). Natalie,
+# Mason and Viktor used to need one for a strip of the card frame; since 1.8 their
+# portraits are re-cropped without it (see art/casino/avatars/recrop.md).
+SHIFT = {}
 
 
 def round_crop(src, size, top, shift=0.0):

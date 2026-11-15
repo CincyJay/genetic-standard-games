@@ -37,7 +37,7 @@ export class ThreeCardScene extends Phaser.Scene {
     backdrop(this, 'table-threecard');
     this.refresh = coinBar(this, 'Three Card Poker', () => {
       if (!this.busy && !this.hand) this.scene.start('room', { room: 'tables' });
-    });
+    }, 'threecard');
     this.sprites = [];
     this.hand = null;
     this.busy = false;

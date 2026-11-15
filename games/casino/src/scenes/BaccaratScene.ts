@@ -42,7 +42,7 @@ export class BaccaratScene extends Phaser.Scene {
     backdrop(this, 'table-baccarat');
     this.refresh = coinBar(this, 'Baccarat', () => {
       if (!this.busy) this.scene.start('room', { room: 'tables' });
-    });
+    }, 'baccarat');
     this.cards = [];
     this.totals = null;
     this.busy = false;

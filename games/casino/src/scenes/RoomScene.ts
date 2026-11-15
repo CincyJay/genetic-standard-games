@@ -6,6 +6,9 @@ import { VW, backdrop, coinBar, frame, text } from '../ui/common.ts';
 import { cardsArt, gameTile, reelArt, wheelArt, type Tile } from '../ui/tiles.ts';
 import { FEATURE_TEXT, machineBg, symKey } from './SlotsScene.ts';
 
+/** Table art: the chip rack and felt above the printed rules (which are unreadable at tile size). */
+const FELT_TOP: [number, number] = [0.07, 0.375];
+
 export type RoomId = 'slots' | 'poker' | 'tables' | 'cards';
 
 const SLOT_UNLOCK: Record<string, UnlockId | null> = {
@@ -94,7 +97,7 @@ export const ROOMS: Room[] = [
     bg: 'room-tables',
     games: () => [
       {
-        key: 'blackjack', title: 'Blackjack', sub: 'Up to 3 hands · side bets', bg: 'table-blackjack', unlock: null,
+        key: 'blackjack', title: 'Blackjack', sub: 'Up to 3 hands · side bets', bg: 'table-blackjack', bgBand: FELT_TOP, unlock: null,
         art: (s, c) => cardsArt(s, c, 'As Kh', true),
       },
       {
@@ -102,11 +105,11 @@ export const ROOMS: Room[] = [
         art: (s, c) => c.add(s.add.image(0, -70, 'roulette-rotor').setDisplaySize(250, 250)),
       },
       {
-        key: 'baccarat', title: 'Baccarat', sub: 'Player · Banker · Tie', bg: 'table-baccarat', unlock: null, ribbon: 'NEW',
+        key: 'baccarat', title: 'Baccarat', sub: 'Player · Banker · Tie', bg: 'table-baccarat', bgBand: FELT_TOP, unlock: null, ribbon: 'NEW',
         art: (s, c) => cardsArt(s, c, '9h Kd', true),
       },
       {
-        key: 'threecard', title: 'Three Card Poker', sub: 'Ante · Pair Plus', bg: 'table-threecard', unlock: null, ribbon: 'NEW',
+        key: 'threecard', title: 'Three Card Poker', sub: 'Ante · Pair Plus', bg: 'table-threecard', bgBand: FELT_TOP, unlock: null, ribbon: 'NEW',
         art: (s, c) => cardsArt(s, c, 'Qh Kh Ah', false),
       },
       {
@@ -117,11 +120,11 @@ export const ROOMS: Room[] = [
         },
       },
       {
-        key: 'uth', title: "Ultimate Hold'em", sub: 'Play your hand vs the dealer', bg: 'table-uth', unlock: null, ribbon: 'NEW',
+        key: 'uth', title: "Ultimate Hold'em", sub: 'Play your hand vs the dealer', bg: 'table-uth', bgBand: FELT_TOP, unlock: null, ribbon: 'NEW',
         art: (s, c) => cardsArt(s, c, 'As Ks', true),
       },
       {
-        key: 'war', title: 'Casino War', sub: 'High card wins', bg: 'table-war', unlock: null, ribbon: 'NEW',
+        key: 'war', title: 'Casino War', sub: 'High card wins', bg: 'table-war', bgBand: FELT_TOP, unlock: null, ribbon: 'NEW',
         art: (s, c) => cardsArt(s, c, 'Ks Kh', true),
       },
     ],

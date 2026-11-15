@@ -4,10 +4,58 @@ import type { Card } from '../logic/cards.ts';
 import { cardId } from '../logic/cards.ts';
 import { DISPLAY_FONT, GOLD, SECONDARY, THEME, ads, analytics, audio, bonus, fmt, haptics, player, wallet } from '../services.ts';
 import { showLevelUps } from './progress.ts';
+import { closeRulesSheet, showRules } from './rules.ts';
+import type { RulesKey } from '../data/rules.ts';
 
 /** Design size: every scene lays out in this 1080 x 1920 world. */
 export const VW = 1080;
 export const VH = 1920;
+
+/**
+ * The smallest comfortable touch target, 48 dp, in design px for this screen. The canvas
+ * scales with the phone, so this comes from the display scale (design px per CSS px):
+ * 135 on a 384-dp-wide phone, 144 on a 360-dp one. Never less than 120.
+ */
+export function minTap(scene: Phaser.Scene): number {
+  const s = scene.scale.displayScale?.x;
+  return Math.max(120, Math.round(48 * (s && Number.isFinite(s) && s > 0 ? s : 2.8125)));
+}
+
+/**
+ * Make an interactive object's hit area at least `w` x `h` design px, centred on it,
+ * without changing how it looks. Works for containers (with a size) and images.
+ */
+export function padHit<T extends Phaser.GameObjects.Container | Phaser.GameObjects.Image>(obj: T, w: number, h: number): T {
+  if (!obj.input) obj.setInteractive({ useHandCursor: true });
+  const sx = Math.abs(obj.scaleX) || 1;
+  const sy = Math.abs(obj.scaleY) || 1;
+  const lw = Math.max(obj.width, w / sx);
+  const lh = Math.max(obj.height, h / sy);
+  obj.input!.hitArea = new Phaser.Geom.Rectangle((obj.width - lw) / 2, (obj.height - lh) / 2, lw, lh);
+  obj.input!.hitAreaCallback = Phaser.Geom.Rectangle.Contains;
+  return obj;
+}
+
+type Scalable = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Transform;
+
+/**
+ * Press feedback that shrinks an object's visuals, never the object itself. Shrinking the
+ * object would shrink its hit area too, so a tap near the edge would land inside on press,
+ * fall outside on release, and be lost. Returns press/release functions.
+ */
+export function pressVisuals(visuals: Scalable[], k = 0.94): { press: () => void; release: () => void } {
+  const base = visuals.map((v) => [v.scaleX, v.scaleY] as const);
+  return {
+    press: () => visuals.forEach((v, i) => v.setScale(base[i]![0] * k, base[i]![1] * k)),
+    release: () => visuals.forEach((v, i) => v.setScale(base[i]![0], base[i]![1])),
+  };
+}
+
+/** The hit area of an interactive object in design px (for tests and the VA board's measurements). */
+export function hitSize(obj: Phaser.GameObjects.Container | Phaser.GameObjects.Image): { w: number; h: number } {
+  const r = obj.input?.hitArea as Phaser.Geom.Rectangle | undefined;
+  return r ? { w: Math.round(r.width * Math.abs(obj.scaleX)), h: Math.round(r.height * Math.abs(obj.scaleY)) } : { w: 0, h: 0 };
+}
 
 /**
  * Fit the design to any screen shape. The game canvas fills the phone (Scale.EXPAND);
@@ -69,7 +117,8 @@ export function text(
 }
 
 /** Top bar: back button, title, coin balance. Returns a function that refreshes the balance. */
-export function coinBar(scene: Phaser.Scene, title: string, onBack?: () => void): () => void {
+/** The top bar: back arrow, title, an optional Rules button (table games), level and coins. */
+export function coinBar(scene: Phaser.Scene, title: string, onBack?: () => void, rules?: RulesKey): () => void {
   const w = scene.scale.width;
   const pin = <T extends Phaser.GameObjects.GameObject & { setScrollFactor(x: number): T }>(o: T): T => o.setScrollFactor(0);
   const g = pin(scene.add.graphics().setDepth(50));
@@ -91,14 +140,47 @@ export function coinBar(scene: Phaser.Scene, title: string, onBack?: () => void)
       },
       { size: 100, theme: THEME },
     ).setDepth(51);
+    padHit(back, minTap(scene), minTap(scene));
     pin(back);
     // Android back button / gesture does the same as the arrow
-    scene.events.on('back', () => {
+    const onBackKey = () => {
       audio.tap();
+      // the back button closes the Rules sheet first
+      if (closeRulesSheet()) return;
       onBack();
-    });
+    };
+    scene.events.on('back', onBackKey);
+    // scene events outlive a restart: without this, every visit adds another handler and
+    // one Back press runs them all (closing the Rules sheet and then leaving the table)
+    scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => scene.events.off('back', onBackKey));
   }
-  pin(text(scene, onBack ? 160 : w / 2 - 200, 100, title, 52, '700', GOLD, DISPLAY_FONT).setOrigin(0, 0.5).setDepth(51));
+  const titleX = onBack ? 160 : w / 2 - 200;
+  // the title must end before the Rules button (or the level badge)
+  let titleEnd = w - 448 - 38 - 16;
+  if (rules) {
+    const t = minTap(scene);
+    const rx = w - 448 - 38 - 12 - t / 2;
+    const info = makeIconButton(
+      scene,
+      rx,
+      100,
+      (ig) => {
+        ig.fillStyle(THEME.icon, 1);
+        ig.fillCircle(0, -17, 7);
+        ig.fillRoundedRect(-6, -4, 12, 30, 4);
+      },
+      () => {
+        audio.tap();
+        showRules(scene, rules);
+      },
+      { size: 84, theme: THEME },
+    ).setDepth(51);
+    padHit(info, t, t);
+    pin(info);
+    titleEnd = rx - t / 2 - 8;
+  }
+  const titleText = pin(text(scene, titleX, 100, title, 52, '700', GOLD, DISPLAY_FONT).setOrigin(0, 0.5).setDepth(51));
+  if (titleText.width > titleEnd - titleX) titleText.setScale((titleEnd - titleX) / titleText.width);
   // coin pill
   const pill = pin(scene.add.graphics().setDepth(51));
   pill.fillStyle(0x14071f, 0.9);
@@ -298,8 +380,11 @@ export function formatWait(ms: number): string {
   return m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`;
 }
 
-/** A row of chip buttons to choose a bet size; calls `onPick` with the value. Returns the objects it created. */
-export function chipPicker(scene: Phaser.Scene, y: number, values: number[], selected: number, onPick: (v: number) => void): Phaser.GameObjects.GameObject[] {
+/**
+ * A row of chip buttons to choose a bet size; calls `onPick` with the value. Returns the objects it created.
+ * Each chip's hit area is 48 dp wide (never past the gap to its neighbour) and `hitH` tall.
+ */
+export function chipPicker(scene: Phaser.Scene, y: number, values: number[], selected: number, onPick: (v: number) => void, hitH = 118): Phaser.GameObjects.GameObject[] {
   const w = VW;
   const gap = Math.min(170, (w - 120) / values.length);
   const imgs: Phaser.GameObjects.Image[] = [];
@@ -312,6 +397,7 @@ export function chipPicker(scene: Phaser.Scene, y: number, values: number[], sel
   values.forEach((v, i) => {
     const x = w / 2 + (i - (values.length - 1) / 2) * gap;
     const img = scene.add.image(x, y, `chip-${v}`).setDisplaySize(118, 118).setDepth(31).setInteractive({ useHandCursor: true });
+    padHit(img, Math.min(gap - 2, Math.max(118, minTap(scene))), hitH);
     img.on('pointerup', () => {
       audio.unlock();
       audio.chip();
@@ -360,13 +446,14 @@ export function makeButton(scene: Phaser.Scene, x: number, y: number, label: str
   const c = scene.add.container(x, y, [face, t]);
   c.setSize(w, h);
   c.setInteractive({ useHandCursor: true });
+  const fx = pressVisuals([face, t], 0.96);
   c.on('pointerdown', () => {
     face.setTint(0xcccccc);
-    c.setScale(0.96);
+    fx.press();
   });
   const release = () => {
     face.clearTint();
-    c.setScale(1);
+    fx.release();
   };
   c.on('pointerout', release);
   c.on('pointerup', () => {

@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { AVATAR_PRESETS, CUSTOM_CATEGORIES, DEFAULT_PRESET, canCustomize, portraitKey, presetById, type CategoryId } from '../logic/avatars.ts';
 import { DISPLAY_FONT, GOLD, THEME, audio, haptics, save } from '../services.ts';
 import { hasPhoto, photoInputOver, photoVisibility, removePhoto, setPhotoVisibility, wearPreset, wearSavedPhoto, wearingPhoto } from '../ui/avatar.ts';
-import { VW, backdrop, banner, coinBar, frame, makeButton, text } from '../ui/common.ts';
+import { VW, backdrop, banner, coinBar, frame, makeButton, minTap, padHit, text } from '../ui/common.ts';
 import { loadPortraits } from './BootScene.ts';
 
 type Tab = 'presets' | 'customize' | 'photo';
@@ -15,10 +15,10 @@ interface Draft {
   category: CategoryId;
 }
 
-const PREVIEW_Y = 470;
-const TABS_Y = 800;
-const CONTENT_TOP = 870;
-const FOOTER_Y = 1800;
+const PREVIEW_Y0 = 470;
+const TABS_Y0 = 800;
+const CONTENT_TOP0 = 870;
+const FOOTER_Y0 = 1800;
 const BURGUNDY = 0x5a0a24;
 
 /**
@@ -38,6 +38,12 @@ export class DressingRoomScene extends Phaser.Scene {
   private scroll = 0;
   private maxScroll = 0;
   private dragged = false;
+  /**
+   * Layout for this screen. On tall phones the preview and tabs move up into the space under
+   * the coin bar and the footer moves down, so the grid gets the spare height instead of
+   * empty bands above the preview and below the footer.
+   */
+  private L = { preview: PREVIEW_Y0, tabs: TABS_Y0, content: CONTENT_TOP0, footer: FOOTER_Y0 };
 
   constructor() {
     super('dressing');
@@ -49,6 +55,9 @@ export class DressingRoomScene extends Phaser.Scene {
 
   create(): void {
     const view = frame(this);
+    const extra = Phaser.Math.Clamp(view.bottom - 1920, 0, 240);
+    const up = extra * 0.85;
+    this.L = { preview: PREVIEW_Y0 - up, tabs: TABS_Y0 - up, content: CONTENT_TOP0 - up, footer: FOOTER_Y0 + extra * 0.7 };
     backdrop(this, 'room-lobby');
     this.add.rectangle(VW / 2, (view.top + view.bottom) / 2, VW, view.bottom - view.top, 0x07030a, 0.78);
     coinBar(this, 'Dressing Room', () => this.scene.start(this.back));
@@ -61,8 +70,9 @@ export class DressingRoomScene extends Phaser.Scene {
     // Customize only exists when real variation art does
     if (this.draft.tab === 'customize' && !canCustomize(this.draft.preset)) this.draft.tab = 'presets';
     // the scrolling grid passes under the preview area: cover it with the same backdrop
-    backdrop(this, 'room-lobby', { y0: -10000, y1: CONTENT_TOP - 8 }).setDepth(4.5);
-    this.add.rectangle(VW / 2, (view.top + CONTENT_TOP - 8) / 2, VW, CONTENT_TOP - 8 - view.top, 0x07030a, 0.78).setDepth(4.6);
+    backdrop(this, 'room-lobby', { y0: -10000, y1: this.L.content - 8 }).setDepth(4.5);
+    // interactive so a tap here can't reach a grid tile scrolled out of sight underneath
+    this.add.rectangle(VW / 2, (view.top + this.L.content - 8) / 2, VW, this.L.content - 8 - view.top, 0x07030a, 0.78).setDepth(4.6).setInteractive();
     this.add.image(VW / 2, 300, 'fx-glow').setDisplaySize(1300, 900).setTint(0x7a2ad8).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(4.7);
     this.preview = this.add.container(0, 0).setDepth(5);
     this.tabs = this.add.container(0, 0).setDepth(6);
@@ -75,7 +85,7 @@ export class DressingRoomScene extends Phaser.Scene {
       p.event?.preventDefault?.();
     });
     this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
-      if (!p.isDown || p.downY < CONTENT_TOP || p.downY > FOOTER_Y - 80) return;
+      if (!p.isDown || p.downY < this.L.content || p.downY > this.L.footer - 80) return;
       const dy = p.position.y - p.prevPosition.y;
       if (Math.abs(p.position.y - p.downY) > 14) this.dragged = true;
       if (!this.dragged) return;
@@ -83,7 +93,7 @@ export class DressingRoomScene extends Phaser.Scene {
       this.content.y = -this.scroll;
     });
     // the large portraits load on first visit
-    const loading = text(this, VW / 2, PREVIEW_Y, 'Opening the Dressing Room…', 32, '700', '#cbb6d6');
+    const loading = text(this, VW / 2, this.L.preview, 'Opening the Dressing Room…', 32, '700', '#cbb6d6');
     loadPortraits(this, () => {
       loading.destroy();
       this.renderAll();
@@ -96,8 +106,9 @@ export class DressingRoomScene extends Phaser.Scene {
       confirm: () => this.confirm(),
       removePhoto: () => removePhoto(this, () => this.renderAll()),
       tilePos: (i: number) => this.tilePos(i),
-      footerY: FOOTER_Y,
-      tabsY: TABS_Y,
+      footerY: this.L.footer,
+      tabsY: this.L.tabs,
+      layout: () => this.L,
     };
   }
 
@@ -118,61 +129,62 @@ export class DressingRoomScene extends Phaser.Scene {
     const g = this.add.graphics();
     if (photo) {
       g.fillStyle(0x000000, 0.6);
-      g.fillCircle(x, PREVIEW_Y + 8, 196);
+      g.fillCircle(x, this.L.preview + 8, 196);
       g.fillStyle(BURGUNDY, 1);
-      g.fillCircle(x, PREVIEW_Y, 192);
+      g.fillCircle(x, this.L.preview, 192);
       g.lineStyle(8, 0xe9c86a, 1);
-      g.strokeCircle(x, PREVIEW_Y, 188);
-      this.preview.add([g, this.add.image(x, PREVIEW_Y, 'av-you').setDisplaySize(360, 360)]);
-      this.preview.add(text(this, x, PREVIEW_Y + 230, 'Your photo', 44, '900', GOLD, DISPLAY_FONT));
+      g.strokeCircle(x, this.L.preview, 188);
+      this.preview.add([g, this.add.image(x, this.L.preview, 'av-you').setDisplaySize(360, 360)]);
+      this.preview.add(text(this, x, this.L.preview + 230, 'Your photo', 44, '900', GOLD, DISPLAY_FONT));
       return;
     }
     if (this.draft.tab === 'photo') {
       // No photo worn yet: an empty frame, so the last previewed preset doesn't look chosen.
       g.fillStyle(0x000000, 0.6);
-      g.fillCircle(x, PREVIEW_Y + 8, 196);
+      g.fillCircle(x, this.L.preview + 8, 196);
       g.fillStyle(0x1a0c22, 1);
-      g.fillCircle(x, PREVIEW_Y, 192);
+      g.fillCircle(x, this.L.preview, 192);
       g.lineStyle(8, 0xe9c86a, 0.55);
-      g.strokeCircle(x, PREVIEW_Y, 188);
+      g.strokeCircle(x, this.L.preview, 188);
       // camera glyph
       g.fillStyle(0xe9c86a, 0.85);
-      g.fillRoundedRect(x - 80, PREVIEW_Y - 42, 160, 108, 18);
-      g.fillRoundedRect(x - 34, PREVIEW_Y - 62, 68, 30, 8);
+      g.fillRoundedRect(x - 80, this.L.preview - 42, 160, 108, 18);
+      g.fillRoundedRect(x - 34, this.L.preview - 62, 68, 30, 8);
       g.fillStyle(0x1a0c22, 1);
-      g.fillCircle(x, PREVIEW_Y + 12, 38);
+      g.fillCircle(x, this.L.preview + 12, 38);
       g.fillStyle(0xe9c86a, 0.85);
-      g.fillCircle(x, PREVIEW_Y + 12, 24);
+      g.fillCircle(x, this.L.preview + 12, 24);
       this.preview.add(g);
-      this.preview.add(text(this, x, PREVIEW_Y + 230, 'Your photo goes here', 40, '900', GOLD, DISPLAY_FONT));
+      this.preview.add(text(this, x, this.L.preview + 230, 'Your photo goes here', 40, '900', GOLD, DISPLAY_FONT));
       const s0 = save.get();
       const wearing = s0.avatarMode === 'preset' ? presetById(s0.presetAvatarId ?? DEFAULT_PRESET)?.name : null;
-      if (wearing) this.preview.add(text(this, x, PREVIEW_Y - 230, `Currently wearing ${wearing}`, 26, '800', '#cbb6d6').setLetterSpacing(2));
+      if (wearing) this.preview.add(text(this, x, this.L.preview - 230, `Currently wearing ${wearing}`, 26, '800', '#cbb6d6').setLetterSpacing(2));
       return;
     }
-    const w = 320;
+    // the source portraits are 192x240: keep the enlargement modest so they stay sharp
+    const w = 272;
     const h = Math.round((w * 236) / 190);
     g.fillStyle(0x000000, 0.6);
-    g.fillRoundedRect(x - w / 2 - 10, PREVIEW_Y - h / 2 - 4, w + 20, h + 24, 26);
+    g.fillRoundedRect(x - w / 2 - 10, this.L.preview - h / 2 - 4, w + 20, h + 24, 26);
     g.fillStyle(BURGUNDY, 1);
-    g.fillRoundedRect(x - w / 2 - 12, PREVIEW_Y - h / 2 - 12, w + 24, h + 24, 26);
+    g.fillRoundedRect(x - w / 2 - 12, this.L.preview - h / 2 - 12, w + 24, h + 24, 26);
     this.preview.add(g);
-    this.preview.add(this.add.image(x, PREVIEW_Y, portraitKey(p.id)).setDisplaySize(w, h));
+    this.preview.add(this.add.image(x, this.L.preview, portraitKey(p.id)).setDisplaySize(w, h));
     const rim = this.add.graphics();
     rim.lineStyle(6, 0xe9c86a, 1);
-    rim.strokeRoundedRect(x - w / 2 - 6, PREVIEW_Y - h / 2 - 6, w + 12, h + 12, 22);
+    rim.strokeRoundedRect(x - w / 2 - 6, this.L.preview - h / 2 - 6, w + 12, h + 12, 22);
     rim.lineStyle(2, 0xfff0b0, 0.8);
-    rim.strokeRoundedRect(x - w / 2 - 12, PREVIEW_Y - h / 2 - 12, w + 24, h + 24, 26);
+    rim.strokeRoundedRect(x - w / 2 - 12, this.L.preview - h / 2 - 12, w + 24, h + 24, 26);
     this.preview.add(rim);
     // nameplate
     const plate = this.add.graphics();
     plate.fillStyle(0x0a0608, 0.95);
-    plate.fillRoundedRect(x - 130, PREVIEW_Y + h / 2 - 30, 260, 62, 16);
+    plate.fillRoundedRect(x - 130, this.L.preview + h / 2 - 30, 260, 62, 16);
     plate.lineStyle(3, 0xe9c86a, 1);
-    plate.strokeRoundedRect(x - 130, PREVIEW_Y + h / 2 - 30, 260, 62, 16);
-    this.preview.add([plate, text(this, x, PREVIEW_Y + h / 2 + 1, p.name.toUpperCase(), 34, '900', '#ffe9a8', DISPLAY_FONT).setLetterSpacing(3)]);
+    plate.strokeRoundedRect(x - 130, this.L.preview + h / 2 - 30, 260, 62, 16);
+    this.preview.add([plate, text(this, x, this.L.preview + h / 2 + 1, p.name.toUpperCase(), 34, '900', '#ffe9a8', DISPLAY_FONT).setLetterSpacing(3)]);
     const current = save.get().presetAvatarId === p.id && save.get().avatarMode === 'preset';
-    this.preview.add(text(this, x, PREVIEW_Y - h / 2 - 34, current ? 'Your current look' : 'Previewing', 26, '800', current ? '#7dffb0' : '#cbb6d6').setLetterSpacing(2));
+    this.preview.add(text(this, x, this.L.preview - h / 2 - 34, current ? 'Your current look' : 'Previewing', 26, '800', current ? '#7dffb0' : '#cbb6d6').setLetterSpacing(2));
   }
 
   // ---------------------------------------------------------------- tabs
@@ -185,11 +197,12 @@ export class DressingRoomScene extends Phaser.Scene {
       const on = this.draft.tab === id;
       const g = this.add.graphics();
       g.fillStyle(on ? BURGUNDY : 0x16101c, 1);
-      g.fillRoundedRect(x - w / 2, TABS_Y - 38, w, 76, 20);
+      g.fillRoundedRect(x - w / 2, this.L.tabs - 44, w, 88, 22);
       g.lineStyle(on ? 4 : 2, 0xe9c86a, on ? 1 : 0.45);
-      g.strokeRoundedRect(x - w / 2, TABS_Y - 38, w, 76, 20);
-      const t = text(this, x, TABS_Y, label, 28, '900', on ? '#ffe9a8' : '#a898b0').setLetterSpacing(2);
-      const z = this.add.zone(x, TABS_Y, w, 76).setInteractive({ useHandCursor: true });
+      g.strokeRoundedRect(x - w / 2, this.L.tabs - 44, w, 88, 22);
+      const t = text(this, x, this.L.tabs, label, 28, '900', on ? '#ffe9a8' : '#a898b0').setLetterSpacing(2);
+      // 48 dp tall hit area; the grid's first row starts 90 px below the tab centre
+      const z = this.add.zone(x, this.L.tabs, w, Math.min(minTap(this), 2 * 88)).setInteractive({ useHandCursor: true });
       z.on('pointerup', () => this.setTab(id));
       this.tabs.add([g, t, z]);
     });
@@ -220,7 +233,7 @@ export class DressingRoomScene extends Phaser.Scene {
     const w = 232;
     const h = 300;
     const gap = 14;
-    return { x: VW / 2 + ((i % cols) - 1.5) * (w + gap), y: CONTENT_TOP + 20 + h / 2 + Math.floor(i / cols) * (h + gap) };
+    return { x: VW / 2 + ((i % cols) - 1.5) * (w + gap), y: this.L.content + 20 + h / 2 + Math.floor(i / cols) * (h + gap) };
   }
 
   /** The 16 presets in a scrollable grid; tap to preview. */
@@ -256,7 +269,7 @@ export class DressingRoomScene extends Phaser.Scene {
       this.content.add(c);
     });
     const rows = Math.ceil(AVATAR_PRESETS.length / 4);
-    this.maxScroll = Math.max(0, CONTENT_TOP + 20 + rows * 314 - (FOOTER_Y - 90));
+    this.maxScroll = Math.max(0, this.L.content + 20 + rows * 314 - (this.L.footer - 90));
   }
 
   private pickPreset(id: string): void {
@@ -277,7 +290,7 @@ export class DressingRoomScene extends Phaser.Scene {
    */
   private customizer(): void {
     const preset = presetById(this.draft.preset)!;
-    let y = CONTENT_TOP + 60;
+    let y = this.L.content + 60;
     for (const cat of CUSTOM_CATEGORIES) {
       const vs = preset.variants.filter((v) => cat.groups.includes(v.key.split(':')[0]!));
       if (!vs.length) continue;
@@ -288,7 +301,7 @@ export class DressingRoomScene extends Phaser.Scene {
         y += 56;
       }
     }
-    this.maxScroll = Math.max(0, y + 60 - (FOOTER_Y - 90));
+    this.maxScroll = Math.max(0, y + 60 - (this.L.footer - 90));
   }
 
   private setCategory(c: CategoryId): void {
@@ -299,7 +312,8 @@ export class DressingRoomScene extends Phaser.Scene {
 
   /** USE MY PHOTO: pick from the phone, crop, save; choose who sees it; replace or remove it. */
   private photoPanel(): void {
-    let y = CONTENT_TOP + 70;
+    const tap = minTap(this);
+    let y = this.L.content + 70;
     const saved = hasPhoto();
     const worn = wearingPhoto();
     this.content.add(
@@ -308,18 +322,18 @@ export class DressingRoomScene extends Phaser.Scene {
     y += 150;
     if (saved && !worn) {
       this.content.add(
-        makeButton(this, VW / 2, y, 'Wear my photo', () => {
+        padHit(makeButton(this, VW / 2, y, 'Wear my photo', () => {
           audio.tap();
           wearSavedPhoto(this, () => this.renderAll());
-        }, { width: 560, height: 110, fontSize: 40, theme: THEME }),
+        }, { width: 560, height: 110, fontSize: 40, theme: THEME }), 560, Math.min(tap, 140)),
       );
       y += 140;
     }
     const label = saved ? 'Replace photo' : 'USE MY PHOTO';
     const btn = makeButton(this, VW / 2, y, label, () => {}, { width: 560, height: 110, fontSize: 40, color: saved && !worn ? 0x2a2430 : undefined, theme: THEME });
-    this.content.add(btn);
+    this.content.add(padHit(btn, 560, Math.min(tap, 140)));
     // a real file input over the button opens the photo picker from the tap itself
-    photoInputOver(this, VW / 2, y, 560, 110, (savedPhoto) => {
+    photoInputOver(this, VW / 2, y, 560, Math.min(tap, 140), (savedPhoto) => {
       if (!savedPhoto) return;
       haptics.fire('success');
       banner(this, 'Photo saved', 'It now shows wherever you appear');
@@ -339,7 +353,7 @@ export class DressingRoomScene extends Phaser.Scene {
         g.fillRoundedRect(x - 140, y - 34, 280, 68, 34);
         g.lineStyle(2, 0xe9c86a, on ? 1 : 0.5);
         g.strokeRoundedRect(x - 140, y - 34, 280, 68, 34);
-        const z = this.add.zone(x, y, 280, 68).setInteractive({ useHandCursor: true });
+        const z = this.add.zone(x, y, 280, tap).setInteractive({ useHandCursor: true });
         z.on('pointerup', () => {
           audio.tap();
           setPhotoVisibility(v);
@@ -351,20 +365,20 @@ export class DressingRoomScene extends Phaser.Scene {
       this.content.add(text(this, VW / 2, y, 'Everyone else sees your preset avatar.', 22, '600', '#a898b0'));
       y += 80;
       this.content.add(
-        makeButton(this, VW / 2, y, 'Remove photo', () => {
+        padHit(makeButton(this, VW / 2, y, 'Remove photo', () => {
           audio.tap();
           removePhoto(this, () => {
             this.draft.tab = 'presets';
             this.renderAll();
           });
-        }, { width: 440, height: 96, fontSize: 34, color: 0x3a2a44, theme: THEME }),
+        }, { width: 440, height: 96, fontSize: 34, color: 0x3a2a44, theme: THEME }), 440, tap),
       );
       y += 90;
     }
     this.content.add(
       text(this, VW / 2, y + 30, 'Photos are only shown to signed-in Velvet Ace players.\nShare only photos of yourself. Players can report or block anyone.', 22, '600', '#8a7a94').setAlign('center'),
     );
-    this.maxScroll = Math.max(0, y + 120 - (FOOTER_Y - 90));
+    this.maxScroll = Math.max(0, y + 120 - (this.L.footer - 90));
   }
 
   // ---------------------------------------------------------------- footer
@@ -373,21 +387,28 @@ export class DressingRoomScene extends Phaser.Scene {
     const view = frame(this);
     const g = this.add.graphics();
     g.fillGradientStyle(0x07030a, 0x07030a, 0x07030a, 0x07030a, 0, 0, 1, 1);
-    g.fillRect(0, FOOTER_Y - 150, VW, 60);
+    g.fillRect(0, this.L.footer - 150, VW, 60);
     g.fillStyle(0x07030a, 1);
-    g.fillRect(0, FOOTER_Y - 90, VW, view.bottom - FOOTER_Y + 200);
+    g.fillRect(0, this.L.footer - 90, VW, view.bottom - this.L.footer + 200);
     this.footer.add(g);
+    // the opaque footer swallows taps, so hidden grid tiles under it can't be picked
+    const fy = this.L.footer - 90;
+    this.footer.add(this.add.zone(VW / 2, (fy + view.bottom) / 2, VW, view.bottom - fy).setInteractive());
     if (this.draft.tab === 'photo') return;
     const wearing = save.get().avatarMode === 'preset' && save.get().presetAvatarId === this.draft.preset;
     const custom = this.draft.tab === 'presets' && canCustomize(this.draft.preset);
     if (custom)
       this.footer.add(
-        makeButton(this, VW / 2 - 250, FOOTER_Y, 'Customize', () => this.setTab('customize'), { width: 420, height: 112, fontSize: 40, color: 0x2a2430, theme: THEME }),
+        padHit(makeButton(this, VW / 2 - 250, this.L.footer, 'Customize', () => this.setTab('customize'), { width: 420, height: 112, fontSize: 40, color: 0x2a2430, theme: THEME }), 420, minTap(this)),
       );
     this.footer.add(
-      makeButton(this, custom ? VW / 2 + 230 : VW / 2, FOOTER_Y, wearing ? 'Wearing this' : 'Confirm Selection', () => this.confirm(), {
-        width: custom ? 460 : 600, height: 112, fontSize: 40, theme: THEME,
-      }),
+      padHit(
+        makeButton(this, custom ? VW / 2 + 230 : VW / 2, this.L.footer, wearing ? 'Wearing this' : 'Confirm Selection', () => this.confirm(), {
+          width: custom ? 460 : 600, height: 112, fontSize: 40, theme: THEME,
+        }),
+        custom ? 460 : 600,
+        minTap(this),
+      ),
     );
   }
 

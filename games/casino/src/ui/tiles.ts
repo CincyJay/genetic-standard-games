@@ -14,18 +14,29 @@ export interface Tile {
   unlock: UnlockId | null;
   ribbon?: string;
   data?: Record<string, unknown>;
+  /**
+   * Which horizontal band of the backdrop to show, as fractions of its height. Table art has
+   * the rules printed on the felt, unreadable at tile size, so those tiles show the band above.
+   */
+  bgBand?: [number, number];
   /** Draws the tile's picture into `c` (centered; the tile is w x h). */
   art: (scene: Phaser.Scene, c: Phaser.GameObjects.Container, w: number, h: number) => void;
 }
 
-/** A crop of a backdrop, sized to the tile. */
-export function tileBg(scene: Phaser.Scene, key: string, w: number, h: number): Phaser.GameObjects.Image {
-  const fk = `tile-${key}-${w}x${h}`;
+/** A crop of a backdrop, sized to the tile: a full-width band around 36% down, or the given band. */
+export function tileBg(scene: Phaser.Scene, key: string, w: number, h: number, band?: [number, number]): Phaser.GameObjects.Image {
+  const fk = `tile-${key}-${w}x${h}${band ? `-${band.join('-')}` : ''}`;
   const tex = scene.textures.get(key);
   if (!tex.has(fk)) {
     const src = tex.getSourceImage() as { width: number; height: number };
-    const ch = Math.min(src.height, (src.width * h) / w);
-    tex.add(fk, 0, 0, Math.max(0, src.height * 0.36 - ch / 2), src.width, ch);
+    if (band) {
+      const ch = (band[1] - band[0]) * src.height;
+      const cw = Math.min(src.width, (ch * w) / h);
+      tex.add(fk, 0, (src.width - cw) / 2, band[0] * src.height, cw, ch);
+    } else {
+      const ch = Math.min(src.height, (src.width * h) / w);
+      tex.add(fk, 0, 0, Math.max(0, src.height * 0.36 - ch / 2), src.width, ch);
+    }
   }
   return scene.add.image(0, 0, key, fk).setDisplaySize(w, h);
 }
@@ -51,7 +62,7 @@ export function gameTile(
   const shadow = scene.add.graphics();
   shadow.fillStyle(0x000000, 0.55);
   shadow.fillRoundedRect(-w / 2 + 4, -h / 2 + 14, w, h, 30);
-  c.add([shadow, tileBg(scene, t.bg, w, h)]);
+  c.add([shadow, tileBg(scene, t.bg, w, h, t.bgBand)]);
   const art = scene.add.container(0, 0);
   t.art(scene, art, w, h);
   c.add(art);

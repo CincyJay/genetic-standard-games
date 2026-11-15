@@ -43,7 +43,7 @@ export class UthScene extends Phaser.Scene {
     backdrop(this, 'table-uth');
     this.refresh = coinBar(this, "Ultimate Hold'em", () => {
       if (!this.busy && !this.hand) this.scene.start('room', { room: 'tables' });
-    });
+    }, 'uth');
     const dealer = new Dealer(this, 'uth');
     this.time.delayedCall(600, () => dealer.greet());
     this.sprites = { dealer: [], board: [], mine: [] };

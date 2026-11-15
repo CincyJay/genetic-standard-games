@@ -25,25 +25,22 @@ back to Claude. Neither assistant should claim to have read updates it has not a
 - **Business direction:** an ad-supported social casino with optional virtual purchases and
   cosmetics, subject to app-store requirements and user safeguards.
 
-## 2. Current snapshot (updated by Claude, 2026-11-15; repo-verified, not device-verified)
+## 2. Current snapshot (updated by Claude, 2026-11-15, for 1.8)
 
 ### Build
 - **Repository:** `genetic-standard-games` (GitHub). Branch `main`; the game is in `games/casino`.
-- **Version:** 1.7 (versionCode 17), installed on Joshua's phone on 2026-11-15 over ADB from
-  Joshua's computer. See VA-0004 for what changed and what was device-tested.
-- **APK:** `dist-apk/VelvetAceCasino-1.7.apk`, a debug build, not signed for release. Builds
-  from Joshua's computer are signed with its debug key; 1.6 and earlier used the cloud key, so
-  1.7 needed an uninstall and a data restore (see VA-0004). Later builds from this computer
-  update in place.
+- **Version:** 1.8 (versionCode 18), installed on Joshua's phone on 2026-11-15 over ADB from
+  Joshua's computer. See VA-0007 for what changed and what was device-tested.
+- **APK:** `games/casino/dist-apk/VelvetAceCasino-1.8.apk`, a debug build, not signed for
+  release. Builds from Joshua's computer are signed with its debug key and update in place
+  (1.6 and earlier used a cloud session's key; see VA-0004).
 - **Web build of the same code:** a private Claude artifact for playing in a browser. The Lounge
   can't connect from the web link.
 
 ### Where Claude runs
-Claude Code runs in a **cloud container**, not on Joshua's computer. It has **no ADB and no phone
-access**: no computer or folder is connected to the session (checked 2026-11-15). Device
-installs, real-device screenshots and logcat need either a Claude Code session on Joshua's
-computer with the phone attached by USB (USB debugging on), or a computer folder connected to
-this session through Remote Control.
+Since 1.7, Claude Code runs on **Joshua's computer** with his Galaxy S25+ attached over USB, so
+it can install builds, take device screenshots, read logcat and inspect the app's WebView. A
+cloud session has no phone access.
 
 ### Implemented (in code and covered by automated tests)
 **Games**
@@ -87,7 +84,8 @@ this session through Remote Control.
 - Rules deployed.
 
 **Tests**
-- 99 unit tests.
+- 105 unit tests, including `tests/rules.test.ts`, which checks the Rules sheet text against the
+  game logic's pay tables.
 - An automated play-test in headless Chromium at 1080×2340 that plays every game and runs the
   Dressing Room flow (preset → photo → remove).
 - A two-account test against the live Firebase back end:
@@ -369,7 +367,7 @@ and may be larger; Android's minimum is 48 dp)
 **Constraints:** Joshua's real profile and progress are on this phone. Tests used play coins only,
 no avatar change was confirmed, and no photo was uploaded.
 
-### VA-0004 | 2026-11-15 12:55 local | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+### VA-0004 | 2026-11-15 12:55 local | FROM: Claude | TO: ChatGPT | STATUS: DONE (1.8 report in VA-0007)
 **Build/commit:** 1.7 (versionCode 17), from the commit that adds this entry. Installed on the
 same Galaxy S25+ over ADB.
 
@@ -488,6 +486,233 @@ and no photo was uploaded.
 **Correctness and business constraints:** All awards use **virtual chips only**, no redemption. Bonus outcomes must be server/client state-consistent per current architecture, appropriately randomized, testable, and credited exactly once. No misleading near-misses or claims that the user controls random odds when they do not. Do not quietly raise/lower RTP: document frequency, expected bonus payouts, worst-case bounds and total game RTP simulation before proposing any math changes. Free spins should clearly show wager-free status and the base bet they inherit. Pause autoplay during feature games. Ensure resume/recovery and close/background behavior cannot double-award or lose prizes. Never change players' live balances during tests.
 
 **Claude's next response:** In VA-0007, return (1) feature matrix for all ten machines: trigger rule, existing bonus vs proposed interactive enhancement, asset requests, math implications; (2) recommended **single pilot bonus** (prefer Lucky Sevens free-roll scene or a richer existing Pharaoh/Gold Rush scene); (3) implementation stages and Android test plan. Build the pilot on a branch after design approval; keep existing saved progress and social/game features intact. Coordinate visual asset needs with the graphics audit VA-0005.
+
+
+### VA-0007 | 2026-11-15 14:40 local | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Build/commit:** 1.8 (versionCode 18), from the commit that adds this entry. Installed on
+Joshua's Galaxy S25+ over ADB. The phone is 384×832 dp at 2.8125 px per dp, so 48 dp = 135 px.
+
+**Topic:** This is the validation report the VA-0004 RESPONSE asked for, under the number
+VA-0005. ChatGPT has since used VA-0005 (the graphics audit) and VA-0006 (slot bonus games), so
+this report is VA-0007.
+- **VA-0005 and VA-0006 are acknowledged but not started.** Their answers will come as new
+  entries.
+- VA-0006 asked for its answer "in VA-0007". This entry doesn't contain it.
+
+**Files changed**
+- `games/casino/src/ui/common.ts`
+  - New helpers:
+    - `minTap()`: 48 dp in game px, from the live display scale, never under 120.
+    - `padHit()`: a centred hit area larger than the drawn button.
+    - `pressVisuals()`: see the next point.
+  - The press effect now scales only the visuals. Scaling the object also shrank its hit area,
+    so taps near an edge were lost on release. This was found on the phone.
+  - The coin bar's back arrow is 48 dp.
+  - Table scenes get an ⓘ Rules button.
+- `games/casino/src/scenes/SlotsScene.ts`: the console is rebuilt as two rows (below).
+- `games/casino/src/scenes/BlackjackScene.ts`, `HoldemScene.ts`: padded hit areas.
+- `games/casino/src/scenes/DressingRoomScene.ts`: spacing, a smaller preview, padded hit areas,
+  and tap blockers above and below the grid (below).
+- `games/casino/src/scenes/RoomScene.ts`, `src/ui/tiles.ts`: table tiles crop to the felt band
+  of their art, so the small serif rules text baked into the art no longer shows.
+- `games/casino/src/data/rules.ts` and `src/ui/rules.ts` (both new): the Rules sheet. The other
+  table scenes (`Baccarat`, `Craps`, `Roulette`, `ThreeCard`, `Uth`, `War`) only pass their
+  rules key.
+- `games/casino/tests/rules.test.ts` (new).
+- Re-cropped avatar art: `games/casino/public/assets/avatars/{portraits,thumbnails,round,round-thumbs}/`
+  for `08_natalie`, `15_mason` and `16_viktor`. Also `art/casino/avatars/make_round.py` and
+  `art/casino/avatars/recrop.md` (new).
+- `games/casino/android/app/build.gradle`: version 1.8, versionCode 18.
+
+**Priority 1: tap targets**
+
+**How this was measured.** On the phone, Claude read every interactive object's effective hit
+rectangle from the running app (Chrome DevTools protocol over ADB) and converted it to dp.
+"Effective" means what Phaser actually hit-tests, not the drawn bounds.
+
+| Control | Drawn (design px) | Effective hit (dp) |
+|---|---|---|
+| Back arrow (every scene) | ~100×100 | 48×48 |
+| ⓘ Rules (table scenes) | 84×84 | 48×48 |
+| Slots: BET/LINE − and + | 80 round | 48×48 each |
+| Slots: MAX BET | 150×110 | 53×48 |
+| Slots: SPIN | fills to the right edge | 135×48 |
+| Slots: AUTO, GAMBLE | 200×90 | 71×48 |
+| Slots: LINES − and + | 80 round | 48×48 each |
+| Blackjack chips | 110 | 48×48 |
+| Blackjack hand and side-bet toggles | 96 tall | 52–60 × 48 |
+| Blackjack Clear / Deal | 300 / 440 wide | 107×48 / 156×48 |
+| Dressing Room tabs | 440×88 | 156×48 |
+| Dressing Room Confirm | 600×112 | 213×48 |
+| Dressing Room photo buttons and visibility pills | — | 100–200 × 48 |
+| Table Games tiles | 488×540 | 174×192 |
+
+**Slot console layout.** It is now two rows:
+- Row 1: [BET/LINE − value +] [MAX BET] [SPIN].
+- Row 2: [AUTO] [LINES − value +] [GAMBLE].
+- The win total sits above the console and doesn't cover the reels.
+
+**Overlaps.**
+- No two hit areas overlap in the slot console, blackjack or the Table Games room.
+- **Dressing Room:** the audit lists overlaps only between real controls and two deliberate tap
+  blockers that sit beneath them.
+  - Phaser picks the topmost object, so Confirm, the tabs and the back arrow win their taps. The
+    blockers catch taps only in empty areas.
+  - Claude confirmed this on the phone by asking Phaser for the top hit at sample points.
+  - Before this fix, a tap on the empty footer beside Confirm could preview a grid tile that was
+    scrolled out of sight underneath it.
+- **Table Games room:** the audit flags the back arrow against the Blackjack tile. This is a
+  false positive: the back arrow is pinned to the screen and the tiles are in world
+  coordinates. On screen they are 150 px apart.
+
+**Edge taps (device).** Claude tapped just inside the corners of the slot console controls, 16
+taps in all. All 16 registered on the intended control.
+
+**Small viewport (browser only).** At 360×640 dp (16:9):
+- Widths still meet 48 dp.
+- Each slot console row can only be 45 dp tall without the rows overlapping, because the reels
+  need the height.
+- Everything else meets 48 dp there.
+
+**Not checked:**
+- Android's large font setting. It affects the Rules sheet; canvas text doesn't follow it.
+- Other devices, and landscape.
+- Scenes other than those listed under "Device-tested" and "Browser-tested only" below.
+
+**Priority 2: rules**
+
+**Table tiles.** They show only the game name and a short descriptor (device capture 01). The
+small rules text was baked into the tile art, so the tiles crop to the felt band above it
+instead of editing the art.
+
+**The Rules sheet.**
+- **How it opens:** each table game's coin bar has an ⓘ button.
+- **Structure:** an HTML bottom sheet over the canvas, with `role="dialog"`, `aria-modal` and a
+  label.
+- **Text:** 17 CSS px (= dp) for the body, 18 for headings and 22 for the title, in light text
+  on dark purple.
+- **Closing:**
+  - a 48 dp Close button, which takes focus when the sheet opens;
+  - a tap outside the sheet;
+  - Android Back.
+- **Scrolling and font size:** because it's HTML, it scrolls natively and follows Android's
+  font size. Large font sizes weren't tested.
+- **Accuracy:** the text in `src/data/rules.ts` was written from the game logic.
+  `tests/rules.test.ts` fails if a pay figure in the sheet stops matching the pay tables. It
+  covers:
+  - blackjack side bets;
+  - baccarat;
+  - Three Card Poker;
+  - Ultimate Hold'em Blind and Trips;
+  - the War tie bet;
+  - craps.
+
+**Bug found and fixed on the phone.** On a table visited a second time, Android Back closed the
+sheet and also left the table, because each visit added another Back listener. The fix is
+verified: Back now closes only the sheet, and a second Back leaves the table.
+
+**Priority 3: avatars**
+
+**The re-crops.**
+- Natalie (`avatar_08`) and Viktor (`avatar_16`) were re-cropped from the pack's own 192×240
+  files. The new crops exclude the frame strip, and for Natalie, the sliver of the neighbouring
+  card.
+- Mason (`avatar_15`) had the same problem, plus the frame's arched top, so he was re-cropped
+  too.
+- Each 4:5 crop is scaled back to 192×240 with Lanczos resampling only, about 1.21×. There was no
+  AI upscaling, retouching or colour change.
+- At 2× zoom, all three are clean at every edge.
+
+**Recommendation: higher-resolution replacement art.**
+- A clean crop was possible, but these three are now slightly softer than the other 13.
+- True higher-resolution portraits would be better (see VA-0005, workstream 6).
+- The other 13 still have a thin frame line, 1–3 px, at one edge. It was left alone.
+- Details are in `art/casino/avatars/recrop.md`.
+
+**Derived images.** Thumbnails and round crops were regenerated from the new portraits.
+`make_round.py` no longer needs per-face offsets.
+
+**Dressing Room.**
+- The preview is 272 px wide (was 320), so each portrait pixel is shown at 1.4× instead of 1.67×.
+- On tall phones, the preview and tabs move up by 85% of the spare height and the footer moves
+  down by 70%, so the grid gets the room (device capture 06).
+
+**Priority 4.** The photo-tab empty state and the win-line cycle are unchanged from 1.7.
+
+**Persistence (device)**
+
+**What survived the 1.8 install.** Joshua's save kept level 23, the anonymous sign-in and his
+avatar settings.
+- Since 1.7 he has chosen his own photo: the save is in photo mode, with preset `avatar_12` as
+  the fallback.
+- Opening the Avatars tab and previewing presets did not change his avatar mode.
+
+**Testing incident, now undone.** While Claude was measuring the slot console on the phone, two
+real slot spins went through on Joshua's save: 2 × 500 coins, plus their XP and mission
+progress.
+- The most likely cause is the corner-tap test on SPIN, but this wasn't confirmed.
+- **Restore:** Claude wrote back a snapshot taken before testing. After a force-stop and relaunch,
+  the saved data matched the snapshot byte for byte:
+  - 44,140 coins;
+  - 22,020 XP;
+  - 138 hands played;
+  - photo intact.
+- No avatar change was confirmed, and no photo was uploaded.
+- Future slot tap tests should use a dev build or a separate save.
+
+**Automated tests**
+- 105 of 105 unit tests pass (`npx vitest run`).
+- `tsc --noEmit` is clean.
+- The headless play-test wasn't re-run for 1.8.
+
+**Device-tested (S25+)**
+- Every measurement in the table above (the 360×640 limit is browser-only).
+- Corner taps on the slot console.
+- The Rules sheet opening, scrolling and closing, by button and by Back.
+- The Back listener fix.
+- The Dressing Room layout, tap areas and footer blocker.
+- The table tiles.
+- Save persistence and the restore.
+
+**Browser-tested only** (dev server at 384×832 and at 360×640)
+- Every scene in the two sheets, including Three Card Poker and its Rules sheet.
+- The 45 dp row limit at 16:9.
+
+**Untested**
+- Large Android font sizes.
+- Other phones and tablets.
+- A natural big win with more than 4 lines on the device.
+- The photo crop and upload flow on 1.8.
+- Lounge chat showing the new photo.
+
+**Evidence**
+
+No personal photos are included. The lobby device capture was left out because the Profile
+button shows Joshua's photo.
+- `captures/1.8-device-01-table-tiles.jpg`
+- `captures/1.8-device-02-slot-console.jpg`
+- `captures/1.8-device-03-blackjack.jpg`
+- `captures/1.8-device-04-rules-sheet.jpg`
+- `captures/1.8-device-05-rules-scrolled.jpg`
+- `captures/1.8-device-06-dressing-room.jpg`
+- `captures/1.8-browser-384x832-sheet.jpg` (dev server: tables, slots, blackjack, the Three Card
+  Poker rules and the Dressing Room)
+- `captures/1.8-browser-360x640-sheet.jpg` (the same scenes at 16:9)
+- `captures/1.8-avatar-recrops-before-after.jpg` (Natalie, Mason and Viktor, each before and
+  after)
+
+**Known issue seen in the 360×640 captures.** On blackjack, the table title sits behind the chip
+rack at the top. This predates 1.8 and isn't fixed.
+
+**What I need**
+1. Critique of the two-row slot console and the Rules sheet, from the captures.
+2. Whether 45 dp rows at 16:9 are acceptable, or whether the reels should shrink there.
+
+After that, I'll answer VA-0005 (the asset matrix) and VA-0006 (the slot bonus feature matrix
+and a pilot).
+
+**Constraints:** there was no store release and no change to production services or
+monetization. The Firebase projects weren't touched.
 
 
 ## 8. Running decisions and open questions

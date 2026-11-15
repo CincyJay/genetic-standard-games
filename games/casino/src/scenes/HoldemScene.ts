@@ -6,7 +6,7 @@ import { MTT_EVENTS, MttField, SNG_BUYINS, START_CHIPS, blindsFor, mttBlinds, mt
 import { CARD_H, CARD_W, banner, coinBar, dealCard, flipCard, makeButton, outOfCoins, text } from '../ui/common.ts';
 import { CASH_STAKES } from './PokerLobbyScene.ts';
 import { Dealer } from '../ui/dealer.ts';
-import { VH, VW, backdrop, frame, screenDim } from '../ui/common.ts';
+import { VH, VW, backdrop, frame, pressVisuals, screenDim } from '../ui/common.ts';
 
 const STAKES = CASH_STAKES;
 const SEATS = [
@@ -457,12 +457,14 @@ export class HoldemScene extends Phaser.Scene {
   private pillButton(x: number, y: number, key: string, label: string, w: number, h: number, onTap: () => void): Phaser.GameObjects.Container {
     const c = this.add.container(x, y);
     const img = this.add.image(0, 0, key).setDisplaySize(w, h);
-    c.add([img, text(this, 0, 0, label, Math.round(h * 0.36), '900', '#ffffff').setShadow(0, 2, '#000000', 4, true, true)]);
+    const t = text(this, 0, 0, label, Math.round(h * 0.36), '900', '#ffffff').setShadow(0, 2, '#000000', 4, true, true);
+    c.add([img, t]);
     c.setSize(w, h).setInteractive({ useHandCursor: true });
-    c.on('pointerdown', () => c.setScale(0.95));
-    c.on('pointerout', () => c.setScale(1));
+    const fx = pressVisuals([img, t], 0.95);
+    c.on('pointerdown', fx.press);
+    c.on('pointerout', fx.release);
     c.on('pointerup', () => {
-      c.setScale(1);
+      fx.release();
       audio.tap();
       onTap();
     });

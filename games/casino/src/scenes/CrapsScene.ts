@@ -56,7 +56,7 @@ export class CrapsScene extends Phaser.Scene {
     backdrop(this, 'table-craps');
     this.refresh = coinBar(this, 'Craps', () => {
       if (!this.rolling) this.scene.start('room', { room: 'tables' });
-    });
+    }, 'craps');
     this.dealer = new Dealer(this, 'craps', 110, 300);
     this.time.delayedCall(600, () => this.dealer.greet());
     this.rolling = false;

@@ -35,7 +35,7 @@ export class WarScene extends Phaser.Scene {
     backdrop(this, 'table-war');
     this.refresh = coinBar(this, 'Casino War', () => {
       if (!this.busy && !this.atWar) this.scene.start('room', { room: 'tables' });
-    });
+    }, 'war');
     this.sprites = [];
     this.busy = false;
     this.atWar = false;

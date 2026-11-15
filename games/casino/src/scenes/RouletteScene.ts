@@ -61,7 +61,7 @@ export class RouletteScene extends Phaser.Scene {
     this.marker = null;
     this.refresh = coinBar(this, 'Roulette', () => {
       if (!this.spinning) this.scene.start('room', { room: 'tables' });
-    });
+    }, 'roulette');
     this.recentRow = this.add.container(0, 240);
     this.drawRecent();
     this.drawTable();
