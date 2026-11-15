@@ -39,6 +39,11 @@ export function makeVelvetCasinoRoom(T) {
  }
  for(const x of [-7.5,7.5])for(const z of [-6.4,-2.6,1.2,5]){
    cylinder(T,g,m.ivory,[x,2.32,z],.30,4.6,'marble_column');
+   // Eight subtle flutes give each column a classical profile at follow-camera distance.
+   for(let i=0;i<8;i++){
+     const a=i*Math.PI/4;
+     cylinder(T,g,m.lightGold,[x+.298*Math.cos(a),2.31,z+.298*Math.sin(a)],.018,4.4,'column_flute',8);
+   }
    for(const y of [.26,4.54])cylinder(T,g,m.brass,[x,y,z],.43,.16,'capital');
  }
  for(const z of [-4,2.6]){
