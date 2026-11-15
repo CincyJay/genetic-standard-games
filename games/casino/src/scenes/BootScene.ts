@@ -128,6 +128,8 @@ export class BootScene extends Phaser.Scene {
       for (const s of m.symbols) this.load.image(`sym-${m.id}-${s}`, `art/slots/${m.id}/${s}.png`);
     for (const u of ['coin', 'btn-spin', 'btn-spin-lanterns', 'btn-spin-pharaoh', 'btn-spin-ocean', 'btn-spin-goldrush', 'btn-gamble', 'btn-stop', 'btn-plus', 'btn-minus', 'btn-auto', 'btn-auto-on', 'panel-bet']) this.load.image(u, `art/ui/${u}.png`);
     for (const m of MACHINES) this.load.image(`logo-${m.id}`, `art/logos/${m.id}.png`);
+    // Art-directed physical slot-machine surrounds. Transparent windows preserve live reels.
+    for (const m of MACHINES) this.load.svg(`cabinet-${m.id}`, `art/cabinet/cabinet-${m.id}.svg`, { width: 1080, height: 1920 });
     for (const bg of ['bg-felt', 'bg-felt-red', 'bg-poker', 'room-lobby', 'room-slots', 'room-poker', 'room-tables', 'room-cards', 'world-pharaoh', 'world-ocean', 'world-goldrush', 'world-lanterns', 'world-dragon', 'world-empire', 'world-thunder', 'world-tiger', 'world-cosmic']) this.load.image(bg, `art/${bg}.jpg`);
     // photorealistic avatars: a round face for every preset (small, used everywhere); the
     // larger 3:4 portraits are only loaded when the Dressing Room opens

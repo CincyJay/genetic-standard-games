@@ -180,6 +180,7 @@ export class SlotsScene extends Phaser.Scene {
     backdrop(this, machineBg(this.m), { y0: -10000, y1: TOP - 16 }).setDepth(20);
     backdrop(this, machineBg(this.m), { y0: TOP + CELL * ROWS + 16, y1: 10000 }).setDepth(20);
     this.cabinet();
+    this.cabinetArt();
     this.lines = this.add.graphics().setDepth(22).setBlendMode(Phaser.BlendModes.ADD);
     this.fx = this.add.container(0, 0).setDepth(22);
 
@@ -341,6 +342,11 @@ export class SlotsScene extends Phaser.Scene {
         bulbs.forEach((b, i) => b.setAlpha((i + k) % (fast ? 2 : 4) === 0 ? 1 : 0.25));
       },
     });
+  }
+
+  /** Extra mechanical cabinet texture. Entire reel and marquee windows are alpha-clear. */
+  private cabinetArt(): void {
+    this.add.image(VW / 2, 960, `cabinet-${this.m.id}`).setDisplaySize(VW, 1920).setDepth(21);
   }
 
   /** The cabinet's top box: the machine's world art behind its 3D logo, under a crown. */
