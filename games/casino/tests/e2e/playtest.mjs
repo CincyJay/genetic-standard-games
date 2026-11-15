@@ -17,7 +17,9 @@ const page = await (
   await browser.newContext({ viewport: { width: 384, height: 832 }, deviceScaleFactor: 2.8125, isMobile: true, hasTouch: true })
 ).newPage();
 const errors = [];
-page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+// blocked network connections (this sandbox's proxy, Firebase's database servers) are not game bugs
+const sandboxNoise = (t) => /ERR_TUNNEL_CONNECTION_FAILED|Establishing a tunnel via proxy|firebaseio\.com|ERR_CONNECTION_RESET/.test(t);
+page.on('console', (m) => m.type() === 'error' && !sandboxNoise(m.text()) && errors.push(m.text()));
 page.on('pageerror', (e) => errors.push(String(e)));
 const shot = (n) => page.screenshot({ path: `${out}${n}.png` });
 const wait = (ms) => page.waitForTimeout(ms);
