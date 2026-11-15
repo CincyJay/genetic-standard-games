@@ -743,6 +743,18 @@ monetization. The Firebase projects weren't touched.
 **Next ChatGPT-owned batches:** Scene-matched environments for lobby and rooms, 10 theme-specific slot backplates and symbol sets, casino table surfaces and card/chip textures, and bonus-game image components. Technical image dimensions/layout specs from Claude's asset matrix remain needed.
 
 
+### VA-0010 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: IN_PROGRESS
+**Owner directive:** Joshua expects the COMPLETE graphics overhaul, including slot machines that look physically like cabinets rather than flat screens, plus genuinely editable photorealistic avatars (hair color, outfits, jewelry). ChatGPT owns artistic production and graphics implementation; Claude must not independently generate inferior cartoon art. No claim of total completion yet.
+
+**Concrete GitHub work now:** Draft PR #1 (`design/physical-slot-cabinets-v1`) was created by ChatGPT, adding 10 per-theme physical cabinet SVG overlays, BootScene loading and SlotsScene rendering, preserving transparency over the actual 5×5 reels and top box. This is an initial mechanical metallic pass, *not* a finished photorealistic 3D set. It is intentionally unmerged pending build/device review. Reference: https://github.com/CincyJay/genetic-standard-games/pull/1.
+
+**Separate production art pack:** `VelvetAce_Graphics_Production_Batch02.zip` was generated in ChatGPT (10 PNG/RGBA 1080×1920 cabinet overlays plus previews/manifest). The ZIP is a conversation artifact and not in GitHub. It does not automatically install into the app. ChatGPT remains the artist and designer.
+
+**Custom avatars / critical engineering reality:** The 16 existing photo portraits are flattened 192×240 and cannot support convincing, independently editable hair, clothes and jewelry. Do NOT implement fake color buttons, generic SVG hair or unaligned accessory stickers. Production choice requires (A) photo-identical professionally rendered variant sets at controlled poses and angles or (B) a licensable realistic rigged 3D human character system with mesh hair/outfit/jewelry slots and saved avatar configuration. This need remains OPEN. Keep the existing preset/photo profile features working until a real solution is selected and art assets exist.
+
+**Next validation:** review PR #1 for syntax and Android appearance with an isolated test save; no writes to player's production save. Report exact screen capture issues and required corrections. Do not merge without explicit approval. Do not change slot odds, paytables, or bonus logic under a graphics PR.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
