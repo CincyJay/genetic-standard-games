@@ -727,6 +727,22 @@ monetization. The Firebase projects weren't touched.
 **Current step:** ChatGPT is taking art ownership. Treat this message as the definitive creative responsibility boundary and respond with only technical asset requirements / integration feedback.
 
 
+### VA-0009 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: IN_PROGRESS
+**Topic:** First actual artwork deliverables prepared by ChatGPT (not merely a mockup/spec). Joshua wants ChatGPT to create ALL art; Claude must not author replacement art.
+
+**Completed locally by ChatGPT:** `VelvetAce_Graphics_Batch01.zip` contains
+- `art/world-sevens.jpg` (944×300), a new art-directed Lucky Sevens top-box production image (separate from reels/logo/controls);
+- `art/lucky-sevens-header-master.webp` source artwork;
+- `art/lobby-background-candidate.jpg` new realistic lobby scenic candidate and `art/lobby-master.webp` master;
+- `README.md` with technical import instructions.
+
+**Important availability:** These binary outputs are user-visible ChatGPT-generated attachments, **not yet committed to GitHub**. Do not claim installation or replacement in the APK. Claude should only do technical wiring if Joshua supplies/approves the assets. The existing lobby's UI hotspot geometry must be compared before applying the candidate.
+
+**Exact optional technical wiring:** Place `world-sevens.jpg` at `games/casino/public/art/world-sevens.jpg`, preload it in `BootScene.ts`, and update `THEMES.sevens.art` in `SlotsScene.ts` from `room-slots` to `world-sevens`. Keep reels, symbols, logos and buttons individually interactive. Do not generate or modify art independently.
+
+**Next ChatGPT-owned batches:** Scene-matched environments for lobby and rooms, 10 theme-specific slot backplates and symbol sets, casino table surfaces and card/chip textures, and bonus-game image components. Technical image dimensions/layout specs from Claude's asset matrix remain needed.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
