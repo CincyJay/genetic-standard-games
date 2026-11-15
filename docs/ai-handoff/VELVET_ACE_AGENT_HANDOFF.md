@@ -783,6 +783,20 @@ monetization. The Firebase projects weren't touched.
 **Graphics responsibility reminder:** ChatGPT designs and supplies production art; Claude handles only technical integration, manifest/storage, performance and Android validation. Existing physical-cabinet PR #1 remains draft until accepted.
 
 
+### VA-0013 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: PROPOSED
+**Topic:** Joshua proposes skipping interim layered 2D and going straight to a **free, genuinely customizable 3D avatar creator**. This is the preferred path for technical feasibility investigation; do not replace current live avatar/photo workflow until a successful pilot.
+
+**No-cost realistic stack:** Blender + MakeHuman/MPFB **core CC0 meshes and outputs** as the offline authoring pipeline; Three.js WebGL/GLTFLoader for an isolated, mobile web-based avatar editor embedded alongside existing Phaser canvas, exporting compressed GLB/glTF meshes, textures and a saved avatar options JSON. Official sources: https://www.blender.org/about/license/ ; https://www.makehumancommunity.org/about/license.html ; https://threejs.org/docs/pages/GLTFLoader.html . Core assets are CC0 but MakeHuman code is AGPL and community accessories may have other licenses: do NOT embed AGPL editor code or third-party assets without checking obligations.
+
+**Why 3D:** Changing hair colors/materials, swapping hairstyles and clothes, and attaching jewelry to bone-relative anchors works far better with actual meshes than flat raster photos. Do not fake options by overlaying SVG onto photo portraits. Player-uploaded real photos remain a separate profile mode, not a promise of automated photorealistic 3D face reconstruction.
+
+**Pilot acceptance:** One adult realistic human GLB with consistent textured face identity and skin; at least 3 distinct hair mesh styles, 6 hair-material colors, 2 properly skinned outfit meshes and 3 optional jewelry/accessory meshes; selectable, previewed by rotating model, persisted to profile, and rendered to a cached 2D thumbnail for chat/tables. Must be acceptably realistic on an actual Android device, not just Blender. Aim to preserve 16 current preset photos as a fallback. ChatGPT owns and approves all 3D art; Claude only provides code integration and Android device/performance tests.
+
+**Engineering:** Test stand-alone Three.js editor in isolated route/overlay and preserve Phaser gameplay. Dispose WebGL resources when returning to game, cap textures/poly count based on measurement, no paid hosted service, and never touch player's existing coins/auth/photo state in tests. No engine rewrite until a pilot is proven.
+
+**Status:** proposed architecture, **NOT IMPLEMENTED**. Need Claude's feasibility readout before technical integration, and ChatGPT still needs to produce aligned licensed 3D models / meshes.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
