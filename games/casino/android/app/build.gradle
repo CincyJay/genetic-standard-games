@@ -1,14 +1,20 @@
 apply plugin: 'com.android.application'
 
+// `./gradlew assembleDebug -Pproto` builds the 3D-floor prototype as a separate app: its own
+// application id (so its own storage, never the real player's save), its own launcher label,
+// and no Google Services, so it can't sign in to the live Firebase project.
+def proto = project.hasProperty('proto')
+
 android {
     namespace = "com.thegeneticstandard.velvetace"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.thegeneticstandard.velvetace"
+        applicationId proto ? "com.thegeneticstandard.velvetace.proto3d" : "com.thegeneticstandard.velvetace"
+        manifestPlaceholders = [appLabel: proto ? "VA 3D Prototype" : "@string/app_name", activityLabel: proto ? "VA 3D Prototype" : "@string/title_activity_main"]
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 18
-        versionName "1.8"
+        versionName proto ? "1.8-3dproto.1" : "1.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -46,7 +52,7 @@ apply from: 'capacitor.build.gradle'
 
 try {
     def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
+    if (servicesJSON.text && !proto) {
         apply plugin: 'com.google.gms.google-services'
     }
 } catch(Exception e) {

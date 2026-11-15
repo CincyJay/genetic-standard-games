@@ -35,9 +35,15 @@ export class BlackjackScene extends Phaser.Scene {
   private sideStaked = 0;
 
   private dealer!: Dealer;
+  /** Where Back goes: the table room, or the 3D floor if the player sat down there. */
+  private from: 'room' | 'floor3d' = 'room';
 
   constructor() {
     super('blackjack');
+  }
+
+  init(data: { from?: string }): void {
+    this.from = data?.from === 'floor3d' ? 'floor3d' : 'room';
   }
 
   private get sideBet(): number {
@@ -49,7 +55,7 @@ export class BlackjackScene extends Phaser.Scene {
     frame(this);
     // 3D-rendered table: printed felt, chip tray, shoe and padded rail
     backdrop(this, 'table-blackjack');
-    this.refresh = coinBar(this, 'Blackjack', () => this.scene.start('room', { room: 'tables' }), 'blackjack');
+    this.refresh = coinBar(this, 'Blackjack', () => (this.from === 'floor3d' ? this.scene.start('floor3d') : this.scene.start('room', { room: 'tables' })), 'blackjack');
     this.dealer = new Dealer(this, 'blackjack');
     this.time.delayedCall(600, () => this.dealer.greet());
     this.betLayer = this.add.container(0, 0).setDepth(5);
