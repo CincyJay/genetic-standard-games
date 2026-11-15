@@ -57,7 +57,8 @@ export interface Seat {
 
 /**
  * The walkable room: inside faces of the side walls (art: 0.38 m thick at x ±8.8) and the back
- * wall (0.36 m at z -7.8). The entrance side (+Z) has no wall; the floor ends at z +8.
+ * wall (0.36 m at z -7.8). The entrance side (+Z) has wings either side of an open arch (see
+ * OBSTACLES); the floor ends at z +8.
  */
 export const ROOM = { x0: -8.61, x1: 8.61, z0: -7.62, z1: 7.8, wallHeight: 5.4 } as const;
 
@@ -110,10 +111,8 @@ export const SLOTS = CASINO_WORLD.slots.map((s) => ({ id: s.id, x: s.x, z: s.z, 
 
 /** Columns from the art (radius 0.43 at the brass capitals). */
 const COLUMNS: Vec2[] = [-7.5, 7.5].flatMap((x) => [-6.4, -2.6, 1.2, 5].map((z) => ({ x, z })));
-/** Velvet benches from the art: 2.2 × 1.0 m bases. */
-const BENCHES: Vec2[] = [-5.2, 5.2].flatMap((x) => [-3.8, 1.1].map((z) => ({ x, z })));
-
-const boxAround = (id: string, x: number, z: number, hx: number, hz: number, h: number): Obstacle => ({ kind: 'box', id, x0: x - hx, z0: z - hz, x1: x + hx, z1: z + hz, h });
+/** Lounge benches from the art (pass 03): 1.78 m wide bases, backs on the entrance side. */
+const BENCHES: Vec2[] = [-5.15, -2.75, 2.75, 5.15].map((x) => ({ x, z: 6.35 }));
 
 export const OBSTACLES: Obstacle[] = [
   { kind: 'circle', id: 'table', x: TABLE.x, z: TABLE.z, r: TABLE.radius, h: TABLE.height },
@@ -122,7 +121,10 @@ export const OBSTACLES: Obstacle[] = [
   // chairs (0.69 m wide)
   ...SEATS.map((s): Obstacle => ({ kind: 'circle', id: `${s.id}-chair`, x: s.x, z: s.z, r: 0.38, h: 1.55 })),
   ...COLUMNS.map((c, i): Obstacle => ({ kind: 'circle', id: `column-${i + 1}`, x: c.x, z: c.z, r: 0.43, h: ROOM.wallHeight })),
-  ...BENCHES.map((b, i) => boxAround(`bench-${i + 1}`, b.x, b.z, 1.1, 0.5, 0.74)),
+  // the base reaches 0.42 m toward the room; the back cushion reaches 0.45 m toward the entrance
+  ...BENCHES.map((b, i): Obstacle => ({ kind: 'box', id: `bench-${i + 1}`, x0: b.x - 0.89, z0: b.z - 0.42, x1: b.x + 0.89, z1: b.z + 0.45, h: 1.23 })),
+  // the entrance wings either side of the open arch (art pass 03: 3.1 m wide, 0.28 m deep at z 7.65)
+  ...[-1, 1].map((side): Obstacle => ({ kind: 'box', id: `entrance-wing-${side < 0 ? 'w' : 'e'}`, x0: Math.min(side * 5.4, side * 8.5), z0: 7.51, x1: Math.max(side * 5.4, side * 8.5), z1: 7.79, h: 5.1 })),
   // slots face the middle of the room: a box from the cabinet's back to its console
   ...SLOTS.map((s): Obstacle => {
     const inward = s.x < 0 ? 1 : -1;

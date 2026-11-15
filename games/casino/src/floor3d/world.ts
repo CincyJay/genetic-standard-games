@@ -169,7 +169,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   for (const s of SEATS) {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.6, 40), new THREE.MeshBasicMaterial({ color: s.taken ? C.taken : C.free, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2;
-    ring.position.set(s.x, 0.02, s.z);
+    // above the art's contact-shadow decals (y 0.069), so the ring's colour isn't dimmed
+    ring.position.set(s.x, 0.08, s.z);
     ring.userData.seat = s.id;
     // a generous invisible tap target around the chair
     const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 1.6, 12), hidden);
@@ -265,7 +266,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="rotate"></button>
     <button type="button" class="motion" aria-pressed="false"></button>
   </div>
-  <div class="badge">PROTOTYPE · ART PASS 02 · PLACEHOLDER PEOPLE</div>
+  <div class="badge">PROTOTYPE · ART PASS 03 · PLACEHOLDER PEOPLE</div>
 </div>
 <div class="toast" role="status" aria-live="polite"></div>
 <div class="joy" aria-label="Walk joystick"><div class="knob"></div></div>

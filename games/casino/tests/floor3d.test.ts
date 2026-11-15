@@ -39,17 +39,27 @@ describe('3D floor layout', () => {
     expect(ROOM.x1 - ROOM.x0).toBeLessThanOrEqual(CASINO_WORLD.lobbyWidth);
     expect(ROOM.z1 - ROOM.z0).toBeLessThanOrEqual(CASINO_WORLD.lobbyDepth);
   });
-  it('every slot cabinet can be walked up to, except the four the art puts a bench in front of', () => {
-    // Art pass 02 places velvet benches (x ±5.2, z -3.8 and 1.1) across the fronts of these
-    // cabinets. Reported to ChatGPT (art owns placement); this test fails when it's fixed.
-    const blockedByBench = ['lanterns', 'ocean', 'empire', 'tiger'];
-    const blocked: string[] = [];
+  it('every slot cabinet can be walked up to', () => {
+    // art pass 02 had benches across four cabinet fronts; pass 03 moved them to the entrance
     for (const s of SLOTS) {
       const front = { x: s.x + (s.x < 0 ? 1 : -1) * 1.0, z: s.z };
-      if (!nav.walkableAt(front)) blocked.push(s.id);
-      else expect(nav.findPath(SPAWN, front), s.id).not.toBeNull();
+      expect(nav.walkableAt(front), s.id).toBe(true);
+      const path = nav.findPath(SPAWN, front);
+      expect(path, s.id).not.toBeNull();
+      const end = path!.at(-1)!;
+      expect(Math.hypot(end.x - front.x, end.z - front.z), s.id).toBeLessThan(1e-6);
     }
-    expect(blocked.sort()).toEqual(blockedByBench.sort());
+  });
+  it('both blackjack chairs can be reached from the spawn', () => {
+    for (const s of SEATS) {
+      const end = nav.findPath(SPAWN, s.approach)!.at(-1)!;
+      expect(Math.hypot(end.x - s.approach.x, end.z - s.approach.z), s.id).toBeLessThan(1e-6);
+    }
+  });
+  it('the entrance wings block walking, the arch between them does not', () => {
+    expect(nav.pointFree({ x: -7, z: 7.5 })).toBe(false);
+    expect(nav.pointFree({ x: 7, z: 7.5 })).toBe(false);
+    expect(nav.pointFree({ x: 0, z: 7.4 })).toBe(true);
   });
   it('has one free and one taken seat for stage 1', () => {
     expect(SEATS.filter((s) => !s.taken)).toHaveLength(1);

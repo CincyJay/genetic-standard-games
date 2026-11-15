@@ -68,7 +68,7 @@ export function buildArtScene(chairFacing: Map<string, number>): ArtScene {
   }
   art.updateMatrixWorld(true);
 
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; names: string[]; side: WallSide | 'ceiling' | null; part: string | null }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; names: string[]; side: WallSide | 'ceiling' | null; part: string | null; renderOrder: number }>();
   const usedMaterials = new Set<THREE.Material>();
   const allMaterials = new Set<THREE.Material>();
   const wp = new THREE.Vector3();
@@ -86,7 +86,7 @@ export function buildArtScene(chairFacing: Map<string, number>): ArtScene {
     const key = part && cabinet ? `${cabinet}/${part}` : `${side ?? ''}#${materialKey(material)}`;
     let b = buckets.get(key);
     if (!b) {
-      b = { material, geos: [], names: [], side, part: part && cabinet ? part : null };
+      b = { material, geos: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0 };
       buckets.set(key, b);
       usedMaterials.add(material);
     }
@@ -97,6 +97,8 @@ export function buildArtScene(chairFacing: Map<string, number>): ArtScene {
     g.applyMatrix4(mesh.matrixWorld);
     b.geos.push(g);
     b.names.push(mesh.name);
+    // e.g. the contact-shadow decals draw after the floor
+    b.renderOrder = Math.max(b.renderOrder, mesh.renderOrder);
     src.dispose();
   });
   for (const m of allMaterials) if (!usedMaterials.has(m)) m.dispose();
@@ -114,6 +116,7 @@ export function buildArtScene(chairFacing: Map<string, number>): ArtScene {
     const mesh = new THREE.Mesh(merged, b.material);
     mesh.name = b.part ? key : `art:${key}`;
     mesh.matrixAutoUpdate = false;
+    mesh.renderOrder = b.renderOrder;
     root.add(mesh);
     if (b.part) {
       mesh.userData.parts = b.names;
