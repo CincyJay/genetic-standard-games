@@ -468,6 +468,28 @@ and no photo was uploaded.
 **Claude request now:** Produce a compact **asset matrix** containing file path, rendered role, current pixel size, target dimensions, screenshot evidence, whether runtime layout depends on it, and suggested priority. Return the matrix as the next handoff entry, plus current game screens. Hold broad asset replacement until the approved style direction and matching production assets are available.
 
 
+### VA-0006 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: OPEN
+**Topic:** Joshua requests **interactive side games triggered by matching bonus symbols on the slot reels**, such as a separate free-roll/free-spin experience, with much more excitement and visual spectacle. This is a new game-design requirement to integrate with the full graphics overhaul, not approval to change payout economics without review.
+
+**Current implementation observed:** `games/casino/src/scenes/SlotsScene.ts` already includes free spins, a Lucky Wheel, a Gamble card game, Pharaoh's Gold pick-a-sarcophagus bonus, Gold Rush prize wheel, and a hold-and-spin feature. **Do not duplicate or remove these existing mechanics.** Audit each of the ten slot machines, how scatter/bonus symbols trigger each, existing tests, RTP/payout tables and any visual gaps. The user's intent is to make a bonus hit transition into a distinctly playable, cinematic mini-game instead of just a banner or multiplier display.
+
+**Recommended feature designs, subject to rules/RTP audit:**
+- A visible trigger: typically 3+ BONUS/SCATTER symbols (respect each machine's actual math); animate each landing, count them clearly, then move into a distinct themed bonus scene with an obvious start and return.
+- **Lucky Sevens — Velvet Vault Free Rolls:** trigger a separate 5×5 free-spin session with a themed room, persistent counter, multiplier meter and summary. Use existing free-spin math or an explicitly reviewed replacement.
+- **Pharaoh's Gold — Tomb of Treasures:** enhance existing sarcophagus picks with suspenseful opening, unique reveals, and a closing win recap.
+- **Gold Rush — Mine Cart Rush:** enhance/extend the existing wheel with an interactive themed reward sequence; make the choice meaningful without secretly changing predetermined outcomes.
+- **Deep Blue — Sunken Treasure:** themed treasure-chest pick/reveal or expanding-wild rescue scene.
+- **Lucky Lanterns — Dragon Festival:** lantern reveal and themed free-spin scene.
+- High-limit Cosmic / Dragon / Empire / Thunder / Tiger: propose one recognizable, distinct bonus interaction each, consistent with existing machine features and math, rather than generic reskinned wheels. Provide an asset/animation matrix per machine before implementing all ten.
+- Persistent clear progression: trigger celebration -> full-screen mini-game with interactive affordance and auto-play fallback -> prize tally -> celebratory return to base reels, never lose paid spin result or credited chips on interruption/relaunch.
+
+**UX/art:** Keep all actual symbols/reels individually animated and 5×5 visible in base games. New bonus scenes should have distinct cinematic backgrounds, objects, readable counters, win reveals, audiovisual feedback, and a Skip/Reduced Motion path. Do not produce a single flattened picture pretending to be a functioning game. Ensure high hit excitement without long unskippable cutscenes; the player should feel a real event occurred.
+
+**Correctness and business constraints:** All awards use **virtual chips only**, no redemption. Bonus outcomes must be server/client state-consistent per current architecture, appropriately randomized, testable, and credited exactly once. No misleading near-misses or claims that the user controls random odds when they do not. Do not quietly raise/lower RTP: document frequency, expected bonus payouts, worst-case bounds and total game RTP simulation before proposing any math changes. Free spins should clearly show wager-free status and the base bet they inherit. Pause autoplay during feature games. Ensure resume/recovery and close/background behavior cannot double-award or lose prizes. Never change players' live balances during tests.
+
+**Claude's next response:** In VA-0007, return (1) feature matrix for all ten machines: trigger rule, existing bonus vs proposed interactive enhancement, asset requests, math implications; (2) recommended **single pilot bonus** (prefer Lucky Sevens free-roll scene or a richer existing Pharaoh/Gold Rush scene); (3) implementation stages and Android test plan. Build the pilot on a branch after design approval; keep existing saved progress and social/game features intact. Coordinate visual asset needs with the graphics audit VA-0005.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
