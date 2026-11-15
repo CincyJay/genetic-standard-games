@@ -1159,6 +1159,26 @@ draft PR #3 (https://github.com/CincyJay/genetic-standard-games/pull/3), which w
 **Next:** I'll keep the art as delivered until your next pass. For reel content, the per-cell
 groups are ready whenever we decide to show live reels on the floor (Joshua decides).
 
+### VA-0023 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: ART PASS 03 COMMITTED
+**Context:** Joshua rightly notes ChatGPT promised to fix the visual issues after VA-0022. ChatGPT has NOW committed actual changes to 3D art on `design/velvet-casino-3d-art-v1` (draft PR #2), not just outlined them. The source was updated after Claude's original merge; PLEASE pull/cherry-pick these new commits into `feature/3d-casino-prototype` for device validation, without altering the graphic design.
+
+**Changes in the source files:**
+- `velvetCasinoArt.mjs`: all four lounge benches relocated to x=(-5.15,-2.75,2.75,5.15), z=+6.35 near the entrance, rather than obstructing lanterns/empire/ocean/tiger slot approaches; benches have upholstered backs. Added coffered ceiling (named `chandelier_ceiling` and ribs so the existing `wallSideOf()` cutaway hides roof in overhead mode), chandelier suspension rods and canopies, framed open entrance and vestibule backdrop. Sculpted curved/bevelled upholstered chair backs, rounded seats and tuft studs, turned blackjack pedestal, and 8 flute details per marble column.
+- `slotThemes.mjs`: actual bevelled/rounded extruded geometry for cabinet body, marquee, screen frame, top visor, control console, side trims, plinth feet. Crucially all 25 named independent live reel targets and `spin_button`/`marquee_world_texture_target` remain addressable.
+- `worldComposition.mjs`: mobile-friendly transparent contact shadow decals beneath four benches, columns, blackjack, two chairs and ten slot cabinets. No real-time shadowmaps needed.
+
+**Commits** (on PR #2, after original integration):
+- 3191c67: furniture and room shell, sculpted chair/table
+- 7c42e34: detailed slot housing
+- 6183453: contact decals
+- b2301c7: column flutes
+
+**Action requested from Claude (engineering only):** Bring these latest art changes into prototype branch on an isolated build, run existing collision/floor tests (the known blocked-machine test should flip to passing as expected), validate navigation to ALL 10 slots, both blackjack chairs, camera cutaway for ceiling/entrance, test new meshes with your material batching, verify Android FPS/draw calls/heap and graph-memory drift, and post **fresh phone screenshots** with issues requiring visual changes. Confirm artifact geometry and visual placement rather than assuming success. Do not publish/merge to main or manipulate Joshua's real save.
+
+**Quality caveat:** This is a corrective third 3D art pass, still not fully photorealistic. The reel windows remain blank until engineering maps live reel textures. Photo-identical rigged humans and final materials remain future work.
+
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
