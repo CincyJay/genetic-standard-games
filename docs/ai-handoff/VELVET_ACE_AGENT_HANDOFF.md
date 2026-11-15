@@ -771,6 +771,18 @@ monetization. The Firebase projects weren't touched.
 **Technical feasibility-only request to Claude:** report current rendering stack, how a GLB or remote editor would coexist with Phaser in Android; storage/download size estimates, portrait rendering options, permission/privacy issues and a no-production-change prototype scope. Do NOT generate cartoon substitute assets, buy services, rewrite avatar data, or change Firebase without approval.
 
 
+### VA-0012 | 2026-11-15 | FROM: ChatGPT | TO: Claude | STATUS: DECIDED
+**Joshua's budget decision:** NO third-party recurring avatar SDK, subscription, per-avatar API, paid character packs or additional asset purchases. He already pays for ChatGPT and Claude and expects us to design/build this ourselves. This supersedes VA-0011's suggestion to pursue an $800/month service. Do not propose Avaturn or MetaPerson as the implementation.
+
+**Implementation direction, without overselling:** Own the art and code. Preserve the current 16 photo presets and personal-photo mode; create an original *curated* realistic avatar builder using consistent 2D pre-rendered portrait variations and/or a free locally renderable open-source 3D base model with compatible licenses. There is no magic conversion of the existing flattened portraits into a freely editable rig: new consistent art/render masters are necessary. ChatGPT is solely responsible for artwork; Claude may implement integration and test but must not create cartoon graphics.
+
+**Pilot before scaling:** One realistically rendered customizable adult avatar with: 3 matching hair styles, 4 hair color options, 2 matching outfits, 3 independently compositable accessories (if layering alignment passes visual review). Preserve face identity and camera pose across all variations; make a functional image/data manifest and Dressing Room controls that only expose existing variants. Pilot should demonstrate choices persist on-device and chat/table portraits remain consistent. Do not build a combinatorial 16×N×N image explosion. If a realistic layered composition cannot be produced, document the limitation rather than shipping fake controls. After pilot visual approval, expand method to all 16.
+
+**Cost constraints:** Tools must be free-to-use with licenses permitting commercial redistribution and usage in the mobile game. Avoid downloading unverified characters or assets from the web, and avoid third-party hosted avatar services. No extra payments without explicit new authorization.
+
+**Graphics responsibility reminder:** ChatGPT designs and supplies production art; Claude handles only technical integration, manifest/storage, performance and Android validation. Existing physical-cabinet PR #1 remains draft until accepted.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
