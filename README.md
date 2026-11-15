@@ -41,6 +41,9 @@ and can watch a rewarded video for 1,000 coins. Rated for adults (17+ / Mature) 
 | Casino War | High card wins 1:1; on a tie, go to war (raise wins 1:1, bet pushes) or surrender half; Tie bet 10:1 |
 | Craps | Pass Line with odds (up to 3x, true odds), Don't Pass, Field, Place 4-10, Hardways, Any Seven, Any Craps, Yo; place and hardways off on the come-out; ON/OFF puck |
 | Ultimate Texas Hold'em | Ante + Blind (+ Trips); one Play bet: 4x/3x preflop, 2x on the flop, 1x at the river or fold; dealer opens with a pair; Blind pays on a straight or better |
+| Card Club: Euchre | Partners (you and the player across) vs two computer players; 24-card deck, order up / name trump with stick-the-dealer, right and left bowers; makers score 1 (all five tricks: 2), euchred makers give the defenders 2; first to 10 |
+| Card Club: Hearts | Four players, pass three (left, right, across, hold), 2 of clubs leads, no points on the first trick, hearts must be broken; hearts 1 point, queen of spades 13, shoot the moon; lowest score when someone reaches 50 wins |
+| Card Club: Spades | Partners; bid tricks (or Nil), spades always trump and can't be led until broken; 10 per trick bid plus 1 per bag, every 10 bags costs 100, set loses 10 per trick bid, Nil ±100; first to 250. Winning a Card Club game pays 1,500 coins |
 
 **Progression** (`src/logic/progression.ts`): XP from every wager (1 per 10 coins) raises your
 level; each level pays coins (bigger every 5th) and unlocks content (Lucky Lanterns at 2, Pharaoh's Gold at 3, High
@@ -54,7 +57,7 @@ different games) and a once-a-day prize wheel live in the lobby.
 
 **Profile picture:** players can upload a photo (cropped to a circle, stored on the device) or pick an illustrated portrait; it shows in the lobby, the profile and at the poker table.
 
-**Presentation:** the lobby has a door to each room (Slots Room, Poker Room, Table Games), a
+**Presentation:** the lobby has a door to each room (Slots Room, Poker Room, Table Games, Card Club), a
 jackpot marquee, and a bottom bar with the hourly bonus, daily wheel, missions and the player
 profile (which also holds the sound, music and vibration switches). Each room lists its games. Wins of 10x the bet
 or more get a full-screen celebration that climbs through BIG, SUPER, MEGA and EPIC WIN.

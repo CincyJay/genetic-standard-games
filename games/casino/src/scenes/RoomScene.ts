@@ -5,7 +5,7 @@ import { VW, backdrop, coinBar, frame, text } from '../ui/common.ts';
 import { cardsArt, gameTile, reelArt, wheelArt, type Tile } from '../ui/tiles.ts';
 import { FEATURE_TEXT, machineBg, symKey } from './SlotsScene.ts';
 
-export type RoomId = 'slots' | 'poker' | 'tables';
+export type RoomId = 'slots' | 'poker' | 'tables' | 'cards';
 
 const SLOT_UNLOCK: Record<string, UnlockId | null> = {
   sevens: null,
@@ -112,6 +112,26 @@ export const ROOMS: Room[] = [
       {
         key: 'war', title: 'Casino War', sub: 'High card wins', bg: 'table-war', unlock: null, ribbon: 'NEW',
         art: (s, c) => cardsArt(s, c, 'Ks Kh', true),
+      },
+    ],
+  },
+  {
+    id: 'cards',
+    title: 'Card Club',
+    sub: 'Euchre, Hearts and Spades with three other players',
+    bg: 'room-tables',
+    games: () => [
+      {
+        key: 'cardgame', title: 'Euchre', sub: 'Partners · bowers · first to 10', bg: 'bg-felt', unlock: null, ribbon: 'NEW', data: { game: 'euchre' },
+        art: (s, c) => cardsArt(s, c, 'Jh Jd Ah', false),
+      },
+      {
+        key: 'cardgame', title: 'Hearts', sub: 'Dodge the queen · shoot the moon', bg: 'bg-felt-red', unlock: null, ribbon: 'NEW', data: { game: 'hearts' },
+        art: (s, c) => cardsArt(s, c, 'Qs Ah Kh', false),
+      },
+      {
+        key: 'cardgame', title: 'Spades', sub: 'Partners · bid · first to 250', bg: 'bg-felt', unlock: null, ribbon: 'NEW', data: { game: 'spades' },
+        art: (s, c) => cardsArt(s, c, 'As Ks Qs', false),
       },
     ],
   },

@@ -30,8 +30,8 @@ export class LobbyScene extends Phaser.Scene {
 
     // one door per room
     const top = view.top + 380;
-    const barTop = Math.max(top + 3 * 420 + 2 * 24 + 30, view.bottom - 330);
-    const doorH = Math.min(560, Math.floor((barTop - top - 30 - 2 * 24) / 3));
+    const barTop = Math.max(top + 4 * 330 + 3 * 24 + 30, view.bottom - 330);
+    const doorH = Math.min(460, Math.floor((barTop - top - 30 - 3 * 24) / 4));
     const doors = this.add.container(0, 0);
     const doorArt: Record<string, (s: Phaser.Scene, c: Phaser.GameObjects.Container) => void> = {
       slots: (s, c) =>
@@ -46,6 +46,7 @@ export class LobbyScene extends Phaser.Scene {
         cardsArt(s, c, 'As Kh', false, -doorH / 2 + 150, 0.85);
         c.list.slice(-2).forEach((o) => ((o as Phaser.GameObjects.Image).x += 220));
       },
+      cards: (s, c) => cardsArt(s, c, 'Jh Qs As', false, -doorH / 2 + 130, 0.8),
     };
     ROOMS.forEach((r, i) =>
       gameTile(

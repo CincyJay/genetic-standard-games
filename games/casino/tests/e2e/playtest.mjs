@@ -60,6 +60,7 @@ const ROOMS = {
   slots: ['sevens', 'lanterns', 'pharaoh', 'ocean', 'goldrush'],
   poker: ['holdem', 'jacks', 'deuces', 'ddb'],
   tables: ['blackjack', 'roulette', 'baccarat', 'threecard', 'craps', 'uth', 'war'],
+  cards: ['euchre', 'hearts', 'spades'],
 };
 const roomOf = (name) => Object.keys(ROOMS).find((r) => ROOMS[r].includes(name));
 const openTile = async (name) => {
@@ -247,6 +248,58 @@ await tap(820, 1840); // Bet 2x
 await wait(3000);
 await shot('10f-uth');
 await page.waitForFunction(() => !globalThis.__uth.busy(), null, { timeout: 60000 });
+await back();
+
+// Card Club: a hand card sits on a row along the bottom; tap its visible left strip
+const handTap = async (i) => {
+  const n = await page.evaluate(() => globalThis.__scene().rules.hand(0).length);
+  const step = Math.min(130, 900 / Math.max(1, n - 1));
+  await tap(540 + (i - (n - 1) / 2) * step - 78 + step / 2, 1680);
+  await wait(300);
+};
+// lets the computer play your seat (fast) until a few tricks or a round have gone by
+const autoPlay = async (ms) => {
+  await page.evaluate(() => globalThis.__cards.fast());
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms && !(await page.evaluate(() => globalThis.__cards.over()))) {
+    await page.evaluate(() => globalThis.__cards.auto());
+    await wait(150);
+  }
+};
+
+step('hearts');
+await openTile('hearts');
+await shot('10g-hearts-pass');
+for (const i of [12, 11, 10]) await handTap(i);
+await tap(540, 1180); // Pass left
+await wait(1500);
+if ((await page.evaluate(() => globalThis.__cards.phase())) !== 'play') throw new Error('hearts: the pass did not go through');
+await autoPlay(8000);
+await shot('10h-hearts');
+await back();
+
+step('spades');
+await openTile('spades');
+await page.waitForFunction(() => globalThis.__cards.turn() === 0 || globalThis.__cards.phase() === 'play', null, { timeout: 15000 });
+if ((await page.evaluate(() => globalThis.__cards.phase())) === 'bid') {
+  await tap(130 + 3 * 137, 1080); // bid 3
+  await wait(1500);
+}
+await autoPlay(8000);
+await shot('10i-spades');
+await back();
+
+step('euchre');
+await openTile('euchre');
+await page.waitForFunction(() => globalThis.__cards.turn() === 0 || globalThis.__cards.phase() === 'play', null, { timeout: 15000 });
+await shot('10j-euchre');
+if ((await page.evaluate(() => globalThis.__cards.phase())) === 'order') {
+  await tap(540 + 170, 1180); // Pass
+  await wait(1200);
+}
+await autoPlay(60000);
+await shot('10k-euchre-end');
+if (!(await page.evaluate(() => globalThis.__cards.over()))) throw new Error('euchre: game did not finish');
 await back();
 
 step("hold'em");
