@@ -72,7 +72,7 @@ async function start(): Promise<void> {
     }
   });
   // test hook (dev builds only): jump straight to a scene
-  if (import.meta.env.DEV) Object.assign(globalThis, { __go: (key: string, data?: object) => game.scene.getScenes(true)[0]?.scene.start(key, data), __scene: () => game.scene.getScenes(true)[0] });
+  if (import.meta.env.DEV) Object.assign(globalThis, { __go: (key: string, data?: object) => void game.scene.getScenes(true)[0]?.scene.start(key, data), __scene: () => game.scene.getScenes(true)[0] });
 }
 
 void start();
