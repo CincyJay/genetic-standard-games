@@ -77,10 +77,10 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  const theme=HERO_THEMES[id];if(!theme)throw Error('Unknown hero theme: '+id);
  const g=new T.Group();g.name='VA_HeroSlot_'+id;
  const black=m(T,0x07090e,.20,.20),chassis=m(T,0x141921,.80,.23);
- const body=m(T,theme.body,.28,.27),side=m(T,theme.secondary,.55,.22);
- const chrome=m(T,0x9baac0,.95,.15),accent=m(T,theme.accent,.35,.23,theme.accent,.42);
- const darkGlass=m(T,0x0a0e20,.18,.14),screen=m(T,0x131225,.08,.27);
- const bronze=m(T,0x986b4d,.72,.26),button=m(T,0x6dffdb,.2,.23,0x18b488,.6);
+ const body=m(T,0x090b11,.56,.13),side=m(T,0x0b0c13,.62,.16);
+ const chrome=m(T,0x9baac0,.95,.15),accent=m(T,theme.accent,.16,.19,theme.accent,3.0);
+ const darkGlass=m(T,0x060811,.24,.10),screen=m(T,0x131225,.08,.24,0x17152a,1.8);
+ const bronze=m(T,0x986b4d,.72,.26),button=m(T,0x6dffdb,.2,.23,0x18b488,2.6);
  // Physically heavy recessed base, kicked-back toe area, separate side shell.
  sculpt(T,g,'floor_plinth',[0,.105,-.045],[1.09,.21,.78],.09,black);
  sculpt(T,g,'toe_kick',[0,.27,.29],[.88,.18,.23],.06,chassis);
@@ -108,9 +108,9 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  // Curved portrait-screen assembly, canted backward by ~7 degrees.
  const display=new T.Group();display.name='angled_portrait_display';
  display.position.set(0,1.42,.38);display.rotation.x=-.115;g.add(display);
- sculpt(T,display,'display_gasket',[0,0,.015],[1.04,1.49,.13],.12,black);
- sculpt(T,display,'display_bright_bezel',[0,0,.087],[.985,1.44,.09],.105,accent);
- sculpt(T,display,'display_glass',[0,0,.143],[.925,1.38,.035],.085,darkGlass);
+ sculpt(T,display,'display_gasket',[0,0,.015],[1.04,1.70,.13],.12,black);
+ sculpt(T,display,'display_bright_bezel',[0,0,.087],[.985,1.65,.09],.105,accent);
+ sculpt(T,display,'display_glass',[0,0,.143],[.925,1.59,.035],.085,darkGlass);
  // Square 5x5 reel targets match the square symbol atlas without vertical stretching.
  // 5x5 live reel targets: do not bake symbols into cabinet geometry.
  // Names preserved exactly for engineering's cell-group batching and atlas mapping.
@@ -123,8 +123,8 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  }
  // Curved glass silhouette edging and physical vent/speaker details.
  tube(T,display,'glass_outer_inlay',[
-  [-.46,-.67,.158],[-.47,-.25,.17],[-.47,.34,.17],[-.43,.67,.162],
-  [.43,.67,.162],[.47,.34,.17],[.47,-.25,.17],[.46,-.67,.158]
+  [-.46,-.79,.158],[-.47,-.25,.17],[-.47,.34,.17],[-.43,.79,.162],
+  [.43,.79,.162],[.47,.34,.17],[.47,-.25,.17],[.46,-.79,.158]
  ],.012,chrome);
  for(const sx of [-.405,.405])for(let i=0;i<6;i++)
     cuboid(T,g,'speaker_grille',[sx,.45+i*.028,.54],[.035,.007,.012],black);
@@ -145,9 +145,21 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  // Side-view finishing / plinth illumination.
  for(const x of [-.47,.47])
    tube(T,g,'base_fibre_optic',[[x,.15,-.26],[x,.15,.11],[x,.20,.30]],.012,accent);
+
+ // Independent stacked top sign and neon spine. Lighting is authored for Claude's bloom pass.
+ sculpt(T,g,'stacked_jackpot_crown_housing',[0,3.015,-.18],[.94,.30,.38],.08,chassis);
+ sculpt(T,g,'stacked_jackpot_crown_glow',[0,3.035,.041],[.87,.22,.035],.05,accent);
+ sculpt(T,g,'stacked_jackpot_crown_dark_center',[0,3.035,.064],[.76,.14,.008],.025,darkGlass);
+ for(const x of [-.51,.51])
+   tube(T,g,'neon_vertical_spine',[[x,.48,.47],[x,.80,.52],[x,1.65,.53],[x,2.20,.43],[x,2.80,.31]],.018,accent);
+ g.traverse(obj=>{
+   if(obj.isMesh && /LED_|neon_|fibre_optic|topbox_illuminated|topbox_lamp|jackpot_crown_glow|display_bright_bezel|spin_button|marquee_world_texture_target/.test(obj.name)){
+     obj.userData.glow=true;obj.userData.glowRole='casino-hardware';
+   }
+ });
  g.userData={
    asset:'VA_HeroCabinet_Pilot',artOnly:true,theme:id,meters:true,
-   upAxis:'Y',forward:'+Z',approxHeight:2.93,footprint:{width:1.10,depth:.95},
+   upAxis:'Y',forward:'+Z',approxHeight:3.17,footprint:{width:1.10,depth:.95},
    reelTargets:reelNames,reelRows:5,reelColumns:5,
    /* The title art texture is for artistic preview; dispose it with the scene. */
    createdTitleTexture:titleTexture,
