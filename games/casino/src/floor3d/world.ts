@@ -71,6 +71,8 @@ export interface FloorStats {
   pilot05: boolean;
   /** The opt-in blackjack hero table (VA-0054) is on. */
   blackjackHero: boolean;
+  /** ChatGPT's opt-in woven carpet (VA-0058, `?carpet`) replaced the pilot carpet. */
+  wovenCarpet: boolean;
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
   /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
@@ -242,6 +244,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     /* storage unavailable: show the pilot */
   }
   if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('bjhero')) blackjackHero = pilot05;
+  // `?carpet`: ChatGPT's woven carpet in place of the pilot carpet (VA-0058); preview only, no button yet
+  const wovenCarpet = pilot05 && typeof location !== 'undefined' && new URLSearchParams(location.search).has('carpet');
   // the player's look: ChatGPT's guest avatar pilot (VA-0035) unless switched back to the capsule
   let guestAvatar = true;
   try {
@@ -252,7 +256,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // the hero table brings its own seat and dealer anchors (VA-0056); the round table keeps the art's
   const SEATS = seatsFor(blackjackHero);
   const DEALER_SPOT = dealerSpotFor(blackjackHero);
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = obstaclesFor(pilot05, art.blackjackHero);
   const nav = new NavGrid(ROOM, obstacles);
@@ -1013,6 +1017,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       heroSignLift: art.heroSignLift,
       pilot05,
       blackjackHero: art.blackjackHero,
+      wovenCarpet: art.wovenCarpet,
       guestAvatar,
       lightMode,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),

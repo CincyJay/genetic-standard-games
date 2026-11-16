@@ -307,6 +307,51 @@ describe('cameras', () => {
   });
 });
 
+describe('woven carpet preview (VA-0058, opt-in)', () => {
+  // a do-nothing 2D context: the art draws its texture into it, which needs no browser here
+  const stubCanvas = () => {
+    const ctx = new Proxy({} as Record<string, unknown>, { get: (t, k) => (k in t ? t[k as string] : () => {}), set: (t, k, v) => ((t[k as string] = v), true) });
+    return { width: 0, height: 0, getContext: () => ctx };
+  };
+  it('takes the pilot carpet’s place, footprint and height, at no extra batch, and is off by default', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const canvas = stubCanvas();
+    const off = buildArtScene(new Map(), { pilot05: true });
+    const on = buildArtScene(new Map(), { pilot05: true, wovenCarpet: true, carpetCanvas: canvas });
+    expect(off.wovenCarpet).toBe(false);
+    expect(on.wovenCarpet).toBe(true);
+    // without the pilot there is no pilot carpet to replace; without a canvas it stays off
+    expect(buildArtScene(new Map(), { pilot05: false, wovenCarpet: true, carpetCanvas: canvas }).wovenCarpet).toBe(false);
+    expect(buildArtScene(new Map(), { pilot05: true, wovenCarpet: true }).wovenCarpet).toBe(false);
+    expect(on.batches).toBe(off.batches);
+    const carpets: InstanceType<typeof THREE.Mesh>[] = [];
+    on.root.traverse((o) => {
+      const m = o as InstanceType<typeof THREE.Mesh>;
+      if (m.isMesh && (m.material as InstanceType<typeof THREE.MeshStandardMaterial>).map?.image === canvas) carpets.push(m);
+    });
+    expect(carpets).toHaveLength(1);
+    carpets[0].geometry.computeBoundingBox();
+    const b = carpets[0].geometry.boundingBox!;
+    expect(b.max.x - b.min.x).toBeCloseTo(17.2, 3);
+    expect(b.max.z - b.min.z).toBeCloseTo(14.7, 3);
+    expect((b.max.z + b.min.z) / 2).toBeCloseTo(-0.12, 3);
+    expect(b.min.y).toBeCloseTo(0.024, 4);
+    expect(b.max.y).toBeCloseTo(0.024, 4);
+    // the pilot carpet itself is gone, so nothing else lies flat at its height across the room
+    let wide = 0;
+    on.root.traverse((o) => {
+      const m = o as InstanceType<typeof THREE.Mesh>;
+      if (!m.isMesh || m === carpets[0]) return;
+      const pos = m.geometry.attributes.position;
+      let n = 0;
+      for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getY(i) - 0.024) < 1e-4 && Math.abs(pos.getX(i)) > 8.5) n++;
+      wide += n;
+    });
+    expect(wide).toBe(0);
+  });
+});
+
 describe('blackjack hero table (VA-0054, opt-in)', () => {
   it('replaces the round table art in place, expands its instanced chips, and leaves it off by default', async () => {
     const THREE = await import('three');

@@ -19,6 +19,7 @@ import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
 import { makeVelvetGuestAvatar } from '../../../../art/casino/3d/guestAvatar.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
+import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { PILOT_CHAIR, PILOT_HERO_SLOT } from './layout.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
@@ -61,6 +62,8 @@ export interface ArtScene {
   heroSignLift: number;
   /** Whether the opt-in blackjack hero table (VA-0054) replaced the round table's art. */
   blackjackHero: boolean;
+  /** Whether ChatGPT's opt-in woven carpet (VA-0058) replaced the pass-05 pilot carpet. */
+  wovenCarpet: boolean;
   /**
    * Batches for the view where nothing is cut away (the eye-level follow camera): each material
    * the walls or ceiling share with the rest of the room is drawn once, wall and ceiling pieces
@@ -236,6 +239,32 @@ export interface ArtOptions {
    * as they are; layout.ts adds collision for its wider ends.
    */
   blackjackHero?: boolean;
+  /**
+   * ChatGPT's opt-in woven carpet preview (VA-0058). It takes the pass-05 pilot carpet's place
+   * (same footprint and height) instead of lying over it: both sit at y 0.024, so an overlay
+   * would z-fight. Needs the pilot, and a canvas (a browser's, or `carpetCanvas`).
+   */
+  wovenCarpet?: boolean;
+  /** Canvas for the woven carpet's texture where there is no `document` (tests). */
+  carpetCanvas?: unknown;
+}
+
+const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
+
+/** Swaps the pilot carpet for the woven carpet (VA-0058), before batching. */
+function applyWovenCarpet(art: THREE.Group, canvas?: unknown): boolean {
+  const old = art.getObjectByName(PILOT_CARPET) as THREE.Mesh | undefined;
+  if (!old?.isMesh || !old.parent) return false;
+  if (!canvas && typeof document === 'undefined') return false;
+  const { width, height } = (old.geometry as THREE.PlaneGeometry).parameters;
+  const carpet = makeVelvetPatternCarpet(THREE, { width, depth: height, x: old.position.x, y: old.position.y, z: old.position.z, canvas }) as THREE.Mesh;
+  old.parent.add(carpet);
+  old.removeFromParent();
+  const m = old.material as THREE.MeshStandardMaterial;
+  m.map?.dispose();
+  m.dispose();
+  old.geometry.dispose();
+  return true;
 }
 
 /** Swaps the round blackjack table's art for the hero table (VA-0054), before batching. */
@@ -317,6 +346,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const { root: art } = makeVelvetWorld(THREE) as { root: THREE.Group };
   const { heroTextures, heroSignLift } = opts.pilot05 ? applyPilot05(art) : { heroTextures: [], heroSignLift: 0 };
   const blackjackHero = opts.blackjackHero ? applyBlackjackHero(art) : false;
+  const wovenCarpet = opts.wovenCarpet ? applyWovenCarpet(art, opts.carpetCanvas) : false;
   for (const [id, c] of chairs) {
     const chair = art.getObjectByName(`${id}_chair`);
     if (!chair) continue;
@@ -435,5 +465,5 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, whole, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, wovenCarpet, whole, meshesAuthored, batches: buckets.size, colourBatches };
 }
