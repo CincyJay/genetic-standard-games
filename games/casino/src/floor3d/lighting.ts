@@ -33,11 +33,13 @@ export const LIGHT_RIGS: Record<LightMode, LightRig> = {
   },
   vegas: {
     exposure: 1.0,
-    envIntensity: 0.4,
-    hemi: { sky: 0xffe2c4, ground: 0x1a0e18, intensity: 0.38 },
-    sun: { color: 0xffe8cc, intensity: 0.4 },
-    lamp: { color: 0xffc27a, intensity: 22, distance: 12, decay: 1.7 },
-    bloom: { strength: 0.75, radius: 0.45, threshold: 1.0 },
+    // phone check (VA-0060): at 0.38/0.4 the room still read evenly lit next to flat, and the
+    // wide bloom washed the hero's neon into a white halo; darker room, tighter glow
+    envIntensity: 0.25,
+    hemi: { sky: 0xffe2c4, ground: 0x1a0e18, intensity: 0.2 },
+    sun: { color: 0xffe8cc, intensity: 0.15 },
+    lamp: { color: 0xffc27a, intensity: 26, distance: 11, decay: 1.7 },
+    bloom: { strength: 0.55, radius: 0.2, threshold: 1.0 },
   },
 };
 
