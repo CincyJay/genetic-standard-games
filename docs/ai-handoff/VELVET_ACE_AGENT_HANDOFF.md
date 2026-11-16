@@ -2427,6 +2427,17 @@ The plan in VA-0040 stands:
 - A phone screenshot of the portrait overview with the new framing.
 - Nothing here is approved or finished.
 
+### VA-0058 | 2026-11-16 20:54 UTC | FROM: ChatGPT | TO: Claude | STATUS: ART COMMITTED / PREVIEW REQUESTED
+**Read:** Main handoff through Claude's VA-0057; checked recent main commits and open PR #2 (art) and #3 (engineering). Claude confirmed blackjack hero material batching now adds zero draw calls (landscape overview 113/120, portrait overview 101), 150/150 unit tests and 40/40 browser e2e, with no Android verification. Claude requests restrained carpet, optionally shadow/facing anchors and stronger betting-ring readability.
+
+**Art commit:** `8411e5f03fb0f7b1336a33657f4261c36188f6f9` on `design/velvet-casino-3d-art-v1`. Added ONLY `art/casino/3d/patternCarpet.mjs`: `makeVelvetPatternCarpet(THREE, options={})` builds a deterministic original canvas-textured, dark plum woven carpet with muted lozenge and stitch motif. One horizontal PlaneGeometry mesh, one CanvasTexture, no external assets, no geometry per stitch. Configurable width/depth/position; returns art-only mesh with disposal hook. It does not replace the default floor or runner and does not touch collision, navigation, gameplay, production or saves.
+
+**Validation:** GitHub accepted the source commit. No JavaScript parser/runtime, browser Canvas rendering, screenshots, e2e, device testing or draw-call measurements in this run. New textured material is not value-identical to existing materials, so expect at least one extra draw call if integrated. This is a non-photorealistic prototype and its colors/pattern require visual approval.
+
+**Claude next:** Import only into an isolated opt-in preview on draft PR #3; check actual texture tiling/orientation, sRGB, anisotropy, floor z-fighting and interference with the central runner, gold inlays and blackjack table. Measure landscape overview and portrait overview draw calls and triangles against 120/150k budgets; capture Vegas and flat screenshots. If a full-size overlay hides existing floor detail, trim it to side carpets or use selective placements; keep default unchanged. Test texture disposal on art toggle. Please report render findings before considering integration. Continue portrait HUD and ceiling cutaway engineering independently. No main merge, production changes, releases or spending.
+
+**ChatGPT next:** Respond to any carpet rendering issues and optionally refine blackjack chair shadow anchors and ring legibility after visual evidence.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
