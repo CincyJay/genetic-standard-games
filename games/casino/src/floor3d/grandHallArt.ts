@@ -3,19 +3,21 @@
  * layout.ts describes, for artScene.ts to batch like the salon. Engineering only: art modules
  * are used as authored and only placed, turned and copied here.
  *
- * - ChatGPT's grand concourse (VA-0062, `1ad332e`) down the middle.
- * - Blackjack hero tables (VA-0054) in two banks, each with two of the pilot swivel chairs.
- * - One hero cabinet per theme along the back wall: these are the interactive `slot_<id>`
+ * - ChatGPT's grand hall architecture (VA-0065, `8a874c9`): promenade, side walls, coffered
+ *   ceiling, colonnade and ring chandeliers, built at the layout's size (grandHall.ts uses the
+ *   same spec for collision).
+ * - Blackjack hero tables (VA-0054), each with two of the pilot swivel chairs.
+ * - One hero cabinet per theme on the far end wall: these are the interactive `slot_<id>`
  *   machines (reels, spin button, marquee). The side-wall banks are copies of them that share
  *   their geometry, materials and canvas textures, so they batch with them.
  * - ChatGPT's woven carpet over the whole floor (a plain floor in tests, where there is no canvas).
  *
- * The walls and the ceiling outside the concourse are PLACEHOLDERS: plain dark boxes, named like
- * the salon's walls and roof so the overview's cutaway works. The art has no shell at this size
- * yet; it was asked for on the board (VA-0063).
+ * The architecture has no end walls (VA-0065: the host frames them). The far end wall is a
+ * PLACEHOLDER plain dark box, named like the salon's rear wall so the overview cuts it away; the
+ * entrance end stays open, as in the salon.
  */
 import * as THREE from 'three';
-import { createGrandConcourse } from '../../../../art/src/grandConcourse.mjs';
+import { createGrandHallArchitecture } from '../../../../art/casino/3d/grandHallArchitecture.mjs';
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
@@ -53,11 +55,12 @@ export function composeGrandHall(
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
-  const { room } = layout;
-  const w = room.x1 - room.x0;
-  const d = room.z1 - room.z0;
-  const cx = (room.x0 + room.x1) / 2;
-  const cz = (room.z0 + room.z1) / 2;
+  const spec = layout.hallSpec ?? { width: 24, length: 36, height: 7.2, aisleWidth: 7.5, bayLength: 4 };
+  // the whole hall's floor, wall to wall and end to end (the walkable room is smaller)
+  const w = spec.width;
+  const d = spec.length;
+  const cx = 0;
+  const cz = 0;
 
   // floor: ChatGPT's woven carpet, sized to the hall
   let wovenCarpet = false;
@@ -71,33 +74,19 @@ export function composeGrandHall(
     root.add(floor);
   }
 
-  // PLACEHOLDER shell (no art at this size yet): walls named like the salon's, so the cutaway sorts them
-  const shell = new THREE.MeshStandardMaterial({ color: 0x1e1622, roughness: 0.85 });
-  const box = (name: string, sx: number, sy: number, sz: number, x: number, y: number, z: number) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), shell);
-    m.name = name;
-    m.position.set(x, y, z);
-    root.add(m);
-  };
-  const h = room.wallHeight;
-  box('rear_wall', w + 0.8, h, 0.36, cx, h / 2, room.z0 - 0.18);
-  box('wall', 0.38, h, d + 0.4, room.x0 - 0.19, h / 2, cz);
-  box('wall', 0.38, h, d + 0.4, room.x1 + 0.19, h / 2, cz);
-  box('chandelier_ceiling', w + 0.8, 0.2, d + 0.4, cx, h - 0.1, cz);
-
-  // ChatGPT's concourse down the middle
-  const c = layout.concourse;
-  if (c) {
-    const concourse = createGrandConcourse({ length: c.length, width: c.width, ceilingHeight: c.ceilingHeight }) as THREE.Group;
-    concourse.position.z = c.z;
-    root.add(concourse);
-  }
+  // ChatGPT's architecture at the layout's size
+  root.add(createGrandHallArchitecture(THREE, spec) as THREE.Group);
+  // PLACEHOLDER far end wall (the art leaves both ends open)
+  const endWall = new THREE.Mesh(new THREE.BoxGeometry(w, spec.height, 0.36), new THREE.MeshStandardMaterial({ color: 0x1e1622, roughness: 0.85 }));
+  endWall.name = 'rear_wall';
+  endWall.position.set(0, spec.height / 2, -d / 2 - 0.18);
+  root.add(endWall);
 
   // tables: the interactive one's chairs are the seats' (named like the salon's), the rest decor
   root.add(tableWithChairs(layout.table, ['blackjack_1_chair', 'blackjack_2_chair']));
   layout.decor.tables.forEach((t, i) => root.add(tableWithChairs(t, [`deco_${i + 1}a_chair`, `deco_${i + 1}b_chair`])));
 
-  // machines: one hero per theme, interactive, then copies along the side walls
+  // machines: one hero per theme, interactive, on the end wall; then copies along the side walls
   const heroes: THREE.Object3D[] = [];
   const heroTextures: THREE.Texture[] = [];
   const byTheme = new Map<string, THREE.Group>();

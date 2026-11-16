@@ -18,7 +18,8 @@ import { LIGHT_RIGS, LIGHT_STORAGE_KEY, nextLightMode, parseLightMode, type Ligh
 import { buildArtScene, buildGuestAvatar } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
-import { AVATAR_HEIGHT, HALL_STORAGE_KEY, layoutFor, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
+import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
+import { layoutFor } from './grandHall.ts';
 import { NavGrid } from './nav.ts';
 import { protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
@@ -367,7 +368,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       }
       continue;
     }
-    const data = o.id === 'table' ? { table: true } : { obstacle: o.id };
+    // the salon's table is `table`; the grand hall's are `<id>-table`
+    const data = o.id === 'table' || o.id.endsWith('-table') ? { table: true } : { obstacle: o.id };
     if (o.kind === 'circle') proxy(new THREE.CylinderGeometry(o.r, o.r, o.h, 16), o.x, o.h / 2, o.z, data, true);
     else proxy(new THREE.BoxGeometry(o.x1 - o.x0, o.h, o.z1 - o.z0), (o.x0 + o.x1) / 2, o.h / 2, (o.z0 + o.z1) / 2, data, true);
   }
@@ -375,7 +377,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   scene.add(capsule(C.npc, DEALER_SPOT.x, DEALER_SPOT.z, 0, 0));
   // the grand hall's other tables have placeholder dealers too
   for (const p of layout.decor.dealers) scene.add(capsule(C.npc, p.x, p.z, 0, 0));
-  const labels = [label('BLACKJACK', TABLE.x, 2.6, TABLE.z - 0.6, 1.6)];
+  const labels = [TABLE, ...layout.decor.tables].map((t) => label('BLACKJACK', t.x, 2.6, t.z - 0.6, 1.6));
   scene.add(...labels);
 
   // seats: a state ring on the floor, a tap volume and a bobbing marker over free seats

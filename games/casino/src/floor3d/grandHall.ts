@@ -2,7 +2,7 @@
  * The opt-in "Grand hall" preview's gameplay layout (VA-0063 plan, VA-0065 art): one parametric
  * description of a larger casino from which the walkable bounds, collision, table and slot
  * banks, seats, spawn and camera clamps all follow. Pure logic, no Three.js, so it is
- * unit-tested; nothing in the game uses it until the preview is wired into the floor.
+ * unit-tested. grandFloorLayout() turns it into the floor's FloorLayout (VA-0069).
  *
  * The architecture is ChatGPT's `createGrandHallArchitecture` (art/casino/3d/
  * grandHallArchitecture.mjs, `8a874c9`). The column rhythm and the side walls are worked out
@@ -10,7 +10,8 @@
  * the meshes the art module builds. Coordinates as in that module: X across the hall, Z down it
  * (+Z is the entrance end, where the player starts), Y up, origin at the centre of the floor.
  */
-import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, type Obstacle, type Seat, type Vec2 } from './layout.ts';
+import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, salonLayout, TABLE, type FloorLayout, type Hall, type Obstacle, type Seat, type SlotPlacement, type Vec2 } from './layout.ts';
+import { CASINO_WORLD } from '../../../../art/casino/3d/worldComposition.mjs';
 
 export interface GrandHallSpec {
   width: number;
@@ -132,11 +133,16 @@ function tableSeats(t: HallTable, first: boolean): Seat[] {
  * - slot banks with their backs to the side walls in the back and front thirds, facing the hall;
  * - the spawn on the promenade near the entrance end, facing down the hall.
  */
-export function grandHallLayout(opts: Partial<GrandHallSpec> = {}): GrandHallLayout {
+export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: number } = {}): GrandHallLayout {
   const spec = resolveSpec(opts);
   const { width, length, height, aisleWidth } = spec;
   const wallX = width / 2 - WALL_REACH;
-  const bounds = { x0: -wallX, x1: wallX, z0: -length / 2 + 0.2, z1: length / 2 - 0.2, wallHeight: height };
+  // an optional row of machines against the far end wall, facing down the promenade (VA-0069):
+  // the walkable area then starts at their consoles, so the row stands outside it, like a wall
+  const backRow = Math.max(0, Math.floor(opts.backRow ?? 0));
+  const backZ = -length / 2 + 0.2 + SLOT_BACK + 0.05;
+  const z0 = backRow ? backZ + SLOT_FRONT : -length / 2 + 0.2;
+  const bounds = { x0: -wallX, x1: wallX, z0, z1: length / 2 - 0.2, wallHeight: height };
   const aisle = { x0: -aisleWidth / 2 + 0.3, x1: aisleWidth / 2 - 0.3 };
   const zoneIn = aisleWidth / 2 + 1.7;
   const zoneOut = width / 2 - 0.5;
@@ -162,6 +168,10 @@ export function grandHallLayout(opts: Partial<GrandHallSpec> = {}): GrandHallLay
         slots.push({ id: `${tag}-${side < 0 ? 'w' : 'e'}${i + 1}`, x, z, rotationY, front: { x: x - side * (SLOT_FRONT + 0.4), z } });
       }
   };
+  for (let i = 0; i < backRow; i++) {
+    const x = (i - (backRow - 1) / 2) * SLOT_PITCH;
+    slots.push({ id: `end-${i + 1}`, x, z: backZ, rotationY: 0, front: { x, z: backZ + SLOT_FRONT + 0.4 } });
+  }
   bank(-length / 2 + 0.8, -length / 2 + third - 0.6, 'back');
   bank(length / 2 - third + 0.6, length / 2 - 2.4, 'front');
 
@@ -181,7 +191,7 @@ export function grandHallLayout(opts: Partial<GrandHallSpec> = {}): GrandHallLay
   const obstacles: Obstacle[] = [
     ...columns.map((c, i): Obstacle => ({ kind: 'box', id: `hall-column-${i + 1}`, x0: c.x - PLINTH_HALF, z0: c.z - PLINTH_HALF, x1: c.x + PLINTH_HALF, z1: c.z + PLINTH_HALF, h: height })),
     ...tables.flatMap(tableObstacles),
-    ...slots.map((s): Obstacle => {
+    ...slots.filter((s) => !s.id.startsWith('end-')).map((s): Obstacle => {
       const inward = s.x < 0 ? 1 : -1;
       const xa = s.x - inward * SLOT_BACK;
       const xb = s.x + inward * SLOT_FRONT;
@@ -218,4 +228,52 @@ export function obstacleOverlaps(o: Obstacle, r: { x0: number; x1: number; z0: n
  */
 export function hallCameraClamp(l: GrandHallLayout, margin = 0.35): { x0: number; x1: number; z0: number; z1: number; y1: number } {
   return { x0: l.bounds.x0 + margin, x1: l.bounds.x1 - margin, z0: l.bounds.z0 + margin, z1: l.bounds.z1 - margin, y1: l.spec.height - 0.32 - margin };
+}
+
+// ------------------------------------------------------------------ the floor's layout (VA-0069)
+
+/** The preview's hall: the art's default size, plus a row of the 10 machines on the far end wall. */
+export const GRAND_SPEC: Partial<GrandHallSpec> & { backRow: number } = { ...GRAND_HALL_DEFAULTS, backRow: 10 };
+
+/** Where the grand hall starts you (Floor3DScene uses it for a fresh visit). */
+export const GRAND_SPAWN = grandHallLayout(GRAND_SPEC).spawn;
+
+/**
+ * The grand hall as the floor's layout: everything gameplay needs comes from the one
+ * grandHallLayout() above, so the art (createGrandHallArchitecture, same spec) and the collision
+ * agree.
+ * - All four tables are live: each seat opens blackjack. The first table is the "table" the
+ *   floor's label and dealer code knew; the others' dealers are listed in `decor`.
+ * - The end-wall row holds one interactive machine per theme (reels, spin button, marquee).
+ *   The side banks are decorative copies, themes in turn.
+ */
+export function grandFloorLayout(): FloorLayout {
+  const l = grandHallLayout(GRAND_SPEC);
+  const themes = CASINO_WORLD.slots.map((s: { id: string }) => s.id);
+  const end = l.slots.filter((s) => s.id.startsWith('end-'));
+  const side = l.slots.filter((s) => !s.id.startsWith('end-'));
+  const slots: SlotPlacement[] = end.map((s, i) => ({ id: themes[i % themes.length], x: s.x, z: s.z, rotationY: s.rotationY }));
+  const decorSlots: SlotPlacement[] = side.map((s, i) => ({ id: themes[i % themes.length], x: s.x, z: s.z, rotationY: s.rotationY }));
+  const [first, ...others] = l.tables;
+  const dealerOf = (t: { x: number; z: number }) => ({ x: t.x + BLACKJACK_HERO_ANCHORS.dealer[0], z: t.z + BLACKJACK_HERO_ANCHORS.dealer[1] });
+  const { height, length } = l.spec;
+  return {
+    hall: 'grand',
+    // the follow camera stays under the coffer beams (hallCameraClamp): the room's height is theirs
+    room: { ...l.bounds, wallHeight: height - 0.32 },
+    table: { ...TABLE, x: first.x, z: first.z },
+    seats: l.seats,
+    dealer: dealerOf(first),
+    spawn: l.spawn,
+    slots,
+    obstacles: l.obstacles,
+    // under the art's two ring chandeliers
+    lamps: [-length / 4, length / 4].map((z) => ({ x: 0, y: height - 1.6, z })),
+    decor: { tables: others.map((t) => ({ x: t.x, z: t.z })), slots: decorSlots, dealers: others.map(dealerOf) },
+    hallSpec: l.spec,
+  };
+}
+
+export function layoutFor(hall: Hall, pilot05: boolean, blackjackHero: boolean): FloorLayout {
+  return hall === 'grand' ? grandFloorLayout() : salonLayout(pilot05, blackjackHero);
 }

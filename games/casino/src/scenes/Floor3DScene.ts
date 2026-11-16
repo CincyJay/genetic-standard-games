@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import type { CamMode } from '../floor3d/camera.ts';
 import { LIMITS } from '../floor3d/camera.ts';
-import { GRAND, readHall, SPAWN } from '../floor3d/layout.ts';
+import { readHall, SPAWN } from '../floor3d/layout.ts';
+import { GRAND_SPAWN } from '../floor3d/grandHall.ts';
 import { ROTATE_ORDER, applyFloorRotation, backToPortrait, type RotatePref } from '../floor3d/orientation.ts';
 import type { FloorHandle, FloorState } from '../floor3d/world.ts';
 import { VW, text } from '../ui/common.ts';
@@ -60,7 +61,7 @@ export class Floor3DScene extends Phaser.Scene {
     const prefs = loadPrefs();
     const saved = this.registry.get(STATE_KEY) as FloorState | undefined;
     // the grand hall preview (VA-0064) starts at its own entrance
-    const spawn = readHall() === 'grand' ? GRAND.spawn : SPAWN;
+    const spawn = readHall() === 'grand' ? GRAND_SPAWN : SPAWN;
     const state: FloorState = saved ?? {
       pos: { x: spawn.x, z: spawn.z },
       heading: spawn.heading,

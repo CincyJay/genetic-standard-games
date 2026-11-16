@@ -94,10 +94,12 @@ function wallSideOf(name: string, worldX: number): Side {
     if (/^chandelier_(entrance|portal|arch|vestibule)/.test(name)) return 'entrance';
     return 'fixtures';
   }
-  // the grand concourse (VA-0062): its slab, beams and coffers are roof; its cove strips, rings
-  // and stems hang below and stay as fixtures
-  if (name === 'continuous-ceiling-slab' || name === 'ceiling-crossbeam' || name === 'coffer-dark-inset') return 'roof';
-  if (name === 'coffer-warm-cove' || name === 'sculptural-chandelier-ring' || name === 'chandelier-stem') return 'fixtures';
+  // the grand hall architecture (VA-0065): its ceiling, coffers and beams are roof; the cove
+  // strips, ring chandeliers and their rods hang below and stay as fixtures; its side walls go
+  // with the salon's east and west walls
+  if (name === 'ceiling-base' || name.startsWith('coffer-')) return 'roof';
+  if (name === 'warm-cove-strip' || name === 'suspended-ring-chandelier' || name === 'chandelier-suspension') return 'fixtures';
+  if (name.startsWith('wall-')) return worldX < 0 ? 'west' : 'east';
   if (name === 'rear_wall' || name === 'wall_panel' || name === 'art_deco_panel_cap') return 'north';
   if (name === 'wall') return worldX < 0 ? 'west' : 'east';
   return null;
