@@ -10,6 +10,11 @@
 import * as THREE from 'three';
 import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, turnToward, type CamMode, type CamPose } from './camera.ts';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { LIGHT_RIGS, LIGHT_STORAGE_KEY, nextLightMode, parseLightMode, type LightMode } from './lighting.ts';
 import { buildArtScene, buildGuestAvatar } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
@@ -66,6 +71,8 @@ export interface FloorStats {
   pilot05: boolean;
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
+  /** Lighting mode (lighting.ts); vegas adds the bloom passes to drawCalls. */
+  lightMode: LightMode;
 }
 
 export interface FloorHandle {
@@ -120,23 +127,73 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // ChatGPT's art uses physically based materials: they need tone mapping, an environment to
   // reflect (metals look black without one) and warm key lights under the chandeliers
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  // draw calls are counted across every pass of a frame (scene + bloom), reset in frame()
+  renderer.info.autoReset = false;
   const pmrem = new THREE.PMREMGenerator(renderer);
   const roomEnv = new RoomEnvironment();
   const envMap = pmrem.fromScene(roomEnv, 0.04).texture;
   roomEnv.dispose();
   pmrem.dispose();
   scene.environment = envMap;
-  scene.environmentIntensity = 0.55;
-  scene.add(new THREE.HemisphereLight(0xfff0dc, 0x2a1a24, 0.9));
-  const sun = new THREE.DirectionalLight(0xfff4e6, 1.1);
+  const hemi = new THREE.HemisphereLight();
+  scene.add(hemi);
+  const sun = new THREE.DirectionalLight();
   sun.position.set(4, 9, 6);
   scene.add(sun);
-  for (const z of [-4, 2.6]) {
-    const lamp = new THREE.PointLight(0xffd59a, 14, 13, 1.6);
+  const lamps = [-4, 2.6].map((z) => {
+    const lamp = new THREE.PointLight();
     lamp.position.set(0, 3.9, z);
     scene.add(lamp);
+    return lamp;
+  });
+  // lighting mode (lighting.ts): "vegas" (dim room, neon bloom) by default, "flat" as before
+  let lightMode: LightMode = 'vegas';
+  try {
+    lightMode = parseLightMode(localStorage.getItem(LIGHT_STORAGE_KEY));
+  } catch {
+    /* storage unavailable: vegas */
   }
+  let composer: EffectComposer | null = null;
+  let bloomPass: UnrealBloomPass | null = null;
+  function applyLighting(): void {
+    const rig = LIGHT_RIGS[lightMode];
+    renderer.toneMappingExposure = rig.exposure;
+    scene.environmentIntensity = rig.envIntensity;
+    hemi.color.setHex(rig.hemi.sky);
+    hemi.groundColor.setHex(rig.hemi.ground);
+    hemi.intensity = rig.hemi.intensity;
+    sun.color.setHex(rig.sun.color);
+    sun.intensity = rig.sun.intensity;
+    for (const l of lamps) {
+      l.color.setHex(rig.lamp.color);
+      l.intensity = rig.lamp.intensity;
+      l.distance = rig.lamp.distance;
+      l.decay = rig.lamp.decay;
+    }
+    if (!rig.bloom) {
+      composer?.dispose();
+      bloomPass?.dispose();
+      composer = bloomPass = null;
+      return;
+    }
+    if (!composer) {
+      // HalfFloat keeps the emissive >1.0 values for the threshold; MSAA keeps the edges the
+      // canvas antialias would have given (cheap on the phone's tiled GPU)
+      const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+      composer = new EffectComposer(renderer, target);
+      composer.addPass(new RenderPass(scene, camera));
+      // UnrealBloomPass blurs from half the size it's given down: a cheap, mobile-sized chain
+      bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0, 0, 0);
+      composer.addPass(bloomPass);
+      composer.addPass(new OutputPass());
+      composer.setPixelRatio(pixelRatio);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    }
+    bloomPass!.strength = rig.bloom.strength;
+    bloomPass!.radius = rig.bloom.radius;
+    bloomPass!.threshold = rig.bloom.threshold;
+  }
+  applyLighting();
 
   const lambert = (color: number) => new THREE.MeshLambertMaterial({ color });
   const pickables: THREE.Object3D[] = [];
@@ -366,6 +423,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="roof"></button>
     <button type="button" class="artpass"></button>
     <button type="button" class="avatarart"></button>
+    <button type="button" class="lightmode"></button>
   </div>
 </div>
 <div class="badge"></div>
@@ -385,6 +443,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const avatarBtn = $<HTMLButtonElement>('.avatarart');
   avatarBtn.textContent = guestAvatar ? 'Avatar: guest pilot' : 'Avatar: capsule';
   avatarBtn.setAttribute('aria-label', `Avatar: ${guestAvatar ? 'guest pilot' : 'capsule'}. Tap to switch (reloads the floor).`);
+  const lightBtn = $<HTMLButtonElement>('.lightmode');
   const gearBtn = $<HTMLButtonElement>('.gear');
   const menuEl = $<HTMLDivElement>('.menu');
   const setMenu = (open: boolean) => {
@@ -413,6 +472,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     motionBtn.setAttribute('aria-pressed', String(reduced));
     roofBtn.textContent = `Roof from above: ${roofMode === 'lights' ? 'lights only' : roofMode === 'glass' ? 'see-through' : 'off'}`;
     roofBtn.setAttribute('aria-label', `Overview roof: ${roofMode}. Tap to change.`);
+    lightBtn.textContent = `Lighting: ${lightMode === 'vegas' ? 'Vegas + glow' : 'flat'}`;
+    lightBtn.setAttribute('aria-label', `Lighting: ${lightMode === 'vegas' ? 'Vegas with neon glow' : 'flat'}. Tap to switch.`);
     joy.style.display = st.mode === 'follow' ? 'block' : 'none';
   };
   syncHud();
@@ -479,6 +540,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       return toast('Can’t switch the avatar: storage is unavailable');
     }
     location.reload();
+  });
+  lightBtn.addEventListener('click', () => {
+    lightMode = nextLightMode(lightMode);
+    try {
+      localStorage.setItem(LIGHT_STORAGE_KEY, lightMode);
+    } catch {
+      /* not remembered: fine */
+    }
+    applyLighting();
+    syncHud();
   });
   gearBtn.addEventListener('click', () => setMenu(!menuEl.classList.contains('open')));
   $<HTMLButtonElement>('.back').addEventListener('click', () => {
@@ -650,6 +721,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
 
   const onResize = () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
+    composer?.setSize(window.innerWidth, window.innerHeight);
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
   };
@@ -674,7 +746,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     const t0 = performance.now();
     const dt = dtMs / 1000;
     update(dt, now);
-    renderer.render(scene, camera);
+    renderer.info.reset();
+    if (composer) composer.render(dt);
+    else renderer.render(scene, camera);
     const cost = performance.now() - t0;
     if (frames > 0) {
       intervals.push(dtMs);
@@ -862,6 +936,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       reelTextures,
       pilot05,
       guestAvatar,
+      lightMode,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };
   }
@@ -875,6 +950,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     clearTimeout(toastTimer);
     window.removeEventListener('resize', onResize);
     envMap.dispose();
+    composer?.dispose();
+    bloomPass?.dispose();
     scene.traverse((o) => {
       const m = o as THREE.Mesh;
       m.geometry?.dispose();

@@ -379,3 +379,28 @@ describe('art pass 05 pilot', () => {
     expect(Math.hypot(end.x - front.x, end.z - front.z)).toBeLessThan(1e-6);
   });
 });
+
+describe('floor lighting modes (VA-0043)', async () => {
+  const { LIGHT_RIGS, nextLightMode, parseLightMode } = await import('../src/floor3d/lighting.ts');
+  it('defaults to vegas and only "flat" selects flat', () => {
+    expect(parseLightMode(null)).toBe('vegas');
+    expect(parseLightMode('junk')).toBe('vegas');
+    expect(parseLightMode('flat')).toBe('flat');
+    expect(nextLightMode(nextLightMode('vegas'))).toBe('vegas');
+  });
+  it('flat keeps the original rig and has no post-processing', () => {
+    const f = LIGHT_RIGS.flat;
+    expect(f.bloom).toBeNull();
+    expect([f.exposure, f.envIntensity, f.hemi.intensity, f.sun.intensity, f.lamp.intensity]).toEqual([1.05, 0.55, 0.9, 1.1, 14]);
+  });
+  it('vegas dims the room light and blooms only HDR emissive (reels top out at 1.0)', () => {
+    const v = LIGHT_RIGS.vegas;
+    const f = LIGHT_RIGS.flat;
+    expect(v.hemi.intensity).toBeLessThan(f.hemi.intensity);
+    expect(v.sun.intensity).toBeLessThan(f.sun.intensity);
+    expect(v.envIntensity).toBeLessThan(f.envIntensity);
+    expect(v.bloom).not.toBeNull();
+    expect(v.bloom!.threshold).toBeGreaterThanOrEqual(1.0);
+    expect(v.bloom!.strength).toBeLessThanOrEqual(1);
+  });
+});
