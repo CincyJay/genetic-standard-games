@@ -20,6 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, layoutFor, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { NavGrid } from './nav.ts';
+import { protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
 
 export interface FloorState {
@@ -480,8 +481,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   padding:10px;border-radius:20px;background:rgba(20,12,26,.92);border:1px solid rgba(233,200,106,.5)}
 #va3d-hud .menu.open{display:flex}
 #va3d-hud .menu button{text-align:left}
+/* seven 48 dp buttons stacked are ~404 px: too tall under the top bar on a 384 px landscape phone */
+@media (max-height:520px){#va3d-hud .menu.open{display:grid;grid-template-columns:auto auto;gap:8px}}
 #va3d-hud .badge{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 4px);text-align:center;font:700 10px Outfit,sans-serif;
-  letter-spacing:1px;color:#e9c86a;opacity:.85;text-shadow:0 1px 3px #000}
+  letter-spacing:1px;color:#e9c86a;opacity:.85;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
 #va3d-hud .toast{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + min(190px, 26vh));text-align:center;font:700 17px Outfit,sans-serif;
   opacity:0;transition:opacity .25s;text-shadow:0 1px 4px #000}
 #va3d-hud .joy{pointer-events:auto;position:absolute;left:calc(env(safe-area-inset-left) + 24px);bottom:calc(env(safe-area-inset-bottom) + 40px);width:132px;height:132px;border-radius:50%;
@@ -519,7 +522,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const artBtn = $<HTMLButtonElement>('.artpass');
   const artLabel = !pilot05 ? 'pass 04' : art.blackjackHero ? 'pass 05 + BJ table' : 'pass 05 pilot';
   $<HTMLDivElement>('.badge').textContent =
-    hall === 'grand' ? 'PROTOTYPE · GRAND HALL PREVIEW' : `PROTOTYPE · ART ${artLabel.toUpperCase()} · PLACEHOLDER PEOPLE`;
+    hall === 'grand' ? 'PROTOTYPE · GRAND HALL PREVIEW' : protoBadge({ pilot05, blackjackHero: art.blackjackHero, wovenCarpet: art.wovenCarpet });
   const hallBtn = $<HTMLButtonElement>('.hall');
   hallBtn.textContent = hall === 'grand' ? 'Hall: grand (preview)' : 'Hall: salon';
   hallBtn.setAttribute('aria-label', `Hall: ${hall === 'grand' ? 'grand hall preview' : 'salon'}. Tap to switch (reloads the floor).`);

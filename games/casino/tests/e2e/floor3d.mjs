@@ -186,6 +186,8 @@ await page.waitForTimeout(200);
 const rot = await page.locator('#va3d-hud .rotate').boundingBox();
 const roofB = await page.locator('#va3d-hud .roof').boundingBox();
 ok(rot && rot.height >= 48 && rot.y >= 0 && roofB && roofB.y + roofB.height <= 384, 'landscape: the settings menu and its buttons stay on screen at 48 dp');
+const menuBoxes = await page.evaluate(() => [...document.querySelectorAll('#va3d-hud .menu button')].filter((b) => !b.hidden).map((b) => b.getBoundingClientRect()).map((r) => ({ top: r.top, bottom: r.bottom, h: r.height })));
+ok(menuBoxes.length >= 7 && menuBoxes.every((r) => r.top >= 0 && r.bottom <= 384 && r.h >= 48), `landscape: every settings button (${menuBoxes.length}) is on screen at 48 dp`);
 await page.locator('#va3d-hud .gear').tap();
 await shot('floor3d-07-landscape');
 
