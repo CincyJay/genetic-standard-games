@@ -1,14 +1,16 @@
 /** Velvet Ace blackjack furniture art pilot. Original, opt-in; no gameplay or collision.
  * THREE injected by caller; Y-up meters. Designed for shared-material batching.
- * Chip stacks use InstancedMesh (three draw calls total), never one mesh per chip.
+ * Chip stacks use InstancedMesh, never one mesh per chip; integration may batch instances.
  */
 export function makeVelvetBlackjackHero(T, options={}) {
  const root=new T.Group();root.name='VA_BlackjackHero_ArtOnly';
- const material=(color,metalness=0,roughness=.8)=>new T.MeshStandardMaterial({color,metalness,roughness});
- const wood=material(0x28151b,.16,.35),felt=material(0x124b43,0,.98),
-   rail=material(0x5c2736,.08,.62),brass=material(0xb89b61,.76,.3),
-   ink=material(0x123b35,0,.95),ivory=material(0xe5ded0,.05,.65),
-   red=material(0x922a42,.05,.5),dark=material(0x25242b,.12,.47);
+ // Exact velvetMaterials palette: same color, metalness and roughness for value batching.
+ // Do not share material object ownership with the room: this group disposes its own instances.
+ const material=(color,metalness=0,roughness=.6)=>new T.MeshStandardMaterial({color,metalness,roughness});
+ const wood=material('#2c1722',.2,.44),felt=material('#155d4f',0,.9),
+   rail=material('#54142b',.03,.88),brass=material('#d4aa64',.85,.23),
+   ink=material('#100e18',.15,.32),ivory=material('#e0d7c0',.05,.58),
+   red=rail,dark=ink;
  const mesh=(name,geometry,mat,x,y,z)=>{const o=new T.Mesh(geometry,mat);o.name=name;o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;root.add(o);return o};
  // Elliptical top: broad guest edge, recessed dark-green textile, upholstered perimeter.
  const top=new T.CylinderGeometry(1,1,.14,64);top.scale(1.83,1,1.10);
@@ -18,7 +20,7 @@ export function makeVelvetBlackjackHero(T, options={}) {
  const line=new T.TorusGeometry(1,.012,5,64);line.scale(1.70,1.035,1);
  const trim=mesh('blackjack_brass_inner_piping',line,brass,0,1.145,0);trim.rotation.x=Math.PI/2;
  const surface=new T.CircleGeometry(1,64);surface.scale(1.68,1.01,1);
- const field=mesh('blackjack_recessed_felt',surface,felt,0,1.102,0);field.rotation.x=-Math.PI/2;
+ const field=mesh('blackjack_recessed_felt',surface,felt,0,1.165,0);field.rotation.x=-Math.PI/2;
  // Dealer-side rail, shoe, discard holder, and low-profile recessed chip tray.
  mesh('dealer_shoe',new T.BoxGeometry(.38,.16,.22),dark,-.65,1.23,-.61);
  mesh('discard_tray',new T.BoxGeometry(.27,.055,.35),dark,.63,1.17,-.58);
@@ -28,12 +30,12 @@ export function makeVelvetBlackjackHero(T, options={}) {
  const ringGeo=new T.TorusGeometry(.115,.006,4,32);
  for(let i=0;i<5;i++){
   const a=Math.PI*(.13+.74*i/4),x=1.18*Math.cos(a),z=.66*Math.sin(a)+.10;
-  const ring=mesh('felt_bet_guide_'+i,ringGeo,brass,x,1.116,z);ring.rotation.x=-Math.PI/2;
+  const ring=mesh('felt_bet_guide_'+i,ringGeo,brass,x,1.179,z);ring.rotation.x=-Math.PI/2;
  }
  // Card rectangles with shallow thickness, two original unbranded backs.
  const cardGeo=new T.BoxGeometry(.112,.004,.17);
  for(let i=0;i<2;i++){
-  const card=mesh('dealer_card_back_'+i,cardGeo,ivory,-.08+i*.12,1.116,-.34);
+  const card=mesh('dealer_card_back_'+i,cardGeo,ivory,-.08+i*.12,1.179,-.34);
   card.rotation.y=(i?-.11:.12);
  }
  // Each chip color is one InstancedMesh regardless of number of chips.
@@ -55,6 +57,7 @@ export function makeVelvetBlackjackHero(T, options={}) {
  mesh('pedestal_kick_ring',new T.CylinderGeometry(.55,.55,.055,24),brass,0,.20,0);
  root.userData={artOnly:true,collision:false,units:'m',up:'Y',table:'blackjack',
    integration:'opt-in preview only; do not replace gameplay or interaction anchors',
-   disposal:'dispose geometries and materials owned by this group after removal'};
+   anchors:{units:'m',localSpace:true,front:'-Z',guestSeats:[{id:'left',position:[-1.12,0,1.53],approach:[-1.12,0,2.30]},{id:'right',position:[1.12,0,1.53],approach:[1.12,0,2.30]}],dealer:{position:[0,0,-1.80],approach:[0,0,-2.30]}},
+   disposal:'dispose geometries and unique materials owned by this group after removal'};
  return root;
 }
