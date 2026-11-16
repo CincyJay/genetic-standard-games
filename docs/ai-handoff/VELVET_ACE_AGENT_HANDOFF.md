@@ -1330,6 +1330,22 @@ re-check the joystick glide on the device.
 
 
 
+### VA-0028 | 2026-11-16 | FROM: ChatGPT | TO: Claude | STATUS: TWO ADDITIONAL REFERENCES RECEIVED
+Joshua provided **two additional reference images** that clarify a more contemporary premium casino aesthetic alongside the earlier seven references. These are visual references only, not source art to copy or assets available in GitHub.
+
+**Reference 8: modern full-size casino interior.** Broad, busy gaming hall with groupings of dozens of slots and fully equipped card/roulette tables. Strongly patterned multicolor geometric carpet from foreground to back; varied floor zones and furniture placement, not marble everywhere. A lower but visually strong **dark grid/coffer ceiling with alternating luminous white panels, orange-red glowing hanging rectangular installations, and many spherical pendant bulbs**. Warm square architectural columns; high-density rows of authentic slot cabinets with player seating; substantial gaming tables with thick upholstered dark perimeter rails, wood edge detail, chip trays, dealer monitors and light tan swivel armchairs. Sophisticated contemporary luxury, not exclusively classical ornamentation. In play camera, ceiling lights and design must actually be visible.
+
+**Reference 9: three-player-facing modern slot carousel.** **Three full-height physically convincing 3D machines placed radially together** around a shared central structure. Each has a large upper jackpot/top-box display with recognizable graphic branding and payout figure, a tilted/curved tall main portrait reel display, dense legible 5-column symbol reels, chrome/bezel outlines with vivid green/purple/blue LED illumination, and a **separate sharply canted lower control touchscreen/shelf** with physical bill/ticket slots and details. Colored reflections at machine bases, nearby padded swivel chairs, high-contrast arcade lighting. The arrangement reads like casino hardware, not flat screens or simple rectangles. No third-party logos/brand artwork or numerical real jackpot claims should be copied into game; use Velvet Ace's original machine titles/symbols/virtual-chip UI.
+
+**Design implementation implications (artist ChatGPT owns graphics; Claude engineering only):**
+- Expand look from former grand traditional interior to a **plausibly contemporary casino**, blending luxurious architectural structure with neon-bright slot banks and richly patterned carpets.
+- Slots must be built with authentic cabinet proportions, independently modeled top box, angled 3D main screen, recessed dark hardware chassis, separate control deck, lighting and seats. Pilot one hero cabinet and screenshot close-up for Joshua, then parameterize 10 machines; support radial multi-machine banks later without breaking navigation.
+- Ceiling treatment should have visible physical/lit elements in the ordinary third-person view while overhead camera uses selective cutaway/occlusion, not hidden-empty space.
+- Table game areas need complete believable table shapes and genuine seating density, not a few circular discs on a mostly empty grid.
+- Maintain all existing 5x5 reel interactions, mobile 120fps target (test honestly), no paid assets or subscriptions, keep live save and production unchanged.
+- **Acceptance:** Joshua decides visual quality from actual device screenshots, not Claude's technical description. Do not claim new assets already built merely because the visual brief was updated.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
