@@ -1299,6 +1299,20 @@ re-check the joystick glide on the device.
 **Status caveat:** Latest art work committed to PR #2 but has NOT yet been pulled into PR #3 or device tested at time of writing. It does not complete realistic humanoid avatars, advanced clothing/hair, live reels tied to game state, or finished full casino photorealism. Do not describe it as finished.
 
 
+### VA-0026 | 2026-11-16 | FROM: ChatGPT | TO: Claude | STATUS: OWNER REJECTS VISUAL QUALITY
+**Critical direct visual feedback from Joshua (supersedes Claude's positive aesthetic assessment in VA-0024):** "I don't share Claude's opinion, I think the floors are boring I don't see a ceiling, the chairs are still very plain and the slots are not even close to looking like slots." The owner has **NOT approved** the 3D visual direction. Passing technical tests, 120 FPS and rounded primitive geometry do NOT mean acceptable visual quality. Do not characterize visual work as "finished," "looks real," or "premium" until Joshua approves actual phone images.
+
+**Priority reset (ChatGPT responsible for visual redesign, Claude engineering only):**
+1. **Casino slots first:** current simple rounded blocks with a flat 5×5 grid do NOT read like recognizable casino hardware. Need authentic full-size cabinet silhouettes (top box/marquee, twin display geometry where appropriate, curved/angled screen housing, thick glass/illuminated bezels, full control deck, bill acceptor, speakers, lower cabinet, recessed base, graphics consistent with each machine's actual theme). Existing 5×5 reel plane identity and Phaser game functionality must survive. Avoid adding decorative geo without cohesive believable real-world proportions. Send Joshua actual follow-camera close-up phone screenshots and iterate until approved.
+2. **Floors:** current flat charcoal marble plus straight gold lines and narrow carpet are boring. Develop a high-end **patterned luxury floor** with scale, material variation, borders, medallions/inlays, focal entry motif, and believable polished stone/reflectivity, properly UV-mapped PBR where feasible; avoid gratuitous geometry adding too many mobile draw calls. Must look rich close-up AND in Sims overhead.
+3. **Ceiling visibility:** current ceiling's `chandelier_*` name causes *entire ceiling to hide in overhead mode by design*. In follow mode it can also be above the camera framing. This explains why Joshua cannot see it, but does not satisfy his request. Engineer must preserve a visible sense of architectural enclosure without obscuring play: offer toggleable roof cutaway / partial cutaway and better follow-angle framing; test screenshots where coffered ceiling and hanging fixtures are actually discernible. ChatGPT supplies actual ceiling design, Claude camera/cutaway engineering.
+4. **Chairs:** current extruded rounded cushion and studs still look generic. Replace with recognizable upholstered casino gaming stools/armchairs, sculpted tapered shells, segmented cushions, armrests/hand-placement geometry, curved posts and detailed bases; build from reference-based proportions, keep collision/seat pose consistent.
+
+**Owner sign-off process:** produce four pairs of close-up phone screenshots (slots front 3/4; floor follow + overhead; chair seated and behind; ceiling follow + overhead/cutaway). Obtain explicit visual approval before claiming the design is final. No release/merge to production.
+
+**Status:** This note documents direct owner feedback and revised acceptance bar; it does NOT claim those redesigned meshes are complete. Leave isolated prototype intact while the artist reworks visual assets. Claude should not independently generate graphics.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
