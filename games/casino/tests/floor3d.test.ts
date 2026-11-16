@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AVATAR_FADE_MIN, LIMITS, overviewLift, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
-import { AGENT_RADIUS, OBSTACLES, ROOM, SEATS, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
+import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, DEALER_SPOT, dealerSpotFor, OBSTACLES, ROOM, SEATS, seatsFor, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
 
@@ -358,10 +358,43 @@ describe('blackjack hero table (VA-0054, opt-in)', () => {
       expect(roundNav.pointFree(end)).toBe(true);
       expect(heroNav.pointFree(end)).toBe(false);
     }
-    for (const s of SEATS) {
+    for (const s of seatsFor(true)) {
       expect(heroNav.walkableAt(s.approach)).toBe(true);
       const end = heroNav.findPath(SPAWN, s.approach)!.at(-1)!;
       expect(Math.hypot(end.x - s.approach.x, end.z - s.approach.z)).toBeLessThan(1e-6);
+    }
+  });
+
+  it('moves the seats, chairs and dealer to the hero table\'s own anchors (VA-0056)', async () => {
+    const THREE = await import('three');
+    const { makeVelvetBlackjackHero } = await import('../../../art/casino/3d/blackjackHero.mjs');
+    const { obstaclesFor } = await import('../src/floor3d/layout.ts');
+    const a = (makeVelvetBlackjackHero(THREE) as InstanceType<typeof THREE.Group>).userData.anchors;
+    // layout.ts mirrors the art's anchors (table-local metres, x and z)
+    for (const g of a.guestSeats) {
+      const id = g.id === 'left' ? 'blackjack_1' : 'blackjack_2';
+      expect(BLACKJACK_HERO_ANCHORS.seats[id].position).toEqual([g.position[0], g.position[2]]);
+      expect(BLACKJACK_HERO_ANCHORS.seats[id].approach).toEqual([g.approach[0], g.approach[2]]);
+    }
+    expect(BLACKJACK_HERO_ANCHORS.dealer).toEqual([a.dealer.position[0], a.dealer.position[2]]);
+    // off by default; on, the same seats (ids, order, taken) move and still face the table centre
+    expect(seatsFor(false)).toBe(SEATS);
+    expect(dealerSpotFor(false)).toEqual(DEALER_SPOT);
+    const hero = seatsFor(true);
+    expect(hero.map((s) => [s.id, s.taken])).toEqual(SEATS.map((s) => [s.id, s.taken]));
+    expect(hero[0].x).toBeCloseTo(TABLE.x - 1.12, 6);
+    expect(hero[0].z).toBeCloseTo(TABLE.z + 1.53, 6);
+    expect(dealerSpotFor(true)).toEqual({ x: TABLE.x, z: TABLE.z - 1.8 });
+    const obs = obstaclesFor(true, true);
+    const heroNav = new NavGrid(ROOM, obs);
+    for (const s of hero) {
+      const toCentre = { x: TABLE.x - s.x, z: TABLE.z - s.z };
+      expect(Math.sin(s.facing) * toCentre.x - Math.cos(s.facing) * toCentre.z).toBeCloseTo(Math.hypot(toCentre.x, toCentre.z), 6);
+      // the chair's collision circle follows it
+      const chair = obs.find((o) => o.id === `${s.id}-chair`)!;
+      expect(chair).toMatchObject({ x: s.x, z: s.z });
+      // and its approach is walkable, clear of the chair and the table
+      expect(heroNav.walkableAt(s.approach)).toBe(true);
     }
   });
 });

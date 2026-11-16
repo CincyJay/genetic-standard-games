@@ -18,7 +18,7 @@ import { LIGHT_RIGS, LIGHT_STORAGE_KEY, nextLightMode, parseLightMode, type Ligh
 import { buildArtScene, buildGuestAvatar } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
-import { AVATAR_HEIGHT, DEALER_SPOT, ROOM, obstaclesFor, SEATS, SEAT_HEIGHT, SLOTS, TABLE, type Seat, type Vec2 } from './layout.ts';
+import { AVATAR_HEIGHT, dealerSpotFor, ROOM, obstaclesFor, seatsFor, SEAT_HEIGHT, SLOTS, TABLE, type Seat, type Vec2 } from './layout.ts';
 import { NavGrid } from './nav.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
 
@@ -249,7 +249,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   } catch {
     /* storage unavailable: show the pilot */
   }
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, -s.facing])), { pilot05, blackjackHero });
+  // the hero table brings its own seat and dealer anchors (VA-0056); the round table keeps the art's
+  const SEATS = seatsFor(blackjackHero);
+  const DEALER_SPOT = dealerSpotFor(blackjackHero);
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = obstaclesFor(pilot05, art.blackjackHero);
   const nav = new NavGrid(ROOM, obstacles);

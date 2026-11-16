@@ -313,13 +313,16 @@ function applyPilot05(art: THREE.Group): { heroTextures: THREE.Texture[]; heroSi
   return { heroTextures, heroSignLift };
 }
 
-export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions = {}): ArtScene {
+export function buildArtScene(chairs: Map<string, { facing: number; x?: number; z?: number }>, opts: ArtOptions = {}): ArtScene {
   const { root: art } = makeVelvetWorld(THREE) as { root: THREE.Group };
   const { heroTextures, heroSignLift } = opts.pilot05 ? applyPilot05(art) : { heroTextures: [], heroSignLift: 0 };
   const blackjackHero = opts.blackjackHero ? applyBlackjackHero(art) : false;
-  for (const [id, rot] of chairFacing) {
+  for (const [id, c] of chairs) {
     const chair = art.getObjectByName(`${id}_chair`);
-    if (chair) chair.rotation.y = rot;
+    if (!chair) continue;
+    chair.rotation.y = c.facing;
+    // the hero table's seat anchors move the chair; the art's soft contact-shadow decal stays put
+    if (c.x !== undefined && c.z !== undefined) chair.position.set(c.x, chair.position.y, c.z);
   }
   art.updateMatrixWorld(true);
 

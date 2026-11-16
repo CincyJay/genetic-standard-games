@@ -103,6 +103,35 @@ export const SEATS: Seat[] = CASINO_WORLD.seats.map((s, i) => {
 /** Where the dealer stands: behind the table, on the shoe's side (an art socket; no dealer logic yet). */
 export const DEALER_SPOT: Vec2 = { x: TABLE.x, z: TABLE.z - TABLE.radius - 0.4 };
 
+/**
+ * The hero table's own anchors (VA-0056, art `31367f5`, `userData.anchors`), in table-local
+ * metres. The hero is not rotated, so world = table centre + local. A unit test checks these
+ * still match what the art module exports.
+ */
+export const BLACKJACK_HERO_ANCHORS = {
+  seats: { blackjack_1: { position: [-1.12, 1.53], approach: [-1.12, 2.3] }, blackjack_2: { position: [1.12, 1.53], approach: [1.12, 2.3] } } as Record<string, { position: [number, number]; approach: [number, number] }>,
+  dealer: [0, -1.8] as [number, number],
+};
+
+/** The seats for the art in use: the hero table moves them to its own anchors; ids, order and taken flags stay. */
+export function seatsFor(blackjackHero = false): Seat[] {
+  if (!blackjackHero) return SEATS;
+  return SEATS.map((s) => {
+    const a = BLACKJACK_HERO_ANCHORS.seats[s.id];
+    if (!a) return s;
+    const x = TABLE.x + a.position[0];
+    const z = TABLE.z + a.position[1];
+    return { ...s, x, z, approach: { x: TABLE.x + a.approach[0], z: TABLE.z + a.approach[1] }, facing: Math.atan2(TABLE.x - x, -(TABLE.z - z)) };
+  });
+}
+
+/** Where the placeholder dealer stands for the art in use. */
+export function dealerSpotFor(blackjackHero = false): Vec2 {
+  if (!blackjackHero) return DEALER_SPOT;
+  const [x, z] = BLACKJACK_HERO_ANCHORS.dealer;
+  return { x: TABLE.x + x, z: TABLE.z + z };
+}
+
 /** Start on the red carpet, facing the table. */
 export const SPAWN = { x: CASINO_WORLD.spawn.x, z: CASINO_WORLD.spawn.z, heading: 0 };
 
@@ -184,6 +213,13 @@ export function obstaclesFor(pilot05: boolean, blackjackHero = false): Obstacle[
     const p = pilotChairPosition();
     out.push({ kind: 'circle', id: 'pilot-luxury-chair', x: p.x, z: p.z, r: PILOT_CHAIR.r, h: PILOT_CHAIR.h });
   }
-  if (blackjackHero) out.push(...BLACKJACK_HERO_ENDS);
+  if (blackjackHero) {
+    out.push(...BLACKJACK_HERO_ENDS);
+    // the chairs move with the hero's seat anchors
+    for (const seat of seatsFor(true)) {
+      const i = out.findIndex((o) => o.id === `${seat.id}-chair`);
+      if (i >= 0 && out[i].kind === 'circle') out[i] = { ...out[i], x: seat.x, z: seat.z } as Obstacle;
+    }
+  }
   return out;
 }
