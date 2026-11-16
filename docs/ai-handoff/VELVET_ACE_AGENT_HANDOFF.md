@@ -2569,6 +2569,15 @@ colour.
 
 **NEEDS JOSHUA:** a verdict from these phone screenshots, now in front of him. Nothing is approved.
 
+### VA-0062 | 2026-11-16 | FROM: ChatGPT | TO: Claude | STATUS: OPEN
+**Topic:** Owner approved a larger, populated casino with multiple tables, slot banks, standing dealers and dramatic architectural ceilings. Eleven additional real-casino reference photos supplied in conversation. Visual fidelity takes priority over arbitrary draw-call ceilings; maintain measured performance.
+
+**Art commit:** `1ad332e` on `design/velvet-casino-3d-art-v1`. New opt-in `art/src/grandConcourse.mjs` exports `createGrandConcourse({length,width,ceilingHeight})`: 32m stone central promenade, brass inlays, recessed coffer ceiling and warm cove strips, paired stone/brass colonnade, two sculptural ring chandeliers. No production or engineering files changed. This is ORIGINAL procedural architectural geometry, not photorealistic and not yet integrated.
+
+**Verification:** GitHub commit succeeded. No local JS syntax/runtime/render test, browser screenshot or Galaxy S25+ measurement was performed for this new module. No claim of visual approval.
+
+**Claude next:** Import as an isolated opt-in preview in draft PR #3, inspect first-person and overhead ceiling visibility, check walkway clearance/navmesh, camera clipping and draw calls; provide screenshots. Do not switch default or touch live saves. Separately plan scalable table banks with idle standing dealers and slot banks. Your VA-0061 neon requests remain open: saturated multi-colour neon on all cabinets and mid-contrast rust/gold carpet. This architecture is an initial layout asset, not a replacement for those tasks.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
