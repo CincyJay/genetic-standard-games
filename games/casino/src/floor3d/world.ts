@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, turnToward, type CamMode, type CamPose } from './camera.ts';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { buildArtScene } from './artScene.ts';
+import { buildArtScene, buildGuestAvatar } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, DEALER_SPOT, ROOM, obstaclesFor, SEATS, SEAT_HEIGHT, TABLE, type Seat, type Vec2 } from './layout.ts';
@@ -64,6 +64,8 @@ export interface FloorStats {
   reelTextures: number;
   /** Showing the art pass 05 pilot (carpet, ceiling, hero cabinet, chair). */
   pilot05: boolean;
+  /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
+  guestAvatar: boolean;
 }
 
 export interface FloorHandle {
@@ -149,6 +151,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   let pilot05 = true;
   try {
     pilot05 = localStorage.getItem('va3d.art') !== 'pass04';
+  } catch {
+    /* storage unavailable: show the pilot */
+  }
+  // the player's look: ChatGPT's guest avatar pilot (VA-0035) unless switched back to the capsule
+  let guestAvatar = true;
+  try {
+    guestAvatar = localStorage.getItem('va3d.avatar') !== 'capsule';
   } catch {
     /* storage unavailable: show the pilot */
   }
@@ -263,12 +272,15 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   }
 
   // ------------------------------------------------------------------ avatar
-  const avatar = capsule(C.avatar, st.pos.x, st.pos.z, st.heading, 0);
+  // a visual skin only: collision radius, movement and the cameras are the same either way
+  const avatar = guestAvatar ? buildGuestAvatar(AVATAR_HEIGHT) : capsule(C.avatar, st.pos.x, st.pos.z, st.heading, 0);
+  avatar.position.set(st.pos.x, 0, st.pos.z);
+  avatar.rotation.y = -st.heading;
   scene.add(avatar);
   /** The player's own avatar materials: faded when the follow camera is pulled in close. */
-  const avatarMats: THREE.MeshLambertMaterial[] = [];
+  const avatarMats: THREE.Material[] = [];
   avatar.traverse((o) => {
-    if (o instanceof THREE.Mesh) avatarMats.push(o.material as THREE.MeshLambertMaterial);
+    if (o instanceof THREE.Mesh) avatarMats.push(o.material as THREE.Material);
   });
   let avatarAlpha = 1;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.36, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
@@ -353,6 +365,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="motion" aria-pressed="false"></button>
     <button type="button" class="roof"></button>
     <button type="button" class="artpass"></button>
+    <button type="button" class="avatarart"></button>
   </div>
 </div>
 <div class="badge"></div>
@@ -369,6 +382,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   $<HTMLDivElement>('.badge').textContent = `PROTOTYPE · ${pilot05 ? 'ART PASS 05 PILOT' : 'ART PASS 04'} · PLACEHOLDER PEOPLE`;
   artBtn.textContent = pilot05 ? 'Art: pass 05 pilot' : 'Art: pass 04';
   artBtn.setAttribute('aria-label', `Art: ${pilot05 ? 'pass 05 pilot' : 'pass 04'}. Tap to switch (reloads the floor).`);
+  const avatarBtn = $<HTMLButtonElement>('.avatarart');
+  avatarBtn.textContent = guestAvatar ? 'Avatar: guest pilot' : 'Avatar: capsule';
+  avatarBtn.setAttribute('aria-label', `Avatar: ${guestAvatar ? 'guest pilot' : 'capsule'}. Tap to switch (reloads the floor).`);
   const gearBtn = $<HTMLButtonElement>('.gear');
   const menuEl = $<HTMLDivElement>('.menu');
   const setMenu = (open: boolean) => {
@@ -453,6 +469,14 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       localStorage.setItem('va3d.art', pilot05 ? 'pass04' : 'pilot05');
     } catch {
       return toast('Can’t switch art: storage is unavailable');
+    }
+    location.reload();
+  });
+  avatarBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem('va3d.avatar', guestAvatar ? 'capsule' : 'guest');
+    } catch {
+      return toast('Can’t switch the avatar: storage is unavailable');
     }
     location.reload();
   });
@@ -837,6 +861,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       artInteractive: art.interactive.size,
       reelTextures,
       pilot05,
+      guestAvatar,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };
   }

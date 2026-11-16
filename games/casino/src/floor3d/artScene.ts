@@ -17,6 +17,7 @@ import { makeVelvetWorld } from '../../../../art/casino/3d/worldComposition.mjs'
 import { makeVelvetContemporaryInterior, makeVelvetExteriorBackdrop } from '../../../../art/casino/3d/contemporaryInterior.mjs';
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
+import { makeVelvetGuestAvatar } from '../../../../art/casino/3d/guestAvatar.mjs';
 import { PILOT_CHAIR, PILOT_HERO_SLOT } from './layout.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
@@ -91,6 +92,77 @@ function materialKey(m: THREE.Material): string {
   const s = m as THREE.MeshStandardMaterial;
   const colour = s.map || !s.color ? (s.color?.getHexString() ?? '') : '*';
   return [m.type, s.map?.uuid ?? '', colour, s.metalness, s.roughness, s.emissive?.getHexString(), s.emissiveIntensity, m.transparent, m.opacity, m.side, m.depthWrite, m.toneMapped].join('|');
+}
+
+/**
+ * Several colours in one batch: each piece carries its material's (linear) colour per vertex,
+ * and the shared material's own colour is white, so the product is unchanged. Returns the
+ * material to draw with (the original when every piece has the same colour).
+ */
+function colourMerge(material: THREE.Material, geos: THREE.BufferGeometry[], colours: THREE.Color[]): THREE.Material {
+  if (colours.every((c) => c.equals(colours[0]))) return material;
+  geos.forEach((g, i) => {
+    const c = colours[i];
+    const n = g.attributes.position.count;
+    const rgb = new Float32Array(n * 3);
+    for (let v = 0; v < n; v++) rgb.set([c.r, c.g, c.b], v * 3);
+    g.setAttribute('color', new THREE.BufferAttribute(rgb, 3));
+  });
+  const merged = material.clone();
+  (merged as THREE.MeshStandardMaterial).color.setRGB(1, 1, 1);
+  merged.vertexColors = true;
+  return merged;
+}
+
+/** One mesh's geometry in its art root's space, in the one layout merging needs. */
+function bakedGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
+  const src = mesh.geometry;
+  const g = src.index ? src.toNonIndexed() : src.clone();
+  for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
+  g.applyMatrix4(mesh.matrixWorld);
+  return g;
+}
+
+/**
+ * ChatGPT's guest avatar pilot (VA-0035), as a visual skin for the player: batched by material
+ * (about 30 meshes become a few draw calls), turned to face -Z like the capsule (the art faces
+ * +Z) and scaled so its top meets `height`, the gameplay height the cameras frame. Collision,
+ * movement and camera stay engineering's. Unrigged: it glides, it does not walk yet.
+ */
+export function buildGuestAvatar(height: number): THREE.Group {
+  const art = makeVelvetGuestAvatar(THREE) as THREE.Group;
+  art.updateMatrixWorld(true);
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[] }>();
+  const all = new Set<THREE.Material>();
+  art.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const material = mesh.material as THREE.Material;
+    all.add(material);
+    const key = materialKey(material);
+    let b = buckets.get(key);
+    if (!b) buckets.set(key, (b = { material, geos: [], colours: [] }));
+    b.geos.push(bakedGeometry(mesh));
+    b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
+    mesh.geometry.dispose();
+  });
+  const box = new THREE.Box3().setFromObject(art);
+  const body = new THREE.Group();
+  body.name = 'guest_avatar_pilot';
+  const used = new Set<THREE.Material>();
+  for (const b of buckets.values()) {
+    const material = colourMerge(b.material, b.geos, b.colours);
+    const merged = mergeGeometries(b.geos, false)!;
+    for (const g of b.geos) g.dispose();
+    body.add(new THREE.Mesh(merged, material));
+    used.add(material);
+  }
+  for (const m of all) if (!used.has(m)) m.dispose();
+  body.rotation.y = Math.PI;
+  body.scale.setScalar(height / box.max.y);
+  const g = new THREE.Group();
+  g.add(body);
+  return g;
 }
 
 /**
@@ -172,10 +244,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     }
     // merging needs one layout: unindexed, with position / normal / uv only
     const src = mesh.geometry;
-    const g = src.index ? src.toNonIndexed() : src.clone();
-    for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
-    g.applyMatrix4(mesh.matrixWorld);
-    b.geos.push(g);
+    b.geos.push(bakedGeometry(mesh));
     b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
     b.names.push(mesh.name);
     // e.g. the contact-shadow decals draw after the floor
@@ -191,22 +260,8 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   const exterior: THREE.Mesh[] = [];
   let colourBatches = 0;
   for (const [key, b] of buckets) {
-    let material = b.material;
-    if (!b.part && b.colours.some((c) => !c.equals(b.colours[0]))) {
-      // several colours in one batch: each piece carries its material's (linear) colour per
-      // vertex, and the shared material's own colour is white, so the product is unchanged
-      b.geos.forEach((g, i) => {
-        const c = b.colours[i];
-        const n = g.attributes.position.count;
-        const rgb = new Float32Array(n * 3);
-        for (let v = 0; v < n; v++) rgb.set([c.r, c.g, c.b], v * 3);
-        g.setAttribute('color', new THREE.BufferAttribute(rgb, 3));
-      });
-      material = b.material.clone();
-      (material as THREE.MeshStandardMaterial).color.setRGB(1, 1, 1);
-      material.vertexColors = true;
-      colourBatches++;
-    }
+    const material = b.part ? b.material : colourMerge(b.material, b.geos, b.colours);
+    if (material !== b.material) colourBatches++;
     // interactive parts keep a geometry group per original mesh (groups[i] is names[i])
     const merged = mergeGeometries(b.geos, !!b.part);
     for (const g of b.geos) g.dispose();

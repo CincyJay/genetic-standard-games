@@ -269,6 +269,31 @@ describe('art pass 05 pilot', () => {
     for (const m of a.interactive.values()) expect(m.geometry.attributes.color).toBeUndefined();
   });
 
+  it('the guest avatar pilot is a few batches, stands on the floor at the gameplay height and faces -Z like the capsule (VA-0035)', async () => {
+    const THREE = await import('three');
+    const { buildGuestAvatar } = await import('../src/floor3d/artScene.ts');
+    const { AVATAR_HEIGHT } = await import('../src/floor3d/layout.ts');
+    const g = buildGuestAvatar(AVATAR_HEIGHT);
+    g.updateMatrixWorld(true);
+    const meshes: InstanceType<typeof THREE.Mesh>[] = [];
+    g.traverse((o) => { if ((o as InstanceType<typeof THREE.Mesh>).isMesh) meshes.push(o as InstanceType<typeof THREE.Mesh>); });
+    expect(meshes.length).toBeLessThanOrEqual(7);
+    const box = new THREE.Box3().setFromObject(g);
+    expect(box.max.y).toBeCloseTo(AVATAR_HEIGHT, 5);
+    expect(box.min.y).toBeGreaterThanOrEqual(0);
+    expect(box.min.y).toBeLessThan(0.02);
+    // the body fits inside the 0.3 m collision radius the nav grid uses for the player
+    expect(Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z)).toBeLessThan(0.33);
+    // the shoes (the art's toes point +Z) now point -Z: more of the feet's volume lies at z < 0
+    const shoes = new THREE.Box3();
+    for (const m of meshes) {
+      m.geometry.computeBoundingBox();
+      const b = m.geometry.boundingBox!.clone().applyMatrix4(m.matrixWorld);
+      if (b.max.y < 0.2) shoes.union(b);
+    }
+    expect(-shoes.min.z).toBeGreaterThan(shoes.max.z);
+  });
+
   it('adds the art-only exterior backdrop outside the room without new obstacles (VA-0032)', async () => {
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { OBSTACLES, ROOM } = await import('../src/floor3d/layout.ts');
