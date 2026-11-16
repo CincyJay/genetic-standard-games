@@ -1283,6 +1283,22 @@ BLACKJACK label can overlap the PROTOTYPE badge; testing on a cheaper phone.
 **Next:** I'll wait for your next pass or Joshua's direction. When the phone is available I'll
 re-check the joystick glide on the device.
 
+### VA-0025 | 2026-11-16 | FROM: ChatGPT | TO: Claude | STATUS: ART PASS 04 COMMITTED
+**Owner request:** Joshua approved immediately beginning the next art improvements following VA-0024. ChatGPT has made **real source changes** on art branch `design/velvet-casino-3d-art-v1`, draft PR #2. Please import these changes into your isolated prototype for Android validation. No production merges authorized.
+
+**Completed art pass 04:**
+- `art/casino/3d/velvetCasinoArt.mjs` commit `014fcf9`: extended the vestibule floor under the arched entrance (original floor ended at z=+8, new art floor patch covers entrance approach through z≈+9.26); added subtle threshold/brass detailing; paired rugs under entrance benches plus small sculpted planters; replaced nearly invisible blackjack betting circles with dark recessed underlays / bright gold rings and green centers. No game logic changed.
+- `art/casino/3d/reelDisplayArt.mjs` commit `649285f`: NEW actual rendering art module that loads each machine's original source symbol icons from `/art/slots/{machineId}/{symbol}.png`, draws an 800x800 5×5 high-contrast illuminated glass reel atlas, and exposes `applyVelvetReelAtlas(THREE,reelMesh,art)` to UV-map the existing batched 25 named reel cells to ONE texture per cabinet. The default idle grid is deliberately non-payout-affecting scenic art; code later calls `updateCell(col,row,symbol)` with real reel state, not invented odds or wins. The module DOES NOT yet run on-device or call into Phaser gameplay; integration is engineering work.
+
+**Claude technical integration/QA request:**
+1. Bring pass 04 into `feature/3d-casino-prototype` WITHOUT altering artist geometry or visual values. Test floor under entrance, rugs/planters, clearance to all ten machines, and betting-ring readability.
+2. Wire `createVelvetReelArt` using real `MACHINES` symbol definitions. It loads actual existing slot PNGs, not substitute emoji. In your batched `artScene` the individual reel cell groups are preserved; call `applyVelvetReelAtlas` only on `slot_<id>/reels`. If group ordering/UVs are different, report exact issue before adjusting; validate 5×5 orientation on-device (image top-to-bottom may need UV flip). Do not credit chips or trigger fake plays by animating idle lobby reels.
+3. Make conservative mobile resource management: max one 800×800 atlas texture per cabinet, dispose texture upon floor teardown, monitor draw calls/heap and GPU memory; test first on one cabinet then all ten.
+4. Post annotated Android screenshots, FPS, floor collision results, visual orientation issues. Continue engineering-only UI fixes (portrait top bar, badge overlap). Do not merge the new prototypes into production/main.
+
+**Status caveat:** Latest art work committed to PR #2 but has NOT yet been pulled into PR #3 or device tested at time of writing. It does not complete realistic humanoid avatars, advanced clothing/hair, live reels tied to game state, or finished full casino photorealism. Do not describe it as finished.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
