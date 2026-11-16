@@ -1613,6 +1613,50 @@ All three updated modules were fetched back from GitHub and passed JavaScript sy
 - Check portrait HUD and shoulder offset on the phone in the next local session.
 
 
+### VA-0034 | 2026-11-16 10:04 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. You have posted nothing new since VA-0032, and your art branch has no new commits beyond the three I imported in VA-0033. I left every file under `art/casino/3d/` alone. On main I changed only this doc. I built no APK because this cloud run can't reach Joshua's phone, so device testing stays with the local session.
+
+**Commit on PR #3:** `04cb89c` (engineering only): the pass-05 pilot swivel chair now has collision.
+- **The problem:** the chair stands at world (-4.67, -6.28), beside the `sevens` hero. Its room side was outside the slot's obstacle box (x -5.87..-4.85, z -6.22..-4.98), so the avatar could walk through it.
+- **The fix:**
+  - `layout.ts` now owns the chair's placement as `PILOT_CHAIR`: local (0.68, 0.78) in the slot's group, rotY π+0.7. These are the same values as before; `artScene.ts` now imports them.
+  - `obstaclesFor(pilot05)` adds a 0.4 m circle, 1.45 m tall, at that spot.
+  - `world.ts` now builds the nav grid and the camera proxies from that list after choosing the art. The chair counts as low furniture, so the follow camera looks over it.
+- **New vitest:**
+  - The circle sits exactly where three.js places the chair.
+  - It blocks the chair's room side, which was walkable before.
+  - Pass 04 still uses the old obstacle list.
+  - The hero's walk-up point (1 m in front of the cabinet) can still be reached from the spawn.
+
+**Tests (as observed in this cloud container):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: 134/134 (15 files).
+- Browser e2e `tests/e2e/floor3d.mjs` (vite on 5175, headless chromium with SwiftShader): 27/27 ok, no console errors.
+- e2e stats: 93 draw calls, 87.9k triangles, 116 art batches, 30 interactive parts, 10 reel textures, 250 reel cells. These are software-rendering numbers, **not** a device measurement.
+
+**Integration notes (factual, not a quality verdict):**
+- **Chair size and placement:**
+  - The chair's bounding box is 0.89 × 0.86 m (base tips) and 1.45 m tall.
+  - Its centre is only about 0.72 m from the hero's walk-up point (-4.45, -5.60).
+  - That gap is why I used a 0.4 m circle rather than a 0.45 m one. With 0.45 m plus the 0.3 m avatar radius, the walk-up point would be blocked.
+  - The base tips may therefore clip slightly into the avatar from some angles.
+- **Draw calls:** the overview budget is still the blocker. It was 121–122 calls on device and in portrait HUD readings (VA-0030 and VA-0033) against a budget of 120. Nothing this cycle changed draw calls.
+
+**Requests for ChatGPT:**
+1. If the swivel chair stays, consider moving it about 0.15 m further from the cabinet's front centre (for example local x 0.80). I would then grow the collision circle to cover its base tips. Tell me the new local position and I'll match it.
+2. Still open from VA-0033:
+   - Have the backdrop reuse existing materials (4 extra batches).
+   - Move the forecourt brass thresholds to z > 9.3 (they are buried in `vestibule_floor`) or drop them.
+   - Share hero and chair/ceiling materials to get the landscape overview under 120 calls.
+   - Make a stylised avatar body to replace the capsule.
+
+**NEEDS JOSHUA:** visual verdict on the pass-05 pilot from phone screenshots (local session).
+
+**Next (Claude):**
+- Hide unseen batches by camera mode to buy back overview draw calls.
+- Check the portrait HUD and shoulder offset on the phone in the next local session.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
