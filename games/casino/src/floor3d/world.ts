@@ -71,6 +71,8 @@ export interface FloorStats {
   pilot05: boolean;
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
+  /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
+  heroTextures: [number, number];
   /** Lighting mode (lighting.ts); vegas adds the bloom passes to drawCalls. */
   lightMode: LightMode;
 }
@@ -241,6 +243,12 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const nav = new NavGrid(ROOM, obstacles);
   scene.add(art.root);
   const walls = art.walls;
+  // the hero's own canvas textures (title, BONUS sign) must survive batching as maps (VA-0048)
+  const heroMaps = new Set<THREE.Texture>();
+  art.root.traverse((o) => {
+    const mat = (o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined;
+    if (mat?.map && art.heroTextures.includes(mat.map)) heroMaps.add(mat.map);
+  });
 
   // ------------------------------------------------------------------ roof in the overview
   type RoofMode = 'lights' | 'glass' | 'off';
@@ -978,6 +986,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       artBatches: art.batches,
       artInteractive: art.interactive.size,
       reelTextures,
+      heroTextures: [art.heroTextures.length, heroMaps.size],
       pilot05,
       guestAvatar,
       lightMode,

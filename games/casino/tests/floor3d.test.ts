@@ -422,6 +422,32 @@ describe('art pass 05 pilot', () => {
     }
   });
 
+  it('lifts the hero BONUS sign clear of the header glass that hides it, and only then (VA-0048)', async () => {
+    const THREE = await import('three');
+    const { liftHeroSignClear } = await import('../src/floor3d/artScene.ts');
+    const make = (signZ: number) => {
+      const hero = new THREE.Group();
+      const display = new THREE.Group();
+      hero.add(display);
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.27, 0.03));
+      glass.name = 'bonus_header_dark_screen';
+      glass.position.z = 0.2; // front at 0.215
+      const sign = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.246, 0.005));
+      sign.name = 'bonus_header_world_texture_target';
+      sign.position.z = signZ;
+      display.add(glass, sign);
+      return { hero, sign };
+    };
+    const hidden = make(0.211); // front 0.2135, behind the glass front
+    expect(liftHeroSignClear(hidden.hero)).toBeCloseTo(0.0035, 6);
+    expect(hidden.sign.position.z + 0.0025).toBeCloseTo(0.217, 6);
+    expect(liftHeroSignClear(hidden.hero)).toBe(0);
+    const clear = make(0.22);
+    expect(liftHeroSignClear(clear.hero)).toBe(0);
+    expect(clear.sign.position.z).toBe(0.22);
+    expect(liftHeroSignClear(new THREE.Group())).toBe(0);
+  });
+
   it('the pilot swivel chair blocks walking where the art puts it, and the hero stays reachable', async () => {
     const THREE = await import('three');
     const { PILOT_CHAIR, PILOT_HERO_SLOT, obstaclesFor, pilotChairPosition } = await import('../src/floor3d/layout.ts');

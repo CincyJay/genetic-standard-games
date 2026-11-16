@@ -48,6 +48,11 @@ export interface ArtScene {
    * touches nothing else.
    */
   fadeable: Map<string, THREE.Mesh[]>;
+  /**
+   * Canvas textures the hero cabinet draws for itself (its title and BONUS sign, VA-0048), or
+   * none outside a browser. Batching keys on the map, so each should still be drawn after it.
+   */
+  heroTextures: THREE.Texture[];
   /** How many meshes the factories built, and how many draw batches they became. */
   meshesAuthored: number;
   batches: number;
@@ -193,8 +198,30 @@ export interface ArtOptions {
   pilot05?: boolean;
 }
 
+/**
+ * Workaround for an art bug (VA-0048, reported on the board): the hero's BONUS sign face sits
+ * about 0.5 mm behind the front of the dark header glass it is mounted on (that glass's bevel
+ * adds 9 mm), so the glass hides the sign. If the sign's front is not clear of the glass, move
+ * the sign forward along the display's own normal until it stands 2 mm proud. Art files stay
+ * unchanged; once the art puts the sign in front, this does nothing.
+ */
+export function liftHeroSignClear(hero: THREE.Object3D): number {
+  const sign = hero.getObjectByName('bonus_header_world_texture_target') as THREE.Mesh | undefined;
+  const glass = hero.getObjectByName('bonus_header_dark_screen') as THREE.Mesh | undefined;
+  if (!sign?.isMesh || !glass?.isMesh || sign.parent !== glass.parent) return 0;
+  const front = (m: THREE.Mesh) => {
+    m.geometry.computeBoundingBox();
+    return m.position.z + m.geometry.boundingBox!.max.z * m.scale.z;
+  };
+  const lift = front(glass) + 0.002 - front(sign);
+  if (lift <= 0) return 0;
+  sign.position.z += lift;
+  return lift;
+}
+
 /** Swaps the pass-05 pilot into the composed world, before batching. */
-function applyPilot05(art: THREE.Group): void {
+function applyPilot05(art: THREE.Group): THREE.Texture[] {
+  const heroTextures: THREE.Texture[] = [];
   const drop: THREE.Object3D[] = [];
   art.traverse((o) => {
     if (REPLACED_BY_PILOT.test(o.name)) drop.push(o);
@@ -216,7 +243,10 @@ function applyPilot05(art: THREE.Group): void {
       c.removeFromParent();
       c.traverse((q) => (q as THREE.Mesh).geometry?.dispose());
     }
-    slot.add(makeVelvetHeroCabinet(THREE, PILOT_HERO_SLOT) as THREE.Group);
+    const hero = makeVelvetHeroCabinet(THREE, PILOT_HERO_SLOT) as THREE.Group;
+    slot.add(hero);
+    liftHeroSignClear(hero);
+    heroTextures.push(...[hero.userData.createdTitleTexture, hero.userData.createdBonusTexture].filter((t): t is THREE.Texture => !!t?.isTexture));
     // the swivel chair sits beside the hero, turned toward its screen; it stays clear of the
     // walk-up point straight in front of the machine
     const chair = makeVelvetLuxuryGamingChair(THREE) as THREE.Group;
@@ -226,11 +256,12 @@ function applyPilot05(art: THREE.Group): void {
     chair.rotation.y = PILOT_CHAIR.rotationY;
     slot.add(chair);
   }
+  return heroTextures;
 }
 
 export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions = {}): ArtScene {
   const { root: art } = makeVelvetWorld(THREE) as { root: THREE.Group };
-  if (opts.pilot05) applyPilot05(art);
+  const heroTextures = opts.pilot05 ? applyPilot05(art) : [];
   for (const [id, rot] of chairFacing) {
     const chair = art.getObjectByName(`${id}_chair`);
     if (chair) chair.rotation.y = rot;
@@ -313,5 +344,5 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, exterior, fadeable, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, meshesAuthored, batches: buckets.size, colourBatches };
 }
