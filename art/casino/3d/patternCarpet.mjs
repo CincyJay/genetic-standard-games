@@ -9,6 +9,7 @@ export function makeVelvetPatternCarpet(T, options={}) {
  canvas.width=512;canvas.height=512;
  const c=canvas.getContext('2d');
  if(!c) throw new Error('Canvas 2D context unavailable');
+ const motifContrast=Math.max(.65,Math.min(1.5,options.motifContrast??1.18));
  c.fillStyle='#301b31';c.fillRect(0,0,512,512);
  // Dense, muted woven speckle. Deterministic; no noise textures or asset fetch.
  let seed=0xace2026;
@@ -22,11 +23,11 @@ export function makeVelvetPatternCarpet(T, options={}) {
  const stroke=(color,lineWidth)=>{c.strokeStyle=color;c.lineWidth=lineWidth};
  for(let x=-128;x<=640;x+=128)for(let y=-128;y<=640;y+=128){
   c.save();c.translate(x,y);
-  stroke('rgba(174,120,91,.30)',3);
+  stroke(`rgba(194,143,107,${(.38*motifContrast).toFixed(3)})`,3.6);
   c.beginPath();c.moveTo(0,-48);c.lineTo(48,0);c.lineTo(0,48);c.lineTo(-48,0);c.closePath();c.stroke();
-  stroke('rgba(92,68,108,.48)',2);
+  stroke(`rgba(133,100,148,${(.55*motifContrast).toFixed(3)})`,2.5);
   c.beginPath();c.moveTo(0,-35);c.lineTo(35,0);c.lineTo(0,35);c.lineTo(-35,0);c.closePath();c.stroke();
-  c.fillStyle='rgba(183,128,90,.23)';
+  c.fillStyle=`rgba(204,157,114,${(.30*motifContrast).toFixed(3)})`;
   c.beginPath();c.arc(0,0,3,0,Math.PI*2);c.fill();
   c.restore();
  }
@@ -44,6 +45,7 @@ export function makeVelvetPatternCarpet(T, options={}) {
  mesh.position.set(options.x??0,options.y??.024,options.z??0);
  mesh.receiveShadow=true;mesh.name='VA_opt_in_patterned_carpet';
  mesh.userData={artOnly:true,collision:false,textureOwned:true,
+  motifContrast,
   notes:'One mesh, one texture/material; avoid overlap with central runner and existing floor inlays. Validate mobile GPU and z-fighting.',
   dispose(){mesh.geometry.dispose();mat.dispose();texture.dispose()}};
  return mesh;
