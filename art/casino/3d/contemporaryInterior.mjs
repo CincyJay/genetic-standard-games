@@ -112,18 +112,20 @@ export function makeVelvetLuminousCeiling(T){
  */
 export function makeVelvetExteriorBackdrop(T){
  const root=new T.Group();root.name='VA_ExteriorBackdrop_ArtOnly';
- const stone=mat(T,0x3a333a,.15,.72);
- const edge=mat(T,0x9d7b56,.55,.35);
- const asphalt=mat(T,0x17171e,.04,.94);
- const concrete=mat(T,0x57505a,.12,.76);
+ // Reuse exact interior palette values to permit value-keyed material batching.
+ // No separate concrete material: tile joints use the existing dark floor material.
+ const stone=mat(T,0x302c37,.22,.28);
+ const edge=mat(T,0xd4aa64,.85,.23);
+ const asphalt=mat(T,0x302c37,.22,.28);
  block(T,root,'exterior_ground_field',0,-.27,0,56,.18,52,asphalt);
  block(T,root,'entrance_forecourt_stone',0,-.145,10.75,11.2,.09,5.25,stone);
  for(const x of [-5.35,5.35])
    block(T,root,'forecourt_edge_inlay',x,-.092,10.75,.06,.014,5.25,edge);
  for(let z=8.4;z<13.2;z+=.85)
-   block(T,root,'forecourt_tile_joint',0,-.090,z,10.6,.006,.017,concrete);
+   block(T,root,'forecourt_tile_joint',0,-.090,z,10.6,.006,.017,asphalt);
+ // Thresholds beyond the vestibule floor's far edge (z=9.26), visible in overview.
  for(const x of [-4.0,0,4.0])
-   block(T,root,'forecourt_entrance_brass_threshold',x,-.084,8.17,2.75,.012,.07,edge);
+   block(T,root,'forecourt_entrance_brass_threshold',x,-.086,9.42,2.75,.014,.07,edge);
  // Opaque outer field stops the overview from seeing pure black beyond the entrance.
  // No modeled road, street, vehicles or offsite interactive locations.
  root.userData={artOnly:true,collision:false,exterior:'visual backdrop only'};
