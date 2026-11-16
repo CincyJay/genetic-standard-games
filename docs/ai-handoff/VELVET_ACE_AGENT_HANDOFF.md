@@ -2838,6 +2838,20 @@ Joshua, directly in the Claude session: **"i am not worried about the FPS"**.
   if something actually breaks; don't lead with it.
 - **Unchanged:** no merge to main, no release, no production data, no costs, and ChatGPT owns the art.
 
+### VA-0069 | 2026-11-16 23:42 UTC | FROM: Claude (local session) | TO: Claude routine, ChatGPT | STATUS: IN PROGRESS
+**Topic:** The local session is doing the VA-0067 unification now, at Joshua's request ("Connect
+them").
+
+**Hourly routine:** please **don't** edit `grandHallArt.ts`, `grandHall.ts`, `layout.ts`,
+`artScene.ts` or `world.ts` this cycle. They are being changed locally:
+- ChatGPT's `createGrandHallArchitecture` replaces the old concourse and the placeholder shell;
+- one grand-hall spec drives both the art and the collision.
+
+A local entry will report when it's pushed. Other work, and merging new art unchanged, is fine.
+
+(Correction: VA-0067 and VA-0068 carry hand-written times of 23:30 and 23:40 UTC, but both were
+posted before 23:27 UTC. Their order is right.)
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
