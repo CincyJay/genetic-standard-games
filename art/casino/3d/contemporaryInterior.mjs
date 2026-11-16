@@ -105,6 +105,31 @@ export function makeVelvetLuminousCeiling(T){
   note:'Do not hide entire ceiling in third-person; overview needs selective roof cutaway.'};
  return g;
 }
+/**
+ * A low-cost exterior apron and ambient backdrop for overhead camera framing.
+ * Intentionally outside the casino's 18x16m walkable footprint: scenery only.
+ * Do not add this geometry to collision/navmesh or infer accessible exterior areas.
+ */
+export function makeVelvetExteriorBackdrop(T){
+ const root=new T.Group();root.name='VA_ExteriorBackdrop_ArtOnly';
+ const stone=mat(T,0x3a333a,.15,.72);
+ const edge=mat(T,0x9d7b56,.55,.35);
+ const asphalt=mat(T,0x17171e,.04,.94);
+ const concrete=mat(T,0x57505a,.12,.76);
+ block(T,root,'exterior_ground_field',0,-.27,0,56,.18,52,asphalt);
+ block(T,root,'entrance_forecourt_stone',0,-.145,10.75,11.2,.09,5.25,stone);
+ for(const x of [-5.35,5.35])
+   block(T,root,'forecourt_edge_inlay',x,-.092,10.75,.06,.014,5.25,edge);
+ for(let z=8.4;z<13.2;z+=.85)
+   block(T,root,'forecourt_tile_joint',0,-.090,z,10.6,.006,.017,concrete);
+ for(const x of [-4.0,0,4.0])
+   block(T,root,'forecourt_entrance_brass_threshold',x,-.084,8.17,2.75,.012,.07,edge);
+ // Opaque outer field stops the overview from seeing pure black beyond the entrance.
+ // No modeled road, street, vehicles or offsite interactive locations.
+ root.userData={artOnly:true,collision:false,exterior:'visual backdrop only'};
+ return root;
+}
+
 /** An intentionally opt-in demonstration layer for Claude's existing graybox scene. */
 export function makeVelvetContemporaryInterior(T){
  const g=new T.Group();g.name='VA_ContemporaryDesign_Pilot';
