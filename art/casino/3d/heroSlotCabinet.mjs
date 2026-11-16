@@ -73,6 +73,25 @@ function badgeTexture(T,title,accent){
  texture.anisotropy=2;texture.needsUpdate=true;
  return texture;
 }
+function bonusSignTexture(T,accent){
+ if(typeof document==='undefined')return null;
+ const canvas=document.createElement('canvas');canvas.width=512;canvas.height=160;
+ const ctx=canvas.getContext('2d');if(!ctx)return null;
+ const hex='#'+accent.toString(16).padStart(6,'0');
+ const grad=ctx.createLinearGradient(0,0,0,160);
+ grad.addColorStop(0,'#101024');grad.addColorStop(1,'#03050e');
+ ctx.fillStyle=grad;ctx.fillRect(0,0,512,160);
+ ctx.strokeStyle=hex;ctx.lineWidth=6;ctx.strokeRect(7,7,498,146);
+ ctx.strokeStyle='#eeeeee';ctx.lineWidth=1.5;ctx.strokeRect(18,18,476,124);
+ ctx.textAlign='center';ctx.textBaseline='middle';
+ ctx.font='900 90px Arial, sans-serif';
+ ctx.shadowColor=hex;ctx.shadowBlur=12;ctx.fillStyle=hex;
+ ctx.fillText('BONUS',256,84,450);
+ ctx.shadowBlur=0;ctx.font='bold 18px Arial, sans-serif';
+ ctx.fillStyle='#eee8e1';ctx.fillText('FEATURE GAME',256,136);
+ const tex=new T.CanvasTexture(canvas);tex.colorSpace=T.SRGBColorSpace;tex.needsUpdate=true;
+ return tex;
+}
 export function makeVelvetHeroCabinet(T,id='sevens'){
  const theme=HERO_THEMES[id];if(!theme)throw Error('Unknown hero theme: '+id);
  const g=new T.Group();g.name='VA_HeroSlot_'+id;
@@ -113,20 +132,25 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  sculpt(T,display,'display_gasket',[0,0,.015],[1.04,1.70,.13],.12,black);
  sculpt(T,display,'display_bright_bezel',[0,0,.087],[.985,1.65,.09],.105,accent);
  sculpt(T,display,'display_glass',[0,0,.143],[.925,1.59,.035],.085,darkGlass);
- // Upper third of the portrait glass is now occupied by a themed bonus display, rather than empty black glass.
- // The 25 reel cells retain their exact existing names and dimensions for Phaser atlas mapping.
- sculpt(T,display,'bonus_header_recess',[0,.602,.166],[.89,.347,.016],.043,black);
- sculpt(T,display,'bonus_header_illuminated_frame',[0,.602,.185],[.86,.318,.015],.039,accent);
- sculpt(T,display,'bonus_header_dark_screen',[0,.602,.199],[.806,.269,.012],.033,darkGlass);
- const bonusBar=cuboid(T,display,'bonus_header_theme_glow',[0,.709,.209],[.70,.019,.009],signGlow);
- bonusBar.userData={glow:true,glowRole:'bonus-sign'};
- // Three raised jewel motifs communicate a bonus header without inventing real jackpot payouts.
- for(const [i,x] of [-.225,0,.225].entries()){
-   const jewel=sphere(T,display,'bonus_jewel_'+i,[x,.596,.220],.058,signGlow,[.84,1.0,.18]);
-   jewel.userData={glow:true,glowRole:'bonus-sign'};
+ // Art-only BONUS marquee: lifted away from row zero and kept out of reel atlas space.
+ // Top row extends to y=.445; header ends at y=.480, leaving .035m physical clearance.
+ // No emissive lower separator at the boundary: bloom must not wash out symbols.
+ sculpt(T,display,'bonus_header_recess',[0,.647,.166],[.89,.334,.016],.043,black);
+ sculpt(T,display,'bonus_header_illuminated_frame',[0,.647,.185],[.86,.314,.015],.039,accent);
+ sculpt(T,display,'bonus_header_dark_screen',[0,.647,.199],[.806,.275,.012],.033,darkGlass);
+ const bonusTexture=bonusSignTexture(T,theme.accent);
+ if(bonusTexture){
+   const sign=new T.MeshBasicMaterial({map:bonusTexture,toneMapped:false});
+   const signFace=cuboid(T,display,'bonus_header_world_texture_target',[0,.647,.211],[.75,.246,.005],sign);
+   // Texture itself contains readable theme-colour type. Do not mark the whole
+   // rectangle HDR-glow: selective bloom would blur the lettering.
+   signFace.userData={bonusSign:true,glow:false};
  }
- const lowerBar=cuboid(T,display,'bonus_header_lower_separator',[0,.426,.204],[.81,.015,.012],accent);
- lowerBar.userData={glow:true,glowRole:'bonus-sign'};
+ // Tiny isolated lamps are deliberately above the header, away from reel row 0.
+ for(const [i,x] of [-.34,.34].entries()){
+   const lamp=sphere(T,display,'bonus_side_lamp_'+i,[x,.762,.218],.014,signGlow,[1,1,.45]);
+   lamp.userData={glow:true,glowRole:'bonus-sign'};
+ }
  // Square 5x5 reel targets match the square symbol atlas without vertical stretching.
  // 5x5 live reel targets: do not bake symbols into cabinet geometry.
  // Names preserved exactly for engineering's cell-group batching and atlas mapping.
@@ -183,7 +207,7 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
    upAxis:'Y',forward:'+Z',approxHeight:3.17,bonusHeader:'glow-tagged non-monetary bonus sign',footprint:{width:1.10,depth:.95},
    reelTargets:reelNames,reelRows:5,reelColumns:5,
    /* The title art texture is for artistic preview; dispose it with the scene. */
-   createdTitleTexture:titleTexture,
+   createdTitleTexture:titleTexture,createdBonusTexture:bonusTexture,
  };
  return g;
 }
