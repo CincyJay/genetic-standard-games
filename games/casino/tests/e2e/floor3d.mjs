@@ -96,13 +96,27 @@ const cdp = await page.context().newCDPSession(page);
 const touch = (type, x, y) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
 // you come back facing the table (your chair is right ahead), so first hold the stick down to
 // step back, then up, then right: back toward the camera, away from it, then to its right
+// the software renderer here handles touch events late: before each push, wait until the
+// avatar has stopped, so the previous push's tail isn't counted in this one
+const settle = async () => {
+  let prev = await st();
+  for (let i = 0; i < 40; i++) {
+    await page.waitForTimeout(250);
+    const q = await st();
+    if (Math.hypot(q.pos.x - prev.pos.x, q.pos.z - prev.pos.z) < 1e-4 && q.camYaw === prev.camYaw) return q;
+    prev = q;
+  }
+  return prev;
+};
 for (const [name, dx, dy, along] of [['down', 0, 50, 'back'], ['up', 0, -50, 'forward'], ['right', 50, 0, 'right']]) {
-  const b = await st();
+  const b = await settle();
   await touch('touchStart', cx, cy);
   await touch('touchMove', cx + dx, cy + dy);
-  await page.waitForTimeout(600);
+  // hold until the avatar has walked a bit: the software renderer here delivers touch events
+  // up to a few seconds late, so a fixed hold time doesn't mean a fixed walk (we check direction)
+  await until(async () => { const q = await st(); return Math.hypot(q.pos.x - b.pos.x, q.pos.z - b.pos.z) > 0.6; }, 5000);
   await touch('touchEnd');
-  const a = await st();
+  const a = await settle();
   const mv = { x: a.pos.x - b.pos.x, z: a.pos.z - b.pos.z };
   const fl = Math.hypot(b.cam.target.x - b.cam.pos.x, b.cam.target.z - b.cam.pos.z);
   const f = { x: (b.cam.target.x - b.cam.pos.x) / fl, z: (b.cam.target.z - b.cam.pos.z) / fl };

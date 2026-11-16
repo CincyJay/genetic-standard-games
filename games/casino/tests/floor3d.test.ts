@@ -99,6 +99,18 @@ describe('walking', () => {
     expect(end.x).toBeLessThan(ROOM.x1);
     expect(end.z).toBeLessThan(ROOM.z1);
   });
+  it('joystick walking glides round a chair instead of stopping dead against it', () => {
+    const chair = OBSTACLES.find((o) => o.id === 'blackjack_1-chair')!;
+    if (chair.kind !== 'circle') throw new Error('chair is a circle');
+    const R = chair.r + AGENT_RADIUS;
+    // touching the chair on its open side, pushing into it at an angle: both axis-only moves
+    // are blocked, so this used to stop dead
+    const start = { x: chair.x - (R + 0.01) * Math.SQRT1_2, z: chair.z + (R + 0.01) * Math.SQRT1_2 };
+    let p = start;
+    for (let i = 0; i < 20; i++) p = nav.slide(p, 0.05 * Math.cos(-0.4), 0.05 * Math.sin(-0.4));
+    expect(Math.hypot(p.x - start.x, p.z - start.z)).toBeGreaterThan(0.3);
+    expect(nav.pointFree(p)).toBe(true);
+  });
   it('joystick walking slides along walls and never enters obstacles', () => {
     let p = { x: ROOM.x1 - 1, z: 2 };
     for (let i = 0; i < 100; i++) p = nav.slide(p, 0.1, 0.05);
@@ -130,6 +142,14 @@ describe('cameras', () => {
     const cut = cutawayWalls(pose.pos);
     expect(cut.size).toBeGreaterThan(0);
     expect(cut.has('north')).toBe(false);
+  });
+  it('the follow camera can tilt up to look over low furniture, within a limit', () => {
+    const flat = desiredPose('follow', { x: 0, z: 0 }, 0, 4);
+    const tilted = desiredPose('follow', { x: 0, z: 0 }, 0, 4, { extraPitch: (30 * Math.PI) / 180 });
+    expect(tilted.pos.y).toBeGreaterThan(flat.pos.y + 1);
+    const max = desiredPose('follow', { x: 0, z: 0 }, 0, 4, { extraPitch: 10 });
+    const pitch = Math.asin((max.pos.y - max.target.y) / 4);
+    expect(pitch).toBeLessThanOrEqual((70 * Math.PI) / 180 + 1e-9);
   });
   it('switching views blends smoothly from one pose to the other', () => {
     const a = desiredPose('follow', { x: 0, z: 0 }, 0, 4);

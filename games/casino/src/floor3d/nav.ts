@@ -6,6 +6,8 @@
 import { AGENT_RADIUS, OBSTACLES, ROOM, type Obstacle, type Vec2 } from './layout.ts';
 
 export const CELL = 0.2;
+/** Angles (degrees) the joystick tries off a blocked push before giving up. */
+const SLIDE_ANGLES = [15, 30, 45, 60, 75];
 
 export class NavGrid {
   readonly cols: number;
@@ -181,6 +183,18 @@ export class NavGrid {
     if (this.pointFree(xOnly)) return xOnly;
     const zOnly = { x: p.x, z: p.z + dz };
     if (this.pointFree(zOnly)) return zOnly;
+    // against something round (a chair, a column) both axis moves can be blocked: try
+    // directions angled off the push, shortened by how far they turn, to glide around it
+    for (const deg of SLIDE_ANGLES) {
+      const a = (deg * Math.PI) / 180;
+      const k = Math.cos(a);
+      for (const sgn of [1, -1]) {
+        const c = Math.cos(sgn * a);
+        const sn = Math.sin(sgn * a);
+        const q = { x: p.x + (dx * c - dz * sn) * k, z: p.z + (dx * sn + dz * c) * k };
+        if (this.pointFree(q)) return q;
+      }
+    }
     return p;
   }
 }

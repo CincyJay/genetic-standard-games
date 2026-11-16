@@ -32,6 +32,7 @@ const FOLLOW_PITCH = (16 * Math.PI) / 180;
 const OVERVIEW_PITCH = (54 * Math.PI) / 180;
 const FOLLOW_LOOK_AHEAD = 1.2;
 const BLOCKED_EXTRA_PITCH = (34 * Math.PI) / 180;
+const FOLLOW_MAX_PITCH = (70 * Math.PI) / 180;
 /** The overview looks from the entrance's south-east corner toward the back of the room. */
 export const OVERVIEW_YAW = (-35 * Math.PI) / 180;
 /** Vertical field of view. Phones are tall, so these are wider than a landscape game's. */
@@ -63,6 +64,8 @@ export interface PoseOptions {
   aspect?: number;
   /** Overview: how far the player has dragged the view away from the avatar, in metres. */
   pan?: Vec2;
+  /** Follow view: extra tilt (radians) to look over low furniture such as a chair back. */
+  extraPitch?: number;
 }
 /** How close the follow camera may get to a wall, and how far below the wall tops it stays. */
 const WALL_MARGIN = 0.25;
@@ -77,7 +80,7 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     const target = { x: avatar.x + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7, z: avatar.z - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
     const d = Math.min(dist, Math.max(0.6, obstacleDist - 0.2));
     // pulled in by a wall or prop: rise and look down more, so the floor ahead stays in view
-    const pitch = FOLLOW_PITCH + Math.min(1, Math.max(0, (dist - d) / dist)) * BLOCKED_EXTRA_PITCH;
+    const pitch = Math.min(FOLLOW_MAX_PITCH, FOLLOW_PITCH + (opts.extraPitch ?? 0) + Math.min(1, Math.max(0, (dist - d) / dist)) * BLOCKED_EXTRA_PITCH);
     // behind the avatar: opposite its walking direction (sin h, -cos h)
     let pos = {
       x: target.x - Math.sin(heading) * d * Math.cos(pitch),

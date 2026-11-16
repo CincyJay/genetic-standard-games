@@ -77,6 +77,8 @@ const WALK_SPEED = 2.6; // m/s
 const TURN_SPEED = 10; // rad/s
 const CAM_FOLLOW_TURN = 2.2; // rad/s: how fast the follow camera swings behind a walking avatar
 const SIT_MS = 450;
+/** Tilts the follow camera tries, in order, to see the avatar over a chair back. */
+const LOOK_OVER_TILTS = [0, 10, 20, 30, 40, 50].map((d) => (d * Math.PI) / 180);
 
 const C = {
   bg: 0x120c16,
@@ -129,6 +131,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const pickables: THREE.Object3D[] = [];
   /** Meshes the follow camera must not pass through. */
   const camBlockers: THREE.Object3D[] = [];
+  /** Low furniture (chairs): the follow camera looks over these instead of pulling in. */
+  const lowBlockers: THREE.Object3D[] = [];
 
   // ------------------------------------------------------------------ art (ChatGPT, PR #2)
   // chairs face the table: a heading h faces (sin h, -cos h); an object turned by -h faces it
@@ -154,7 +158,18 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   proxy(new THREE.BoxGeometry(w, ROOM.wallHeight, 0.2), (ROOM.x0 + ROOM.x1) / 2, ROOM.wallHeight / 2, ROOM.z0 - 0.1, { obstacle: 'wall' }, true);
   for (const x of [ROOM.x0 - 0.1, ROOM.x1 + 0.1]) proxy(new THREE.BoxGeometry(0.2, ROOM.wallHeight, d), x, ROOM.wallHeight / 2, (ROOM.z0 + ROOM.z1) / 2, { obstacle: 'wall' }, true);
   for (const o of OBSTACLES) {
-    if (o.id.endsWith('-chair')) continue; // seats have their own tap volumes below
+    if (o.id.endsWith('-chair')) {
+      // seats have their own tap volumes (below); this one is the chair back's height, so the
+      // follow camera can tilt up and look over it instead of filling the screen with it
+      if (o.kind === 'circle') {
+        const h = 1.75;
+        const m = new THREE.Mesh(new THREE.CylinderGeometry(o.r, o.r, h, 12), hidden);
+        m.position.set(o.x, h / 2, o.z);
+        scene.add(m);
+        lowBlockers.push(m);
+      }
+      continue;
+    }
     const data = o.id === 'table' ? { table: true } : { obstacle: o.id };
     if (o.kind === 'circle') proxy(new THREE.CylinderGeometry(o.r, o.r, o.h, 16), o.x, o.h / 2, o.z, data, true);
     else proxy(new THREE.BoxGeometry(o.x1 - o.x0, o.h, o.z1 - o.z0), (o.x0 + o.x1) / 2, o.h / 2, (o.z0 + o.z1) / 2, data, true);
@@ -313,6 +328,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   let pan = { x: 0, z: 0 };
   let joyVec = { x: 0, y: 0 };
   let tapFade = 0;
+  /** Extra follow-camera tilt (radians) for looking over a chair back, eased. */
+  let lookOver = 0;
   let disposed = false;
 
   function setMode(mode: CamMode): void {
@@ -409,7 +426,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   };
   const onDown = (e: PointerEvent) => {
     canvas.setPointerCapture(e.pointerId);
-    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: performance.now() });
+    // event timestamps (when the finger touched), not handling time: while the first frames are
+    // still compiling shaders, a quick tap's down and up can be handled far apart
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, t0: e.timeStamp });
     if (pointers.size === 2) {
       pinch = { d0: pinchDist(), dist0: st.dist[st.mode] };
       dragYaw = null;
@@ -444,7 +463,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     if (pointers.size < 2) pinch = null;
     if (!p) return;
     const moved = Math.hypot(e.clientX - p.x0, e.clientY - p.y0);
-    if (pointers.size === 0 && moved < 12 && performance.now() - p.t0 < 600 && !pinch) tap(e.clientX, e.clientY);
+    if (pointers.size === 0 && moved < 12 && e.timeStamp - p.t0 < 600 && !pinch) tap(e.clientX, e.clientY);
     if (pointers.size === 0) {
       dragYaw = null;
       dragPan = null;
@@ -606,7 +625,19 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     // ---- camera
     let obstacleDist = Infinity;
     if (st.mode === 'follow') {
-      const want = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect });
+      // a chair back between the avatar and the camera: tilt up until the camera sees over it
+      let needTilt = 0;
+      for (const tilt of LOOK_OVER_TILTS) {
+        const p = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: tilt }).pos;
+        tmpA.set(st.pos.x, AVATAR_HEIGHT * 0.75, st.pos.z);
+        tmpB.set(p.x, p.y, p.z).sub(tmpA);
+        camRay.set(tmpA, tmpB.clone().normalize());
+        camRay.far = tmpB.length();
+        needTilt = tilt;
+        if (!camRay.intersectObjects(lowBlockers, false).length) break;
+      }
+      lookOver += (needTilt - lookOver) * (reduced ? 1 : 1 - Math.exp(-dt * 6));
+      const want = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: lookOver });
       tmpA.set(want.target.x, want.target.y, want.target.z);
       tmpB.set(want.pos.x, want.pos.y, want.pos.z).sub(tmpA);
       const len = tmpB.length();
@@ -620,7 +651,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       const k = Math.exp(-dt * 1.5);
       pan = { x: pan.x * k, z: pan.z * k };
     }
-    let pose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { obstacleDist, aspect: camera.aspect, pan });
+    let pose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { obstacleDist, aspect: camera.aspect, pan, extraPitch: st.mode === 'follow' ? lookOver : 0 });
     if (transition) {
       const t = (now - transition.t0) / TRANSITION_MS;
       if (t >= 1) transition = null;
