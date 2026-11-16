@@ -64,6 +64,9 @@ const rows = await page.evaluate(() => ['.back', '.cam', '.gear'].map((c) => doc
 const badgeTop = await page.evaluate(() => document.querySelector('#va3d-hud .badge').getBoundingClientRect().top);
 ok(Math.max(...rows) - Math.min(...rows) < 2 && badgeTop > 832 - 40, 'portrait: the top bar is one row and the prototype badge sits at the bottom, clear of the floor labels');
 ok(!(await page.locator('#va3d-hud .rotate').isVisible()), 'rotation, motion and roof settings wait in the ⚙ menu');
+const whole = () => page.evaluate(() => globalThis.__floor3d.debug.drawList().filter((d) => d.name.startsWith('art:whole')).length);
+const w0 = await whole();
+ok(w0 > 0, `the eye-level view draws the walls' and ceiling's shared materials in single room batches (${w0} drawn)`);
 
 // tap the floor a few metres ahead and to the right
 let p = await page.evaluate(() => globalThis.__floor3d.debug.screenOf(0.8, 0, 2.2));
@@ -79,6 +82,7 @@ await page.locator('#va3d-hud .cam').tap();
 ok(await until(async () => (await st()).mode === 'overview'), 'the camera button switches to the overview');
 ok(await until(async () => !(await st()).transitioning, 3000), 'the transition finishes');
 await shot('floor3d-02-overview');
+ok((await whole()) === 0, 'the overview draws the walls and roof per side again, so it can cut them away');
 
 // a taken seat refuses
 p = await page.evaluate(() => globalThis.__floor3d.debug.seatScreen('blackjack_2'));

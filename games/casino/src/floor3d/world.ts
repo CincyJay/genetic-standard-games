@@ -87,6 +87,8 @@ export interface FloorHandle {
     state: () => FloorState & { walking: boolean; sitting: boolean; seat: string | null; transitioning: boolean; camYaw: number; lookUp: number; roof: string; cam: CamPose; focus: { id: string; weight: number } | null; propAlpha: Record<string, number> };
     screenOf: (x: number, y: number, z: number) => { x: number; y: number };
     seatScreen: (id: string) => { x: number; y: number };
+    /** What the camera draws this frame, mesh by mesh (VA-0052). */
+    drawList: () => { name: string; tris: number; glow: boolean }[];
     tap: (sx: number, sy: number) => void;
     toggleCamera: () => void;
     /** Stand the avatar at (x, z) facing `heading`, with the follow camera behind it. */
@@ -245,6 +247,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const nav = new NavGrid(ROOM, obstacles);
   scene.add(art.root);
   const walls = art.walls;
+  /** Batches the cutaway shows and hides per wall or ceiling part (the rest always draw, VA-0052). */
+  const sidedBatches = new Set<THREE.Object3D>([...Object.values(art.walls), ...Object.values(art.ceiling)].flat());
   // the hero's own canvas textures (title, BONUS sign) must survive batching as maps (VA-0048)
   const heroMaps = new Set<THREE.Texture>();
   art.root.traverse((o) => {
@@ -958,6 +962,11 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       m.visible = !above || roofMode === 'glass';
       m.material = above ? roofGlass[i] : roofSolid[i];
     });
+    // nothing cut away (the eye-level views): draw the walls' and ceiling's shared materials
+    // once each, in the room's own batches, not once per side (VA-0052)
+    const whole = !above && !cut.has('north') && !cut.has('east') && !cut.has('west');
+    for (const m of art.whole.combined) m.visible = whole;
+    for (const m of art.whole.replaced) if (whole || !sidedBatches.has(m)) m.visible = !whole;
   }
 
   const pct = (xs: number[], p: number) => {
@@ -1035,6 +1044,19 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     debug: {
       state: () => ({ ...snapshot(), walking: path.length > 0, sitting: !!sitting, seat: seated?.id ?? pendingSeat?.id ?? null, transitioning: !!transition, camYaw, lookUp, roof: roofMode, cam: lastPose, focus: focus ? { id: focus.id, weight: focus.weight } : null, propAlpha: Object.fromEntries(propAlpha) }),
       screenOf,
+      /** Meshes the camera can see this frame, by name: about one draw call each (a two-sided transparent one draws twice), for trimming the budget. */
+      drawList: () => {
+        const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+        const out: { name: string; tris: number; glow: boolean }[] = [];
+        scene.traverseVisible((o) => {
+          const m = o as THREE.Mesh;
+          if (!(m.isMesh || (o as THREE.Sprite).isSprite) || (m.material as THREE.Material).visible === false || (m.frustumCulled && !frustum.intersectsObject(m))) return;
+          const g = m.geometry;
+          const tris = g ? (g.index ? g.index.count : g.attributes.position.count) / 3 : 0;
+          out.push({ name: m.name || (m.parent?.name ? `${m.parent.name}>` : '') + `${m.type}:${(m.material as THREE.Material)?.type ?? ''}:${o.position.x.toFixed(1)},${o.position.y.toFixed(1)},${o.position.z.toFixed(1)}`, tris: Math.round(tris), glow: m.userData.glow === true });
+        });
+        return out;
+      },
       seatScreen: (id: string) => {
         const s = SEATS.find((q) => q.id === id)!;
         return screenOf(s.x, 0.4, s.z);

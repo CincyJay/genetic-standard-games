@@ -289,6 +289,26 @@ describe('art pass 05 pilot', () => {
     expect(a.batches).toBeLessThanOrEqual(85);
   });
 
+  it('draws the walls\' and ceiling\'s shared materials once each in the uncut view, with the same triangles (VA-0052)', async () => {
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    for (const pilot05 of [true, false]) {
+      const a = buildArtScene(new Map(), { pilot05 });
+      const { combined, replaced } = a.whole;
+      expect(combined.length).toBeGreaterThan(0);
+      // fewer batches to draw, hidden until the eye-level view shows them
+      expect(combined.length).toBeLessThan(replaced.length);
+      expect(combined.every((m) => !m.visible && m.parent === a.root)).toBe(true);
+      const tris = (ms: typeof combined) => ms.reduce((n, m) => n + m.geometry.attributes.position.count / 3, 0);
+      expect(tris(combined)).toBe(tris(replaced));
+      // only room batches: never the interactive slot parts, the fading chair or the exterior
+      const kept = new Set<unknown>([...a.interactive.values(), ...[...a.fadeable.values()].flat(), ...a.exterior]);
+      expect(replaced.some((m) => kept.has(m))).toBe(false);
+      // every wall and ceiling part folded in is one the cutaway toggles
+      const sided = new Set<unknown>([...Object.values(a.walls), ...Object.values(a.ceiling)].flat());
+      expect(replaced.some((m) => sided.has(m))).toBe(true);
+    }
+  });
+
   it('batches the pilot chair apart, on its own materials, so it can fade without touching anything else (VA-0045)', async () => {
     const THREE = await import('three');
     const { buildArtScene, PILOT_HERO_SLOT } = await import('../src/floor3d/artScene.ts');

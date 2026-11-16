@@ -58,6 +58,13 @@ export interface ArtScene {
    * sign in front of its glass itself (b7609a7, VA-0050).
    */
   heroSignLift: number;
+  /**
+   * Batches for the view where nothing is cut away (the eye-level follow camera): each material
+   * the walls or ceiling share with the rest of the room is drawn once, wall and ceiling pieces
+   * included, instead of once per side (VA-0052). Show `combined` and hide `replaced` only while
+   * every wall and the whole ceiling would be shown anyway; otherwise the reverse.
+   */
+  whole: { combined: THREE.Mesh[]; replaced: THREE.Mesh[] };
   /** How many meshes the factories built, and how many draw batches they became. */
   meshesAuthored: number;
   batches: number;
@@ -317,6 +324,34 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   const exterior: THREE.Mesh[] = [];
   const fadeable = new Map<string, THREE.Mesh[]>();
   let colourBatches = 0;
+  // whole-view batches (VA-0052): buckets that differ only by wall / ceiling side, per material
+  const sideless = (key: string) => key.slice(key.indexOf('#'));
+  const byMaterial = new Map<string, string[]>();
+  for (const [key, b] of buckets) {
+    if (b.part || b.fade || b.side === 'exterior') continue;
+    const list = byMaterial.get(sideless(key)) ?? [];
+    list.push(key);
+    byMaterial.set(sideless(key), list);
+  }
+  const whole: ArtScene['whole'] = { combined: [], replaced: [] };
+  const replacedKeys = new Set<string>();
+  for (const [mkey, keys] of byMaterial) {
+    if (keys.length < 2 || !keys.some((k) => buckets.get(k)!.side)) continue;
+    const parts = keys.map((k) => buckets.get(k)!);
+    const geos = parts.flatMap((b) => b.geos.map((g) => g.clone()));
+    const material = colourMerge(parts[0].material, geos, parts.flatMap((b) => b.colours));
+    const merged = mergeGeometries(geos, false);
+    for (const g of geos) g.dispose();
+    if (!merged) throw new Error(`could not batch art group ${mkey}`);
+    const mesh = new THREE.Mesh(merged, material === parts[0].material ? material.clone() : material);
+    mesh.name = `art:whole${mkey}`;
+    mesh.matrixAutoUpdate = false;
+    mesh.renderOrder = Math.max(...parts.map((b) => b.renderOrder));
+    if (parts.some((b) => b.glow)) mesh.userData.glow = true;
+    mesh.visible = false;
+    whole.combined.push(mesh);
+    for (const k of keys) replacedKeys.add(k);
+  }
   for (const [key, b] of buckets) {
     let material = b.part ? b.material : colourMerge(b.material, b.geos, b.colours);
     if (material !== b.material) colourBatches++;
@@ -331,6 +366,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     mesh.matrixAutoUpdate = false;
     mesh.renderOrder = b.renderOrder;
     root.add(mesh);
+    if (replacedKeys.has(key)) whole.replaced.push(mesh);
     if (b.glow) mesh.userData.glow = true;
     if (b.part) {
       mesh.userData.parts = b.names;
@@ -347,8 +383,9 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     } else if (b.side && CEILING_PARTS.includes(b.side)) ceiling[b.side as CeilingPart].push(mesh);
     else if (b.side) walls[b.side as WallSide].push(mesh);
   }
+  for (const m of whole.combined) root.add(m);
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, heroSignLift, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, heroSignLift, whole, meshesAuthored, batches: buckets.size, colourBatches };
 }
