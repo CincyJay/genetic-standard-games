@@ -26,6 +26,23 @@ const ok = (cond, msg) => {
     process.exitCode = 1;
   } else console.log('ok  ', msg);
 };
+// screenshots are captures for review, not assertions. The software renderer here sometimes
+// stalls a capture past Playwright's 30 s default (VA-0033, VA-0036), which used to crash the
+// whole run. Retry with a longer timeout, and if a capture still fails, warn and carry on so the
+// behaviour checks after it still run.
+const shotFailures = [];
+const shot = async (name) => {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      await page.screenshot({ path: `${out}/${name}.png`, timeout: 45000 });
+      return;
+    } catch (e) {
+      console.log(`warn screenshot ${name} attempt ${attempt} failed: ${String(e).split('\n')[0]}`);
+      await page.waitForTimeout(500);
+    }
+  }
+  shotFailures.push(name);
+};
 const st = () => page.evaluate(() => globalThis.__floor3d?.debug.state());
 const scene = () => page.evaluate(() => globalThis.__scene?.()?.scene.key);
 const until = async (fn, ms = 15000) => {
@@ -40,7 +57,7 @@ const until = async (fn, ms = 15000) => {
 await page.goto(url);
 ok(await until(() => page.evaluate(() => !!globalThis.__floor3d), 30000), 'the 3D floor opens straight from boot with ?floor3d');
 await page.waitForTimeout(800);
-await page.screenshot({ path: `${out}/floor3d-01-follow.png` });
+await shot('floor3d-01-follow');
 const s0 = await st();
 ok(s0.mode === 'follow' && Math.abs(s0.pos.z - 4.3) < 0.01, 'starts at the entrance in the follow view');
 const rows = await page.evaluate(() => ['.back', '.cam', '.gear'].map((c) => document.querySelector(`#va3d-hud ${c}`).getBoundingClientRect().top));
@@ -61,7 +78,7 @@ ok(Math.hypot(s1.pos.x - 0.8, s1.pos.z - 2.2) < 0.3, `arrives where tapped (${s1
 await page.locator('#va3d-hud .cam').tap();
 ok(await until(async () => (await st()).mode === 'overview'), 'the camera button switches to the overview');
 ok(await until(async () => !(await st()).transitioning, 3000), 'the transition finishes');
-await page.screenshot({ path: `${out}/floor3d-02-overview.png` });
+await shot('floor3d-02-overview');
 
 // a taken seat refuses
 p = await page.evaluate(() => globalThis.__floor3d.debug.seatScreen('blackjack_2'));
@@ -74,11 +91,11 @@ p = await page.evaluate(() => globalThis.__floor3d.debug.seatScreen('blackjack_1
 await page.touchscreen.tap(p.x, p.y);
 ok(await until(async () => (await st())?.seat === 'blackjack_1'), 'tapping the free seat claims it');
 await until(async () => (await st())?.sitting, 6000);
-await page.screenshot({ path: `${out}/floor3d-03-sitting.png` });
+await shot('floor3d-03-sitting');
 ok(await until(async () => (await scene()) === 'blackjack', 10000), 'sitting down opens the existing blackjack scene');
 ok((await page.locator('#va3d-canvas').count()) === 0, 'the 3D canvas is removed while blackjack runs');
 await page.waitForTimeout(1200);
-await page.screenshot({ path: `${out}/floor3d-04-blackjack.png` });
+await shot('floor3d-04-blackjack');
 
 // back (the same path as Android Back) returns to the floor at the seat's standing spot
 await page.evaluate(() => globalThis.__scene().events.emit('back'));
@@ -87,7 +104,7 @@ await page.waitForTimeout(800);
 const s2 = await st();
 ok(Math.hypot(s2.pos.x - -1.467, s2.pos.z - 0.373) < 0.1, `returns standing at the seat (${s2.pos.x.toFixed(2)}, ${s2.pos.z.toFixed(2)})`);
 ok(s2.mode === 'overview', 'the camera choice is kept');
-await page.screenshot({ path: `${out}/floor3d-05-returned.png` });
+await shot('floor3d-05-returned');
 
 // back to the follow view, try the joystick
 await page.locator('#va3d-hud .cam').tap();
@@ -147,24 +164,31 @@ const uz = (d1.pos.z - d0.pos.z) / ln;
 const off = Math.max(...trail.map((q) => Math.abs((q.x - d0.pos.x) * uz - (q.z - d0.pos.z) * ux)));
 ok(ln > 1.5 && off < 0.15, `a push a little off straight-up walks in a straight line (${ln.toFixed(2)} m, strays ${off.toFixed(3)} m)`);
 ok(Math.abs(d1.camYaw - d0.camYaw) > 0.1, `the camera still swings round behind the walk (${(d1.camYaw - d0.camYaw).toFixed(2)} rad)`);
-await page.screenshot({ path: `${out}/floor3d-06-follow-joystick.png` });
+await shot('floor3d-06-follow-joystick');
 
 // turned sideways (the phone build rotates the floor; here the viewport stands in for it)
 await page.setViewportSize({ width: 832, height: 384 });
-await page.waitForTimeout(600);
-const land = await st();
-ok(land.cam.fov === 50 && (await page.locator('#va3d-canvas').boundingBox()).width === 832, 'landscape: the floor fills the wide screen with a narrower follow view');
+// the software renderer can take a few seconds to deliver the resize, so wait for it
+let land = await st();
+let landW = 0;
+await until(async () => {
+  land = await st();
+  landW = (await page.locator('#va3d-canvas').boundingBox())?.width ?? 0;
+  return land.cam.fov === 50 && landW === 832;
+}, 8000);
+ok(land.cam.fov === 50 && landW === 832, `landscape: the floor fills the wide screen with a narrower follow view (fov ${land.cam.fov}, canvas ${landW} px)`);
 await page.locator('#va3d-hud .gear').tap();
 await page.waitForTimeout(200);
 const rot = await page.locator('#va3d-hud .rotate').boundingBox();
 const roofB = await page.locator('#va3d-hud .roof').boundingBox();
 ok(rot && rot.height >= 48 && rot.y >= 0 && roofB && roofB.y + roofB.height <= 384, 'landscape: the settings menu and its buttons stay on screen at 48 dp');
 await page.locator('#va3d-hud .gear').tap();
-await page.screenshot({ path: `${out}/floor3d-07-landscape.png` });
+await shot('floor3d-07-landscape');
 
 const stats = await page.evaluate(() => globalThis.__floor3d.stats());
 ok(stats.reelTextures === 10, `every cabinet's reels show its machine's symbol atlas (${stats.reelTextures} of 10)`);
 console.log('stats', JSON.stringify(stats));
 ok(stats.artInteractive === 30 && stats.reelCells === 250, `each slot's reels, spin button and marquee stay separate from the batches (${stats.artInteractive} parts, ${stats.reelCells} reel cells)`);
+if (shotFailures.length) console.log(`warn screenshots not captured: ${shotFailures.join(', ')}`);
 ok(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
 await browser.close();
