@@ -206,6 +206,17 @@ await page.locator('#va3d-hud .lightmode').tap();
 await page.locator('#va3d-hud .gear').tap();
 ok(await until(async () => (await page.evaluate(() => globalThis.__floor3d.stats())).lightMode === 'vegas', 3000), 'and back to Vegas');
 ok(stats.artInteractive === 30 && stats.reelCells === 250, `each slot's reels, spin button and marquee stay separate from the batches (${stats.artInteractive} parts, ${stats.reelCells} reel cells)`);
+// walking up to the hero slot frames its screen beside the avatar (VA-0043), still in landscape
+await page.evaluate(() => globalThis.__floor3d.debug.place(-3.65, -5.6, -Math.PI / 2));
+const framed = await until(async () => ((await st()).focus?.weight ?? 0) > 0.9, 8000);
+const fs = await st();
+ok(framed && fs.focus.id === 'sevens', `facing the hero slot up close, the follow camera frames it (${fs.focus ? fs.focus.id + ' ' + fs.focus.weight.toFixed(2) : 'no focus'})`);
+await page.waitForTimeout(300);
+const scr = await page.evaluate(() => ({ avatar: globalThis.__floor3d.debug.screenOf(-3.65, 0.9, -5.6), screen: globalThis.__floor3d.debug.screenOf(-5.15, 1.45, -5.6) }));
+ok(scr.screen.x - scr.avatar.x > 120, `the avatar stands left of the machine screen, not over it (avatar x ${Math.round(scr.avatar.x)}, screen x ${Math.round(scr.screen.x)} of 832)`);
+await shot('floor3d-09-landscape-hero-framed');
+await page.evaluate(() => globalThis.__floor3d.debug.place(0, 4.3, 0));
+ok(await until(async () => (await st()).focus === null, 8000), 'turning away from the machines releases the framing');
 if (shotFailures.length) console.log(`warn screenshots not captured: ${shotFailures.join(', ')}`);
 ok(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
 await browser.close();

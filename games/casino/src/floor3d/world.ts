@@ -8,7 +8,7 @@
  * game takes over.
  */
 import * as THREE from 'three';
-import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, turnToward, type CamMode, type CamPose } from './camera.ts';
+import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, machineFocus, turnToward, type CamMode, type CamPose, type MachineFocus } from './camera.ts';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -18,7 +18,7 @@ import { LIGHT_RIGS, LIGHT_STORAGE_KEY, nextLightMode, parseLightMode, type Ligh
 import { buildArtScene, buildGuestAvatar } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
-import { AVATAR_HEIGHT, DEALER_SPOT, ROOM, obstaclesFor, SEATS, SEAT_HEIGHT, TABLE, type Seat, type Vec2 } from './layout.ts';
+import { AVATAR_HEIGHT, DEALER_SPOT, ROOM, obstaclesFor, SEATS, SEAT_HEIGHT, SLOTS, TABLE, type Seat, type Vec2 } from './layout.ts';
 import { NavGrid } from './nav.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
 
@@ -80,7 +80,7 @@ export interface FloorHandle {
   stats: () => FloorStats;
   /** Test hooks: state, and screen points of things to tap. */
   debug: {
-    state: () => FloorState & { walking: boolean; sitting: boolean; seat: string | null; transitioning: boolean; camYaw: number; lookUp: number; roof: string; cam: CamPose };
+    state: () => FloorState & { walking: boolean; sitting: boolean; seat: string | null; transitioning: boolean; camYaw: number; lookUp: number; roof: string; cam: CamPose; focus: { id: string; weight: number } | null };
     screenOf: (x: number, y: number, z: number) => { x: number; y: number };
     seatScreen: (id: string) => { x: number; y: number };
     tap: (sx: number, sy: number) => void;
@@ -493,6 +493,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   let tapFade = 0;
   /** Extra follow-camera tilt (radians) for looking over a chair back, eased. */
   let lookOver = 0;
+  /** The machine the follow camera is framing (VA-0043), with its weight and aim point eased. */
+  let focus: MachineFocus | null = null;
   let disposed = false;
 
   function setMode(mode: CamMode): void {
@@ -841,10 +843,27 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     // ---- camera
     let obstacleDist = Infinity;
     if (st.mode === 'follow') {
+      // walking up to a slot: ease into framing its screen beside the avatar
+      const want = seated || sitting ? null : machineFocus(st.pos, camYaw, SLOTS);
+      const ke = reduced ? 1 : 1 - Math.exp(-dt * 3);
+      if (want) {
+        const from = focus ?? { ...want, weight: 0 };
+        focus = {
+          id: want.id,
+          weight: from.weight + (want.weight - from.weight) * ke,
+          point: { x: from.point.x + (want.point.x - from.point.x) * ke, y: want.point.y, z: from.point.z + (want.point.z - from.point.z) * ke },
+        };
+      } else if (focus) {
+        focus = { ...focus, weight: focus.weight * (1 - ke) };
+        if (focus.weight < 0.01) focus = null;
+      }
+    } else focus = null;
+    const focusOpt = focus ?? undefined;
+    if (st.mode === 'follow') {
       // a chair back between the avatar and the camera: tilt up until the camera sees over it
       let needTilt = 0;
       for (const tilt of LOOK_OVER_TILTS) {
-        const p = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: tilt, lookUp }).pos;
+        const p = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: tilt, lookUp, focus: focusOpt }).pos;
         tmpA.set(st.pos.x, AVATAR_HEIGHT * 0.75, st.pos.z);
         tmpB.set(p.x, p.y, p.z).sub(tmpA);
         camRay.set(tmpA, tmpB.clone().normalize());
@@ -853,7 +872,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         if (!camRay.intersectObjects(lowBlockers, false).length) break;
       }
       lookOver += (needTilt - lookOver) * (reduced ? 1 : 1 - Math.exp(-dt * 6));
-      const want = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: lookOver, lookUp });
+      const want = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: lookOver, lookUp, focus: focusOpt });
       tmpA.set(want.target.x, want.target.y, want.target.z);
       tmpB.set(want.pos.x, want.pos.y, want.pos.z).sub(tmpA);
       const len = tmpB.length();
@@ -867,7 +886,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       const k = Math.exp(-dt * 1.5);
       pan = { x: pan.x * k, z: pan.z * k };
     }
-    let pose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { obstacleDist, aspect: camera.aspect, pan, extraPitch: st.mode === 'follow' ? lookOver : 0, lookUp });
+    let pose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { obstacleDist, aspect: camera.aspect, pan, extraPitch: st.mode === 'follow' ? lookOver : 0, lookUp, focus: focusOpt });
     if (transition) {
       const t = (now - transition.t0) / TRANSITION_MS;
       if (t >= 1) transition = null;
@@ -977,7 +996,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     dispose,
     stats,
     debug: {
-      state: () => ({ ...snapshot(), walking: path.length > 0, sitting: !!sitting, seat: seated?.id ?? pendingSeat?.id ?? null, transitioning: !!transition, camYaw, lookUp, roof: roofMode, cam: lastPose }),
+      state: () => ({ ...snapshot(), walking: path.length > 0, sitting: !!sitting, seat: seated?.id ?? pendingSeat?.id ?? null, transitioning: !!transition, camYaw, lookUp, roof: roofMode, cam: lastPose, focus: focus ? { id: focus.id, weight: focus.weight } : null }),
       screenOf,
       seatScreen: (id: string) => {
         const s = SEATS.find((q) => q.id === id)!;

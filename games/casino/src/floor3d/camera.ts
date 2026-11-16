@@ -83,6 +83,65 @@ export interface PoseOptions {
   extraPitch?: number;
   /** Follow view: how far (radians, 0..LOOK_UP_MAX) the player has tilted the view up. */
   lookUp?: number;
+  /** Follow view: a machine the avatar has walked up to (see machineFocus), framed beside the avatar. */
+  focus?: MachineFocus;
+}
+
+/**
+ * Machine framing (VA-0043): walking up to a slot used to leave the avatar dead centre, covering
+ * the screen. Within FOCUS.range metres of a cabinet's front and roughly facing it, the follow
+ * camera aims at the screen, swings round to the avatar's right (a front three-quarter view, like
+ * the reference photo) and closes in, so the avatar sits to the left and the machine fills the view.
+ */
+export const FOCUS = {
+  /** Fully framed within `near` metres of the cabinet front; no effect beyond `range`. */
+  near: 1.6,
+  range: 2.8,
+  /** Facing within `cone` of the machine counts fully; beyond `coneMax` not at all. */
+  cone: (25 * Math.PI) / 180,
+  coneMax: (60 * Math.PI) / 180,
+  /** Height of the aim point: about the middle of the hero's enlarged glass. */
+  screenY: 1.45,
+  /** How far the camera swings round the aim point to the avatar's right. */
+  orbit: (24 * Math.PI) / 180,
+  /** The follow distance closes in to at most this when fully framed. */
+  dist: 3.0,
+  /** The cabinet's screen face, metres in front of its centre. */
+  faceOffset: 0.3,
+} as const;
+
+export interface MachineFocus {
+  id: string;
+  /** The aim point on the machine's screen. */
+  point: Vec3;
+  /** 0..1, how strongly to frame it. */
+  weight: number;
+}
+
+/** The machine (if any) the avatar is walking up to, and how strongly to frame it. */
+export function machineFocus(avatar: Vec2, heading: number, slots: readonly { id: string; x: number; z: number; rotationY: number }[]): MachineFocus | null {
+  let best: MachineFocus | null = null;
+  const fx = Math.sin(heading);
+  const fz = -Math.cos(heading);
+  for (const s of slots) {
+    // a cabinet faces its local +Z, turned by rotationY
+    const nx = Math.sin(s.rotationY);
+    const nz = Math.cos(s.rotationY);
+    const face = { x: s.x + nx * FOCUS.faceOffset, z: s.z + nz * FOCUS.faceOffset };
+    const dx = face.x - avatar.x;
+    const dz = face.z - avatar.z;
+    // only from in front of the machine
+    if (dx * nx + dz * nz > 0) continue;
+    const dist = Math.hypot(dx, dz);
+    if (dist >= FOCUS.range) continue;
+    const angle = dist < 1e-6 ? 0 : Math.acos(Math.min(1, Math.max(-1, (dx * fx + dz * fz) / dist)));
+    if (angle >= FOCUS.coneMax) continue;
+    const wd = Math.min(1, (FOCUS.range - dist) / (FOCUS.range - FOCUS.near));
+    const wa = Math.min(1, (FOCUS.coneMax - angle) / (FOCUS.coneMax - FOCUS.cone));
+    const weight = wd * wa;
+    if (weight > 0 && (!best || weight > best.weight)) best = { id: s.id, point: { x: face.x, y: FOCUS.screenY, z: face.z }, weight };
+  }
+  return best;
 }
 /** How close the follow camera may get to a wall, and how far below the wall tops it stays. */
 const WALL_MARGIN = 0.25;
@@ -102,16 +161,21 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     const shoulder = landscape ? FOLLOW_SHOULDER.landscape : FOLLOW_SHOULDER.portrait;
     const sx = Math.cos(heading) * shoulder;
     const sz = Math.sin(heading) * shoulder;
-    const target = { x: avatar.x + sx + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7 + lookUp * 1.1, z: avatar.z + sz - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
-    const d = Math.min(dist, Math.max(0.6, obstacleDist - 0.2));
+    let target = { x: avatar.x + sx + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7 + lookUp * 1.1, z: avatar.z + sz - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
+    // framing a machine: aim at its screen, swing to the avatar's right and close in
+    const w = opts.focus ? Math.min(1, Math.max(0, opts.focus.weight)) : 0;
+    const yaw = heading - w * FOCUS.orbit;
+    if (w > 0) target = lerp3(target, { ...opts.focus!.point, y: opts.focus!.point.y + lookUp * 1.1 }, w);
+    const zoom = w > 0 ? lerp(dist, Math.min(dist, FOCUS.dist), w) : dist;
+    const d = Math.min(zoom, Math.max(0.6, obstacleDist - 0.2));
     // pulled in by a wall or prop: rise and look down more, so the floor ahead stays in view
     const base = landscape ? FOLLOW_LANDSCAPE_PITCH : FOLLOW_PITCH;
-    const pitch = Math.min(FOLLOW_MAX_PITCH, base - lookUp + (opts.extraPitch ?? 0) + Math.min(1, Math.max(0, (dist - d) / dist)) * BLOCKED_EXTRA_PITCH);
-    // behind the avatar: opposite its walking direction (sin h, -cos h)
+    const pitch = Math.min(FOLLOW_MAX_PITCH, base - lookUp + (opts.extraPitch ?? 0) + Math.min(1, Math.max(0, (zoom - d) / zoom)) * BLOCKED_EXTRA_PITCH);
+    // behind the avatar: opposite its walking direction (sin h, -cos h), swung by any framing
     let pos = {
-      x: target.x - Math.sin(heading) * d * Math.cos(pitch),
+      x: target.x - Math.sin(yaw) * d * Math.cos(pitch),
       y: target.y + d * Math.sin(pitch),
-      z: target.z + Math.cos(heading) * d * Math.cos(pitch),
+      z: target.z + Math.cos(yaw) * d * Math.cos(pitch),
     };
     pos = clampInsideRoom(pos);
     pos.y = Math.max(LOOK_UP_MIN_Y, pos.y);

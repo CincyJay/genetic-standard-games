@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_FADE_MIN, LIMITS, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, turnToward } from '../src/floor3d/camera.ts';
+import { AVATAR_FADE_MIN, LIMITS, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, machineFocus, turnToward } from '../src/floor3d/camera.ts';
 import { AGENT_RADIUS, OBSTACLES, ROOM, SEATS, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
@@ -208,6 +208,51 @@ describe('cameras', () => {
     expect(hFov).toBeGreaterThan(41);
     expect(overviewFov(16 / 9)).toBe(50);
     expect(desiredPose('overview', { x: 0, z: 0 }, 0, 14, { pan: { x: -3, z: 0 } }).target.x).toBe(-3);
+  });
+  it('walking up to a slot frames its screen beside the avatar instead of behind it (VA-0043)', () => {
+    const hero = SLOTS.find((s) => s.id === 'sevens')!;
+    // the hero faces +X; stand 1.5 m in front of its screen, facing it (heading -PI/2 walks to -X)
+    const avatar = { x: hero.x + FOCUS.faceOffset + 1.5, z: hero.z };
+    const heading = -Math.PI / 2;
+    const f = machineFocus(avatar, heading, SLOTS)!;
+    expect(f.id).toBe('sevens');
+    expect(f.weight).toBe(1);
+    // how far the avatar's middle sits from the camera's line of sight to the machine screen
+    const offLine = (p: ReturnType<typeof desiredPose>) => {
+      const a = { x: avatar.x - p.pos.x, y: 0.9 - p.pos.y, z: avatar.z - p.pos.z };
+      const v = { x: f.point.x - p.pos.x, y: f.point.y - p.pos.y, z: f.point.z - p.pos.z };
+      const vl = Math.hypot(v.x, v.y, v.z);
+      const t = (a.x * v.x + a.y * v.y + a.z * v.z) / vl;
+      return Math.sqrt(Math.max(0, a.x * a.x + a.y * a.y + a.z * a.z - t * t));
+    };
+    for (const aspect of [0.46, 2.17]) {
+      const plain = desiredPose('follow', avatar, heading, 4.2, { aspect });
+      const framed = desiredPose('follow', avatar, heading, 4.2, { aspect, focus: f });
+      expect(offLine(framed)).toBeGreaterThan(0.6); // avatar clear of the screen (body radius ~0.3)
+      expect(offLine(framed)).toBeGreaterThan(offLine(plain) + 0.2);
+      expect(framed.target.y).toBeCloseTo(FOCUS.screenY);
+      expect(Math.hypot(framed.pos.x - framed.target.x, framed.pos.z - framed.target.z)).toBeLessThan(FOCUS.dist + 1e-9);
+      // the camera stays in front of the machine, on the avatar's right, inside the room
+      expect(framed.pos.x).toBeGreaterThan(avatar.x);
+      expect(framed.pos.z).toBeLessThan(avatar.z); // right of a -X walker is -Z
+      expect(framed.pos.z).toBeGreaterThan(ROOM.z0);
+    }
+  });
+  it('machine framing fades with distance and angle, and ignores the backs of machines', () => {
+    const hero = SLOTS.find((s) => s.id === 'sevens')!;
+    const front = hero.x + FOCUS.faceOffset;
+    const at = (dx: number, heading: number) => machineFocus({ x: front + dx, z: hero.z }, heading, SLOTS);
+    const w2 = at(2.2, -Math.PI / 2)!.weight;
+    expect(w2).toBeGreaterThan(0);
+    expect(w2).toBeLessThan(1);
+    expect(at(3, -Math.PI / 2)).toBeNull(); // too far
+    expect(at(1.5, Math.PI / 2)).toBeNull(); // facing away
+    expect(at(1.5, 0)).toBeNull(); // looking along the row, 90 degrees off
+    expect(machineFocus({ x: hero.x - 1, z: hero.z }, Math.PI / 2, SLOTS)).toBeNull(); // behind it
+    // between two machines it picks the one ahead
+    expect(machineFocus({ x: front + 1.5, z: hero.z + 0.3 }, -Math.PI / 2, SLOTS)!.id).toBe('sevens');
+    // no focus: the follow pose is exactly as before
+    expect(desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { focus: undefined })).toEqual(desiredPose('follow', { x: 0, z: 0 }, 0, 4.2));
   });
   it('zoom stays within limits', () => {
     expect(clampZoom('follow', 100)).toBe(LIMITS.follow.max);
