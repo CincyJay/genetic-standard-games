@@ -18,7 +18,7 @@ import { LIGHT_RIGS, LIGHT_STORAGE_KEY, nextLightMode, parseLightMode, type Ligh
 import { buildArtScene, buildGuestAvatar } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
-import { AVATAR_HEIGHT, dealerSpotFor, ROOM, obstaclesFor, seatsFor, SEAT_HEIGHT, SLOTS, TABLE, type Seat, type Vec2 } from './layout.ts';
+import { AVATAR_HEIGHT, HALL_STORAGE_KEY, layoutFor, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { NavGrid } from './nav.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
 
@@ -69,6 +69,8 @@ export interface FloorStats {
   reelTextures: number;
   /** Showing the art pass 05 pilot (carpet, ceiling, hero cabinet, chair). */
   pilot05: boolean;
+  /** Which floor was built: the salon or the grand hall preview (VA-0064). */
+  hall: 'salon' | 'grand';
   /** The opt-in blackjack hero table (VA-0054) is on. */
   blackjackHero: boolean;
   /** ChatGPT's opt-in woven carpet (VA-0058, `?carpet`) replaced the pilot carpet. */
@@ -261,12 +263,18 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   } catch {
     /* storage unavailable: show the pilot */
   }
+  // which floor: the salon, or the opt-in grand hall preview (VA-0064); one layout describes it
+  const hall = readHall();
+  const layout = layoutFor(hall, pilot05, blackjackHero);
+  useRoom(layout.room);
+  layout.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
+  const TABLE = layout.table;
   // the hero table brings its own seat and dealer anchors (VA-0056); the round table keeps the art's
-  const SEATS = seatsFor(blackjackHero);
-  const DEALER_SPOT = dealerSpotFor(blackjackHero);
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet });
+  const SEATS = layout.seats;
+  const DEALER_SPOT = layout.dealer;
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
-  const obstacles = obstaclesFor(pilot05, art.blackjackHero);
+  const obstacles = hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero);
   const nav = new NavGrid(ROOM, obstacles);
   scene.add(art.root);
   const walls = art.walls;
@@ -309,6 +317,18 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       .then((reel: { texture: THREE.Texture; dispose: () => void }) => {
         if (disposed) return reel.dispose();
         applyVelvetReelAtlas(THREE, mesh, reel);
+        // the grand hall's copies of this machine: the same atlas, mapped 25 cells at a time
+        const copies = art.reelCopies.get(m.id);
+        if (copies) {
+          const parts = copies.userData.parts as string[];
+          const uv = copies.geometry.getAttribute('uv');
+          for (let i = 0; i + 25 <= parts.length; i += 25) {
+            const chunk = { userData: { parts: parts.slice(i, i + 25) }, geometry: { groups: copies.geometry.groups.slice(i, i + 25), getAttribute: () => uv }, material: null };
+            applyVelvetReelAtlas(THREE, chunk, reel);
+            (chunk.material as unknown as THREE.Material | null)?.dispose();
+          }
+          copies.material = mesh.material;
+        }
         // the old reel material may be shared with other batches; dispose() frees it with the scene
         delete mesh.userData.originalMaterial;
         reelTextures++;
@@ -352,6 +372,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   }
   // placeholder people (no rigged human art yet): the dealer
   scene.add(capsule(C.npc, DEALER_SPOT.x, DEALER_SPOT.z, 0, 0));
+  // the grand hall's other tables have placeholder dealers too
+  for (const p of layout.decor.dealers) scene.add(capsule(C.npc, p.x, p.z, 0, 0));
   const labels = [label('BLACKJACK', TABLE.x, 2.6, TABLE.z - 0.6, 1.6)];
   scene.add(...labels);
 
@@ -480,6 +502,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="artpass"></button>
     <button type="button" class="avatarart"></button>
     <button type="button" class="carpetart"></button>
+    <button type="button" class="hall"></button>
     <button type="button" class="lightmode"></button>
   </div>
 </div>
@@ -495,14 +518,20 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const roofBtn = $<HTMLButtonElement>('.roof');
   const artBtn = $<HTMLButtonElement>('.artpass');
   const artLabel = !pilot05 ? 'pass 04' : art.blackjackHero ? 'pass 05 + BJ table' : 'pass 05 pilot';
-  $<HTMLDivElement>('.badge').textContent = `PROTOTYPE · ART ${artLabel.toUpperCase()} · PLACEHOLDER PEOPLE`;
+  $<HTMLDivElement>('.badge').textContent =
+    hall === 'grand' ? 'PROTOTYPE · GRAND HALL PREVIEW' : `PROTOTYPE · ART ${artLabel.toUpperCase()} · PLACEHOLDER PEOPLE`;
+  const hallBtn = $<HTMLButtonElement>('.hall');
+  hallBtn.textContent = hall === 'grand' ? 'Hall: grand (preview)' : 'Hall: salon';
+  hallBtn.setAttribute('aria-label', `Hall: ${hall === 'grand' ? 'grand hall preview' : 'salon'}. Tap to switch (reloads the floor).`);
+  // the grand hall composes its own art: the salon's art and carpet switches don't apply there
+  if (hall === 'grand') $<HTMLButtonElement>('.artpass').hidden = true;
   artBtn.textContent = `Art: ${artLabel}`;
   artBtn.setAttribute('aria-label', `Art: ${artLabel}. Tap to switch (reloads the floor).`);
   const avatarBtn = $<HTMLButtonElement>('.avatarart');
   avatarBtn.textContent = guestAvatar ? 'Avatar: guest pilot' : 'Avatar: capsule';
   avatarBtn.setAttribute('aria-label', `Avatar: ${guestAvatar ? 'guest pilot' : 'capsule'}. Tap to switch (reloads the floor).`);
   const carpetBtn = $<HTMLButtonElement>('.carpetart');
-  carpetBtn.hidden = !pilot05;
+  carpetBtn.hidden = !pilot05 || hall === 'grand';
   carpetBtn.textContent = wovenCarpet ? 'Carpet: woven' : 'Carpet: pilot';
   carpetBtn.setAttribute('aria-label', `Carpet: ${wovenCarpet ? 'woven' : 'pilot'}. Tap to switch (reloads the floor).`);
   const lightBtn = $<HTMLButtonElement>('.lightmode');
@@ -604,6 +633,14 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       localStorage.setItem('va3d.avatar', guestAvatar ? 'capsule' : 'guest');
     } catch {
       return toast('Can’t switch the avatar: storage is unavailable');
+    }
+    location.reload();
+  });
+  hallBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem(HALL_STORAGE_KEY, hall === 'grand' ? 'salon' : 'grand');
+    } catch {
+      return toast('Can’t switch the hall: storage is unavailable');
     }
     location.reload();
   });
@@ -916,7 +953,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     let obstacleDist = Infinity;
     if (st.mode === 'follow') {
       // walking up to a slot: ease into framing its screen beside the avatar
-      const want = seated || sitting ? null : machineFocus(st.pos, camYaw, SLOTS);
+      const want = seated || sitting ? null : machineFocus(st.pos, camYaw, layout.slots);
       const ke = reduced ? 1 : 1 - Math.exp(-dt * 3);
       if (want) {
         const from = focus ?? { ...want, weight: 0 };
@@ -1037,6 +1074,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       heroTextures: [art.heroTextures.length, heroMaps.size],
       heroSignLift: art.heroSignLift,
       pilot05,
+      hall,
       blackjackHero: art.blackjackHero,
       wovenCarpet: art.wovenCarpet,
       guestAvatar,
@@ -1050,6 +1088,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   function dispose(): void {
     if (disposed) return;
     disposed = true;
+    useRoom(SALON_ROOM);
     cancelAnimationFrame(raf);
     clearTimeout(toastTimer);
     window.removeEventListener('resize', onResize);

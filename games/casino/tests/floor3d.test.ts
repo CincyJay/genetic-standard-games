@@ -704,3 +704,79 @@ describe('floor lighting modes (VA-0043)', async () => {
     expect(v.bloom!.strength).toBeLessThanOrEqual(1);
   });
 });
+
+describe('grand hall preview (VA-0064, opt-in)', async () => {
+  const { grandLayout, salonLayout, GRAND_ROOM, SALON_ROOM, useRoom, ROOM: room } = await import('../src/floor3d/layout.ts');
+  const g = grandLayout();
+  const grandNav = new NavGrid(GRAND_ROOM, g.obstacles);
+  it('the salon layout is the floor as it was', () => {
+    const s = salonLayout(true, false);
+    expect(s.room).toEqual(SALON_ROOM);
+    expect(s.seats).toEqual(seatsFor(false));
+    expect(s.slots).toBe(SLOTS);
+    expect(s.spawn).toBe(SPAWN);
+    expect(room).toEqual(SALON_ROOM);
+  });
+  it('useRoom switches the room the cameras read, and back', () => {
+    useRoom(GRAND_ROOM);
+    expect(ROOM.x1).toBe(12);
+    expect(cutawayWalls({ x: 0, y: 5, z: 10 }).size).toBe(0);
+    useRoom(SALON_ROOM);
+    expect(ROOM.x1).toBe(8.61);
+  });
+  it('spawns on the concourse and walks to the blackjack seat and to every machine', () => {
+    expect(grandNav.walkableAt(g.spawn)).toBe(true);
+    for (const s of g.seats) {
+      expect(grandNav.walkableAt(s.approach)).toBe(true);
+      expect(grandNav.findPath(g.spawn, s.approach)).not.toBeNull();
+    }
+    expect(g.slots).toHaveLength(10);
+    for (const s of g.slots) {
+      // the walk-up point, 1.2 m in front of the screen
+      const front = { x: s.x + Math.sin(s.rotationY) * 1.2, z: s.z + Math.cos(s.rotationY) * 1.2 };
+      expect(grandNav.findPath(g.spawn, front), s.id).not.toBeNull();
+    }
+  });
+  it('keeps the concourse lane clear and every table reachable from it', () => {
+    for (let z = -15; z <= 15; z += 0.5) expect(grandNav.walkableAt({ x: 0, z }), `z ${z}`).toBe(true);
+    for (const t of g.decor.tables) expect(grandNav.findPath(g.spawn, { x: t.x, z: t.z + 2.4 })).not.toBeNull();
+  });
+  it('the interactive table, seats and dealer follow the hero table anchors', () => {
+    const live = g.table;
+    expect(g.seats.map((s) => s.id)).toEqual(SEATS.map((s) => s.id));
+    expect(g.seats[0].x).toBeCloseTo(live.x + BLACKJACK_HERO_ANCHORS.seats.blackjack_1.position[0]);
+    expect(g.seats[0].z).toBeCloseTo(live.z + BLACKJACK_HERO_ANCHORS.seats.blackjack_1.position[1]);
+    expect(g.dealer.z).toBeCloseTo(live.z + BLACKJACK_HERO_ANCHORS.dealer[1]);
+    for (const s of g.seats) expect(Math.abs(s.facing)).toBeLessThan(0.7);
+  });
+  it('composes the art: one interactive hero per theme, copies batched with them, roof and walls sorted', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const a = buildArtScene(new Map(), { pilot05: true, layout: g });
+    for (const s of g.slots) expect(a.interactive.get(`slot_${s.id}/reels`)?.geometry.groups.length, s.id).toBe(25);
+    // the side banks' copies: one reel batch per theme, 25 cells per copy, and none interactive
+    // (reels and spin buttons here; the marquees need a browser canvas)
+    expect([...a.interactive.keys()].every((k) => k.startsWith("slot_"))).toBe(true);
+    expect(a.interactive.size).toBe(20);
+    const copies = [...a.reelCopies.values()].reduce((n, m) => n + m.geometry.groups.length, 0);
+    expect(copies).toBe(g.decor.slots.length * 25);
+    expect(a.walls.north.length).toBeGreaterThan(0);
+    expect(a.walls.east.length).toBeGreaterThan(0);
+    expect(a.walls.west.length).toBeGreaterThan(0);
+    expect(a.ceiling.roof.length).toBeGreaterThan(0);
+    expect(a.ceiling.fixtures.length).toBeGreaterThan(0);
+    // the concourse's meshes are this package's three.js (one copy in the scene)
+    let foreign = 0;
+    a.root.traverse((o) => {
+      if ((o as { isMesh?: boolean }).isMesh && !(o instanceof THREE.Mesh)) foreign++;
+    });
+    expect(foreign).toBe(0);
+    // 38 machines, 6 tables, 12 chairs and the concourse: copies share materials, so batches stay few
+    expect(a.batches).toBeLessThan(160);
+    let glow = 0;
+    a.root.traverse((o) => {
+      if (o.userData.glow) glow++;
+    });
+    expect(glow).toBeGreaterThan(0);
+  });
+});

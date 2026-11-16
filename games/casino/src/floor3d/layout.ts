@@ -60,7 +60,23 @@ export interface Seat {
  * wall (0.36 m at z -7.8). The entrance side (+Z) has wings either side of an open arch (see
  * OBSTACLES); the floor ends at z +8.
  */
-export const ROOM = { x0: -8.61, x1: 8.61, z0: -7.62, z1: 7.8, wallHeight: 5.4 } as const;
+export interface RoomBounds {
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  wallHeight: number;
+}
+export const SALON_ROOM: Readonly<RoomBounds> = { x0: -8.61, x1: 8.61, z0: -7.62, z1: 7.8, wallHeight: 5.4 };
+
+/**
+ * The room in use: the salon unless the floor is built as the grand hall preview (VA-0064).
+ * world.ts calls useRoom() once per build; the cameras and nav read it at call time.
+ */
+export const ROOM: Readonly<RoomBounds> = { ...SALON_ROOM };
+export function useRoom(r: Readonly<RoomBounds>): void {
+  Object.assign(ROOM as RoomBounds, r);
+}
 
 /** The avatar is treated as a circle this wide for walking and collisions. */
 export const AGENT_RADIUS = 0.3;
@@ -222,4 +238,170 @@ export function obstaclesFor(pilot05: boolean, blackjackHero = false): Obstacle[
     }
   }
   return out;
+}
+
+
+// ------------------------------------------------------------------ grand hall preview (VA-0064)
+
+/** Which floor: the current salon, or the opt-in larger grand hall preview. */
+export type Hall = 'salon' | 'grand';
+export const HALL_STORAGE_KEY = 'va3d.hall';
+
+/** The stored hall choice; anything but "grand" is the salon. */
+export function readHall(): Hall {
+  try {
+    return localStorage.getItem(HALL_STORAGE_KEY) === 'grand' ? 'grand' : 'salon';
+  } catch {
+    return 'salon';
+  }
+}
+
+/** A slot machine on the floor; it faces local +Z turned by rotationY. */
+export interface SlotPlacement {
+  id: string;
+  x: number;
+  z: number;
+  rotationY: number;
+}
+
+/** A table's position (the hero table, unrotated: guests on its +Z side, dealer on -Z). */
+export interface TablePlacement {
+  x: number;
+  z: number;
+}
+
+/** Everything gameplay needs about one floor, from one description. */
+export interface FloorLayout {
+  hall: Hall;
+  room: Readonly<RoomBounds>;
+  /** The table the seats open (blackjack). */
+  table: typeof TABLE;
+  seats: Seat[];
+  dealer: Vec2;
+  spawn: { x: number; z: number; heading: number };
+  /** Interactive machines (one per theme; their reels show the machine's symbols). */
+  slots: SlotPlacement[];
+  obstacles: Obstacle[];
+  /** Warm point lights (the lighting rig sets their colour and strength). */
+  lamps: { x: number; y: number; z: number }[];
+  /** Grand hall only: scenery the art composer places (no interaction). */
+  decor: { tables: TablePlacement[]; slots: SlotPlacement[]; dealers: Vec2[] };
+  /** Grand hall only: the concourse's placement and size (art 1ad332e). */
+  concourse: { z: number; length: number; width: number; ceilingHeight: number } | null;
+}
+
+/**
+ * The grand hall: about 24 x 36 m, 7.6 m walls, entrance at +Z. ChatGPT's grand concourse
+ * (VA-0062) runs down the middle; table banks either side of it; one interactive machine per
+ * theme along the back wall at the concourse's end; decorative slot banks along both side walls.
+ * Counts are here so the phone measurements can tune them.
+ */
+export const GRAND_ROOM: Readonly<RoomBounds> = { x0: -12, x1: 12, z0: -18, z1: 17.8, wallHeight: 7.6 };
+export const GRAND = {
+  concourse: { z: -1, length: 32, width: 6, ceilingHeight: 7.2 },
+  /** The concourse's colonnade (its art: x = ±(width/2 + 1.25), every 6 m from 3 m in). */
+  columnX: 6 / 2 + 1.25,
+  tableX: 7.6,
+  tableZ: [-11, -3.5, 4],
+  /** The interactive table: west bank, middle. */
+  liveTable: { side: -1, index: 1 },
+  /** Hero cabinet: 1.14 m wide, its deck reaches 0.78 m in front and its back 0.48 m behind. */
+  slotPitch: 1.3,
+  backRowZ: -17.4,
+  sideBankX: 11.4,
+  /** Decorative machines per side wall. */
+  sideBankCount: 14,
+  sideBankZ0: -9,
+  spawn: { x: 0, z: 15, heading: 0 },
+} as const;
+
+/** A slot machine's footprint: from 0.5 m behind its centre to its deck 0.8 m in front, 1.2 m wide. */
+function slotBox(id: string, s: SlotPlacement): BoxObstacle {
+  const fx = Math.round(Math.sin(s.rotationY));
+  const fz = Math.round(Math.cos(s.rotationY));
+  const [a, b] = [-0.5, 0.8];
+  const xs = fx !== 0 ? [s.x + fx * a, s.x + fx * b] : [s.x - 0.6, s.x + 0.6];
+  const zs = fz !== 0 ? [s.z + fz * a, s.z + fz * b] : [s.z - 0.6, s.z + 0.6];
+  return { kind: 'box', id, x0: Math.min(...xs), z0: Math.min(...zs), x1: Math.max(...xs), z1: Math.max(...zs), h: 3.2 };
+}
+
+/** A hero table's furniture you can't walk through (the same shapes as the salon's hero table). */
+function heroTableObstacles(t: TablePlacement, tableId: string, chairIds: [string, string]): Obstacle[] {
+  const seats = Object.values(BLACKJACK_HERO_ANCHORS.seats);
+  return [
+    { kind: 'circle', id: tableId, x: t.x, z: t.z, r: TABLE.radius, h: TABLE.height },
+    ...[-1, 1].map((sx): Obstacle => ({ kind: 'circle', id: `${tableId}-end-${sx < 0 ? 'west' : 'east'}`, x: t.x + sx * 1.2, z: t.z, r: 0.65, h: TABLE.height })),
+    { kind: 'box', id: `${tableId}-dealer-area`, x0: t.x - 1.2, z0: t.z - TABLE.radius - 0.8, x1: t.x + 1.2, z1: t.z, h: 1.0 },
+    ...seats.map((a, i): Obstacle => ({ kind: 'circle', id: chairIds[i], x: t.x + a.position[0], z: t.z + a.position[1], r: 0.38, h: 1.45 })),
+  ];
+}
+
+export function grandLayout(): FloorLayout {
+  const g = GRAND;
+  const tables: TablePlacement[] = [-1, 1].flatMap((side) => g.tableZ.map((z) => ({ x: side * g.tableX, z })));
+  const live = tables[(g.liveTable.side < 0 ? 0 : g.tableZ.length) + g.liveTable.index];
+  const table = { ...TABLE, x: live.x, z: live.z };
+  const anchors = BLACKJACK_HERO_ANCHORS.seats;
+  const seats: Seat[] = SEATS.map((s) => {
+    const a = anchors[s.id];
+    const x = live.x + a.position[0];
+    const z = live.z + a.position[1];
+    return { ...s, x, z, approach: { x: live.x + a.approach[0], z: live.z + a.approach[1] }, facing: Math.atan2(live.x - x, -(live.z - z)) };
+  });
+  const ids = CASINO_WORLD.slots.map((s) => s.id);
+  const slots: SlotPlacement[] = ids.map((id, i) => ({ id, x: (i - (ids.length - 1) / 2) * g.slotPitch, z: g.backRowZ, rotationY: 0 }));
+  const decoSlots: SlotPlacement[] = [-1, 1].flatMap((side) =>
+    Array.from({ length: g.sideBankCount }, (_, i) => ({
+      id: ids[(i + (side > 0 ? 5 : 0)) % ids.length],
+      x: side * g.sideBankX,
+      z: g.sideBankZ0 + i * g.slotPitch,
+      rotationY: side < 0 ? Math.PI / 2 : -Math.PI / 2,
+    })),
+  );
+  const decoTables = tables.filter((t) => t !== live);
+  const c = g.concourse;
+  const columns: Vec2[] = [];
+  for (let z = -c.length / 2 + 3; z < c.length / 2; z += 6) for (const x of [-g.columnX, g.columnX]) columns.push({ x, z: c.z + z });
+  const obstacles: Obstacle[] = [
+    ...heroTableObstacles(live, 'table', ['blackjack_1-chair', 'blackjack_2-chair']),
+    ...decoTables.flatMap((t, i) => heroTableObstacles(t, `deco-table-${i + 1}`, [`deco-${i + 1}a-chair`, `deco-${i + 1}b-chair`])),
+    // the column plinths are 0.95 m square
+    ...columns.map((p, i): Obstacle => ({ kind: 'circle', id: `concourse-column-${i + 1}`, x: p.x, z: p.z, r: 0.55, h: c.ceilingHeight })),
+    ...slots.map((s) => slotBox(`slot-${s.id}`, s)),
+    ...decoSlots.map((s, i) => slotBox(`deco-slot-${i + 1}`, s)),
+  ];
+  return {
+    hall: 'grand',
+    room: GRAND_ROOM,
+    table,
+    seats,
+    dealer: { x: live.x + BLACKJACK_HERO_ANCHORS.dealer[0], z: live.z + BLACKJACK_HERO_ANCHORS.dealer[1] },
+    spawn: { ...g.spawn },
+    slots,
+    obstacles,
+    lamps: [-9, 7].map((z) => ({ x: 0, y: 6, z: c.z + z + 1 })),
+    decor: { tables: decoTables, slots: decoSlots, dealers: decoTables.map((t) => ({ x: t.x + BLACKJACK_HERO_ANCHORS.dealer[0], z: t.z + BLACKJACK_HERO_ANCHORS.dealer[1] })) },
+    concourse: { ...c },
+  };
+}
+
+/** The salon as it has always been, as a layout. */
+export function salonLayout(pilot05: boolean, blackjackHero: boolean): FloorLayout {
+  return {
+    hall: 'salon',
+    room: SALON_ROOM,
+    table: TABLE,
+    seats: seatsFor(blackjackHero),
+    dealer: dealerSpotFor(blackjackHero),
+    spawn: SPAWN,
+    slots: SLOTS,
+    obstacles: obstaclesFor(pilot05, blackjackHero),
+    lamps: [-4, 2.6].map((z) => ({ x: 0, y: 3.9, z })),
+    decor: { tables: [], slots: [], dealers: [] },
+    concourse: null,
+  };
+}
+
+export function layoutFor(hall: Hall, pilot05: boolean, blackjackHero: boolean): FloorLayout {
+  return hall === 'grand' ? grandLayout() : salonLayout(pilot05, blackjackHero);
 }

@@ -20,7 +20,8 @@ import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGam
 import { makeVelvetGuestAvatar } from '../../../../art/casino/3d/guestAvatar.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
-import { PILOT_CHAIR, PILOT_HERO_SLOT } from './layout.ts';
+import { PILOT_CHAIR, PILOT_HERO_SLOT, type FloorLayout } from './layout.ts';
+import { composeGrandHall } from './grandHall.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
 export type CeilingPart = 'roof' | 'fixtures' | 'entrance';
@@ -39,6 +40,11 @@ export interface ArtScene {
   ceiling: Record<CeilingPart, THREE.Mesh[]>;
   /** Each cabinet's interactive parts, by `slot_<theme>/<part>` (`reels`, `spin_button`, `marquee`). */
   interactive: Map<string, THREE.Mesh>;
+  /**
+   * The grand hall's copied cabinets' reels, one batch per theme (25 geometry groups per copy, in
+   * order), so they can show their theme's symbols too. Not interactive. Empty in the salon.
+   */
+  reelCopies: Map<string, THREE.Mesh>;
   /**
    * Art-only scenery outside the room (the pilot's forecourt and ground field, VA-0032). It only
    * shows in the overview: from the follow view the vestibule hides it, so it costs no draw calls there.
@@ -88,6 +94,10 @@ function wallSideOf(name: string, worldX: number): Side {
     if (/^chandelier_(entrance|portal|arch|vestibule)/.test(name)) return 'entrance';
     return 'fixtures';
   }
+  // the grand concourse (VA-0062): its slab, beams and coffers are roof; its cove strips, rings
+  // and stems hang below and stay as fixtures
+  if (name === 'continuous-ceiling-slab' || name === 'ceiling-crossbeam' || name === 'coffer-dark-inset') return 'roof';
+  if (name === 'coffer-warm-cove' || name === 'sculptural-chandelier-ring' || name === 'chandelier-stem') return 'fixtures';
   if (name === 'rear_wall' || name === 'wall_panel' || name === 'art_deco_panel_cap') return 'north';
   if (name === 'wall') return worldX < 0 ? 'west' : 'east';
   return null;
@@ -111,6 +121,14 @@ function fadeGroupOf(o: THREE.Object3D): string | null {
   for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) {
     const slot = FADEABLE_GROUPS.get(p.name);
     if (slot) return slot;
+  }
+  return null;
+}
+/** The grand hall's copied cabinets (`slotcopy_<theme>_<n>`): their theme's copies batch, by theme. */
+function copyCabinetOf(o: THREE.Object3D): string | null {
+  for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) {
+    const m = /^slotcopy_(.+)_\d+$/.exec(p.name);
+    if (m) return `slotcopy_${m[1]}`;
   }
   return null;
 }
@@ -247,6 +265,11 @@ export interface ArtOptions {
   wovenCarpet?: boolean;
   /** Canvas for the woven carpet's texture where there is no `document` (tests). */
   carpetCanvas?: unknown;
+  /**
+   * The floor to compose. The grand hall preview (VA-0064) is composed by grandHall.ts from its
+   * layout instead of the salon's art world; the pass-05, hero-table and carpet swaps don't apply.
+   */
+  layout?: FloorLayout;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -343,10 +366,25 @@ function applyPilot05(art: THREE.Group): { heroTextures: THREE.Texture[]; heroSi
 }
 
 export function buildArtScene(chairs: Map<string, { facing: number; x?: number; z?: number }>, opts: ArtOptions = {}): ArtScene {
-  const { root: art } = makeVelvetWorld(THREE) as { root: THREE.Group };
-  const { heroTextures, heroSignLift } = opts.pilot05 ? applyPilot05(art) : { heroTextures: [], heroSignLift: 0 };
-  const blackjackHero = opts.blackjackHero ? applyBlackjackHero(art) : false;
-  const wovenCarpet = opts.wovenCarpet ? applyWovenCarpet(art, opts.carpetCanvas) : false;
+  let art: THREE.Group;
+  let heroTextures: THREE.Texture[] = [];
+  let heroSignLift = 0;
+  let blackjackHero = false;
+  let wovenCarpet = false;
+  if (opts.layout?.hall === 'grand') {
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas });
+    art = grand.root;
+    heroTextures = grand.heroTextures;
+    wovenCarpet = grand.wovenCarpet;
+    blackjackHero = true;
+    // the grand hall turns its own chairs
+    chairs = new Map();
+  } else {
+    art = (makeVelvetWorld(THREE) as { root: THREE.Group }).root;
+    ({ heroTextures, heroSignLift } = opts.pilot05 ? applyPilot05(art) : { heroTextures: [], heroSignLift: 0 });
+    blackjackHero = opts.blackjackHero ? applyBlackjackHero(art) : false;
+    wovenCarpet = opts.wovenCarpet ? applyWovenCarpet(art, opts.carpetCanvas) : false;
+  }
   for (const [id, c] of chairs) {
     const chair = art.getObjectByName(`${id}_chair`);
     if (!chair) continue;
@@ -369,7 +407,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     mesh.getWorldPosition(wp);
     const side: Side = isExterior(mesh) ? 'exterior' : wallSideOf(mesh.name, wp.x);
     const part = interactivePart(mesh.name);
-    const cabinet = part ? cabinetOf(mesh) : null;
+    const cabinet = part ? (cabinetOf(mesh) ?? (part === 'reels' ? copyCabinetOf(mesh) : null)) : null;
     // glow-tagged pieces (art's `userData.glow`, VA-0042) batch apart from unlit ones, so the
     // batched mesh can carry the tag for the bloom pass
     const glow = mesh.userData.glow === true;
@@ -399,6 +437,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const walls: Record<WallSide, THREE.Mesh[]> = { north: [], east: [], west: [] };
   const ceiling: Record<CeilingPart, THREE.Mesh[]> = { roof: [], fixtures: [], entrance: [] };
   const interactive = new Map<string, THREE.Mesh>();
+  const reelCopies = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
   const fadeable = new Map<string, THREE.Mesh[]>();
   let colourBatches = 0;
@@ -448,7 +487,8 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     if (b.glow) mesh.userData.glow = true;
     if (b.part) {
       mesh.userData.parts = b.names;
-      interactive.set(key, mesh);
+      if (key.startsWith('slotcopy_')) reelCopies.set(key.slice('slotcopy_'.length, -'/reels'.length), mesh);
+      else interactive.set(key, mesh);
     }
     if (b.fade) {
       const list = fadeable.get(b.fade) ?? [];
@@ -465,5 +505,5 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, wovenCarpet, whole, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, wovenCarpet, whole, meshesAuthored, batches: buckets.size, colourBatches };
 }
