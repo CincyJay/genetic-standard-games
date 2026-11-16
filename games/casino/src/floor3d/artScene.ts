@@ -21,7 +21,7 @@ import { makeVelvetGuestAvatar } from '../../../../art/casino/3d/guestAvatar.mjs
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { PILOT_CHAIR, PILOT_HERO_SLOT, type FloorLayout } from './layout.ts';
-import { composeGrandHall } from './grandHall.ts';
+import { composeGrandHall } from './grandHallArt.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
 export type CeilingPart = 'roof' | 'fixtures' | 'entrance';
