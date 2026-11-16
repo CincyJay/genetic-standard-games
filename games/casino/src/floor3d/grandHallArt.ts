@@ -65,12 +65,13 @@ export function composeGrandHall(
   // floor: ChatGPT's woven carpet, sized to the hall
   let wovenCarpet = false;
   if (opts.carpetCanvas || typeof document !== 'undefined') {
-    root.add(makeVelvetPatternCarpet(THREE, { width: w, depth: d, x: cx, y: 0.024, z: cz, canvas: opts.carpetCanvas }) as THREE.Mesh);
+    // below the architecture's stone promenade (top at 0.0225), so the walkway shows through
+    root.add(makeVelvetPatternCarpet(THREE, { width: w, depth: d, x: cx, y: 0.012, z: cz, canvas: opts.carpetCanvas }) as THREE.Mesh);
     wovenCarpet = true;
   } else {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2b1b2c, roughness: 0.9 }));
     floor.name = 'grand_floor_placeholder';
-    floor.position.set(cx, 0.024, cz);
+    floor.position.set(cx, 0.012, cz);
     root.add(floor);
   }
 
