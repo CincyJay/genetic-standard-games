@@ -69,6 +69,8 @@ export interface FloorStats {
   reelTextures: number;
   /** Showing the art pass 05 pilot (carpet, ceiling, hero cabinet, chair). */
   pilot05: boolean;
+  /** The opt-in blackjack hero table (VA-0054) is on. */
+  blackjackHero: boolean;
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
   /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
@@ -228,12 +230,18 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // ------------------------------------------------------------------ art (ChatGPT, PR #2)
   // chairs face the table: a heading h faces (sin h, -cos h); an object turned by -h faces it
   // which art: the pass-05 pilot (ChatGPT, VA-0029) unless the player switched back to pass 04
+  // the art button cycles pass 04 → pass 05 pilot → pass 05 with ChatGPT's opt-in blackjack
+  // hero table (VA-0054); `?bjhero` in the dev server also turns the hero table on
   let pilot05 = true;
+  let blackjackHero = false;
   try {
-    pilot05 = localStorage.getItem('va3d.art') !== 'pass04';
+    const mode = localStorage.getItem('va3d.art');
+    pilot05 = mode !== 'pass04';
+    blackjackHero = mode === 'pilot05-bj';
   } catch {
     /* storage unavailable: show the pilot */
   }
+  if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('bjhero')) blackjackHero = pilot05;
   // the player's look: ChatGPT's guest avatar pilot (VA-0035) unless switched back to the capsule
   let guestAvatar = true;
   try {
@@ -241,9 +249,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   } catch {
     /* storage unavailable: show the pilot */
   }
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, -s.facing])), { pilot05 });
-  // the pilot's swivel chair is furniture you can't walk through
-  const obstacles = obstaclesFor(pilot05);
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, -s.facing])), { pilot05, blackjackHero });
+  // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
+  const obstacles = obstaclesFor(pilot05, art.blackjackHero);
   const nav = new NavGrid(ROOM, obstacles);
   scene.add(art.root);
   const walls = art.walls;
@@ -470,9 +478,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const rotateBtn = $<HTMLButtonElement>('.rotate');
   const roofBtn = $<HTMLButtonElement>('.roof');
   const artBtn = $<HTMLButtonElement>('.artpass');
-  $<HTMLDivElement>('.badge').textContent = `PROTOTYPE · ${pilot05 ? 'ART PASS 05 PILOT' : 'ART PASS 04'} · PLACEHOLDER PEOPLE`;
-  artBtn.textContent = pilot05 ? 'Art: pass 05 pilot' : 'Art: pass 04';
-  artBtn.setAttribute('aria-label', `Art: ${pilot05 ? 'pass 05 pilot' : 'pass 04'}. Tap to switch (reloads the floor).`);
+  const artLabel = !pilot05 ? 'pass 04' : art.blackjackHero ? 'pass 05 + BJ table' : 'pass 05 pilot';
+  $<HTMLDivElement>('.badge').textContent = `PROTOTYPE · ART ${artLabel.toUpperCase()} · PLACEHOLDER PEOPLE`;
+  artBtn.textContent = `Art: ${artLabel}`;
+  artBtn.setAttribute('aria-label', `Art: ${artLabel}. Tap to switch (reloads the floor).`);
   const avatarBtn = $<HTMLButtonElement>('.avatarart');
   avatarBtn.textContent = guestAvatar ? 'Avatar: guest pilot' : 'Avatar: capsule';
   avatarBtn.setAttribute('aria-label', `Avatar: ${guestAvatar ? 'guest pilot' : 'capsule'}. Tap to switch (reloads the floor).`);
@@ -564,7 +573,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   });
   artBtn.addEventListener('click', () => {
     try {
-      localStorage.setItem('va3d.art', pilot05 ? 'pass04' : 'pilot05');
+      localStorage.setItem('va3d.art', !pilot05 ? 'pilot05' : art.blackjackHero ? 'pass04' : 'pilot05-bj');
     } catch {
       return toast('Can’t switch art: storage is unavailable');
     }
@@ -1000,6 +1009,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       heroTextures: [art.heroTextures.length, heroMaps.size],
       heroSignLift: art.heroSignLift,
       pilot05,
+      blackjackHero: art.blackjackHero,
       guestAvatar,
       lightMode,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),

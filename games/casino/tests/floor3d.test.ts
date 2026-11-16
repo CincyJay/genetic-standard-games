@@ -272,6 +272,65 @@ describe('cameras', () => {
   });
 });
 
+describe('blackjack hero table (VA-0054, opt-in)', () => {
+  it('replaces the round table art in place, expands its instanced chips, and leaves it off by default', async () => {
+    const THREE = await import('three');
+    const { buildArtScene, bakedPieces } = await import('../src/floor3d/artScene.ts');
+    const off = buildArtScene(new Map(), { pilot05: true });
+    const on = buildArtScene(new Map(), { pilot05: true, blackjackHero: true });
+    expect(off.blackjackHero).toBe(false);
+    expect(on.blackjackHero).toBe(true);
+    expect(buildArtScene(new Map(), { pilot05: false, blackjackHero: true }).blackjackHero).toBe(true);
+    // the table is centred where the round one was: the batched geometry's rail-height slice
+    // around the table spans the padded rail's 1.9 m half-width along X
+    const box = new THREE.Box3();
+    const p = new THREE.Vector3();
+    on.root.traverse((o) => {
+      const m = o as InstanceType<typeof THREE.Mesh>;
+      if (!m.isMesh) return;
+      const pos = m.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        p.fromBufferAttribute(pos, i);
+        if (p.y > 1.12 && p.y < 1.2 && Math.abs(p.x - TABLE.x) < 2.2 && Math.abs(p.z - TABLE.z) < 1.4) box.expandByPoint(p);
+      }
+    });
+    expect(box.min.x).toBeCloseTo(TABLE.x - 1.896, 2);
+    expect(box.max.x).toBeCloseTo(TABLE.x + 1.896, 2);
+    // instanced chips become one piece per chip, each at its own matrix
+    const geo = new THREE.CylinderGeometry(0.05, 0.05, 0.01, 8);
+    const inst = new THREE.InstancedMesh(geo, new THREE.MeshStandardMaterial(), 3);
+    for (let i = 0; i < 3; i++) inst.setMatrixAt(i, new THREE.Matrix4().makeTranslation(i, 2, 0));
+    inst.position.set(10, 0, 0);
+    inst.updateMatrixWorld(true);
+    const pieces = bakedPieces(inst);
+    expect(pieces.length).toBe(3);
+    pieces.forEach((g, i) => {
+      g.computeBoundingBox();
+      const c = g.boundingBox!.getCenter(new THREE.Vector3());
+      expect(c.x).toBeCloseTo(10 + i, 5);
+      expect(c.y).toBeCloseTo(2, 5);
+    });
+  });
+
+  it('blocks the hero table\'s wider ends but keeps both seats and the dealer reachable', async () => {
+    const { obstaclesFor } = await import('../src/floor3d/layout.ts');
+    const roundNav = new NavGrid(ROOM, obstaclesFor(true));
+    const heroNav = new NavGrid(ROOM, obstaclesFor(true, true));
+    // an avatar 2.0 m from the centre clears the round table (1.57 + 0.3) but would overlap the
+    // hero's rail ends (1.9 m)
+    for (const sx of [-1, 1]) {
+      const end = { x: TABLE.x + sx * 2.0, z: TABLE.z };
+      expect(roundNav.pointFree(end)).toBe(true);
+      expect(heroNav.pointFree(end)).toBe(false);
+    }
+    for (const s of SEATS) {
+      expect(heroNav.walkableAt(s.approach)).toBe(true);
+      const end = heroNav.findPath(SPAWN, s.approach)!.at(-1)!;
+      expect(Math.hypot(end.x - s.approach.x, end.z - s.approach.z)).toBeLessThan(1e-6);
+    }
+  });
+});
+
 describe('art pass 05 pilot', () => {
   it('swaps in the hero cabinet with its 25 reel cells, the new ceiling and carpet, and drops the old chandeliers', async () => {
     const THREE = await import('three');

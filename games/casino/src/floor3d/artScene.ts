@@ -18,6 +18,7 @@ import { makeVelvetContemporaryInterior, makeVelvetExteriorBackdrop } from '../.
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
 import { makeVelvetGuestAvatar } from '../../../../art/casino/3d/guestAvatar.mjs';
+import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { PILOT_CHAIR, PILOT_HERO_SLOT } from './layout.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
@@ -58,6 +59,8 @@ export interface ArtScene {
    * sign in front of its glass itself (b7609a7, VA-0050).
    */
   heroSignLift: number;
+  /** Whether the opt-in blackjack hero table (VA-0054) replaced the round table's art. */
+  blackjackHero: boolean;
   /**
    * Batches for the view where nothing is cut away (the eye-level follow camera): each material
    * the walls or ceiling share with the rest of the room is drawn once, wall and ceiling pieces
@@ -156,6 +159,25 @@ function bakedGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
 }
 
 /**
+ * A mesh's pieces for batching: its baked geometry, or for an InstancedMesh one baked copy per
+ * instance (merging ignores instance matrices, so without this every chip would land at the
+ * stack's origin).
+ */
+export function bakedPieces(mesh: THREE.Mesh): THREE.BufferGeometry[] {
+  const inst = mesh as THREE.InstancedMesh;
+  if (!inst.isInstancedMesh) return [bakedGeometry(mesh)];
+  const base = bakedGeometry(Object.assign(new THREE.Mesh(mesh.geometry), { matrixWorld: new THREE.Matrix4() }));
+  const m = new THREE.Matrix4();
+  const out: THREE.BufferGeometry[] = [];
+  for (let i = 0; i < inst.count; i++) {
+    inst.getMatrixAt(i, m);
+    out.push(base.clone().applyMatrix4(m.premultiply(mesh.matrixWorld)));
+  }
+  base.dispose();
+  return out;
+}
+
+/**
  * ChatGPT's guest avatar pilot (VA-0035), as a visual skin for the player: batched by material
  * (about 30 meshes become a few draw calls), turned to face -Z like the capsule (the art faces
  * +Z) and scaled so its top meets `height`, the gameplay height the cameras frame. Collision,
@@ -208,6 +230,25 @@ export { PILOT_HERO_SLOT };
 export interface ArtOptions {
   /** Art pass 05 pilot (ChatGPT, VA-0029): patterned carpet, lit ceiling, one hero cabinet, one swivel chair. */
   pilot05?: boolean;
+  /**
+   * ChatGPT's opt-in blackjack table preview (VA-0054): the elliptical felt table with its chip
+   * rack replaces the round table's art in the same place. Seats, dealer spot and table logic stay
+   * as they are; layout.ts adds collision for its wider ends.
+   */
+  blackjackHero?: boolean;
+}
+
+/** Swaps the round blackjack table's art for the hero table (VA-0054), before batching. */
+function applyBlackjackHero(art: THREE.Group): boolean {
+  const old = art.getObjectByName('VelvetBlackjackTable');
+  if (!old?.parent) return false;
+  const hero = makeVelvetBlackjackHero(THREE) as THREE.Group;
+  hero.position.copy(old.position);
+  hero.rotation.copy(old.rotation);
+  old.parent.add(hero);
+  old.removeFromParent();
+  old.traverse((q) => (q as THREE.Mesh).geometry?.dispose());
+  return true;
 }
 
 /**
@@ -275,6 +316,7 @@ function applyPilot05(art: THREE.Group): { heroTextures: THREE.Texture[]; heroSi
 export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions = {}): ArtScene {
   const { root: art } = makeVelvetWorld(THREE) as { root: THREE.Group };
   const { heroTextures, heroSignLift } = opts.pilot05 ? applyPilot05(art) : { heroTextures: [], heroSignLift: 0 };
+  const blackjackHero = opts.blackjackHero ? applyBlackjackHero(art) : false;
   for (const [id, rot] of chairFacing) {
     const chair = art.getObjectByName(`${id}_chair`);
     if (chair) chair.rotation.y = rot;
@@ -307,9 +349,12 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     }
     // merging needs one layout: unindexed, with position / normal / uv only
     const src = mesh.geometry;
-    b.geos.push(bakedGeometry(mesh));
-    b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
-    b.names.push(mesh.name);
+    // an instanced mesh (the hero table's chip stacks) becomes one piece per instance
+    for (const g of bakedPieces(mesh)) {
+      b.geos.push(g);
+      b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
+      b.names.push(mesh.name);
+    }
     if (glow) b.glow = true;
     // e.g. the contact-shadow decals draw after the floor
     b.renderOrder = Math.max(b.renderOrder, mesh.renderOrder);
@@ -387,5 +432,5 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, heroSignLift, whole, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, whole, meshesAuthored, batches: buckets.size, colourBatches };
 }

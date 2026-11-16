@@ -163,8 +163,27 @@ export function pilotChairPosition(): Vec2 {
 }
 
 /** Obstacles for the art in use: the pass-05 pilot adds its swivel chair, which stands outside its slot's box. */
-export function obstaclesFor(pilot05: boolean): Obstacle[] {
-  if (!pilot05) return OBSTACLES;
-  const p = pilotChairPosition();
-  return [...OBSTACLES, { kind: 'circle', id: 'pilot-luxury-chair', x: p.x, z: p.z, r: PILOT_CHAIR.r, h: PILOT_CHAIR.h }];
+/**
+ * The opt-in blackjack hero table (VA-0054) is an ellipse 1.9 m to the outside of its padded rail
+ * along X and 1.18 m along Z, so it pokes 0.33 m past the round table's 1.57 m circle at both
+ * ends. Two circles (reaching 1.85 m, plus the avatar's 0.3 m radius) cover those ends; the round circle still covers its guest and dealer sides.
+ */
+export const BLACKJACK_HERO_ENDS: Obstacle[] = [-1, 1].map((sx) => ({
+  kind: 'circle',
+  id: `blackjack-hero-end-${sx < 0 ? 'west' : 'east'}`,
+  x: TABLE.x + sx * 1.2,
+  z: TABLE.z,
+  r: 0.65,
+  h: TABLE.height,
+}));
+
+export function obstaclesFor(pilot05: boolean, blackjackHero = false): Obstacle[] {
+  if (!pilot05 && !blackjackHero) return OBSTACLES;
+  const out = [...OBSTACLES];
+  if (pilot05) {
+    const p = pilotChairPosition();
+    out.push({ kind: 'circle', id: 'pilot-luxury-chair', x: p.x, z: p.z, r: PILOT_CHAIR.r, h: PILOT_CHAIR.h });
+  }
+  if (blackjackHero) out.push(...BLACKJACK_HERO_ENDS);
+  return out;
 }
