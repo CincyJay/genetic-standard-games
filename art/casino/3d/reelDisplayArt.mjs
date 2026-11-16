@@ -56,12 +56,19 @@ export async function createVelvetReelArt(THREE,machineId,symbols,{base='/art'}=
   ctx.fillStyle=shine;ctx.fillRect(x+4,y+4,tile-8,tile*.40);
  }
  const idleSymbols=symbols.filter(x=>x!=='scatter'&&x!=='wild');
- const board=Array.from({length:25},(_,idx)=>idleSymbols[(idx*7+Math.floor(idx/5)*3)%idleSymbols.length]);
+ // A non-payout-looking idle board: adjacent symbols vary across rows AND columns.
+// The old col*7 formula made every column identical when a machine had 7 symbols.
+ if(!idleSymbols.length)throw Error('Machine has no non-special idle symbols');
+ const board=Array.from({length:25},(_,idx)=>{
+  const col=idx%5,row=Math.floor(idx/5);
+  return idleSymbols[(col*3+row*2+Math.floor(col*row/2))%idleSymbols.length];
+ });
  for(let row=0;row<5;row++)for(let col=0;col<5;col++)drawCell(col,row,board[row*5+col]);
  const texture=new THREE.CanvasTexture(canvas);
  texture.colorSpace=THREE.SRGBColorSpace;
  texture.anisotropy=2;
- texture.flipY=false;
+ // Default flipY=true matches the atlas UV's bottom-origin row mapping.
+ texture.flipY=true;
  texture.needsUpdate=true;
  return {
   caption:CAPTIONS[machineId],canvas,texture,board,
@@ -91,11 +98,11 @@ export function applyVelvetReelAtlas(THREE,reelMesh,art){
   if(!m)throw Error('Invalid reel identity: '+parts[i]);
   const col=Number(m[1]),row=Number(m[2]),group=groups[i];
   // Existing BoxGeometry front faces use 0..1 UV. Allow small inset to avoid atlas edge bleeding.
-  const margin=.018,span=(1-2*margin)/5;
+  const margin=.018,cell=1/5,inner=cell*(1-2*margin);
   for(let n=group.start;n<group.start+group.count;n++){
    const oldU=uv.getX(n),oldV=uv.getY(n);
-   const u=margin+(col+oldU)*span;
-   const v=margin+(4-row+oldV)*span;
+   const u=col*cell+cell*margin+oldU*inner;
+   const v=(4-row)*cell+cell*margin+oldV*inner;
    uv.setXY(n,u,v);
   }
  }
