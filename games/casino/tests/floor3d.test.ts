@@ -449,6 +449,16 @@ describe('art pass 05 pilot', () => {
     expect(pilotNav.walkableAt(front)).toBe(true);
     const end = pilotNav.findPath(SPAWN, front)!.at(-1)!;
     expect(Math.hypot(end.x - front.x, end.z - front.z)).toBeLessThan(1e-6);
+    // VA-0046: the chair stands on a player's left (facing the screen), out of the framing swing,
+    // and the neighbouring machine's front stays reachable
+    const facing = Math.atan2(s.x - front.x, -(s.z - front.z)); // heading toward the hero
+    const left = { x: -Math.cos(facing), z: -Math.sin(facing) };
+    expect((p.x - s.x) * left.x + (p.z - s.z) * left.z).toBeGreaterThan(0.5);
+    for (const n of SLOTS.filter((q) => q.id !== PILOT_HERO_SLOT && Math.hypot(q.x - s.x, q.z - s.z) < 3)) {
+      const nf = { x: n.x + (n.x < 0 ? 1 : -1) * 1.0, z: n.z };
+      const ne = pilotNav.findPath(SPAWN, nf)!.at(-1)!;
+      expect(Math.hypot(ne.x - nf.x, ne.z - nf.z)).toBeLessThan(1e-6);
+    }
   });
 });
 

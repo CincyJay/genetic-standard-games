@@ -93,18 +93,20 @@ export interface FloorHandle {
 }
 
 /**
- * Fades a material to `alpha`. three.js compiles opaque materials with an OPAQUE define that
- * forces alpha to 1, so switching `transparent` needs a shader rebuild (needsUpdate), or the
- * opacity is ignored and the piece stays solid. That happens only when it flips, not per frame.
+ * Fading pieces (the avatar, a framed machine's chair) are put in the transparent pass once, at
+ * build time. three.js compiles opaque materials with an OPAQUE define that forces alpha to 1,
+ * so flipping `transparent` while playing would rebuild their shaders (a hitch on a phone each
+ * time the fade starts or ends); kept transparent, a fade only changes uniforms and depthWrite.
+ * At opacity 1 with depthWrite on they draw as before.
  */
+function makeFadeable(m: THREE.Material): void {
+  m.transparent = true;
+  m.depthWrite = true;
+  m.needsUpdate = true;
+}
 function setFade(m: THREE.Material, alpha: number): void {
-  const transparent = alpha < 1;
-  if (m.transparent !== transparent) {
-    m.transparent = transparent;
-    m.depthWrite = !transparent;
-    m.needsUpdate = true;
-  }
   m.opacity = alpha;
+  m.depthWrite = alpha >= 1;
 }
 
 const WALK_SPEED = 2.6; // m/s
@@ -354,6 +356,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   avatar.traverse((o) => {
     if (o instanceof THREE.Mesh) avatarMats.push(o.material as THREE.Material);
   });
+  for (const m of avatarMats) makeFadeable(m);
+  for (const meshes of art.fadeable.values()) for (const m of meshes) makeFadeable(m.material as THREE.Material);
   let avatarAlpha = 1;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.36, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
   shadow.rotation.x = -Math.PI / 2;
@@ -920,8 +924,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     for (const [id, meshes] of art.fadeable) {
       const a = focus && focus.id === id ? propOpacity(focus.weight) : 1;
       const prev = propAlpha.get(id) ?? 1;
-      // skip tiny steps, but always land exactly on solid again
-      if (a === prev || (a < 1 && Math.abs(a - prev) <= 0.01)) continue;
+      if (a === prev) continue;
       propAlpha.set(id, a);
       for (const m of meshes) setFade(m.material as THREE.Material, a);
     }

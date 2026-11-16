@@ -143,8 +143,15 @@ export const PILOT_HERO_SLOT = 'sevens';
  * The pass-05 pilot's swivel chair (VA-0029): where it stands in its slot's own frame, and its
  * footprint. The art chair spans about 0.89 x 0.86 m to the tips of its base and stands 1.45 m
  * tall; the round seat and base fit a 0.4 m circle, which keeps the slot's walk-up point free.
+ *
+ * It stands on the cabinet's local -X side (the left of a player facing the screen), as ChatGPT
+ * asked in VA-0046: the walk-up framing swings the camera to the avatar's right, so a chair on
+ * that side stood in the sightline (VA-0045). Turned toward the screen, mirroring the old pose.
+ * At -0.78 rather than the asked -0.68, so the nav-grid cell 1 m in front of the screen stays
+ * walkable: at -0.68 that cell's centre (0.2 m grid) sat 0.66 m from the chair, inside chair +
+ * avatar radius (0.7 m), so you could not stand squarely in front of the machine.
  */
-export const PILOT_CHAIR = { local: { x: 0.68, z: 0.78 }, rotationY: Math.PI + 0.7, r: 0.4, h: 1.45 } as const;
+export const PILOT_CHAIR = { local: { x: -0.78, z: 0.78 }, rotationY: Math.PI - 0.7, r: 0.4, h: 1.45 } as const;
 
 /** The pilot chair's floor position in the room (its slot's turn and position applied). */
 export function pilotChairPosition(): Vec2 {

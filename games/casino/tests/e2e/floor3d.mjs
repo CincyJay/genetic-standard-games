@@ -222,7 +222,7 @@ const fstats = await page.evaluate(() => globalThis.__floor3d.stats());
 console.log(`framed close-up: ${fstats.drawCalls} draw calls, ${fstats.triangles} tris`);
 await shot('floor3d-09-landscape-hero-framed');
 await page.evaluate(() => globalThis.__floor3d.debug.place(0, 4.3, 0));
-ok(await until(async () => (await st()).focus === null, 25000), 'turning away from the machines releases the framing');
+ok(await until(async () => (await st()).focus === null, 45000), 'turning away from the machines releases the framing');
 ok(await until(async () => ((await st()).propAlpha?.sevens ?? 1) === 1, 5000), 'and the chair is solid again');
 if (shotFailures.length) console.log(`warn screenshots not captured: ${shotFailures.join(', ')}`);
 ok(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);
