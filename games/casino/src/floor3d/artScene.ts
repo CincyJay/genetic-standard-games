@@ -42,6 +42,12 @@ export interface ArtScene {
    * shows in the overview: from the follow view the vestibule hides it, so it costs no draw calls there.
    */
   exterior: THREE.Mesh[];
+  /**
+   * Furniture the follow camera fades while it frames a machine, by slot id (the pilot's swivel
+   * chair beside the hero, VA-0045). Batched apart, on materials of their own, so fading them
+   * touches nothing else.
+   */
+  fadeable: Map<string, THREE.Mesh[]>;
   /** How many meshes the factories built, and how many draw batches they became. */
   meshesAuthored: number;
   batches: number;
@@ -75,6 +81,15 @@ const EXTERIOR_GROUP = 'VA_ExteriorBackdrop_ArtOnly';
 function isExterior(o: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) if (p.name === EXTERIOR_GROUP) return true;
   return false;
+}
+/** Groups whose meshes fade while their machine is framed, and the slot each belongs to. */
+const FADEABLE_GROUPS = new Map<string, string>([['pilot_luxury_chair', PILOT_HERO_SLOT]]);
+function fadeGroupOf(o: THREE.Object3D): string | null {
+  for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) {
+    const slot = FADEABLE_GROUPS.get(p.name);
+    if (slot) return slot;
+  }
+  return null;
 }
 function cabinetOf(o: THREE.Object3D): string | null {
   for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) if (p.name.startsWith('slot_')) return p.name;
@@ -222,7 +237,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   }
   art.updateMatrixWorld(true);
 
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number; glow: boolean }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number; glow: boolean; fade: string | null }>();
   const allMaterials = new Set<THREE.Material>();
   const wp = new THREE.Vector3();
   let meshesAuthored = 0;
@@ -239,10 +254,11 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     // glow-tagged pieces (art's `userData.glow`, VA-0042) batch apart from unlit ones, so the
     // batched mesh can carry the tag for the bloom pass
     const glow = mesh.userData.glow === true;
-    const key = part && cabinet ? `${cabinet}/${part}` : `${side ?? ''}#${glow ? 'glow#' : ''}${materialKey(material)}`;
+    const fade = part ? null : fadeGroupOf(mesh);
+    const key = part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
     let b = buckets.get(key);
     if (!b) {
-      b = { material, geos: [], colours: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false };
+      b = { material, geos: [], colours: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false, fade };
       buckets.set(key, b);
     }
     // merging needs one layout: unindexed, with position / normal / uv only
@@ -262,10 +278,13 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   const ceiling: Record<CeilingPart, THREE.Mesh[]> = { roof: [], fixtures: [], entrance: [] };
   const interactive = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
+  const fadeable = new Map<string, THREE.Mesh[]>();
   let colourBatches = 0;
   for (const [key, b] of buckets) {
-    const material = b.part ? b.material : colourMerge(b.material, b.geos, b.colours);
+    let material = b.part ? b.material : colourMerge(b.material, b.geos, b.colours);
     if (material !== b.material) colourBatches++;
+    // a fading batch gets its own copy of the material (the same values), so its opacity is its own
+    else if (b.fade) material = b.material.clone();
     // interactive parts keep a geometry group per original mesh (groups[i] is names[i])
     const merged = mergeGeometries(b.geos, !!b.part);
     for (const g of b.geos) g.dispose();
@@ -280,6 +299,11 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
       mesh.userData.parts = b.names;
       interactive.set(key, mesh);
     }
+    if (b.fade) {
+      const list = fadeable.get(b.fade) ?? [];
+      list.push(mesh);
+      fadeable.set(b.fade, list);
+    }
     if (b.side === 'exterior') {
       mesh.visible = false;
       exterior.push(mesh);
@@ -289,5 +313,5 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, exterior, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, exterior, fadeable, meshesAuthored, batches: buckets.size, colourBatches };
 }

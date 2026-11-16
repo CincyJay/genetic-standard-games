@@ -8,7 +8,7 @@
  * game takes over.
  */
 import * as THREE from 'three';
-import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, machineFocus, turnToward, type CamMode, type CamPose, type MachineFocus } from './camera.ts';
+import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, propOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, machineFocus, turnToward, type CamMode, type CamPose, type MachineFocus } from './camera.ts';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -80,7 +80,7 @@ export interface FloorHandle {
   stats: () => FloorStats;
   /** Test hooks: state, and screen points of things to tap. */
   debug: {
-    state: () => FloorState & { walking: boolean; sitting: boolean; seat: string | null; transitioning: boolean; camYaw: number; lookUp: number; roof: string; cam: CamPose; focus: { id: string; weight: number } | null };
+    state: () => FloorState & { walking: boolean; sitting: boolean; seat: string | null; transitioning: boolean; camYaw: number; lookUp: number; roof: string; cam: CamPose; focus: { id: string; weight: number } | null; propAlpha: Record<string, number> };
     screenOf: (x: number, y: number, z: number) => { x: number; y: number };
     seatScreen: (id: string) => { x: number; y: number };
     tap: (sx: number, sy: number) => void;
@@ -90,6 +90,21 @@ export interface FloorHandle {
     /** Tilt the follow view up (radians, as a vertical drag does). */
     look: (up: number) => void;
   };
+}
+
+/**
+ * Fades a material to `alpha`. three.js compiles opaque materials with an OPAQUE define that
+ * forces alpha to 1, so switching `transparent` needs a shader rebuild (needsUpdate), or the
+ * opacity is ignored and the piece stays solid. That happens only when it flips, not per frame.
+ */
+function setFade(m: THREE.Material, alpha: number): void {
+  const transparent = alpha < 1;
+  if (m.transparent !== transparent) {
+    m.transparent = transparent;
+    m.depthWrite = !transparent;
+    m.needsUpdate = true;
+  }
+  m.opacity = alpha;
 }
 
 const WALK_SPEED = 2.6; // m/s
@@ -495,6 +510,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   let lookOver = 0;
   /** The machine the follow camera is framing (VA-0043), with its weight and aim point eased. */
   let focus: MachineFocus | null = null;
+  /** Current opacity of each machine's fadeable furniture (see art.fadeable). */
+  const propAlpha = new Map<string, number>();
   let disposed = false;
 
   function setMode(mode: CamMode): void {
@@ -897,11 +914,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     const alpha = st.mode === 'follow' ? avatarOpacity(Math.hypot(pose.pos.x - avatar.position.x, pose.pos.y - (avatar.position.y + AVATAR_HEIGHT / 2), pose.pos.z - avatar.position.z)) : 1;
     if (Math.abs(alpha - avatarAlpha) > 0.01) {
       avatarAlpha = alpha;
-      for (const m of avatarMats) {
-        m.transparent = alpha < 1;
-        m.opacity = alpha;
-        m.depthWrite = alpha >= 1;
-      }
+      for (const m of avatarMats) setFade(m, alpha);
+    }
+    // the framed machine's own chair fades with the framing, so it can't cover the screen (VA-0045)
+    for (const [id, meshes] of art.fadeable) {
+      const a = focus && focus.id === id ? propOpacity(focus.weight) : 1;
+      const prev = propAlpha.get(id) ?? 1;
+      // skip tiny steps, but always land exactly on solid again
+      if (a === prev || (a < 1 && Math.abs(a - prev) <= 0.01)) continue;
+      propAlpha.set(id, a);
+      for (const m of meshes) setFade(m.material as THREE.Material, a);
     }
     camera.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
     camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
@@ -996,7 +1018,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     dispose,
     stats,
     debug: {
-      state: () => ({ ...snapshot(), walking: path.length > 0, sitting: !!sitting, seat: seated?.id ?? pendingSeat?.id ?? null, transitioning: !!transition, camYaw, lookUp, roof: roofMode, cam: lastPose, focus: focus ? { id: focus.id, weight: focus.weight } : null }),
+      state: () => ({ ...snapshot(), walking: path.length > 0, sitting: !!sitting, seat: seated?.id ?? pendingSeat?.id ?? null, transitioning: !!transition, camYaw, lookUp, roof: roofMode, cam: lastPose, focus: focus ? { id: focus.id, weight: focus.weight } : null, propAlpha: Object.fromEntries(propAlpha) }),
       screenOf,
       seatScreen: (id: string) => {
         const s = SEATS.find((q) => q.id === id)!;

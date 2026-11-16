@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_FADE_MIN, LIMITS, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, machineFocus, turnToward } from '../src/floor3d/camera.ts';
+import { AVATAR_FADE_MIN, LIMITS, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
 import { AGENT_RADIUS, OBSTACLES, ROOM, SEATS, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
@@ -254,6 +254,14 @@ describe('cameras', () => {
     // no focus: the follow pose is exactly as before
     expect(desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { focus: undefined })).toEqual(desiredPose('follow', { x: 0, z: 0 }, 0, 4.2));
   });
+  it('the framed machine\'s chair fades with the framing weight (VA-0045)', () => {
+    expect(propOpacity(0)).toBe(1);
+    expect(propOpacity(NaN)).toBe(1);
+    expect(propOpacity(0.5)).toBeGreaterThan(PROP_FADE_MIN);
+    expect(propOpacity(0.5)).toBeLessThan(1);
+    expect(propOpacity(1)).toBeCloseTo(PROP_FADE_MIN);
+    expect(propOpacity(3)).toBeCloseTo(PROP_FADE_MIN);
+  });
   it('zoom stays within limits', () => {
     expect(clampZoom('follow', 100)).toBe(LIMITS.follow.max);
     expect(clampZoom('overview', 0)).toBe(LIMITS.overview.min);
@@ -279,6 +287,25 @@ describe('art pass 05 pilot', () => {
     // (the hero's marquee is a canvas texture, so it only exists in a browser; e2e checks all 30 parts)
     expect(a.interactive.size).toBe(29);
     expect(a.batches).toBeLessThanOrEqual(85);
+  });
+
+  it('batches the pilot chair apart, on its own materials, so it can fade without touching anything else (VA-0045)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene, PILOT_HERO_SLOT } = await import('../src/floor3d/artScene.ts');
+    const a = buildArtScene(new Map(), { pilot05: true });
+    const chair = a.fadeable.get(PILOT_HERO_SLOT)!;
+    expect(chair.length).toBeGreaterThan(0);
+    const chairMats = new Set(chair.map((m) => m.material));
+    let shared = 0;
+    let tris = 0;
+    a.root.traverse((o) => {
+      const m = o as InstanceType<typeof THREE.Mesh>;
+      if (m.isMesh && !chair.includes(m) && chairMats.has(m.material as never)) shared++;
+    });
+    for (const m of chair) tris += m.geometry.attributes.position.count / 3;
+    expect(shared).toBe(0);
+    expect(tris).toBeGreaterThan(50);
+    expect(buildArtScene(new Map(), { pilot05: false }).fadeable.size).toBe(0);
   });
 
   it('keeps the art\'s glow tags through batching and the hero\'s stacked topper clears the ceiling fixtures (VA-0042)', async () => {

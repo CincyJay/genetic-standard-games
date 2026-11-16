@@ -208,6 +208,18 @@ export function avatarOpacity(camDist: number): number {
   return AVATAR_FADE_MIN + (1 - AVATAR_FADE_MIN) * k;
 }
 
+/** How faded a machine's own seat gets while the follow camera frames that machine. */
+export const PROP_FADE_MIN = 0.25;
+/**
+ * The opacity of the furniture beside a framed machine (the pilot's swivel chair, VA-0045):
+ * the framing swings the camera to the avatar's right, where that chair stands between the
+ * camera and the screen, so it fades with the framing weight and is solid again without it.
+ */
+export function propOpacity(focusWeight: number): number {
+  const w = Math.min(1, Math.max(0, focusWeight || 0));
+  return 1 - w * (1 - PROP_FADE_MIN);
+}
+
 /** Keeps the follow camera inside the walls and under their tops, so it never clips through. */
 export function clampInsideRoom(p: Vec3): Vec3 {
   return {
