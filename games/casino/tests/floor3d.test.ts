@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_FADE_MIN, LIMITS, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
+import { AVATAR_FADE_MIN, LIMITS, overviewLift, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
 import { AGENT_RADIUS, OBSTACLES, ROOM, SEATS, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
@@ -208,6 +208,41 @@ describe('cameras', () => {
     expect(hFov).toBeGreaterThan(41);
     expect(overviewFov(16 / 9)).toBe(50);
     expect(desiredPose('overview', { x: 0, z: 0 }, 0, 14, { pan: { x: -3, z: 0 } }).target.x).toBe(-3);
+  });
+  it('the portrait overview aims ahead so the avatar sits low and the room fills the bottom (VA-0056)', () => {
+    // vertical angle (radians) of a point below the camera's view axis
+    const below = (pose: ReturnType<typeof desiredPose>, p: { x: number; y: number; z: number }) => {
+      const d = { x: pose.target.x - pose.pos.x, y: pose.target.y - pose.pos.y, z: pose.target.z - pose.pos.z };
+      const v = { x: p.x - pose.pos.x, y: p.y - pose.pos.y, z: p.z - pose.pos.z };
+      const pitch = (o: typeof d) => Math.atan2(-o.y, Math.hypot(o.x, o.z));
+      return pitch(v) - pitch(d);
+    };
+    const avatar = { x: 0, z: 0 };
+    const aspect = 384 / 832;
+    const tall = desiredPose('overview', avatar, 0, LIMITS.overview.initial, { aspect });
+    const ndc = Math.tan(below(tall, { x: 0, y: 0, z: 0 })) / Math.tan((tall.fov * Math.PI) / 360);
+    expect(ndc).toBeGreaterThan(0.3);
+    expect(ndc).toBeLessThan(0.5);
+    // the aim moved toward the back of the room (forward is north-west)
+    expect(tall.target.z).toBeLessThan(0);
+    expect(tall.target.x).toBeLessThan(0);
+    // from the spawn, the bottom edge of the screen meets the floor within 1 m of the room's
+    // entrance edge (it used to look ~5.4 m past it, into the dark outside the room)
+    const bottomEdge = (p: ReturnType<typeof desiredPose>) => {
+      const dx = p.target.x - p.pos.x;
+      const dz = p.target.z - p.pos.z;
+      const hl = Math.hypot(dx, dz);
+      const s = p.pos.y / Math.tan(Math.atan2(p.pos.y, hl) + (p.fov * Math.PI) / 360);
+      return { x: p.pos.x + (dx / hl) * s, z: p.pos.z + (dz / hl) * s };
+    };
+    const atSpawn = desiredPose('overview', SPAWN, 0, LIMITS.overview.initial, { aspect });
+    expect(bottomEdge(atSpawn).z).toBeLessThan(ROOM.z1 + 1);
+    expect(overviewLift(LIMITS.overview.initial, 50)).toBe(0);
+    expect(desiredPose('overview', avatar, 0, 14, { aspect: 16 / 9 }).target).toEqual({ x: 0, y: 0, z: 0 });
+    // never aims outside the room's 3 m margin, wherever the avatar stands
+    const back = desiredPose('overview', { x: -8, z: -7 }, 0, LIMITS.overview.max, { aspect });
+    expect(back.target.x).toBeGreaterThanOrEqual(ROOM.x0 + 3);
+    expect(back.target.z).toBeGreaterThanOrEqual(ROOM.z0 + 3);
   });
   it('walking up to a slot frames its screen beside the avatar instead of behind it (VA-0043)', () => {
     const hero = SLOTS.find((s) => s.id === 'sevens')!;

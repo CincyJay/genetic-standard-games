@@ -182,19 +182,45 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     // sideways the screen is already wide: a narrower vertical view avoids a fish-eye look
     return { pos, target, fov: opts.aspect && opts.aspect > 1 ? FOLLOW_LANDSCAPE_FOV : FOV.follow };
   }
-  // the overview frames the avatar (plus any drag) but never drifts far outside the room
+  // the overview frames the avatar (plus any drag) but never drifts far outside the room.
+  // On a tall screen the aim moves ahead of the avatar (see overviewLift), so the avatar sits low
+  // in the frame and the room, not the dark ground behind the camera, fills the bottom.
   const pan = opts.pan ?? { x: 0, z: 0 };
+  const fov = opts.aspect ? overviewFov(opts.aspect) : FOV.overview;
+  const lift = overviewLift(dist, fov);
   const target = {
-    x: Math.min(ROOM.x1 - 3, Math.max(ROOM.x0 + 3, avatar.x + pan.x)),
+    x: Math.min(ROOM.x1 - 3, Math.max(ROOM.x0 + 3, avatar.x + pan.x + OVERVIEW_AXES.forward.x * lift)),
     y: 0,
-    z: Math.min(ROOM.z1 - 3, Math.max(ROOM.z0 + 3, avatar.z + pan.z)),
+    z: Math.min(ROOM.z1 - 3, Math.max(ROOM.z0 + 3, avatar.z + pan.z + OVERVIEW_AXES.forward.z * lift)),
   };
   const pos = {
     x: target.x - Math.sin(OVERVIEW_YAW) * dist * Math.cos(OVERVIEW_PITCH),
     y: target.y + dist * Math.sin(OVERVIEW_PITCH),
     z: target.z + Math.cos(OVERVIEW_YAW) * dist * Math.cos(OVERVIEW_PITCH),
   };
-  return { pos, target, fov: opts.aspect ? overviewFov(opts.aspect) : FOV.overview };
+  return { pos, target, fov };
+}
+
+/** On the tallest screens the overview puts the avatar this far below the middle (NDC, 0..1). */
+export const OVERVIEW_PORTRAIT_DROP = 0.42;
+
+/**
+ * How far (metres, along OVERVIEW_AXES.forward) the overview aims ahead of the avatar (VA-0056).
+ * A tall phone widens the overview's vertical view to ~80 degrees; at a 54 degree pitch its
+ * bottom edge then looks past straight down, behind the camera, so in portrait the lower third
+ * of the screen showed the dark ground outside the room. Aiming ahead moves the avatar down to
+ * OVERVIEW_PORTRAIT_DROP of the half-height (scaled by how much wider than the landscape view
+ * the screen made it) and fills that space with room. Landscape (50 degrees) is unchanged.
+ */
+export function overviewLift(dist: number, fov: number): number {
+  const k = Math.min(1, Math.max(0, (fov - FOV.overview) / (OVERVIEW_MAX_FOV - FOV.overview)));
+  if (k <= 0) return 0;
+  const half = (fov * Math.PI) / 360;
+  const below = OVERVIEW_PITCH + Math.atan(Math.tan(half) * OVERVIEW_PORTRAIT_DROP * k);
+  const h = dist * Math.sin(OVERVIEW_PITCH);
+  const back = dist * Math.cos(OVERVIEW_PITCH);
+  // the avatar is seen `below` radians under the horizon, so it stands h / tan(below) from the camera
+  return Math.max(0, back - h / Math.tan(below));
 }
 
 /**
