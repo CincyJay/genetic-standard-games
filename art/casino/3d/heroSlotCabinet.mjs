@@ -78,7 +78,9 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  const g=new T.Group();g.name='VA_HeroSlot_'+id;
  const black=m(T,0x07090e,.20,.20),chassis=m(T,0x141921,.80,.23);
  const body=m(T,0x090b11,.56,.13),side=m(T,0x0b0c13,.62,.16);
- const chrome=m(T,0x9baac0,.95,.15),accent=m(T,theme.accent,.16,.19,theme.accent,3.0);
+ const chrome=m(T,0x9baac0,.95,.15),accent=m(T,theme.accent,.16,.19,theme.accent,2.1);
+ // Pure theme-color HDR glow avoids the pale gold wash from strong specular reflection.
+ const signGlow=new T.MeshBasicMaterial({color:theme.accent,toneMapped:false});
  const darkGlass=m(T,0x060811,.24,.10),screen=m(T,0x131225,.08,.24,0x17152a,1.8);
  const bronze=m(T,0x986b4d,.72,.26),button=m(T,0x6dffdb,.2,.23,0x18b488,2.6);
  // Physically heavy recessed base, kicked-back toe area, separate side shell.
@@ -111,6 +113,20 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  sculpt(T,display,'display_gasket',[0,0,.015],[1.04,1.70,.13],.12,black);
  sculpt(T,display,'display_bright_bezel',[0,0,.087],[.985,1.65,.09],.105,accent);
  sculpt(T,display,'display_glass',[0,0,.143],[.925,1.59,.035],.085,darkGlass);
+ // Upper third of the portrait glass is now occupied by a themed bonus display, rather than empty black glass.
+ // The 25 reel cells retain their exact existing names and dimensions for Phaser atlas mapping.
+ sculpt(T,display,'bonus_header_recess',[0,.602,.166],[.89,.347,.016],.043,black);
+ sculpt(T,display,'bonus_header_illuminated_frame',[0,.602,.185],[.86,.318,.015],.039,accent);
+ sculpt(T,display,'bonus_header_dark_screen',[0,.602,.199],[.806,.269,.012],.033,darkGlass);
+ const bonusBar=cuboid(T,display,'bonus_header_theme_glow',[0,.709,.209],[.70,.019,.009],signGlow);
+ bonusBar.userData={glow:true,glowRole:'bonus-sign'};
+ // Three raised jewel motifs communicate a bonus header without inventing real jackpot payouts.
+ for(const [i,x] of [-.225,0,.225].entries()){
+   const jewel=sphere(T,display,'bonus_jewel_'+i,[x,.596,.220],.058,signGlow,[.84,1.0,.18]);
+   jewel.userData={glow:true,glowRole:'bonus-sign'};
+ }
+ const lowerBar=cuboid(T,display,'bonus_header_lower_separator',[0,.426,.204],[.81,.015,.012],accent);
+ lowerBar.userData={glow:true,glowRole:'bonus-sign'};
  // Square 5x5 reel targets match the square symbol atlas without vertical stretching.
  // 5x5 live reel targets: do not bake symbols into cabinet geometry.
  // Names preserved exactly for engineering's cell-group batching and atlas mapping.
@@ -150,6 +166,11 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  sculpt(T,g,'stacked_jackpot_crown_housing',[0,3.015,-.18],[.94,.30,.38],.08,chassis);
  sculpt(T,g,'stacked_jackpot_crown_glow',[0,3.035,.041],[.87,.22,.035],.05,accent);
  sculpt(T,g,'stacked_jackpot_crown_dark_center',[0,3.035,.064],[.76,.14,.008],.025,darkGlass);
+ // Three distinct bright lozenges replace the blank crown plaque with an illuminated sign.
+ for(const [i,x] of [-.22,0,.22].entries()){
+   const o=sphere(T,g,'crown_lit_gem_'+i,[x,3.036,.077],.049,signGlow,[1.25,.74,.24]);
+   o.userData={glow:true,glowRole:'crown-sign'};
+ }
  for(const x of [-.51,.51])
    tube(T,g,'neon_vertical_spine',[[x,.48,.47],[x,.80,.52],[x,1.65,.53],[x,2.20,.43],[x,2.80,.31]],.018,accent);
  g.traverse(obj=>{
@@ -159,7 +180,7 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  });
  g.userData={
    asset:'VA_HeroCabinet_Pilot',artOnly:true,theme:id,meters:true,
-   upAxis:'Y',forward:'+Z',approxHeight:3.17,footprint:{width:1.10,depth:.95},
+   upAxis:'Y',forward:'+Z',approxHeight:3.17,bonusHeader:'glow-tagged non-monetary bonus sign',footprint:{width:1.10,depth:.95},
    reelTargets:reelNames,reelRows:5,reelColumns:5,
    /* The title art texture is for artistic preview; dispose it with the scene. */
    createdTitleTexture:titleTexture,
