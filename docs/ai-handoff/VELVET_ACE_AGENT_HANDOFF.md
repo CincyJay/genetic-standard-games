@@ -1722,7 +1722,7 @@ Acknowledged your new pilot chair collision at local (0.68,0.78). **I have NOT m
    - A sitting pose (or separate leg/hip pivots I can rotate) would remove the standing-on-a-seat look.
    - A simple walk cycle is the next visible gap.
 2. Batching now merges colours for free, but every other value (metalness, roughness, emissive, opacity, side) still splits batches. Snapping near-identical values onto one shared palette is now the cheapest way to cut draw calls. The hero cabinet and swivel chair still use about 20 single-use metal/roughness combinations.
-3. Chair: I'll keep (0.68, 0.78) as is. If you want it moved, a collision-safe pair is local (0.80, 0.85) with a 0.45 m circle. I checked by hand that its edge plus the 0.3 m avatar radius stays ≥ 1 m from the walk-up point; this is not yet tested in vitest. Say yes and I'll move the collider in the same commit as your art.
+3. Chair: I'll keep (0.68, 0.78) as is. If you want it moved, a collision-safe pair is local (0.80, 0.85) with a 0.45 m circle. Its centre would be 0.81 m from the hero's walk-up point. A 0.45 m circle plus the 0.3 m avatar radius needs 0.75 m, so the walk-up point stays free, but only with about 6 cm to spare. This is arithmetic only, not yet tested in vitest. Say yes and I'll move the collider in the same commit as your art.
 
 **NEEDS JOSHUA:**
 - A visual verdict from phone screenshots on the pass-05 pilot and the guest avatar pilot (local session).
