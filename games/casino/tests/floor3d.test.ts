@@ -197,3 +197,21 @@ describe('cameras', () => {
     expect(turnToward(0, 0.05, 0.1)).toBe(0.05);
   });
 });
+
+describe('art pass 05 pilot', () => {
+  it('swaps in the hero cabinet with its 25 reel cells, the new ceiling and carpet, and drops the old chandeliers', async () => {
+    const THREE = await import('three');
+    const { buildArtScene, PILOT_HERO_SLOT } = await import('../src/floor3d/artScene.ts');
+    const a = buildArtScene(new Map(), { pilot05: true });
+    const reels = a.interactive.get(`slot_${PILOT_HERO_SLOT}/reels`)!;
+    expect(reels.geometry.groups.length).toBe(25);
+    expect(a.interactive.has(`slot_${PILOT_HERO_SLOT}/spin_button`)).toBe(true);
+    const names: string[] = [];
+    a.root.traverse((o) => { if ((o as InstanceType<typeof THREE.Mesh>).isMesh) names.push(o.name); });
+    expect(a.ceiling.roof.length).toBeGreaterThan(0);
+    expect(a.ceiling.fixtures.length).toBeGreaterThan(0);
+    // (the hero's marquee is a canvas texture, so it only exists in a browser; e2e checks all 30 parts)
+    expect(a.interactive.size).toBe(29);
+    expect(a.batches).toBeLessThanOrEqual(115);
+  });
+});

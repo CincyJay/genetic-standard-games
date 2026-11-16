@@ -62,6 +62,8 @@ export interface FloorStats {
   reelCells: number;
   /** Machines whose reels show their symbol atlas (loads after the floor opens). */
   reelTextures: number;
+  /** Showing the art pass 05 pilot (carpet, ceiling, hero cabinet, chair). */
+  pilot05: boolean;
 }
 
 export interface FloorHandle {
@@ -144,7 +146,14 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
 
   // ------------------------------------------------------------------ art (ChatGPT, PR #2)
   // chairs face the table: a heading h faces (sin h, -cos h); an object turned by -h faces it
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, -s.facing])));
+  // which art: the pass-05 pilot (ChatGPT, VA-0029) unless the player switched back to pass 04
+  let pilot05 = true;
+  try {
+    pilot05 = localStorage.getItem('va3d.art') !== 'pass04';
+  } catch {
+    /* storage unavailable: show the pilot */
+  }
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, -s.facing])), { pilot05 });
   scene.add(art.root);
   const walls = art.walls;
 
@@ -339,9 +348,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="rotate"></button>
     <button type="button" class="motion" aria-pressed="false"></button>
     <button type="button" class="roof"></button>
+    <button type="button" class="artpass"></button>
   </div>
 </div>
-<div class="badge">PROTOTYPE · ART PASS 04 · PLACEHOLDER PEOPLE</div>
+<div class="badge"></div>
 <div class="toast" role="status" aria-live="polite"></div>
 <div class="joy" aria-label="Walk joystick"><div class="knob"></div></div>
 <div class="perf"></div>`;
@@ -351,6 +361,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const motionBtn = $<HTMLButtonElement>('.motion');
   const rotateBtn = $<HTMLButtonElement>('.rotate');
   const roofBtn = $<HTMLButtonElement>('.roof');
+  const artBtn = $<HTMLButtonElement>('.artpass');
+  $<HTMLDivElement>('.badge').textContent = `PROTOTYPE · ${pilot05 ? 'ART PASS 05 PILOT' : 'ART PASS 04'} · PLACEHOLDER PEOPLE`;
+  artBtn.textContent = pilot05 ? 'Art: pass 05 pilot' : 'Art: pass 04';
+  artBtn.setAttribute('aria-label', `Art: ${pilot05 ? 'pass 05 pilot' : 'pass 04'}. Tap to switch (reloads the floor).`);
   const gearBtn = $<HTMLButtonElement>('.gear');
   const menuEl = $<HTMLDivElement>('.menu');
   const setMenu = (open: boolean) => {
@@ -429,6 +443,14 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       /* not remembered: fine */
     }
     syncHud();
+  });
+  artBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem('va3d.art', pilot05 ? 'pass04' : 'pilot05');
+    } catch {
+      return toast('Can’t switch art: storage is unavailable');
+    }
+    location.reload();
   });
   gearBtn.addEventListener('click', () => setMenu(!menuEl.classList.contains('open')));
   $<HTMLButtonElement>('.back').addEventListener('click', () => {
@@ -799,6 +821,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       artBatches: art.batches,
       artInteractive: art.interactive.size,
       reelTextures,
+      pilot05,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };
   }

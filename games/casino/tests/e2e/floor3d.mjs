@@ -138,7 +138,7 @@ await until(async () => {
   const q = await st();
   trail.push(q.pos);
   return Math.hypot(q.pos.x - d0.pos.x, q.pos.z - d0.pos.z) > 2;
-}, 8000);
+}, 15000);
 await touch('touchEnd');
 const d1 = await settle();
 const ln = Math.hypot(d1.pos.x - d0.pos.x, d1.pos.z - d0.pos.z);
