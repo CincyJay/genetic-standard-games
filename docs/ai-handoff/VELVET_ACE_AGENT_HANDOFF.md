@@ -2649,6 +2649,46 @@ different):
 
 **Still open from VA-0061:** saturated, multi-colour neon on all cabinets; a rust and gold carpet.
 
+### VA-0064 | 2026-11-16 22:52 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. I fixed one HUD bug in the landscape ⚙ menu and checked woven carpet v2 in the cloud renderer. I didn't touch the concourse or the larger-casino plan; VA-0063 already covers them. I built no APK; device testing stays with the local session.
+
+**Branch:** `feature/3d-casino-prototype` (draft PR #3), on top of the local session's `6347d09`.
+- `a654856` (engineering only, no art files):
+  - **Landscape ⚙ menu:** the new Carpet button (`7cfd058`) makes seven 48 dp buttons, about 404 px stacked under a 56 px offset. On a 384 px-tall landscape screen, Lighting fell off the bottom, and the browser e2e timed out tapping it on the merged tree. On short screens (`max-height: 520px`) the menu is now a two-column grid. Portrait is unchanged. A new e2e check asserts that every visible settings button is on screen at ≥ 48 dp in landscape.
+  - **Prototype badge:** the long art label wrapped the badge to two lines on 384 px portrait, so it ran into the fps line. It now uses a short form ("PROTOTYPE · ART 05+BJ+CARPET · PLACEHOLDER PEOPLE") and stays on one line. I measured it in the browser at 360 and 384 px: not clipped, no overlap.
+  - New unit test for the badge.
+- I tried a fourth art-button step for the carpet, but dropped it unpushed: the local session's ⚙ Carpet switch already does this job.
+
+**Tests (as observed in this cloud container, on `a654856`):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: **152/152**.
+- **Browser e2e `tests/e2e/floor3d.mjs`: 41 ok, 0 FAIL, exit 0** (40 checks plus the new menu check).
+  - Vegas 92 calls / 128.2k triangles; flat 78; framed close-up 67 / 117.8k.
+  - These are software-renderer numbers at the default art path, not phone numbers.
+- **Cloud probe, art `pilot05-bj` with ⚙ Carpet woven vs pilot** (software renderer, DPR 1, 0 console errors):
+  - Draw calls and triangles were identical with either carpet in every view.
+  - Landscape: spawn 103 / 133.7k, overview 113 / 134.1k.
+  - Portrait: spawn 68 / 114.2k, overview 101 / 131.4k.
+  - In flat lighting, every view is 14 calls lower.
+  - Art batches: 84.
+  - This matches the S25+ figures in VA-0063.
+
+**Factual render notes** (not a verdict; captures `docs/ai-handoff/captures/3d-va0064-cloud-landscape-settings-menu.jpg`, `3d-va0064-cloud-woven-v2-portrait-spawn-badge.jpg`):
+- In this renderer, woven v2 with the darker Vegas rig shows clear lozenge outlines within about 3 m of the avatar at eye level. They fade into dark plum by the table.
+- From the overview, the diamond grid reads across the whole floor.
+- It is still violet/plum on near-black, as VA-0063 says, not the rust and gold of reference 8.
+
+**Requests for ChatGPT:** none new. The VA-0063 asks stand:
+- the concourse takes `THREE` as a parameter and moves into `art/casino/3d/`;
+- a size-parametric wall and ceiling shell;
+- shared-material slot-bank cabinets;
+- multi-colour neon;
+- a rust and gold carpet.
+
+**Engineering next (Claude):** the parametric layout for the "Grand hall" preview (VA-0063 plan). I'll coordinate with the local session so we don't build it twice.
+
+**NEEDS JOSHUA:** nothing new. A verdict on the carpet and the neon is still only possible from phone screenshots.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
