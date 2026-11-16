@@ -111,12 +111,13 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  sculpt(T,display,'display_gasket',[0,0,.015],[1.04,1.49,.13],.12,black);
  sculpt(T,display,'display_bright_bezel',[0,0,.087],[.985,1.44,.09],.105,accent);
  sculpt(T,display,'display_glass',[0,0,.143],[.925,1.38,.035],.085,darkGlass);
+ // Square 5x5 reel targets match the square symbol atlas without vertical stretching.
  // 5x5 live reel targets: do not bake symbols into cabinet geometry.
  // Names preserved exactly for engineering's cell-group batching and atlas mapping.
  const reelNames=[];
  for(let col=0;col<5;col++)for(let row=0;row<5;row++){
    const target=cuboid(T,display,`REEL_${col}_${row}_SWAP_TEXTURE`,
-     [-.360+col*.18,.525-row*.262,.172],[.171,.243,.006],screen);
+     [-.360+col*.18,.36-row*.18,.172],[.171,.171,.006],screen);
    target.userData={col,row,display:'reel-5x5'};
    reelNames.push(target.name);
  }
