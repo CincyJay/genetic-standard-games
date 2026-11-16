@@ -37,6 +37,15 @@ const FOLLOW_MAX_PITCH = (70 * Math.PI) / 180;
 const FOLLOW_LANDSCAPE_PITCH = (9 * Math.PI) / 180;
 /** How far a vertical drag can tilt the follow view up (the camera drops behind the avatar). */
 export const LOOK_UP_MAX = (26 * Math.PI) / 180;
+/**
+ * Over-the-shoulder offset (metres, to the avatar's right) for the follow camera, so the
+ * placeholder avatar sits left of centre instead of covering the middle of the view.
+ * Landscape is wider, so it can move further aside.
+ */
+export const FOLLOW_SHOULDER = { portrait: 0.32, landscape: 0.55 };
+/** Within this distance of the avatar's middle the follow camera fades the avatar out. */
+export const AVATAR_FADE_NEAR = 1.6;
+export const AVATAR_FADE_MIN = 0.3;
 /** The lowest the follow camera goes while looking up. */
 const LOOK_UP_MIN_Y = 0.45;
 /** The overview looks from the entrance's south-east corner toward the back of the room. */
@@ -88,10 +97,15 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     // looking up: the camera swings down behind the avatar and aims a little higher, so the
     // ceiling and chandeliers fill the top of the screen while the avatar stays in frame
     const lookUp = Math.min(LOOK_UP_MAX, Math.max(0, opts.lookUp ?? 0));
-    const target = { x: avatar.x + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7 + lookUp * 1.1, z: avatar.z - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
+    // the shoulder offset moves camera and aim point together to the avatar's right (cos h, sin h)
+    const landscape = !!opts.aspect && opts.aspect > 1;
+    const shoulder = landscape ? FOLLOW_SHOULDER.landscape : FOLLOW_SHOULDER.portrait;
+    const sx = Math.cos(heading) * shoulder;
+    const sz = Math.sin(heading) * shoulder;
+    const target = { x: avatar.x + sx + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7 + lookUp * 1.1, z: avatar.z + sz - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
     const d = Math.min(dist, Math.max(0.6, obstacleDist - 0.2));
     // pulled in by a wall or prop: rise and look down more, so the floor ahead stays in view
-    const base = opts.aspect && opts.aspect > 1 ? FOLLOW_LANDSCAPE_PITCH : FOLLOW_PITCH;
+    const base = landscape ? FOLLOW_LANDSCAPE_PITCH : FOLLOW_PITCH;
     const pitch = Math.min(FOLLOW_MAX_PITCH, base - lookUp + (opts.extraPitch ?? 0) + Math.min(1, Math.max(0, (dist - d) / dist)) * BLOCKED_EXTRA_PITCH);
     // behind the avatar: opposite its walking direction (sin h, -cos h)
     let pos = {
@@ -117,6 +131,17 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     z: target.z + Math.cos(OVERVIEW_YAW) * dist * Math.cos(OVERVIEW_PITCH),
   };
   return { pos, target, fov: opts.aspect ? overviewFov(opts.aspect) : FOV.overview };
+}
+
+/**
+ * The avatar's opacity for a camera this far (metres) from its middle: fully solid beyond
+ * AVATAR_FADE_NEAR, fading linearly to AVATAR_FADE_MIN as the camera closes in (a wall or a
+ * machine has pulled it in), so the avatar never fills the screen.
+ */
+export function avatarOpacity(camDist: number): number {
+  if (!(camDist < AVATAR_FADE_NEAR)) return 1;
+  const k = Math.max(0, camDist - 0.4) / (AVATAR_FADE_NEAR - 0.4);
+  return AVATAR_FADE_MIN + (1 - AVATAR_FADE_MIN) * k;
 }
 
 /** Keeps the follow camera inside the walls and under their tops, so it never clips through. */

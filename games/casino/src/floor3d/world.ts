@@ -8,7 +8,7 @@
  * game takes over.
  */
 import * as THREE from 'three';
-import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, blendPose, clampZoom, cutawayWalls, desiredPose, turnToward, type CamMode, type CamPose } from './camera.ts';
+import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, turnToward, type CamMode, type CamPose } from './camera.ts';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildArtScene } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
@@ -267,6 +267,12 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // ------------------------------------------------------------------ avatar
   const avatar = capsule(C.avatar, st.pos.x, st.pos.z, st.heading, 0);
   scene.add(avatar);
+  /** The player's own avatar materials: faded when the follow camera is pulled in close. */
+  const avatarMats: THREE.MeshLambertMaterial[] = [];
+  avatar.traverse((o) => {
+    if (o instanceof THREE.Mesh) avatarMats.push(o.material as THREE.MeshLambertMaterial);
+  });
+  let avatarAlpha = 1;
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.36, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 }));
   shadow.rotation.x = -Math.PI / 2;
   scene.add(shadow);
@@ -772,6 +778,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       else pose = blendPose(transition.from, pose, t);
     }
     lastPose = pose;
+    // a camera pulled in close (by a wall or a machine) fades the avatar so it can't fill the view
+    const alpha = st.mode === 'follow' ? avatarOpacity(Math.hypot(pose.pos.x - avatar.position.x, pose.pos.y - (avatar.position.y + AVATAR_HEIGHT / 2), pose.pos.z - avatar.position.z)) : 1;
+    if (Math.abs(alpha - avatarAlpha) > 0.01) {
+      avatarAlpha = alpha;
+      for (const m of avatarMats) {
+        m.transparent = alpha < 1;
+        m.opacity = alpha;
+        m.depthWrite = alpha >= 1;
+      }
+    }
     camera.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
     camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
     if (Math.abs(camera.fov - pose.fov) > 0.01) {

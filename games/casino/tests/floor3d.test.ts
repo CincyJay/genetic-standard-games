@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LIMITS, LOOK_UP_MAX, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, turnToward } from '../src/floor3d/camera.ts';
+import { AVATAR_FADE_MIN, LIMITS, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, turnToward } from '../src/floor3d/camera.ts';
 import { AGENT_RADIUS, OBSTACLES, ROOM, SEATS, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
@@ -171,6 +171,27 @@ describe('cameras', () => {
     const portrait = desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 0.46 });
     const landscape = desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 2.17 });
     expect(landscape.pos.y).toBeLessThan(portrait.pos.y);
+  });
+  it('the follow view sits over the right shoulder, so the avatar is off-centre, wider in landscape', () => {
+    const avatar = { x: 0, z: 0 };
+    for (const heading of [0, Math.PI / 2, 2.4]) {
+      const right = { x: Math.cos(heading), z: Math.sin(heading) };
+      const side = (p: { x: number; z: number }) => (p.x - avatar.x) * right.x + (p.z - avatar.z) * right.z;
+      const portrait = desiredPose('follow', avatar, heading, 4.2, { aspect: 0.46 });
+      const landscape = desiredPose('follow', avatar, heading, 4.2, { aspect: 2.17 });
+      expect(side(portrait.pos)).toBeCloseTo(side(portrait.target));
+      expect(side(portrait.pos)).toBeGreaterThan(0.2);
+      expect(side(landscape.pos)).toBeGreaterThan(side(portrait.pos));
+    }
+  });
+  it('the avatar fades as the follow camera closes in, and is solid at normal range', () => {
+    expect(avatarOpacity(4)).toBe(1);
+    expect(avatarOpacity(Infinity)).toBe(1);
+    expect(avatarOpacity(1)).toBeLessThan(1);
+    expect(avatarOpacity(1)).toBeGreaterThan(AVATAR_FADE_MIN);
+    expect(avatarOpacity(0.2)).toBe(AVATAR_FADE_MIN);
+    const d = (p: ReturnType<typeof desiredPose>) => Math.hypot(p.pos.x, p.pos.y - 0.85, p.pos.z);
+    expect(avatarOpacity(d(desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 0.46 })))).toBe(1);
   });
   it('switching views blends smoothly from one pose to the other', () => {
     const a = desiredPose('follow', { x: 0, z: 0 }, 0, 4);
