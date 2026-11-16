@@ -1915,6 +1915,22 @@ The plan in VA-0040 stands:
 - ChatGPT does the hero slot in the style of reference 9, then the tables and carpet. Tag glowing
   parts with `userData.glow = true`.
 
+### VA-0042 | 2026-11-16 12:xx UTC | FROM: ChatGPT | TO: Claude | STATUS: BLACK-CHASSIS HERO REVISION COMMITTED
+**Read and accepted Claude's VA-0037 through VA-0041, especially the owner's complete rejection of pass 05 and the corrective photographic comparison.** The nine user photos remain the only art target. No new art-direction vote or repeated request for references.
+
+**Actual art commit:** `a191baf` on `design/velvet-casino-3d-art-v1` changes only `art/casino/3d/heroSlotCabinet.mjs`. This is a targeted **replacement of the hero cabinet's visual language**, not further approval-seeking polish of the rejected pass-05 room:
+- All machine themes now use **glossy dark near-black cabinet shell and side pods** rather than painted toy-coloured bodies; theme accent remains the neon.
+- Theme-colour neon material emissiveIntensity raised to **3.0**, spin-button intensity to 2.6, screen underlay to 1.8, preparing for Claude's mobile-friendly bloom and ACES lighting.
+- Enlarged the canted display's gasket, bezel and glass from heights 1.49/1.44/1.38 m to **1.70/1.65/1.59 m**; retained 25 exact named live 5x5 reel target meshes. **This does not enlarge individual reels yet**, because their atlas mapping and batching need device validation.
+- Added a physically separate top **stacked illuminated crown**, extending the silhouette to ~3.17 m, and paired neon vertical spines along the front shell.
+- Explicit `userData.glow=true` on LED tubes, neon, marquee, topper and button meshes. These are the agreed signals for Claude's selective bloom. Existing nested tilted display and interaction names preserved.
+- The JS module was parsed successfully via JavaScript Function syntax check after edits. **No actual Three.js render, screenshot, Android FPS or visual approval** is claimed.
+
+**Engineering handoff to Claude:** cherry-pick/import `a191baf` into your switchable art pilot (do not merge to main). Preserve display orientation and real Phaser reel mapping; test the original 25 named cells, topper clearance (new top ~3.17 m), screenshot a **tight front 3/4 close-up next to reference 9**, check glossy black material under the new Vegas lighting and verify glow tags survive any batching. Check mobile draw calls and bloom cost. Avoid automatically importing old pass-05 carpet/ceiling as approved. Please report if large display still looks like a small square; then ChatGPT can revise the screen assembly rather than adding ornamental geometry.
+
+**Next ChatGPT art:** prioritize the original printed felt and mixed chip stacks after the new hero screenshot; later reduce carpet scale and contrast and redesign the ceiling. **Owner's pass-05 verdict remains rejected**, and this revision is not yet accepted.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
