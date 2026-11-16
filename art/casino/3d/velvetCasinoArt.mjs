@@ -27,6 +27,12 @@ const cylinder=(T,g,mat,at,r,h,tag,seg=20)=>{
 export function makeVelvetCasinoRoom(T) {
  const m=velvetMaterials(T), g=new T.Group();g.name='VelvetAce_LobbyArt';
  box(T,g,m.marble,[0,-.12,0],[18,.25,16],'floor_base');
+ // Separate vestibule floor extension keeps the front arch grounded.
+ // Leave the main collision floor footprint unchanged; this patch is scenery only.
+ box(T,g,m.marble,[0,-.12,8.55],[10.75,.25,1.42],'vestibule_floor');
+ for(const x of [-5.20,5.20])
+   box(T,g,m.brass,[x,.015,8.55],[.055,.012,1.42],'vestibule_floor_edge');
+ box(T,g,m.brass,[0,.017,7.86],[10.5,.012,.075],'vestibule_threshold');
  box(T,g,m.burgundy,[0,.035,-1.4],[3.1,.026,12.5],'red_carpet');
  for(const x of [-1.58,1.58])box(T,g,m.brass,[x,.053,-1.4],[.032,.01,12.5],'carpet_gold_edge');
  for(let x=-8;x<=8;x+=2)box(T,g,m.brass,[x,.013,0],[.013,.008,15.8],'floor_inlay');
@@ -67,6 +73,24 @@ export function makeVelvetCasinoRoom(T) {
    box(T,g,m.brass,[x,.29,z],[1.78,.10,.84],'bench_base');
    box(T,g,m.burgundy,[x,.91,z+.31],[1.62,.64,.14],'bench_back_cushion');
  }
+ // Entrance lounge rugs / compact planters are kept close to the benches to avoid slot approaches.
+ for(const x of [-3.95,3.95]){
+   box(T,g,m.burgundy,[x,.041,6.35],[4.45,.019,1.78],'lounge_area_rug');
+   box(T,g,m.brass,[x,.053,6.35],[4.51,.010,.055],'lounge_rug_edge');
+   for(const edgeZ of [5.48,7.22])
+     box(T,g,m.brass,[x,.054,edgeZ],[4.51,.011,.045],'lounge_rug_border');
+ }
+ // Compact entrance planters beside the lounge, clear of center walk path.
+ for(const x of [-6.75,6.75]){
+   cylinder(T,g,m.brass,[x,.38,6.26],.25,.73,'lounge_planter',16);
+   cylinder(T,g,m.darkWood,[x,.78,6.26],.23,.09,'lounge_planter_soil',16);
+   for(const a of [-.62,0,.62]){
+     const foliage=new T.Mesh(new T.SphereGeometry(.27,10,7),new T.MeshStandardMaterial({color:'#245742',roughness:.93}));
+     foliage.name='lounge_planter_foliage';foliage.scale.set(.7,1.6,.7);
+     foliage.position.set(x+Math.sin(a)*.23,1.10+Math.cos(a)*.21,6.26+Math.cos(a)*.17);
+     foliage.castShadow=true;g.add(foliage);
+   }
+ }
  // Decorative overhead architecture is named chandelier_* to follow the prototype cutaway convention:
  // engineering hides these along with light fixtures in the Sims-style overview.
  box(T,g,m.darkWood,[0,5.72,0],[17.5,.18,15.5],'chandelier_ceiling');
@@ -102,7 +126,10 @@ export function makeVelvetBlackjackTable(T) {
  cylinder(T,g,m.felt,[0,1.17,0],1.46,.024,'live_felt',48);
  for(let i=0;i<7;i++){
   const a=Math.PI*(.1+.8*i/6),x=Math.cos(a)*1.15,z=Math.sin(a)*1.15;
-  cylinder(T,g,m.lightGold,[x,1.186,z],.105,.004,'betting_ring',20);
+  // One ring with inner felt recess: higher contrast without confusing touch geometry.
+   cylinder(T,g,m.black,[x,1.189,z],.132,.009,'betting_ring_underlay',24);
+   cylinder(T,g,m.lightGold,[x,1.196,z],.112,.012,'betting_ring',24);
+   cylinder(T,g,m.felt,[x,1.204,z],.075,.011,'betting_ring_felt_center',24);
  }
  box(T,g,m.black,[.64,1.27,-.56],[.38,.14,.54],'dealer_card_shoe');
  for(let i=0;i<8;i++)box(T,g,m.black,[-.56+i*.16,1.25,-.52],[.12,.07,.19],'chip_rack');
