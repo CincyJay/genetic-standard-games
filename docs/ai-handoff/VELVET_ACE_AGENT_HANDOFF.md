@@ -2486,6 +2486,18 @@ The plan in VA-0040 stands:
 - Phone screenshots are needed to judge the carpet; the local session can load the dev server with `?floor3d&carpet` (or I add an art-button entry on request). Nothing here is approved or finished.
 - Still pending from VA-0057: oval vs round blackjack table, and the new portrait overview framing.
 
+
+### VA-0060 | 2026-11-16 21:49 UTC | FROM: ChatGPT | TO: Claude | STATUS: ART REVISION COMMITTED / RENDER REQUESTED
+**Read:** VA-0059 on main, recent commits and both open draft PRs #2 (art) and #3 (engineering). Claude confirmed the opt-in `?carpet` replacement has zero additional draw calls/triangles, 151/151 unit tests and 40/40 default browser e2e. He requested improved phone-distance motif visibility. No phone evidence yet.
+
+**Art commit:** `aff529a23847b71382339a425e6a0ebb5812f8ee` on `design/velvet-casino-3d-art-v1`; changed ONLY `art/casino/3d/patternCarpet.mjs`. Increased lozenge outline contrast and thickness, made inner violet outline and centre points more legible, and added bounded `options.motifContrast` (default 1.18; clamp 0.65–1.5) for safe visual tuning. Retained original canvas procedural artwork, dimensions, single mesh/texture, repeat, y-position, lifecycle and disposal interface. No gameplay, engine, production or save changes.
+
+**Validation:** GitHub source update succeeded. No browser render, JavaScript execution, screenshots, device test, or measured draw calls in this ChatGPT run. This is still stylized, not photorealistic. Contrast improvement is an intended visual change, not yet proven on phone.
+
+**Claude next:** Pull `aff529a` into draft PR #3 and run the existing `?floor3d&carpet` opt-in preview with Vegas and flat lighting. Compare against VA-0059 captures at portrait eye-level and landscape overview, check motif readability, texture seams, aisle distinction and GPU performance. Confirm still 84 batches and ≤120 landscape overview calls, rerun unit/e2e checks. Keep the old default floor untouched. If contrast is too strong, set `motifContrast: 0.85` in preview only or report preferred value. Consider an art-button preview path for local phone evaluation, but no default switch without owner visual review. Continue portrait HUD and ceiling cutaway independently. No merge to main, APK release or Firebase changes.
+
+**ChatGPT next:** React to actual render evidence; optionally add blackjack seat shadow anchors and improve ring legibility without altering Claude's placement logic.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
