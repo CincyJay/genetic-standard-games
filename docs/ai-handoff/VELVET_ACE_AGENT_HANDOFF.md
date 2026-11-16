@@ -2005,6 +2005,44 @@ The plan in VA-0040 stands:
 
 **NEEDS JOSHUA (local session):** measure fps and p95 on the S25+ in Vegas against flat (gear menu toggle), and give a phone-screenshot verdict on the bloom look. Nothing here is approved or finished.
 
+### VA-0045 | 2026-11-16 14:30 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. When you walk up to a slot, the follow camera now frames the machine beside the avatar. There was no new art on `design/velvet-casino-3d-art-v1` since `a191baf` and no new ChatGPT entry, so I merged nothing. Nothing went to main except this doc and one capture. I built no APK, because this cloud run can't reach Joshua's phone; device testing stays with the local session.
+
+**Commits on `feature/3d-casino-prototype` (draft PR #3), engineering only, no art files changed:**
+- `4054b6f`: new `machineFocus()` in `src/floor3d/camera.ts`, wired into the follow camera in `world.ts`.
+  - **When it applies:** the avatar is within 2.8 m of a cabinet's screen face (0.3 m in front of its centre, along the cabinet's rotationY +Z), on the front side, and facing it within 60°. It is fully on within 1.6 m and 25°.
+  - **What it does:** the camera aims at the screen (y 1.45 m), swings 24° round to the avatar's right and closes to at most 3.0 m. The avatar therefore stands left of the screen instead of covering it.
+  - **Easing:** the effect eases in and out with frame time. It is off while sitting, and in the overview. With no machine in front, the follow pose is identical to before; a unit test checks that.
+- `d07655e`: an e2e timing fix only. SwiftShader draws a few frames a second, so the framing checks now wait up to 25 s.
+
+**Tests (as observed in this cloud container):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: **142/142** (15 files; +2 camera tests).
+- Browser e2e `tests/e2e/floor3d.mjs` (vite on 5175, headless chromium with SwiftShader): **34/34 ok, exit 0** on the second run. That includes 3 new checks: facing the hero up close engages framing at weight 0.88; the avatar sits at x 289 against the screen at x 410 of 832 px; turning away releases it.
+  - The first run failed those 2 new timing checks: the weight reached 0.88 against a 0.9 bar within 8 s, and the release had not finished within 8 s.
+  - A probe confirmed the weight does climb to 0.93 and decays to 0. Only the software renderer's slow frame rate made it slow, so I lengthened the waits and changed no behaviour.
+  - There were no console errors.
+- e2e landscape stats: **98 draw calls in Vegas** (84 in flat), against the 120 budget. Triangles were **126.3k** against the 150k budget. The HUD showed 69 calls in the framed close-up. These are software-rendering numbers, **not** phone figures.
+
+**Factual notes on the art in the framed view** (capture `captures/3d-va0045-cloud-hero-framed-landscape.jpg`; Vegas lighting, software renderer, not a phone shot, not a verdict):
+- **The avatar no longer covers the hero screen.** It stands to the lower left, and all 25 reel cells are visible except where the chair covers them.
+- **The pilot swivel chair (`PILOT_CHAIR`, local x 0.68, z 0.78) now hides the lower-right reel cells, about 2 columns × 2 rows.** The camera swings to the avatar's right, which is the chair's side. Its tall pale scalloped back sits between the camera and the screen. Engineering options:
+  - mirror the swing to the left for machines whose chair is on the right, or
+  - fade the chair like the avatar.
+  - Mirroring would cost the left-hand avatar placement. I'd rather fix it in art if you agree: a lower chair back (under about 1.1 m), or the chair on the left of the cabinet (local x -0.68).
+- **The hero's neon halo** blooms strongly at this range. It reads as one warm-gold glow around the whole cabinet, so the marquee edge lamps and spines merge into a band. Theme colour is still not obvious.
+- **The screen** still has the empty dark band above the 25 cells, about the top third of the glass. This is unchanged from VA-0043 and VA-0044 and is still the biggest gap against reference 9.
+- **The older red and blue cabinets** to the left look like toy cabinets next to the black hero: bright saturated bodies and orange ball finials.
+
+**Requests for ChatGPT:**
+1. Fill the enlarged glass with the screen assembly: reels plus a glow-tagged jackpot or bonus panel. Keep the 25 cell names. This is unchanged and is still the top priority.
+2. Chair: a lower back, or the chair moved to the cabinet's left, so the walk-up view isn't blocked. If you move it, tell me the new local position and footprint, and I'll update the collision circle in `layout.ts`.
+3. Use saturated theme-colour neon and a lit crown sign, keeping non-glow emissive below about 1.0. Then the felt and chips, then the carpet and ceiling.
+
+**Engineering next (Claude):** the chair occlusion if art can't move it (a fade like the avatar's); portrait HUD layout; a stronger dimming pass once the new carpet and ceiling land.
+
+**NEEDS JOSHUA (local session):** walk up to the Lucky Sevens machine on the S25+ and say whether the framed view feels right in portrait and landscape, by phone screenshot. Also still open from VA-0044: fps and p95 in Vegas against flat. Nothing here is approved or finished.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
