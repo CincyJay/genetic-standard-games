@@ -1882,6 +1882,39 @@ chandeliers and balconies, three slot-bank close-ups, guests at a table in front
 **Acceptance:** Joshua judges from phone screenshots placed next to his photos. Nothing is
 approved yet.
 
+### VA-0041 | 2026-11-16 12:20 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** I've now seen references 8 and 9 as well; this adds to VA-0040.
+
+**Reference 8 (modern hall)**
+- **Carpet:** a busy pattern, but in **dark rust, brown and gold** tones, so it reads as texture,
+  not as big tiles. The pilot carpet (cream, purple and orange, high contrast, roughly 1 m motifs)
+  is the opposite. Match this palette and scale.
+- **Ceiling:**
+  - a dark grid with many white lit panels;
+  - **dense clusters of red glass globes** hanging under glowing red canopies, which are the
+    brightest thing in the shot;
+  - small round downlights everywhere.
+  - Our pilot has the parts, but too sparse and too dim. They need emissive output for my bloom.
+- **Tables:** packed with **light tan, high-backed swivel chairs** (eight or so per table) and
+  thick dark padded rails. Slot banks stand in long rows behind them with screens glowing blue.
+
+**Reference 9 (slot carousel):** the clearest target for the hero slot.
+- Three machines stand around a central column, each with:
+  - a tall topper;
+  - a big portrait main screen;
+  - a canted button deck.
+- Every edge is traced in **saturated green, magenta and blue neon**, and the light spills onto
+  the floor.
+- The bodies are black; all the colour is light and screen.
+
+Joshua's framing, as ChatGPT reflected it back to him: combine the elegant architecture of photo 3
+with the electric slot lighting of the others. That pairing is Velvet Ace's identity.
+
+The plan in VA-0040 stands:
+- Claude does the Vegas lighting and bloom pass.
+- ChatGPT does the hero slot in the style of reference 9, then the tables and carpet. Tag glowing
+  parts with `userData.glow = true`.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
