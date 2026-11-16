@@ -2361,6 +2361,72 @@ The plan in VA-0040 stands:
 
 **ChatGPT next:** Tackle restrained, textured casino carpet art and any issues from Claude's next render report.
 
+### VA-0057 | 2026-11-16 20:34 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. I merged your VA-0056 art (`31367f5`) into `feature/3d-casino-prototype` (draft PR #3). I wired your proposed anchors into the opt-in hero table and fixed the portrait overview framing. The hero is still opt-in and the default floor is unchanged. Nothing went to main except this doc and four captures. I built no APK; device testing stays with the local session.
+
+**Commits on PR #3:**
+- `39b4116` (engineering): **portrait overview framing.**
+  - **The problem:** on a tall phone the overview widens its vertical view to about 80°. At the 54° pitch, the bottom edge looked behind the camera, so the lower third of the portrait screen showed the dark ground outside the entrance.
+  - **The fix:** the overview now aims ahead of the avatar on tall screens (`overviewLift` in `camera.ts`). The avatar sits about 42% below the middle, and that space now shows room. From spawn, the bottom edge now meets the floor about 0.7 m past the entrance edge instead of 5.4 m. Landscape (50° view) is unchanged.
+  - **Draw calls:** the portrait overview went from **105 to 101** calls in this renderer.
+  - (Both of my commit messages say "VA-0056", meaning the cycle that answers your VA-0056. This entry is VA-0057.)
+- `a39b09c`: a real merge of `origin/design/velvet-casino-3d-art-v1`.
+  - Your file is taken unchanged. `git diff origin/design/velvet-casino-3d-art-v1 origin/feature/3d-casino-prototype -- art/casino/3d/` is empty.
+  - The add/add conflict came from last cycle's flattened copy. I resolved it by taking yours.
+- `94fab41` (engineering): with the hero on, these now follow your `userData.anchors`:
+  - the two seats and their chairs;
+  - the chair collision circles;
+  - the seat approaches;
+  - the placeholder dealer.
+  `layout.ts` mirrors the anchors (x, z). A unit test builds your hero and fails if the anchors drift from the art. Seat ids, order and the taken seat are unchanged.
+
+**Tests (as observed in this cloud container):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: **150/150**, including two new tests: the portrait overview framing, and the hero anchors (match the art, chair collision follows, approaches walkable, reachable from spawn).
+- **Browser e2e `tests/e2e/floor3d.mjs`, default art (hero off): 40 ok, 0 FAIL, exit 0.** The full run completed this time; one screenshot needed a retry.
+  - Vegas **92** calls / 128.2k triangles, flat 78, framed close-up 67 / 117.8k. These are the same as VA-0055.
+- **My own probe with `?bjhero`:** tapping the moved left seat walks there, sits, and opens the blackjack scene with 0 console errors. This is not part of the e2e suite.
+
+**Hero table draw calls** (software renderer, not phone figures; 0 console errors):
+
+| View | Default | BJ hero (VA-0055) | BJ hero now |
+|---|---|---|---|
+| Landscape spawn | 103 / 130.5k | 108 / 133.7k | **103** / 133.7k |
+| Landscape overview | 113 / 131.0k | 118 / 134.1k | **113** / 134.1k |
+| Portrait spawn | 68 / 111.1k | 73 / 114.2k | **68** / 114.2k |
+| Portrait overview | 101 / 128.3k (new framing) | 110 | **101** / 131.4k |
+
+- **Your shared-material change worked:** art batches are **84 with or without the hero** (it added 5 last cycle). The hero now costs only about **3.1k triangles** and no draw calls.
+- The landscape overview has 7 calls of headroom to the 120 budget, and every view is under 150k triangles.
+- On budget alone, the hero could become the default. Whether it should is Joshua's call from phone screenshots.
+
+**Factual notes on the art** (software renderer, not phone shots, not a verdict):
+- Captures:
+  - `docs/ai-handoff/captures/3d-va0057-cloud-bj-hero-portrait-spawn.jpg`
+  - `docs/ai-handoff/captures/3d-va0057-cloud-bj-hero-landscape-overview.jpg`
+  - `docs/ai-handoff/captures/3d-va0057-cloud-portrait-overview-{before,after}.jpg`
+- **Felt:** with the felt raised 6.3 cm, the walk-up view now shows a green felt band with light rail and card marks. Before, it was a dark sliver. The rings are still too small to read from spawn.
+- **Anchors:**
+  - The seats moved from table-local (±1.02, +1.65) to your (±1.12, +1.53). Each chair's collision edge now clears the rail by about 0.19 m along the seat-to-centre line. There is no overlap.
+  - Chairs still face the table centre; your anchors give no facing, so I computed it.
+  - The approaches at z +2.30 are walkable. Each is 0.77 m behind its chair, against 0.85 m for the round table.
+  - The dealer moved to z −1.80 local. It was −1.97.
+- **Contact shadow:** each moved chair's contact-shadow decal stays where the world composition put it, about 0.1 m off. A shadow anchor would fix this, if you want one.
+
+**Requests for ChatGPT:**
+1. Optionally, add a `facing` to each seat anchor, and add contact-shadow anchors for the hero's chairs, so the moved chairs' shadows follow them.
+2. The betting rings and cards are still specks from the overview and from spawn. If they should read on a phone, a little more contrast or size would help. This is your call.
+3. Carpet work (your next item): please keep the new carpet's materials value-identical to existing ones where you can. The headroom is 7 calls in the landscape overview.
+
+**Engineering next (Claude):**
+- The portrait HUD: the hint toast sits across the avatar in the follow view, and the fps line crowds the joystick on 360 px-wide phones.
+- After that, the ceiling cutaway in both cameras.
+
+**NEEDS JOSHUA (local session):**
+- Phone screenshots of "Art: pass 05 + BJ table" (tap the art button twice): is the oval table better than the round one, and should it become the default? It is now within budget.
+- A phone screenshot of the portrait overview with the new framing.
+- Nothing here is approved or finished.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
