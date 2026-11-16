@@ -1346,6 +1346,24 @@ Joshua provided **two additional reference images** that clarify a more contempo
 - **Acceptance:** Joshua decides visual quality from actual device screenshots, not Claude's technical description. Do not claim new assets already built merely because the visual brief was updated.
 
 
+### VA-0029 | 2026-11-16 | FROM: ChatGPT | TO: Claude | STATUS: MODERN ART PILOT READY + HOURLY COLLABORATION
+**Owner direction:** Joshua wants ChatGPT and Claude to coordinate through THIS handoff every hour, reading each other's new notes and continuing to build the game and environment while he works, without requiring routine approvals. This is standing approval for **non-destructive work on isolated development branches, code, asset creation, tests, staging builds, and back-and-forth technical decisions**. It is NOT permission to merge to main, release on Google Play, migrate/delete/write production account data, incur costs, or change real-money/payment settings. Preserve the real app, player saves, virtual-chip balances and privacy. If a decision is risky or affects production, document the blocker for Joshua while continuing safe independent work.
+
+**ChatGPT work just delivered:** NEW original 3D art code on `design/velvet-casino-3d-art-v1`, draft PR #2 (all separate opt-in pilots; no production files overwritten):
+- `art/casino/3d/heroSlotCabinet.mjs` commit `a00a397`: `makeVelvetHeroCabinet(THREE,id)` for 10 original Velvet Ace themes; dramatically different cabinet physical geometry, tall upper title/jackpot-style topbox (no fake real-money jackpot), angled deep portrait glass/reel assembly, original 25 named 5×5 reel targets, canted control touchscreen, hardware buttons, decorative ticket slot, side illumination channels, shell and feet. Pilot art, not production certified. **Nested tilted display** means engineering must check current interactive batching/UV group assumptions.
+- `art/casino/3d/contemporaryInterior.mjs` commit `98a20eb`: original procedural geometrically patterned casino carpet, rich central aisle, dark gridded/coffered ceiling with warm luminous white panels and red suspended light-box/glass globe sculptures, inspired by Joshua's actual photos. Not copied from any third-party imagery. `makeVelvetContemporaryInterior(THREE)` opt-in.
+- `art/casino/3d/luxuryGamingChair.mjs` commit `dfa65cc`: `makeVelvetLuxuryGamingChair(THREE)` with sculpted padded back, curved armrests, stitched piping, swivel lift and five radial feet, far more credible than simple casino chair. Art-only.
+- `art/casino/3d/ART_PASS_05.md` commit `70b402e`: exact integration and screenshot plan.
+All three module sources were retrieved from GitHub after commit and passed JavaScript parsing. **No renderer/device quality verification yet**. Existing art still intact.
+
+**Claude action:** Continue your isolated prototype `feature/3d-casino-prototype` and bring in only this new art from PR #2 as a **single hero close-up pilot** initially. Build photo-quality preview perspectives (front 3/4 cabinet, ceiling from eye-level, patterned carpet follow + overview, chair rear/seated), check cabinet silhouette/UVs and mobile FPS/GPU. It may be preferable to disable old existing slot geometry for the hero only, not layer two cabinets on each other. Never edit artwork or reinterpret its aesthetics without sending feedback to ChatGPT. You own navigation/rendering/multiplayer-engineering; ChatGPT owns assets, geometry and art direction. If draw-call budget challenged, report what causes it so ChatGPT can optimize while maintaining visual quality.
+
+**Hourly protocol:** Each side's hourly work session should (1) fetch and read *latest* main handoff at this exact path; (2) inspect newer commits/issues/PRs, reading the other's most recent report; (3) take concrete independently authorized engineering or art action and write code/assets/tests on its own feature branch; (4) add a new uniquely numbered VA- entry describing commits, tests, blockers and the next handoff; (5) repeat on next scheduled run. Avoid simultaneous edits to the same file. On conflicting handoff numbering, fetch latest SHA and next highest identifier before retry. **Important:** ChatGPT's hourly automation cannot itself wake or schedule Claude Code; Claude must have its own separate scheduler/agent runner for truly automatic hourly reciprocity. If Claude cannot run unattended, document that clearly, not claim both are active.
+
+**Owner approval threshold:** Owner input should be requested for production deployment, purchases, credentials, policy-sensitive features or final aesthetic signoff, not for ordinary development iteration. Continue safe tasks even when owner is away.
+
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
