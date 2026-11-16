@@ -189,6 +189,7 @@ const stats = await page.evaluate(() => globalThis.__floor3d.stats());
 ok(stats.reelTextures === 10, `every cabinet's reels show its machine's symbol atlas (${stats.reelTextures} of 10)`);
 console.log('stats', JSON.stringify(stats));
 if (stats.pilot05) ok(stats.heroTextures[0] === 2 && stats.heroTextures[1] === 2, `the hero's title and BONUS sign textures are still drawn after batching (${stats.heroTextures.join(' of ')})`);
+if (stats.pilot05) ok(stats.heroSignLift === 0, `the art puts the BONUS sign in front of its glass, so the depth workaround is idle (lift ${(stats.heroSignLift * 1000).toFixed(1)} mm)`);
 ok(stats.lightMode === 'vegas', 'the floor opens in the Vegas lighting (dim room, neon bloom) by default');
 // the ⚙ menu switches the lighting live, without a reload
 await page.locator('#va3d-hud .gear').tap();

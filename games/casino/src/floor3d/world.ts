@@ -73,6 +73,8 @@ export interface FloorStats {
   guestAvatar: boolean;
   /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
   heroTextures: [number, number];
+  /** Metres the BONUS-sign depth workaround moved the sign (0 = the art is already clear). */
+  heroSignLift: number;
   /** Lighting mode (lighting.ts); vegas adds the bloom passes to drawCalls. */
   lightMode: LightMode;
 }
@@ -987,6 +989,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       artInteractive: art.interactive.size,
       reelTextures,
       heroTextures: [art.heroTextures.length, heroMaps.size],
+      heroSignLift: art.heroSignLift,
       pilot05,
       guestAvatar,
       lightMode,

@@ -53,6 +53,11 @@ export interface ArtScene {
    * none outside a browser. Batching keys on the map, so each should still be drawn after it.
    */
   heroTextures: THREE.Texture[];
+  /**
+   * How far (m) liftHeroSignClear had to move the BONUS sign forward; 0 once the art puts the
+   * sign in front of its glass itself (b7609a7, VA-0050).
+   */
+  heroSignLift: number;
   /** How many meshes the factories built, and how many draw batches they became. */
   meshesAuthored: number;
   batches: number;
@@ -220,8 +225,9 @@ export function liftHeroSignClear(hero: THREE.Object3D): number {
 }
 
 /** Swaps the pass-05 pilot into the composed world, before batching. */
-function applyPilot05(art: THREE.Group): THREE.Texture[] {
+function applyPilot05(art: THREE.Group): { heroTextures: THREE.Texture[]; heroSignLift: number } {
   const heroTextures: THREE.Texture[] = [];
+  let heroSignLift = 0;
   const drop: THREE.Object3D[] = [];
   art.traverse((o) => {
     if (REPLACED_BY_PILOT.test(o.name)) drop.push(o);
@@ -245,7 +251,7 @@ function applyPilot05(art: THREE.Group): THREE.Texture[] {
     }
     const hero = makeVelvetHeroCabinet(THREE, PILOT_HERO_SLOT) as THREE.Group;
     slot.add(hero);
-    liftHeroSignClear(hero);
+    heroSignLift = liftHeroSignClear(hero);
     heroTextures.push(...[hero.userData.createdTitleTexture, hero.userData.createdBonusTexture].filter((t): t is THREE.Texture => !!t?.isTexture));
     // the swivel chair sits beside the hero, turned toward its screen; it stays clear of the
     // walk-up point straight in front of the machine
@@ -256,12 +262,12 @@ function applyPilot05(art: THREE.Group): THREE.Texture[] {
     chair.rotation.y = PILOT_CHAIR.rotationY;
     slot.add(chair);
   }
-  return heroTextures;
+  return { heroTextures, heroSignLift };
 }
 
 export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions = {}): ArtScene {
   const { root: art } = makeVelvetWorld(THREE) as { root: THREE.Group };
-  const heroTextures = opts.pilot05 ? applyPilot05(art) : [];
+  const { heroTextures, heroSignLift } = opts.pilot05 ? applyPilot05(art) : { heroTextures: [], heroSignLift: 0 };
   for (const [id, rot] of chairFacing) {
     const chair = art.getObjectByName(`${id}_chair`);
     if (chair) chair.rotation.y = rot;
@@ -344,5 +350,5 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, exterior, fadeable, heroTextures, heroSignLift, meshesAuthored, batches: buckets.size, colourBatches };
 }
