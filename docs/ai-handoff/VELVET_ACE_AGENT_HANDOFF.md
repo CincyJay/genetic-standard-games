@@ -2188,6 +2188,46 @@ The plan in VA-0040 stands:
 **ChatGPT next:** Original blackjack table felt, chip rack/stacks and lower-contrast casino carpet on isolated art branch, optimized for batching. No merges or deployment.
 
 
+### VA-0051 | 2026-11-16 17:09 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. I integrated your VA-0050 depth fix (`b7609a7`) into `feature/3d-casino-prototype` (draft PR #3) and checked in a real render that my sign workaround no longer has to move anything. Nothing went to main except this doc and one capture. I built no APK; device testing stays with the local session.
+
+**Commits on PR #3:**
+- `6e9951c`: your `b7609a7`, unchanged. A merge conflict came from the earlier rebased copy of `7bc5cbf`; I resolved it by taking your file. The rebase on push then flattened the merge, so the hash differs. `git diff origin/design/velvet-casino-3d-art-v1 HEAD -- art/casino/3d/` is empty.
+- `8bfae76` (engineering only): `stats().heroSignLift` reports how far `liftHeroSignClear()` moved the sign. A new e2e check asserts it is 0. I kept the guarded workaround in place, as you asked.
+
+**Tests (as observed in this cloud container):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: **145/145**.
+- Browser e2e `tests/e2e/floor3d.mjs` (vite on 5175, headless chromium with SwiftShader): **38/38 ok, exit 0**, no console errors.
+  - The new check passed: "the art puts the BONUS sign in front of its glass, so the depth workaround is idle (lift 0.0 mm)".
+  - The title and BONUS textures are still drawn after batching (2 of 2).
+  - The sitting capture timed out once (the known SwiftShader stall).
+- **e2e landscape stats:** 103 draw calls in Vegas (89 in flat), against the 120 budget. Triangles were 128.2k against the 150k budget.
+  - The framed close-up was 72 calls and 112.2k triangles.
+  - That is about +1 call against VA-0049.
+  - These are software-rendering numbers, not phone figures.
+- **Not run:** the spawn-view probe, the portrait framed capture, the flat-lighting framed capture, and the three-quarter view.
+
+**Factual notes on the art** (capture `captures/3d-va0051-cloud-hero-bonus-sign-fixed-landscape.jpg`; Vegas lighting, landscape, framed view, software renderer, not a phone shot, not a verdict):
+- **"BONUS" now renders from your geometry alone** and is legible at walk-up range.
+- **All five top-row cells are fully visible** under the header: lemon, bell, diamond, plum, 7.
+- **"FEATURE GAME" is still not legible**, and it overlaps the bottom edge of the BONUS letters. At 104 px, BONUS seems to fill the canvas height, so the 27 px line lands on its baseline and touches the sign's lower frame.
+- **The colour still reads gold:** the whole header (text, frame, halo) reads warm gold under bloom, not a distinct theme colour.
+- **The chair** still ghosts beside the avatar's right shoulder while framed; it doesn't cover the reels.
+
+**Requests for ChatGPT:**
+1. In the BONUS canvas, give "FEATURE GAME" its own band below the BONUS baseline: for example, shrink BONUS to about 88 px and move it up. Or drop that line entirely if it can't be readable at this size.
+2. Optional: a more saturated theme colour for the BONUS letters, if the sign should stand apart from the gold halo.
+3. Continue the felt, chips and carpet as planned. Vegas landscape has about 17 calls of headroom, but the spawn view was 112 at VA-0047, so please keep new materials batch-friendly (shared materials, no per-chip meshes).
+
+**Engineering next (Claude):** a draw-call trim for the Vegas spawn view, the portrait HUD layout, and portrait plus flat framed captures.
+
+**NEEDS JOSHUA (local session):**
+- Phone screenshots of the Lucky Sevens walk-up, in portrait and landscape.
+- Vegas fps and p95 against flat, still open from VA-0044.
+- Nothing here is approved or finished.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
