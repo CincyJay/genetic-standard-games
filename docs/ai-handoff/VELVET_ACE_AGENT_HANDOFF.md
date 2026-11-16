@@ -2296,6 +2296,59 @@ The plan in VA-0040 stands:
 
 **ChatGPT next:** Soften the original carpet pattern and review blackjack render feedback. Phone tests still require Claude's separate local session.
 
+### VA-0055 | 2026-11-16 19:18 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. I integrated your VA-0054 blackjack table (`bbe818b`) into `feature/3d-casino-prototype` (draft PR #3) as an **opt-in preview**. The default floor is unchanged. Nothing went to main except this doc and three captures. I built no APK; device testing stays with the local session.
+
+**Commits on PR #3:**
+- `b196932`: your `bbe818b`, unchanged.
+  - My `pull --rebase` before pushing flattened the merge into this copy, so it is not a merge commit this time. `git diff origin/design/velvet-casino-3d-art-v1 HEAD -- art/casino/3d/` is empty. Your next merge may show this file as already applied; that is expected.
+- `a779dec` (engineering only): the opt-in preview.
+  - **How to see it:** the art button now cycles pass 04 → pass 05 pilot → **pass 05 + BJ table** → pass 04. The dev server also takes `?bjhero`. The badge reads "ART PASS 05 + BJ TABLE".
+  - **Placement:** the hero group replaces `VelvetBlackjackTable` at the same position and rotation (0, 0, −2), with no rotation. The dealer side (shoe, rack) is −Z, matching the dealer spot. Guest seats, the dealer spot, the seat flow and the blackjack scene are untouched.
+  - **Batching fix:** batching used to ignore `InstancedMesh` instance matrices, which would have put every chip at the stack origin. It now bakes one piece per instance, so the 54 chips merge into the ivory, red and dark batches with no extra draw calls. Unit-tested.
+  - **Collision:** the outside of the padded rail reaches **1.90 m** along X (torus 1.065 × 1.78 scale) and about 1.18 m along Z. The round collision circle is 1.57 m, so I added two end circles (r 0.65 at x ±1.2) when the hero is on. Both seat approaches stay walkable and reachable from spawn.
+  - Two new unit tests.
+
+**Tests (as observed in this cloud container):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: **148/148**.
+- **Browser e2e `tests/e2e/floor3d.mjs`, default art (hero off):** **37 ok, 0 FAIL** before my 580 s shell timeout killed the run during capture 09. Exit 124. The last three checks did not run. SwiftShader was slow: two captures needed a retry.
+  - Its numbers match VA-0053: Vegas **92** calls / 128.2k triangles, flat 78, framed close-up 67 / 117.8k.
+- **My own probe (`?floor3d` vs `?floor3d&bjhero`, Vegas, software renderer, not phone figures):** 0 console errors.
+
+| View | Default | BJ hero |
+|---|---|---|
+| Landscape spawn | 103 calls / 130.5k triangles | **108** / 133.7k |
+| Landscape overview | 113 / 131.0k | **118** / 134.1k |
+| Landscape near the table | 95 | 100 |
+| Portrait spawn | 68 / 111.1k | 73 / 114.2k |
+| Portrait overview | 105 / 129.3k | **110** / 132.4k |
+| Portrait near the table | 84 | 89 |
+
+- The art adds **5 batches** (84 → 89) and about **3.1k triangles**.
+- Its 8 materials don't match existing room values, so each opens a new batch. Only the colour-mergeable ones fold together.
+- The **landscape overview is now 118 of 120**. That is too tight to make the hero the default as-is.
+
+**Factual notes on the art** (captures `docs/ai-handoff/captures/3d-va0055-cloud-bj-hero-{landscape-near,portrait-near,portrait-overview}.jpg`; software renderer, not phone shots, not a verdict):
+- **Orientation is correct.** The oval reads as an oval, the burgundy rail sits on the mahogany body, and the green felt is visible. The shoe and rack are on the dealer side.
+- **From the eye-level follow camera the felt is a thin sliver.** The table top (felt at 1.10 m) is below the old table's 1.17 m, and the camera looks across it. The betting rings, cards and chips are not readable from the walk-up view; from the overview the rings and cards show as small specks.
+- **Gaps:**
+  - The guest chairs stand about 0.65 m from the new rail at the long ends.
+  - The placeholder dealer stands about 0.8 m behind the dealer-side rail. Those positions came from the round table.
+  - I did not move the seats or the dealer.
+
+**Requests for ChatGPT:**
+1. **Budget:** please build the table from materials the room already has, so it adds about 0–2 batches instead of 5. Reuse the mahogany, brass, felt and burgundy values the round table and chairs already use (`velvetMaterials`), and match roughness and metalness exactly.
+2. **Seats:** if the oval should stay, give seat and dealer anchors that fit it, for example in `userData.anchors` in table-local metres. I will move the chairs, collision and dealer spot to match.
+3. Optionally, raise the felt about 5–8 cm, or add contrast to the rings, so the walk-up view shows more than a dark sliver.
+
+**Engineering next (Claude):** the portrait HUD layout and a trim for the portrait overview. I'll also look at making e2e fit the cloud time limit.
+
+**NEEDS JOSHUA (local session):**
+- Phone screenshots of the floor with "Art: pass 05 + BJ table" (tap the art button twice from the default): is the oval table an improvement on the round one?
+- Still open: the coral BONUS / FEATURE GAME readability and Vegas fps from VA-0053.
+- Nothing here is approved or finished.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
