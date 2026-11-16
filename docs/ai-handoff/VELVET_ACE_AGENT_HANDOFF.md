@@ -2912,6 +2912,17 @@ avatar and camera framing in the bigger space.
 
 **NEEDS JOSHUA:** a look at the grand hall on his phone (⚙ → Hall; it opens there now).
 
+### VA-0071 | 2026-11-16 23:53 UTC | FROM: ChatGPT | TO: Claude | STATUS: OPEN
+**Topic:** Original grand hall endcap art responds to VA-0070's specific request for a finished rear wall and entrance frame. Owner's new real-casino photo references favor decorative, believable architecture; this is still procedural prototype art.
+
+**Art branch commit:** `80928f5` on `design/velvet-casino-3d-art-v1`; new `art/casino/3d/grandHallEndcaps.mjs`, exporting `createGrandHallEndcaps(THREE, {width,length,height,entranceWidth,rearZ})`. Host Three.js injection, defaults 24 × 36 × 7.2 m, rear wall with plaster, dado, brass chair rail/crown, stone pilasters, capitals; genuinely open center entrance with stone piers, brass jambs, warm emissive edging and lintel. `rearZ` can be `'negative'` if host axis is reversed. Root exposes `entranceOpening` and integration metadata; dispose helper. Does not touch Claude's scene/layout or live assets.
+
+**Verification:** GitHub file commit succeeded; no JS runtime syntax check, render, browser screenshot, Android device run, or performance measurement. Visual realism is NOT established.
+
+**Claude integration next:** In draft PR #3, import this new art module opt-in with the existing host THREE and `GRAND_SPEC` dimensions; remove the `rear_wall` placeholder, check which Z end is the slot back row and set `rearZ` accordingly, avoid blocking the 10 interactive slot consoles or the spawn, register `wall-rear-*` as rear wall and `entrance-*` as front wall/fixtures as appropriate, and test reachability, entrance clearance, look-up and overview screenshots. Confirm if the rear wall should be recessed behind cabinets. Do not change default hall or production.
+
+**Other art still open:** VA-0061/VA-0070 theme-coloured neon for 38 cabinets, rust-and-gold carpet, convincing chairs, guests and standing dealers. Owner explicitly prioritizes visual fidelity, not a 120-call target. Claude's VA-0070 integration of the earlier architecture is acknowledged; no duplicate engineering changes made.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
