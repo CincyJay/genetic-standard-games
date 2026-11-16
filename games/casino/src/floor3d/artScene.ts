@@ -14,13 +14,13 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { makeVelvetWorld } from '../../../../art/casino/3d/worldComposition.mjs';
-import { makeVelvetContemporaryInterior } from '../../../../art/casino/3d/contemporaryInterior.mjs';
+import { makeVelvetContemporaryInterior, makeVelvetExteriorBackdrop } from '../../../../art/casino/3d/contemporaryInterior.mjs';
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
 
 export type WallSide = 'north' | 'east' | 'west';
 export type CeilingPart = 'roof' | 'fixtures' | 'entrance';
-type Side = WallSide | CeilingPart | null;
+type Side = WallSide | CeilingPart | 'exterior' | null;
 const CEILING_PARTS: readonly string[] = ['roof', 'fixtures', 'entrance'];
 
 export interface ArtScene {
@@ -35,6 +35,11 @@ export interface ArtScene {
   ceiling: Record<CeilingPart, THREE.Mesh[]>;
   /** Each cabinet's interactive parts, by `slot_<theme>/<part>` (`reels`, `spin_button`, `marquee`). */
   interactive: Map<string, THREE.Mesh>;
+  /**
+   * Art-only scenery outside the room (the pilot's forecourt and ground field, VA-0032). It only
+   * shows in the overview: from the follow view the vestibule hides it, so it costs no draw calls there.
+   */
+  exterior: THREE.Mesh[];
   /** How many meshes the factories built, and how many draw batches they became. */
   meshesAuthored: number;
   batches: number;
@@ -61,6 +66,11 @@ function interactivePart(name: string): string | null {
   if (name === 'spin_button') return 'spin_button';
   if (name === 'marquee_world_texture_target') return 'marquee';
   return null;
+}
+const EXTERIOR_GROUP = 'VA_ExteriorBackdrop_ArtOnly';
+function isExterior(o: THREE.Object3D): boolean {
+  for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) if (p.name === EXTERIOR_GROUP) return true;
+  return false;
 }
 function cabinetOf(o: THREE.Object3D): string | null {
   for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) if (p.name.startsWith('slot_')) return p.name;
@@ -100,6 +110,9 @@ function applyPilot05(art: THREE.Group): void {
     if (m.isMesh) m.geometry.dispose();
   }
   art.add(makeVelvetContemporaryInterior(THREE) as THREE.Group);
+  // scenery outside the room so the overview no longer looks into black past the entrance
+  // (VA-0032); art-only: it gets no obstacles, nav or camera blockers
+  art.add(makeVelvetExteriorBackdrop(THREE) as THREE.Group);
   // the hero replaces the old cabinet inside the same slot_<id> group, so its reels, spin button
   // and marquee stay interactive parts of that slot
   const slot = art.getObjectByName(`slot_${PILOT_HERO_SLOT}`);
@@ -140,7 +153,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     const material = mesh.material as THREE.Material;
     allMaterials.add(material);
     mesh.getWorldPosition(wp);
-    const side = wallSideOf(mesh.name, wp.x);
+    const side: Side = isExterior(mesh) ? 'exterior' : wallSideOf(mesh.name, wp.x);
     const part = interactivePart(mesh.name);
     const cabinet = part ? cabinetOf(mesh) : null;
     const key = part && cabinet ? `${cabinet}/${part}` : `${side ?? ''}#${materialKey(material)}`;
@@ -168,6 +181,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   const walls: Record<WallSide, THREE.Mesh[]> = { north: [], east: [], west: [] };
   const ceiling: Record<CeilingPart, THREE.Mesh[]> = { roof: [], fixtures: [], entrance: [] };
   const interactive = new Map<string, THREE.Mesh>();
+  const exterior: THREE.Mesh[] = [];
   for (const [key, b] of buckets) {
     // interactive parts keep a geometry group per original mesh (groups[i] is names[i])
     const merged = mergeGeometries(b.geos, !!b.part);
@@ -182,8 +196,11 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
       mesh.userData.parts = b.names;
       interactive.set(key, mesh);
     }
-    if (b.side && CEILING_PARTS.includes(b.side)) ceiling[b.side as CeilingPart].push(mesh);
+    if (b.side === 'exterior') {
+      mesh.visible = false;
+      exterior.push(mesh);
+    } else if (b.side && CEILING_PARTS.includes(b.side)) ceiling[b.side as CeilingPart].push(mesh);
     else if (b.side) walls[b.side as WallSide].push(mesh);
   }
-  return { root, walls, ceiling, interactive, meshesAuthored, batches: buckets.size };
+  return { root, walls, ceiling, interactive, exterior, meshesAuthored, batches: buckets.size };
 }

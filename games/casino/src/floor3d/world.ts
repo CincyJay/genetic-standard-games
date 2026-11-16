@@ -186,10 +186,6 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     createVelvetReelArt(THREE, m.id, m.symbols, { base: './art' })
       .then((reel: { texture: THREE.Texture; dispose: () => void }) => {
         if (disposed) return reel.dispose();
-        // The atlas maps reel row 0 to the top of the canvas assuming three.js's default
-        // flipY; the module turns flipY off, which draws every board upside down (VA-0029).
-        reel.texture.flipY = true;
-        reel.texture.needsUpdate = true;
         applyVelvetReelAtlas(THREE, mesh, reel);
         // the old reel material may be shared with other batches; dispose() frees it with the scene
         delete mesh.userData.originalMaterial;
@@ -802,6 +798,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     // chandeliers stay unless the roof is off, and the entrance front never blocks the view
     const above = pose.pos.y >= 4;
     for (const m of art.ceiling.entrance) m.visible = !above;
+    for (const m of art.exterior) m.visible = above;
     for (const m of art.ceiling.fixtures) m.visible = !above || roofMode !== 'off';
     art.ceiling.roof.forEach((m, i) => {
       m.visible = !above || roofMode === 'glass';

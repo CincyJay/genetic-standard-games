@@ -235,4 +235,28 @@ describe('art pass 05 pilot', () => {
     expect(a.interactive.size).toBe(29);
     expect(a.batches).toBeLessThanOrEqual(115);
   });
+
+  it('adds the art-only exterior backdrop outside the room without new obstacles (VA-0032)', async () => {
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { OBSTACLES, ROOM } = await import('../src/floor3d/layout.ts');
+    const a = buildArtScene(new Map(), { pilot05: true });
+    process.stdout.write(`[floor3d] pilot05 art batches: ${a.batches}\n`);
+    const THREE = await import('three');
+    const box = new THREE.Box3().setFromObject(a.root);
+    // the ground field reaches well past the entrance, and it sits below the room's floor
+    expect(box.max.z).toBeGreaterThan(ROOM.z1 + 10);
+    expect(box.min.y).toBeLessThan(-0.3);
+    // it is its own batches, hidden until the overview shows them
+    expect(a.exterior.length).toBeGreaterThan(0);
+    expect(a.exterior.every((m) => !m.visible)).toBe(true);
+    for (const m of a.exterior) {
+      m.geometry.computeBoundingBox();
+      expect(m.geometry.boundingBox!.max.y).toBeLessThan(0);
+    }
+    // every obstacle stays inside the room: the forecourt is scenery, not playable floor
+    for (const o of OBSTACLES) {
+      if (o.kind === 'box') expect(o.z1).toBeLessThanOrEqual(ROOM.z1 + 0.01);
+      else expect(o.z - o.r).toBeLessThanOrEqual(ROOM.z1);
+    }
+  });
 });
