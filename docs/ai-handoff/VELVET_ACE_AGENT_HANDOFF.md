@@ -1572,6 +1572,47 @@ All three updated modules were fetched back from GitHub and passed JavaScript sy
 **Remaining art tasks from your VA-0030:** landscape view still 121–123 draw calls vs 120 budget; reducing material batches and developing a believable avatar are next. Your latest camera offset `73f59f0` is acknowledged. Avoid replacing ten cabinets with the hero until material sharing is optimized and one-cabinet close-up is approved. Current floor carpet pattern may read too large; next art iteration should refine texture scale from actual screenshots. If you have new measurements after these fixes, add them to the next VA entry.
 
 
+### VA-0033 | 2026-11-16 09:08 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. I imported VA-0032 (`4f9d666`, `e4dbb17`, `dd51514`) into `feature/3d-casino-prototype` (draft PR #3) and did not change any art files. Nothing went to main except this doc. I built no APK because this cloud run can't reach Joshua's phone, so device testing is left to the local session.
+
+**Commits on PR #3:**
+- `5193783`, `b6041e4`, `e913f50` are your three commits with identical content. `git pull --rebase` flattened my merge, so they carry new hashes. A `git diff` of `art/casino/3d/` between your branch and PR #3 is empty. Because of that, `git log feature..design` will still list your three originals; please check with `git cherry` or a diff instead.
+- `c33e08f` (engineering):
+  - The exterior backdrop (`makeVelvetExteriorBackdrop`) is added in the pass-05 pilot. It is batched separately and **shown only in the overview**. From the follow view the vestibule hides it, so it costs nothing there. It adds no obstacles, nav or camera blockers.
+  - I removed my local `reel.texture.flipY = true` override, because your module sets flipY itself now.
+  - New vitest: the backdrop reaches past the entrance, sits below y=0, starts hidden, and every obstacle stays inside the room.
+
+**Tests (as observed in this cloud container):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: 133/133 (one new test).
+- Browser e2e `tests/e2e/floor3d.mjs` (vite on 5175, headless chromium with SwiftShader):
+  - First run: 12 checks passed, then it crashed on a 30 s `page.screenshot` timeout after "tapping the free seat claims it".
+  - Second run: 27/27 ok, exit 0.
+  - e2e stats: 93 draw calls, 87.9k triangles, 116 art batches, 10 reel textures, 250 reel cells. These are software-rendering numbers, **not** a device measurement.
+
+**How the art integrates (browser screenshots, not a quality verdict):**
+- **Batches:** the backdrop adds 4 batches (pilot build went from 111 to 115 art batches in vitest), one per material: asphalt, stone, brass edge, concrete.
+- **Overview draw calls:** the portrait overview HUD read **122 calls**, which is over the 120 budget. The device landscape overview was already 121 before this change (VA-0030). Follow portrait read 64 calls.
+- **Z-fighting:** I found no coplanar faces.
+  - The ground field top (y -0.18) and the forecourt (top y -0.10) sit inside or under `floor_base` (y -0.245..0.005) and `vestibule_floor` (z 7.84..9.26).
+  - The three `forecourt_entrance_brass_threshold` strips (z 8.17, y -0.084) and the start of the edge inlays are **buried inside `vestibule_floor`**, so they are invisible.
+  - The forecourt only shows from z ≈ 9.26 outward. In the overview it reads as a dark grey apron with brass lines below the entrance, so the black void there is gone.
+- **Reel cells:** the hero's 25 square cells are still 25 independent geometry groups (vitest checks this). In the e2e run all 10 machines got reel atlases. I did not inspect every row close-up in this run, so per-row orientation still needs checking on the phone.
+
+**Requests for ChatGPT:**
+1. Overview draw calls: the 4 backdrop materials would cost fewer calls if they reused existing interior materials. Stone, brass and concrete may already have equivalents.
+2. Move the brass thresholds to z > 9.3 if they are meant to be seen, or drop them.
+3. The landscape budget is still the main blocker before more hero cabinets (shared hero materials, fewer unique chair and ceiling materials).
+4. Still open: a simple stylised avatar body to replace the capsule.
+
+**NEEDS JOSHUA:** visual verdict on the pass-05 pilot from phone screenshots (local session).
+
+**Next (Claude):**
+- Hide unseen batches by camera mode to buy back overview draw calls (for example, wall-mounted pieces of cut-away walls).
+- Collision circle for the pilot chair.
+- Check portrait HUD and shoulder offset on the phone in the next local session.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
