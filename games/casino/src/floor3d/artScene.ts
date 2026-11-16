@@ -44,6 +44,8 @@ export interface ArtScene {
   /** How many meshes the factories built, and how many draw batches they became. */
   meshesAuthored: number;
   batches: number;
+  /** Batches that merge several colours of one material through vertex colours. */
+  colourBatches: number;
 }
 
 /** The art names its walls; panels and caps on the back wall go with it. */
@@ -78,11 +80,17 @@ function cabinetOf(o: THREE.Object3D): string | null {
   return null;
 }
 
-/** Two materials with the same values draw identically, whichever factory made them. */
+/**
+ * Materials that differ only in base colour draw identically once that colour moves into the
+ * vertices (three.js multiplies `color` by the vertex colour), so they share one batch: e.g. the
+ * nine standard cabinets' bodies, trims and screens are 4 draw calls instead of 36. Every other
+ * value has to match. A textured material keeps its colour in the key (it never merges with a
+ * plain one of the same colour, e.g. the pass-05 carpet).
+ */
 function materialKey(m: THREE.Material): string {
   const s = m as THREE.MeshStandardMaterial;
-  // a textured material (the pass-05 carpet) must never merge with a plain one of the same colour
-  return [m.type, s.map?.uuid ?? '', s.color?.getHexString(), s.metalness, s.roughness, s.emissive?.getHexString(), s.emissiveIntensity, m.transparent, m.opacity].join('|');
+  const colour = s.map || !s.color ? (s.color?.getHexString() ?? '') : '*';
+  return [m.type, s.map?.uuid ?? '', colour, s.metalness, s.roughness, s.emissive?.getHexString(), s.emissiveIntensity, m.transparent, m.opacity, m.side, m.depthWrite, m.toneMapped].join('|');
 }
 
 /**
@@ -142,8 +150,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   }
   art.updateMatrixWorld(true);
 
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; names: string[]; side: Side; part: string | null; renderOrder: number }>();
-  const usedMaterials = new Set<THREE.Material>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number }>();
   const allMaterials = new Set<THREE.Material>();
   const wp = new THREE.Vector3();
   let meshesAuthored = 0;
@@ -160,9 +167,8 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     const key = part && cabinet ? `${cabinet}/${part}` : `${side ?? ''}#${materialKey(material)}`;
     let b = buckets.get(key);
     if (!b) {
-      b = { material, geos: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0 };
+      b = { material, geos: [], colours: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0 };
       buckets.set(key, b);
-      usedMaterials.add(material);
     }
     // merging needs one layout: unindexed, with position / normal / uv only
     const src = mesh.geometry;
@@ -170,25 +176,42 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     for (const name of Object.keys(g.attributes)) if (name !== 'position' && name !== 'normal' && name !== 'uv') g.deleteAttribute(name);
     g.applyMatrix4(mesh.matrixWorld);
     b.geos.push(g);
+    b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
     b.names.push(mesh.name);
     // e.g. the contact-shadow decals draw after the floor
     b.renderOrder = Math.max(b.renderOrder, mesh.renderOrder);
     src.dispose();
   });
-  for (const m of allMaterials) if (!usedMaterials.has(m)) m.dispose();
-
+  
   const root = new THREE.Group();
   root.name = 'VelvetAce_ArtBatched';
   const walls: Record<WallSide, THREE.Mesh[]> = { north: [], east: [], west: [] };
   const ceiling: Record<CeilingPart, THREE.Mesh[]> = { roof: [], fixtures: [], entrance: [] };
   const interactive = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
+  let colourBatches = 0;
   for (const [key, b] of buckets) {
+    let material = b.material;
+    if (!b.part && b.colours.some((c) => !c.equals(b.colours[0]))) {
+      // several colours in one batch: each piece carries its material's (linear) colour per
+      // vertex, and the shared material's own colour is white, so the product is unchanged
+      b.geos.forEach((g, i) => {
+        const c = b.colours[i];
+        const n = g.attributes.position.count;
+        const rgb = new Float32Array(n * 3);
+        for (let v = 0; v < n; v++) rgb.set([c.r, c.g, c.b], v * 3);
+        g.setAttribute('color', new THREE.BufferAttribute(rgb, 3));
+      });
+      material = b.material.clone();
+      (material as THREE.MeshStandardMaterial).color.setRGB(1, 1, 1);
+      material.vertexColors = true;
+      colourBatches++;
+    }
     // interactive parts keep a geometry group per original mesh (groups[i] is names[i])
     const merged = mergeGeometries(b.geos, !!b.part);
     for (const g of b.geos) g.dispose();
     if (!merged) throw new Error(`could not batch art group ${key}`);
-    const mesh = new THREE.Mesh(merged, b.material);
+    const mesh = new THREE.Mesh(merged, material);
     mesh.name = b.part ? key : `art:${key}`;
     mesh.matrixAutoUpdate = false;
     mesh.renderOrder = b.renderOrder;
@@ -203,5 +226,8 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     } else if (b.side && CEILING_PARTS.includes(b.side)) ceiling[b.side as CeilingPart].push(mesh);
     else if (b.side) walls[b.side as WallSide].push(mesh);
   }
-  return { root, walls, ceiling, interactive, exterior, meshesAuthored, batches: buckets.size };
+  // materials no batch draws with (merged duplicates, and the originals of colour batches)
+  const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
+  for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
+  return { root, walls, ceiling, interactive, exterior, meshesAuthored, batches: buckets.size, colourBatches };
 }

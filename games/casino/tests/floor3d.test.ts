@@ -233,7 +233,40 @@ describe('art pass 05 pilot', () => {
     expect(a.ceiling.fixtures.length).toBeGreaterThan(0);
     // (the hero's marquee is a canvas texture, so it only exists in a browser; e2e checks all 30 parts)
     expect(a.interactive.size).toBe(29);
-    expect(a.batches).toBeLessThanOrEqual(115);
+    expect(a.batches).toBeLessThanOrEqual(85);
+  });
+
+  it('batches materials that differ only in colour through vertex colours, without changing the colours', async () => {
+    const THREE = await import('three');
+    const { makeVelvetWorld } = await import('../../../art/casino/3d/worldComposition.mjs');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    // every colour the art authors on an untextured material, in three.js's linear values
+    const { root: raw } = makeVelvetWorld(THREE) as { root: InstanceType<typeof THREE.Group> };
+    const authored = new Set<string>();
+    raw.traverse((o) => {
+      const m = (o as InstanceType<typeof THREE.Mesh>).material as InstanceType<typeof THREE.MeshStandardMaterial> | undefined;
+      if (m?.color && !m.map) authored.add([m.color.r, m.color.g, m.color.b].map((v) => Math.fround(v)).join(','));
+    });
+    const a = buildArtScene(new Map(), { pilot05: false });
+    expect(a.colourBatches).toBeGreaterThan(0);
+    // pass 04: 10 cabinets with their own colours used to be about 40 batches on their own
+    expect(a.batches).toBeLessThanOrEqual(70);
+    let checked = 0;
+    for (const o of a.root.children) {
+      const mesh = o as InstanceType<typeof THREE.Mesh>;
+      const col = mesh.geometry.attributes.color;
+      const mat = mesh.material as InstanceType<typeof THREE.MeshStandardMaterial>;
+      if (!col) continue;
+      expect(mat.vertexColors).toBe(true);
+      expect(mat.color.getHex()).toBe(0xffffff);
+      for (let v = 0; v < col.count; v += 3) {
+        expect(authored.has([col.getX(v), col.getY(v), col.getZ(v)].join(','))).toBe(true);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+    // interactive parts are never colour-merged: each cabinet keeps its own reels, button and marquee
+    for (const m of a.interactive.values()) expect(m.geometry.attributes.color).toBeUndefined();
   });
 
   it('adds the art-only exterior backdrop outside the room without new obstacles (VA-0032)', async () => {
