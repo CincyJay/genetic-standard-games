@@ -17,6 +17,7 @@ import { makeVelvetWorld } from '../../../../art/casino/3d/worldComposition.mjs'
 import { makeVelvetContemporaryInterior, makeVelvetExteriorBackdrop } from '../../../../art/casino/3d/contemporaryInterior.mjs';
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
+import { PILOT_CHAIR, PILOT_HERO_SLOT } from './layout.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
 export type CeilingPart = 'roof' | 'fixtures' | 'entrance';
@@ -90,8 +91,7 @@ function materialKey(m: THREE.Material): string {
  */
 /** Pass-04 pieces the pass-05 pilot replaces (its carpet, aisle and ceiling sit in their place). */
 const REPLACED_BY_PILOT = /^(red_carpet|carpet_gold_edge|floor_inlay|chandelier_(ceiling|coffer_.*|hub|ring|crystal|support_rod|canopy))$/;
-/** The pass-05 hero cabinet stands in for this machine (one hero first, per ART_PASS_05.md). */
-export const PILOT_HERO_SLOT = 'sevens';
+export { PILOT_HERO_SLOT };
 
 export interface ArtOptions {
   /** Art pass 05 pilot (ChatGPT, VA-0029): patterned carpet, lit ceiling, one hero cabinet, one swivel chair. */
@@ -126,8 +126,9 @@ function applyPilot05(art: THREE.Group): void {
     // walk-up point straight in front of the machine
     const chair = makeVelvetLuxuryGamingChair(THREE) as THREE.Group;
     chair.name = 'pilot_luxury_chair';
-    chair.position.set(0.68, 0, 0.78);
-    chair.rotation.y = Math.PI + 0.7;
+    // (layout.ts gives it a collision circle at the same spot)
+    chair.position.set(PILOT_CHAIR.local.x, 0, PILOT_CHAIR.local.z);
+    chair.rotation.y = PILOT_CHAIR.rotationY;
     slot.add(chair);
   }
 }

@@ -259,4 +259,33 @@ describe('art pass 05 pilot', () => {
       else expect(o.z - o.r).toBeLessThanOrEqual(ROOM.z1);
     }
   });
+
+  it('the pilot swivel chair blocks walking where the art puts it, and the hero stays reachable', async () => {
+    const THREE = await import('three');
+    const { PILOT_CHAIR, PILOT_HERO_SLOT, obstaclesFor, pilotChairPosition } = await import('../src/floor3d/layout.ts');
+    // the same placement artScene gives the chair: inside its slot's group, which the art turns and moves
+    const s = SLOTS.find((q) => q.id === PILOT_HERO_SLOT)!;
+    const slot = new THREE.Group();
+    slot.position.set(s.x, 0, s.z);
+    slot.rotation.y = s.rotationY;
+    const chair = new THREE.Object3D();
+    chair.position.set(PILOT_CHAIR.local.x, 0, PILOT_CHAIR.local.z);
+    slot.add(chair);
+    slot.updateMatrixWorld(true);
+    const w = chair.getWorldPosition(new THREE.Vector3());
+    const p = pilotChairPosition();
+    expect(Math.hypot(p.x - w.x, p.z - w.z)).toBeLessThan(1e-9);
+    // the chair's room side stands outside the hero's slot box, so without its own obstacle you
+    // could walk through it
+    const roomSide = { x: p.x + (s.x < 0 ? 0.25 : -0.25), z: p.z - 0.1 };
+    expect(nav.pointFree(roomSide)).toBe(true);
+    const pilotNav = new NavGrid(ROOM, obstaclesFor(true));
+    expect(pilotNav.pointFree(p)).toBe(false);
+    expect(pilotNav.pointFree(roomSide)).toBe(false);
+    expect(obstaclesFor(false)).toBe(OBSTACLES);
+    const front = { x: s.x + (s.x < 0 ? 1 : -1) * 1.0, z: s.z };
+    expect(pilotNav.walkableAt(front)).toBe(true);
+    const end = pilotNav.findPath(SPAWN, front)!.at(-1)!;
+    expect(Math.hypot(end.x - front.x, end.z - front.z)).toBeLessThan(1e-6);
+  });
 });

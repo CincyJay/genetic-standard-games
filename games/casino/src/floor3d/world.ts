@@ -13,7 +13,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { buildArtScene } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
-import { AVATAR_HEIGHT, DEALER_SPOT, OBSTACLES, ROOM, SEATS, SEAT_HEIGHT, TABLE, type Seat, type Vec2 } from './layout.ts';
+import { AVATAR_HEIGHT, DEALER_SPOT, ROOM, obstaclesFor, SEATS, SEAT_HEIGHT, TABLE, type Seat, type Vec2 } from './layout.ts';
 import { NavGrid } from './nav.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
 
@@ -102,7 +102,6 @@ const C = {
 export function mountFloor(opts: FloorOptions): FloorHandle {
   const st: FloorState = { pos: { ...opts.state.pos }, heading: opts.state.heading, mode: opts.state.mode, dist: { ...opts.state.dist } };
   let reduced = opts.reducedMotion;
-  const nav = new NavGrid();
   // ------------------------------------------------------------------ renderer
   const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
@@ -154,6 +153,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     /* storage unavailable: show the pilot */
   }
   const art = buildArtScene(new Map(SEATS.map((s) => [s.id, -s.facing])), { pilot05 });
+  // the pilot's swivel chair is furniture you can't walk through
+  const obstacles = obstaclesFor(pilot05);
+  const nav = new NavGrid(ROOM, obstacles);
   scene.add(art.root);
   const walls = art.walls;
 
@@ -211,7 +213,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   proxy(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), (ROOM.x0 + ROOM.x1) / 2, 0, (ROOM.z0 + ROOM.z1) / 2, { floor: true }, false);
   proxy(new THREE.BoxGeometry(w, ROOM.wallHeight, 0.2), (ROOM.x0 + ROOM.x1) / 2, ROOM.wallHeight / 2, ROOM.z0 - 0.1, { obstacle: 'wall' }, true);
   for (const x of [ROOM.x0 - 0.1, ROOM.x1 + 0.1]) proxy(new THREE.BoxGeometry(0.2, ROOM.wallHeight, d), x, ROOM.wallHeight / 2, (ROOM.z0 + ROOM.z1) / 2, { obstacle: 'wall' }, true);
-  for (const o of OBSTACLES) {
+  for (const o of obstacles) {
     if (o.id.endsWith('-chair')) {
       // seats have their own tap volumes (below); this one is the chair back's height, so the
       // follow camera can tilt up and look over it instead of filling the screen with it

@@ -135,3 +135,29 @@ export const OBSTACLES: Obstacle[] = [
     return { kind: 'box', id: `slot-${s.id}`, x0: Math.min(xa, xb), z0: s.z - 0.62, x1: Math.max(xa, xb), z1: s.z + 0.62, h: 2.4 };
   }),
 ];
+
+/** The pass-05 hero cabinet stands in for this machine (one hero first, per ART_PASS_05.md). */
+export const PILOT_HERO_SLOT = 'sevens';
+
+/**
+ * The pass-05 pilot's swivel chair (VA-0029): where it stands in its slot's own frame, and its
+ * footprint. The art chair spans about 0.89 x 0.86 m to the tips of its base and stands 1.45 m
+ * tall; the round seat and base fit a 0.4 m circle, which keeps the slot's walk-up point free.
+ */
+export const PILOT_CHAIR = { local: { x: 0.68, z: 0.78 }, rotationY: Math.PI + 0.7, r: 0.4, h: 1.45 } as const;
+
+/** The pilot chair's floor position in the room (its slot's turn and position applied). */
+export function pilotChairPosition(): Vec2 {
+  const s = SLOTS.find((q) => q.id === PILOT_HERO_SLOT)!;
+  const { x, z } = PILOT_CHAIR.local;
+  const c = Math.cos(s.rotationY);
+  const n = Math.sin(s.rotationY);
+  return { x: s.x + x * c + z * n, z: s.z - x * n + z * c };
+}
+
+/** Obstacles for the art in use: the pass-05 pilot adds its swivel chair, which stands outside its slot's box. */
+export function obstaclesFor(pilot05: boolean): Obstacle[] {
+  if (!pilot05) return OBSTACLES;
+  const p = pilotChairPosition();
+  return [...OBSTACLES, { kind: 'circle', id: 'pilot-luxury-chair', x: p.x, z: p.z, r: PILOT_CHAIR.r, h: PILOT_CHAIR.h }];
+}
