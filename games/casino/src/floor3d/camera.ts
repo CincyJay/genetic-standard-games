@@ -33,6 +33,12 @@ const OVERVIEW_PITCH = (54 * Math.PI) / 180;
 const FOLLOW_LOOK_AHEAD = 1.2;
 const BLOCKED_EXTRA_PITCH = (34 * Math.PI) / 180;
 const FOLLOW_MAX_PITCH = (70 * Math.PI) / 180;
+/** Sideways the view is shorter, so the follow camera sits lower to keep the ceiling in frame. */
+const FOLLOW_LANDSCAPE_PITCH = (9 * Math.PI) / 180;
+/** How far a vertical drag can tilt the follow view up (the camera drops behind the avatar). */
+export const LOOK_UP_MAX = (26 * Math.PI) / 180;
+/** The lowest the follow camera goes while looking up. */
+const LOOK_UP_MIN_Y = 0.45;
 /** The overview looks from the entrance's south-east corner toward the back of the room. */
 export const OVERVIEW_YAW = (-35 * Math.PI) / 180;
 /** Vertical field of view. Phones are tall, so these are wider than a landscape game's. */
@@ -66,6 +72,8 @@ export interface PoseOptions {
   pan?: Vec2;
   /** Follow view: extra tilt (radians) to look over low furniture such as a chair back. */
   extraPitch?: number;
+  /** Follow view: how far (radians, 0..LOOK_UP_MAX) the player has tilted the view up. */
+  lookUp?: number;
 }
 /** How close the follow camera may get to a wall, and how far below the wall tops it stays. */
 const WALL_MARGIN = 0.25;
@@ -77,10 +85,14 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
   const obstacleDist = opts.obstacleDist ?? Infinity;
   if (mode === 'follow') {
     // aim a little ahead of the avatar, so it sits low in the frame and the way ahead shows
-    const target = { x: avatar.x + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7, z: avatar.z - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
+    // looking up: the camera swings down behind the avatar and aims a little higher, so the
+    // ceiling and chandeliers fill the top of the screen while the avatar stays in frame
+    const lookUp = Math.min(LOOK_UP_MAX, Math.max(0, opts.lookUp ?? 0));
+    const target = { x: avatar.x + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7 + lookUp * 1.1, z: avatar.z - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
     const d = Math.min(dist, Math.max(0.6, obstacleDist - 0.2));
     // pulled in by a wall or prop: rise and look down more, so the floor ahead stays in view
-    const pitch = Math.min(FOLLOW_MAX_PITCH, FOLLOW_PITCH + (opts.extraPitch ?? 0) + Math.min(1, Math.max(0, (dist - d) / dist)) * BLOCKED_EXTRA_PITCH);
+    const base = opts.aspect && opts.aspect > 1 ? FOLLOW_LANDSCAPE_PITCH : FOLLOW_PITCH;
+    const pitch = Math.min(FOLLOW_MAX_PITCH, base - lookUp + (opts.extraPitch ?? 0) + Math.min(1, Math.max(0, (dist - d) / dist)) * BLOCKED_EXTRA_PITCH);
     // behind the avatar: opposite its walking direction (sin h, -cos h)
     let pos = {
       x: target.x - Math.sin(heading) * d * Math.cos(pitch),
@@ -88,6 +100,7 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
       z: target.z + Math.cos(heading) * d * Math.cos(pitch),
     };
     pos = clampInsideRoom(pos);
+    pos.y = Math.max(LOOK_UP_MIN_Y, pos.y);
     // sideways the screen is already wide: a narrower vertical view avoids a fish-eye look
     return { pos, target, fov: opts.aspect && opts.aspect > 1 ? FOLLOW_LANDSCAPE_FOV : FOV.follow };
   }

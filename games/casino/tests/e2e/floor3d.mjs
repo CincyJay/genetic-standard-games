@@ -43,6 +43,10 @@ await page.waitForTimeout(800);
 await page.screenshot({ path: `${out}/floor3d-01-follow.png` });
 const s0 = await st();
 ok(s0.mode === 'follow' && Math.abs(s0.pos.z - 4.3) < 0.01, 'starts at the entrance in the follow view');
+const rows = await page.evaluate(() => ['.back', '.cam', '.gear'].map((c) => document.querySelector(`#va3d-hud ${c}`).getBoundingClientRect().top));
+const badgeTop = await page.evaluate(() => document.querySelector('#va3d-hud .badge').getBoundingClientRect().top);
+ok(Math.max(...rows) - Math.min(...rows) < 2 && badgeTop > 832 - 40, 'portrait: the top bar is one row and the prototype badge sits at the bottom, clear of the floor labels');
+ok(!(await page.locator('#va3d-hud .rotate').isVisible()), 'rotation, motion and roof settings wait in the ⚙ menu');
 
 // tap the floor a few metres ahead and to the right
 let p = await page.evaluate(() => globalThis.__floor3d.debug.screenOf(0.8, 0, 2.2));
@@ -150,11 +154,16 @@ await page.setViewportSize({ width: 832, height: 384 });
 await page.waitForTimeout(600);
 const land = await st();
 ok(land.cam.fov === 50 && (await page.locator('#va3d-canvas').boundingBox()).width === 832, 'landscape: the floor fills the wide screen with a narrower follow view');
+await page.locator('#va3d-hud .gear').tap();
+await page.waitForTimeout(200);
 const rot = await page.locator('#va3d-hud .rotate').boundingBox();
-ok(rot && rot.height >= 48 && rot.y >= 0 && rot.y + rot.height <= 384, 'landscape: the HUD buttons stay on screen at 48 dp');
+const roofB = await page.locator('#va3d-hud .roof').boundingBox();
+ok(rot && rot.height >= 48 && rot.y >= 0 && roofB && roofB.y + roofB.height <= 384, 'landscape: the settings menu and its buttons stay on screen at 48 dp');
+await page.locator('#va3d-hud .gear').tap();
 await page.screenshot({ path: `${out}/floor3d-07-landscape.png` });
 
 const stats = await page.evaluate(() => globalThis.__floor3d.stats());
+ok(stats.reelTextures === 10, `every cabinet's reels show its machine's symbol atlas (${stats.reelTextures} of 10)`);
 console.log('stats', JSON.stringify(stats));
 ok(stats.artInteractive === 30 && stats.reelCells === 250, `each slot's reels, spin button and marquee stay separate from the batches (${stats.artInteractive} parts, ${stats.reelCells} reel cells)`);
 ok(errors.length === 0, `no console errors${errors.length ? ': ' + errors.join(' | ') : ''}`);

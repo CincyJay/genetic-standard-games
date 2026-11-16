@@ -124,6 +124,8 @@ export const OBSTACLES: Obstacle[] = [
   // the base reaches 0.42 m toward the room; the back cushion reaches 0.45 m toward the entrance
   ...BENCHES.map((b, i): Obstacle => ({ kind: 'box', id: `bench-${i + 1}`, x0: b.x - 0.89, z0: b.z - 0.42, x1: b.x + 0.89, z1: b.z + 0.45, h: 1.23 })),
   // the entrance wings either side of the open arch (art pass 03: 3.1 m wide, 0.28 m deep at z 7.65)
+  // lounge planters (art pass 04: 0.25 m pots at x ±6.75, z 6.26, foliage to ~1.4 m)
+  ...[-1, 1].map((side): Obstacle => ({ kind: 'circle', id: `planter-${side < 0 ? 'w' : 'e'}`, x: side * 6.75, z: 6.26, r: 0.27, h: 1.4 })),
   ...[-1, 1].map((side): Obstacle => ({ kind: 'box', id: `entrance-wing-${side < 0 ? 'w' : 'e'}`, x0: Math.min(side * 5.4, side * 8.5), z0: 7.51, x1: Math.max(side * 5.4, side * 8.5), z1: 7.79, h: 5.1 })),
   // slots face the middle of the room: a box from the cabinet's back to its console
   ...SLOTS.map((s): Obstacle => {

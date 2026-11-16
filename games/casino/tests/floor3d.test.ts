@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LIMITS, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, turnToward } from '../src/floor3d/camera.ts';
+import { LIMITS, LOOK_UP_MAX, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, turnToward } from '../src/floor3d/camera.ts';
 import { AGENT_RADIUS, OBSTACLES, ROOM, SEATS, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
@@ -60,6 +60,10 @@ describe('3D floor layout', () => {
     expect(nav.pointFree({ x: -7, z: 7.5 })).toBe(false);
     expect(nav.pointFree({ x: 7, z: 7.5 })).toBe(false);
     expect(nav.pointFree({ x: 0, z: 7.4 })).toBe(true);
+  });
+  it('the lounge planters (art pass 04) block walking', () => {
+    for (const x of [-6.75, 6.75]) expect(nav.pointFree({ x, z: 6.26 })).toBe(false);
+    expect(nav.walkableAt(SPAWN)).toBe(true);
   });
   it('has one free and one taken seat for stage 1', () => {
     expect(SEATS.filter((s) => !s.taken)).toHaveLength(1);
@@ -150,6 +154,23 @@ describe('cameras', () => {
     const max = desiredPose('follow', { x: 0, z: 0 }, 0, 4, { extraPitch: 10 });
     const pitch = Math.asin((max.pos.y - max.target.y) / 4);
     expect(pitch).toBeLessThanOrEqual((70 * Math.PI) / 180 + 1e-9);
+  });
+  it('a vertical drag tilts the follow view up at the ceiling, keeping the avatar ahead and the camera off the floor', () => {
+    const avatar = { x: 0, z: 0 };
+    const level = desiredPose('follow', avatar, 0, 4.2);
+    const up = desiredPose('follow', avatar, 0, 4.2, { lookUp: LOOK_UP_MAX });
+    const aim = (p: typeof level) => Math.atan2(p.target.y - p.pos.y, Math.hypot(p.target.x - p.pos.x, p.target.z - p.pos.z));
+    expect(aim(level)).toBeLessThan(0); // looks down at the avatar
+    expect(aim(up)).toBeGreaterThan(0); // looks up past it
+    expect(up.pos.y).toBeGreaterThanOrEqual(0.45);
+    expect(up.pos.z).toBeGreaterThan(avatar.z); // still behind the avatar (heading 0 walks to -Z)
+    const over = desiredPose('follow', avatar, 0, 4.2, { lookUp: 5 });
+    expect(over).toEqual(up); // clamped to LOOK_UP_MAX
+  });
+  it('the landscape follow view sits lower than portrait, so more of the ceiling shows', () => {
+    const portrait = desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 0.46 });
+    const landscape = desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 2.17 });
+    expect(landscape.pos.y).toBeLessThan(portrait.pos.y);
   });
   it('switching views blends smoothly from one pose to the other', () => {
     const a = desiredPose('follow', { x: 0, z: 0 }, 0, 4);

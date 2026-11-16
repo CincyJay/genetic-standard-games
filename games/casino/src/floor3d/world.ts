@@ -8,9 +8,11 @@
  * game takes over.
  */
 import * as THREE from 'three';
-import { LIMITS, OVERVIEW_AXES, TRANSITION_MS, blendPose, clampZoom, cutawayWalls, desiredPose, turnToward, type CamMode, type CamPose } from './camera.ts';
+import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, blendPose, clampZoom, cutawayWalls, desiredPose, turnToward, type CamMode, type CamPose } from './camera.ts';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { buildArtScene } from './artScene.ts';
+import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
+import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, DEALER_SPOT, OBSTACLES, ROOM, SEATS, SEAT_HEIGHT, TABLE, type Seat, type Vec2 } from './layout.ts';
 import { NavGrid } from './nav.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
@@ -58,6 +60,8 @@ export interface FloorStats {
   /** Slot parts kept out of the batches (reels, spin buttons, marquees) and their reel cells. */
   artInteractive: number;
   reelCells: number;
+  /** Machines whose reels show their symbol atlas (loads after the floor opens). */
+  reelTextures: number;
 }
 
 export interface FloorHandle {
@@ -65,13 +69,15 @@ export interface FloorHandle {
   stats: () => FloorStats;
   /** Test hooks: state, and screen points of things to tap. */
   debug: {
-    state: () => FloorState & { walking: boolean; sitting: boolean; seat: string | null; transitioning: boolean; camYaw: number; cam: CamPose };
+    state: () => FloorState & { walking: boolean; sitting: boolean; seat: string | null; transitioning: boolean; camYaw: number; lookUp: number; roof: string; cam: CamPose };
     screenOf: (x: number, y: number, z: number) => { x: number; y: number };
     seatScreen: (id: string) => { x: number; y: number };
     tap: (sx: number, sy: number) => void;
     toggleCamera: () => void;
     /** Stand the avatar at (x, z) facing `heading`, with the follow camera behind it. */
     place: (x: number, z: number, heading: number) => void;
+    /** Tilt the follow view up (radians, as a vertical drag does). */
+    look: (up: number) => void;
   };
 }
 
@@ -141,6 +147,47 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const art = buildArtScene(new Map(SEATS.map((s) => [s.id, -s.facing])));
   scene.add(art.root);
   const walls = art.walls;
+
+  // ------------------------------------------------------------------ roof in the overview
+  type RoofMode = 'lights' | 'glass' | 'off';
+  const ROOF_MODES: RoofMode[] = ['lights', 'glass', 'off'];
+  let roofMode: RoofMode = 'lights';
+  try {
+    const saved = localStorage.getItem('va3d.roof') as RoofMode | null;
+    if (saved && ROOF_MODES.includes(saved)) roofMode = saved;
+  } catch {
+    /* storage unavailable: keep the default */
+  }
+  const roofSolid = art.ceiling.roof.map((m) => m.material as THREE.Material);
+  const roofGlass = roofSolid.map((mat) => {
+    const g = mat.clone();
+    g.transparent = true;
+    g.opacity = 0.22;
+    g.depthWrite = false;
+    return g;
+  });
+
+  // ------------------------------------------------------------------ slot reels (art pass 04)
+  // Each cabinet's 25 reel cells show its machine's real symbols (the same PNGs the 2D slots use),
+  // as one 5x5 canvas atlas per machine. Static idle boards only: no spins, wins or balances.
+  let reelTextures = 0;
+  for (const m of MACHINES) {
+    const mesh = art.interactive.get(`slot_${m.id}/reels`);
+    if (!mesh) continue;
+    createVelvetReelArt(THREE, m.id, m.symbols, { base: './art' })
+      .then((reel: { texture: THREE.Texture; dispose: () => void }) => {
+        if (disposed) return reel.dispose();
+        // The atlas maps reel row 0 to the top of the canvas assuming three.js's default
+        // flipY; the module turns flipY off, which draws every board upside down (VA-0029).
+        reel.texture.flipY = true;
+        reel.texture.needsUpdate = true;
+        applyVelvetReelAtlas(THREE, mesh, reel);
+        // the old reel material may be shared with other batches; dispose() frees it with the scene
+        delete mesh.userData.originalMaterial;
+        reelTextures++;
+      })
+      .catch((err: unknown) => console.warn('[floor3d] reel art', m.id, err));
+  }
 
   // ------------------------------------------------------------------ gameplay proxies
   // Taps and the follow camera's collision use simple invisible shapes, not the detailed art.
@@ -264,27 +311,37 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 #va3d-hud button{pointer-events:auto;min-width:48px;min-height:48px;border-radius:24px;border:2px solid #e9c86a;background:rgba(36,18,46,.88);
   color:#ffe9a8;font:800 15px Outfit,system-ui,sans-serif;padding:0 16px}
-#va3d-hud .head{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:calc(env(safe-area-inset-left) + 10px);right:calc(env(safe-area-inset-right) + 10px);display:flex;flex-direction:column;gap:8px}
-#va3d-hud .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+#va3d-hud .head{position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:calc(env(safe-area-inset-left) + 10px);right:calc(env(safe-area-inset-right) + 10px)}
+#va3d-hud .top{display:flex;gap:8px;align-items:center;justify-content:flex-end}
 #va3d-hud .top .back{margin-right:auto}
-#va3d-hud .badge{text-align:center;font:700 12px Outfit,sans-serif;
-  letter-spacing:1px;color:#e9c86a;text-shadow:0 1px 3px #000}
+#va3d-hud .gear{padding:0;width:48px;font-size:22px}
+#va3d-hud .gear[aria-expanded=true]{background:#e9c86a;color:#24122e}
+#va3d-hud .menu{position:absolute;right:0;top:56px;display:none;flex-direction:column;gap:8px;align-items:stretch;
+  padding:10px;border-radius:20px;background:rgba(20,12,26,.92);border:1px solid rgba(233,200,106,.5)}
+#va3d-hud .menu.open{display:flex}
+#va3d-hud .menu button{text-align:left}
+#va3d-hud .badge{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 4px);text-align:center;font:700 10px Outfit,sans-serif;
+  letter-spacing:1px;color:#e9c86a;opacity:.85;text-shadow:0 1px 3px #000}
 #va3d-hud .toast{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + min(190px, 26vh));text-align:center;font:700 17px Outfit,sans-serif;
   opacity:0;transition:opacity .25s;text-shadow:0 1px 4px #000}
-#va3d-hud .joy{pointer-events:auto;position:absolute;left:calc(env(safe-area-inset-left) + 24px);bottom:calc(env(safe-area-inset-bottom) + 28px);width:132px;height:132px;border-radius:50%;
+#va3d-hud .joy{pointer-events:auto;position:absolute;left:calc(env(safe-area-inset-left) + 24px);bottom:calc(env(safe-area-inset-bottom) + 40px);width:132px;height:132px;border-radius:50%;
   background:rgba(20,12,26,.45);border:2px solid rgba(233,200,106,.7);touch-action:none}
 #va3d-hud .knob{position:absolute;left:41px;top:41px;width:50px;height:50px;border-radius:50%;background:rgba(233,200,106,.85)}
-#va3d-hud .perf{position:absolute;right:calc(env(safe-area-inset-right) + 10px);bottom:calc(env(safe-area-inset-bottom) + 8px);font:600 11px ui-monospace,monospace;color:#cbb6d6;text-shadow:0 1px 2px #000}
+#va3d-hud .perf{position:absolute;right:calc(env(safe-area-inset-right) + 10px);bottom:calc(env(safe-area-inset-bottom) + 20px);font:600 11px ui-monospace,monospace;color:#cbb6d6;text-shadow:0 1px 2px #000}
 </style>
 <div class="head">
   <div class="top">
     <button type="button" class="back" aria-label="Back to the lobby">‹ Lobby</button>
     <button type="button" class="cam"></button>
+    <button type="button" class="gear" aria-label="View settings" aria-expanded="false" aria-controls="va3d-menu">⚙</button>
+  </div>
+  <div class="menu" id="va3d-menu">
     <button type="button" class="rotate"></button>
     <button type="button" class="motion" aria-pressed="false"></button>
+    <button type="button" class="roof"></button>
   </div>
-  <div class="badge">PROTOTYPE · ART PASS 03 · PLACEHOLDER PEOPLE</div>
 </div>
+<div class="badge">PROTOTYPE · ART PASS 04 · PLACEHOLDER PEOPLE</div>
 <div class="toast" role="status" aria-live="polite"></div>
 <div class="joy" aria-label="Walk joystick"><div class="knob"></div></div>
 <div class="perf"></div>`;
@@ -293,6 +350,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const camBtn = $<HTMLButtonElement>('.cam');
   const motionBtn = $<HTMLButtonElement>('.motion');
   const rotateBtn = $<HTMLButtonElement>('.rotate');
+  const roofBtn = $<HTMLButtonElement>('.roof');
+  const gearBtn = $<HTMLButtonElement>('.gear');
+  const menuEl = $<HTMLDivElement>('.menu');
+  const setMenu = (open: boolean) => {
+    menuEl.classList.toggle('open', open);
+    gearBtn.setAttribute('aria-expanded', String(open));
+  };
   let rotate = opts.rotate;
   const joy = $<HTMLDivElement>('.joy');
   const knob = $<HTMLDivElement>('.knob');
@@ -313,6 +377,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     rotateBtn.textContent = `⟳ ${rotate === 'auto' ? 'Auto' : rotate === 'landscape' ? 'Landscape' : 'Portrait'}`;
     rotateBtn.setAttribute('aria-label', `Screen rotation: ${rotate}. Tap to change.`);
     motionBtn.setAttribute('aria-pressed', String(reduced));
+    roofBtn.textContent = `Roof from above: ${roofMode === 'lights' ? 'lights only' : roofMode === 'glass' ? 'see-through' : 'off'}`;
+    roofBtn.setAttribute('aria-label', `Overview roof: ${roofMode}. Tap to change.`);
     joy.style.display = st.mode === 'follow' ? 'block' : 'none';
   };
   syncHud();
@@ -355,6 +421,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     syncHud();
     opts.onPrefs(st.mode, reduced);
   });
+  roofBtn.addEventListener('click', () => {
+    roofMode = ROOF_MODES[(ROOF_MODES.indexOf(roofMode) + 1) % ROOF_MODES.length];
+    try {
+      localStorage.setItem('va3d.roof', roofMode);
+    } catch {
+      /* not remembered: fine */
+    }
+    syncHud();
+  });
+  gearBtn.addEventListener('click', () => setMenu(!menuEl.classList.contains('open')));
   $<HTMLButtonElement>('.back').addEventListener('click', () => {
     if (!sitting && !seated) opts.onBack(snapshot());
   });
@@ -420,13 +496,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
 
   const pointers = new Map<number, { x: number; y: number; x0: number; y0: number; t0: number }>();
   let pinch: { d0: number; dist0: number } | null = null;
-  let dragYaw: { x: number; yaw: number } | null = null;
+  let dragYaw: { x: number; y: number; yaw: number; look: number } | null = null;
+  /** Follow view: how far a vertical drag has tilted the view up toward the ceiling. */
+  let lookUp = 0;
   let dragPan: { x: number; y: number; pan: Vec2 } | null = null;
   const pinchDist = () => {
     const [a, b] = [...pointers.values()];
     return Math.hypot(a.x - b.x, a.y - b.y);
   };
   const onDown = (e: PointerEvent) => {
+    setMenu(false);
     canvas.setPointerCapture(e.pointerId);
     // event timestamps (when the finger touched), not handling time: while the first frames are
     // still compiling shaders, a quick tap's down and up can be handled far apart
@@ -435,7 +514,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       pinch = { d0: pinchDist(), dist0: st.dist[st.mode] };
       dragYaw = null;
       dragPan = null;
-    } else if (st.mode === 'follow') dragYaw = { x: e.clientX, yaw: camYaw };
+    } else if (st.mode === 'follow') dragYaw = { x: e.clientX, y: e.clientY, yaw: camYaw, look: lookUp };
     else dragPan = { x: e.clientX, y: e.clientY, pan: { ...pan } };
   };
   const onMove = (e: PointerEvent) => {
@@ -454,8 +533,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         x: dragPan.pan.x - dx * OVERVIEW_AXES.right.x + dy * OVERVIEW_AXES.forward.x,
         z: dragPan.pan.z - dx * OVERVIEW_AXES.right.z + dy * OVERVIEW_AXES.forward.z,
       };
-    } else if (dragYaw && Math.abs(e.clientX - p.x0) > 12) {
-      // one-finger horizontal drag swings the follow camera around the avatar
+    } else if (dragYaw && Math.hypot(e.clientX - p.x0, e.clientY - p.y0) > 12) {
+      // one-finger drag: sideways swings the follow camera around the avatar, down tilts the
+      // view up toward the ceiling (and back up levels it again)
+      lookUp = Math.min(LOOK_UP_MAX, Math.max(0, dragYaw.look + ((e.clientY - dragYaw.y) / window.innerHeight) * LOOK_UP_MAX * 2.5));
       const before = camYaw;
       camYaw = dragYaw.yaw + ((e.clientX - dragYaw.x) / window.innerWidth) * Math.PI * 1.5;
       // turning the view by hand while walking turns the walk with it
@@ -639,7 +720,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       // a chair back between the avatar and the camera: tilt up until the camera sees over it
       let needTilt = 0;
       for (const tilt of LOOK_OVER_TILTS) {
-        const p = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: tilt }).pos;
+        const p = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: tilt, lookUp }).pos;
         tmpA.set(st.pos.x, AVATAR_HEIGHT * 0.75, st.pos.z);
         tmpB.set(p.x, p.y, p.z).sub(tmpA);
         camRay.set(tmpA, tmpB.clone().normalize());
@@ -648,7 +729,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         if (!camRay.intersectObjects(lowBlockers, false).length) break;
       }
       lookOver += (needTilt - lookOver) * (reduced ? 1 : 1 - Math.exp(-dt * 6));
-      const want = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: lookOver });
+      const want = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: lookOver, lookUp });
       tmpA.set(want.target.x, want.target.y, want.target.z);
       tmpB.set(want.pos.x, want.pos.y, want.pos.z).sub(tmpA);
       const len = tmpB.length();
@@ -662,7 +743,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       const k = Math.exp(-dt * 1.5);
       pan = { x: pan.x * k, z: pan.z * k };
     }
-    let pose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { obstacleDist, aspect: camera.aspect, pan, extraPitch: st.mode === 'follow' ? lookOver : 0 });
+    let pose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { obstacleDist, aspect: camera.aspect, pan, extraPitch: st.mode === 'follow' ? lookOver : 0, lookUp });
     if (transition) {
       const t = (now - transition.t0) / TRANSITION_MS;
       if (t >= 1) transition = null;
@@ -679,9 +760,15 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     for (const l of labels) l.visible = camera.position.distanceTo(l.position) > 3;
     const cut = cutawayWalls(pose.pos);
     for (const [side, meshes] of Object.entries(walls)) for (const m of meshes) m.visible = !cut.has(side as keyof typeof walls);
-    // looking down from above, the chandeliers would hang between the camera and the floor
-    const showCeiling = pose.pos.y < 4;
-    for (const m of art.ceiling) m.visible = showCeiling;
+    // from above (the overview) the roof is cut away or see-through, per the Roof setting; the
+    // chandeliers stay unless the roof is off, and the entrance front never blocks the view
+    const above = pose.pos.y >= 4;
+    for (const m of art.ceiling.entrance) m.visible = !above;
+    for (const m of art.ceiling.fixtures) m.visible = !above || roofMode !== 'off';
+    art.ceiling.roof.forEach((m, i) => {
+      m.visible = !above || roofMode === 'glass';
+      m.material = above ? roofGlass[i] : roofSolid[i];
+    });
   }
 
   const pct = (xs: number[], p: number) => {
@@ -711,6 +798,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       artMeshes: art.meshesAuthored,
       artBatches: art.batches,
       artInteractive: art.interactive.size,
+      reelTextures,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };
   }
@@ -733,6 +821,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         mat.dispose();
       }
     });
+    for (const mat of [...roofSolid, ...roofGlass]) mat.dispose();
     renderer.dispose();
     renderer.forceContextLoss();
     canvas.remove();
@@ -748,7 +837,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     dispose,
     stats,
     debug: {
-      state: () => ({ ...snapshot(), walking: path.length > 0, sitting: !!sitting, seat: seated?.id ?? pendingSeat?.id ?? null, transitioning: !!transition, camYaw, cam: lastPose }),
+      state: () => ({ ...snapshot(), walking: path.length > 0, sitting: !!sitting, seat: seated?.id ?? pendingSeat?.id ?? null, transitioning: !!transition, camYaw, lookUp, roof: roofMode, cam: lastPose }),
       screenOf,
       seatScreen: (id: string) => {
         const s = SEATS.find((q) => q.id === id)!;
@@ -756,6 +845,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       },
       tap,
       toggleCamera: () => setMode(st.mode === 'follow' ? 'overview' : 'follow'),
+      look: (up: number) => {
+        lookUp = Math.min(LOOK_UP_MAX, Math.max(0, up));
+      },
       place: (x: number, z: number, heading: number) => {
         path = [];
         cancelSeat();

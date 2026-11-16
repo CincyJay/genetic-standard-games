@@ -16,13 +16,20 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { makeVelvetWorld } from '../../../../art/casino/3d/worldComposition.mjs';
 
 export type WallSide = 'north' | 'east' | 'west';
+export type CeilingPart = 'roof' | 'fixtures' | 'entrance';
+type Side = WallSide | CeilingPart | null;
+const CEILING_PARTS: readonly string[] = ['roof', 'fixtures', 'entrance'];
 
 export interface ArtScene {
   root: THREE.Group;
   /** Batches that belong to each wall, for the overview's cutaway. */
   walls: Record<WallSide, THREE.Mesh[]>;
-  /** The chandeliers: hidden in the overview, which looks down through them. */
-  ceiling: THREE.Mesh[];
+  /**
+   * Overhead architecture (the art names it all `chandelier_*`), split so the overview can cut
+   * away the roof but keep the hanging lights: `roof` is the ceiling slab and coffers,
+   * `fixtures` the chandeliers, rods and canopies, `entrance` the wings, arch and vestibule.
+   */
+  ceiling: Record<CeilingPart, THREE.Mesh[]>;
   /** Each cabinet's interactive parts, by `slot_<theme>/<part>` (`reels`, `spin_button`, `marquee`). */
   interactive: Map<string, THREE.Mesh>;
   /** How many meshes the factories built, and how many draw batches they became. */
@@ -31,8 +38,12 @@ export interface ArtScene {
 }
 
 /** The art names its walls; panels and caps on the back wall go with it. */
-function wallSideOf(name: string, worldX: number): WallSide | 'ceiling' | null {
-  if (name.startsWith('chandelier_')) return 'ceiling';
+function wallSideOf(name: string, worldX: number): Side {
+  if (name.startsWith('chandelier_')) {
+    if (name === 'chandelier_ceiling' || name.startsWith('chandelier_coffer')) return 'roof';
+    if (/^chandelier_(entrance|portal|arch|vestibule)/.test(name)) return 'entrance';
+    return 'fixtures';
+  }
   if (name === 'rear_wall' || name === 'wall_panel' || name === 'art_deco_panel_cap') return 'north';
   if (name === 'wall') return worldX < 0 ? 'west' : 'east';
   return null;
@@ -68,7 +79,7 @@ export function buildArtScene(chairFacing: Map<string, number>): ArtScene {
   }
   art.updateMatrixWorld(true);
 
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; names: string[]; side: WallSide | 'ceiling' | null; part: string | null; renderOrder: number }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; names: string[]; side: Side; part: string | null; renderOrder: number }>();
   const usedMaterials = new Set<THREE.Material>();
   const allMaterials = new Set<THREE.Material>();
   const wp = new THREE.Vector3();
@@ -106,7 +117,7 @@ export function buildArtScene(chairFacing: Map<string, number>): ArtScene {
   const root = new THREE.Group();
   root.name = 'VelvetAce_ArtBatched';
   const walls: Record<WallSide, THREE.Mesh[]> = { north: [], east: [], west: [] };
-  const ceiling: THREE.Mesh[] = [];
+  const ceiling: Record<CeilingPart, THREE.Mesh[]> = { roof: [], fixtures: [], entrance: [] };
   const interactive = new Map<string, THREE.Mesh>();
   for (const [key, b] of buckets) {
     // interactive parts keep a geometry group per original mesh (groups[i] is names[i])
@@ -122,8 +133,8 @@ export function buildArtScene(chairFacing: Map<string, number>): ArtScene {
       mesh.userData.parts = b.names;
       interactive.set(key, mesh);
     }
-    if (b.side === 'ceiling') ceiling.push(mesh);
-    else if (b.side) walls[b.side].push(mesh);
+    if (b.side && CEILING_PARTS.includes(b.side)) ceiling[b.side as CeilingPart].push(mesh);
+    else if (b.side) walls[b.side as WallSide].push(mesh);
   }
   return { root, walls, ceiling, interactive, meshesAuthored, batches: buckets.size };
 }
