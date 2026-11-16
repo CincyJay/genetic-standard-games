@@ -2746,6 +2746,82 @@ different):
 
 **NEEDS JOSHUA:** nothing new. Choosing the default room waits for phone screenshots of the preview.
 
+### VA-0067 | 2026-11-16 23:30 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** The grand hall preview is wired in and was measured on the S25+. The local session and the
+hourly routine built it in parallel (my `516fe98` and the routine's `c840e10`); both are merged in
+`f55ce79`. This entry says what is live and who unifies what, so no one builds it a third time.
+
+**What is live (local session, prototype 1.8-3dproto.10 on Joshua's phone):** ⚙ → "Hall: salon /
+grand (preview)", stored in `va3d.hall`. The salon stays the default.
+- `layout.ts`: a `FloorLayout` (room, table, seats, dealer, spawn, slots, obstacles, lamps, decor).
+  - `salonLayout()` is the floor exactly as before.
+  - `grandLayout()` is about 24 × 36 m, with 7.6 m walls.
+  - `ROOM` is now "the room in use" (`useRoom()`), so the cameras and nav follow it.
+- `grandHallArt.ts` places the art:
+  - the concourse down the middle;
+  - 6 blackjack hero tables (1 interactive, 5 decor), each with 2 swivel chairs;
+  - **10 interactive hero cabinets** (one per theme) on the back wall;
+  - **28 copies** along the side walls. They share materials and textures and **show their theme's reel
+    symbols** (one reel batch per theme);
+  - the woven carpet over the whole floor;
+  - placeholder dark walls and an outer ceiling.
+- `vite resolve.dedupe ['three']`: the old concourse imported `three` itself, which resolved to the
+  repo root's 0.170 next to the game's 0.181. A unit test now checks every mesh is the game's three.
+- On the phone I sat down at the grand hall's live table, and blackjack opened. **Not verified:**
+  Back from blackjack into the grand hall. Joshua picked his phone up mid-check, so I stopped
+  driving it.
+
+**Measured on the S25+** (Vegas lighting; captures `captures/3d-va0067-device-grand-01..06-*.jpg`):
+
+| View | fps | p95 | Draw calls | Triangles |
+|---|---|---|---|---|
+| Spawn follow, portrait | 119 | 8.4 ms | 141 | 689k |
+| Spawn follow, landscape | 114–118 | 8.4 ms | 149 | 690k |
+| Mid-concourse, landscape | 119 | 8.4 ms | 142 | 689k |
+| Table bank, landscape | 119 | 8.4 ms | 111 | 684k |
+| Side bank, landscape | 120 | 8.4 ms | 101 | 683k |
+| Back row, landscape | 120 | 8.4 ms | 125 | 685k |
+| Overview, landscape | 120 | 8.4 ms | 141 | 689k |
+
+- JS heap was 177 MB.
+- About 5× the salon's triangles, and still 114–120 fps. Over 120 draw calls in the long views,
+  which Joshua now allows as long as it's measured (VA-0063).
+
+**Factual notes (not a verdict):**
+- From the entrance: a lit promenade between columns, glowing slot rows on both sides, and the
+  back-wall row of 10 at the end. This is the first time the floor has read as rows of lit machines
+  in a dark room, closer to references 8 and 9 than the salon.
+- The neon is still mostly one warm white or gold per cabinet, with some pale blue, pink and violet.
+- The walls are plain dark placeholders. The 5 decor tables have placeholder capsule dealers and no
+  guests.
+- From the overview, the concourse's cove strips read as long glowing bars.
+
+**Unifying the two (the next hourly routine run, please):**
+1. In `grandHallArt.ts`, replace the old `art/src/grandConcourse.mjs` and my placeholder walls and
+   ceiling with ChatGPT's `createGrandHallArchitecture(THREE, ...)` (`8a874c9`), as VA-0065 asks.
+   - Its names need sorting in `artScene.ts` `wallSideOf` (side walls and rear to north/east/west;
+     ceiling and coffers to roof; coves and rings to fixtures).
+   - Cut an entrance bay, since its walls are continuous.
+2. Make the routine's `grandHallLayout(spec)` (`grandHall.ts`) the source for `grandLayout()` in
+   `layout.ts`, so the art and collision come from one spec. Keep the `FloorLayout` shape, the 10
+   interactive back-wall cabinets and the copy batching.
+   - Your layout has 4 tables and 28 slots in thirds.
+   - Pick one; I don't mind which.
+3. Then remove the old `art/src/grandConcourse.mjs` import and the dedupe workaround, if nothing
+   else needs it.
+4. Keep `tests/floor3d.test.ts` "grand hall preview": reachability, seats, one copy of three.js,
+   reel copies.
+
+The local session will measure on the phone again after that.
+
+**Requests for ChatGPT (art):** unchanged from VA-0061 and VA-0063:
+- theme-coloured neon (most impactful now that there are 38 cabinets in view);
+- a rust and gold carpet;
+- seated guests and standing dealers for populated tables.
+
+**NEEDS JOSHUA:** a look at the grand hall on his phone (⚙ → Hall). His phone is still set to the
+grand hall from this test.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
