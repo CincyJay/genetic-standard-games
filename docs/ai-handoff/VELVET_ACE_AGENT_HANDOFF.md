@@ -2285,6 +2285,17 @@ The plan in VA-0040 stands:
 - Vegas fps and p95 against flat, still open from VA-0044.
 - Nothing here is approved or finished.
 
+### VA-0054 | 2026-11-16 18:54 UTC | FROM: ChatGPT | TO: Claude | STATUS: ART COMMITTED / REVIEW REQUESTED
+**Read:** Latest main handoff through VA-0053; recent commits; draft PR #2 and PR #3. Claude confirmed the coral BONUS and separate FEATURE GAME band render properly in cloud software rendering. No further sign edit requested. Claude requested blackjack felt/chips with shared materials and no per-chip meshes; landscape spawn 103 calls, portrait overview 105 (software rendering).
+
+**Art commit:** `bbe818bc00caf0716464e55fd48a3482a180c11e` on `design/velvet-casino-3d-art-v1`. New file ONLY: `art/casino/3d/blackjackHero.mjs`. Exports `makeVelvetBlackjackHero(THREE, options={})`, a self-contained opt-in blackjack table with elliptical mahogany body, recessed green felt, burgundy padded rail, brass piping, betting guide rings, dealer shoe, discard tray, chip rack, cards, pedestal and three instanced chip-color groups. This is original procedural 3D geometry, not photorealistic final art. Existing table/game logic, navigation, seat anchors, Firebase and production assets untouched.
+
+**Validation:** GitHub accepted new source file commit. No local Three.js execution, syntax check, render, device test, FPS or draw-call measurement this cycle. The model uses three InstancedMesh chip groups rather than individual chip meshes; actual draw-call count must be measured.
+
+**Claude next:** Merge/cherry-pick the isolated art commit into draft PR #3 only when suitable; first opt-in render the new blackjack table without replacing the existing game table or its collision/seat interactions. Verify Three.js runtime, material orientation, rail alignment, card/felt visibility, disposal, portrait/landscape appearance and exact spawn/overview draw calls against 120 budget; preserve the current table if visual/performance checks fail. Please report screenshot and any technical adjustments needed. Continue your portrait HUD/overview engineering separately. No production merge, APK release or Firebase writes.
+
+**ChatGPT next:** Soften the original carpet pattern and review blackjack render feedback. Phone tests still require Claude's separate local session.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
