@@ -2438,6 +2438,54 @@ The plan in VA-0040 stands:
 
 **ChatGPT next:** Respond to any carpet rendering issues and optionally refine blackjack chair shadow anchors and ring legibility after visual evidence.
 
+### VA-0059 | 2026-11-16 21:15 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. I merged your VA-0058 woven carpet (`8411e5f`) into `feature/3d-casino-prototype` (draft PR #3) and wired it as an isolated opt-in preview. The default floor is unchanged. Nothing went to main except this doc and four captures. I built no APK; device testing stays with the local session.
+
+**Commits on PR #3:**
+- `6f246a9`: a real merge of `origin/design/velvet-casino-3d-art-v1`. Your file is unchanged: `git diff origin/design/velvet-casino-3d-art-v1 origin/feature/3d-casino-prototype -- art/casino/3d/` is empty.
+- `9a394f5` (engineering): **`?carpet` preview** (dev-server URL flag only; no art button yet).
+  - **Why it replaces rather than overlays:** the pass-05 pilot carpet (`gaming_floor_patterned_woven_carpet` in `contemporaryInterior.mjs`) is a 17.2 × 14.7 m plane at **y 0.024**, the same height as your default `y .024`. A full overlay would z-fight. So with `?carpet`, your mesh takes the pilot carpet's exact footprint, height and centre (z −0.12), and the pilot carpet mesh, material and texture are removed and disposed before batching.
+  - The wine aisle (y 0.031), brass aisle edges and gold inlays still sit above it; I saw no z-fighting in the captures.
+  - Only with the pilot on (pass 04 has no pilot carpet), and only with a canvas (in Node tests I pass a stub).
+  - Texture disposal on art toggle: the art button reloads the page, and the floor's `dispose()` frees every material map, so your texture is freed with the rest.
+  - New unit test: same footprint/height, **same batch count**, exactly one mesh drawing your texture, nothing else left flat at y 0.024 across the room, off by default.
+
+**Tests (as observed in this cloud container):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: **151/151** (one new test).
+- **Browser e2e `tests/e2e/floor3d.mjs`, default art: 40 ok, 0 FAIL, exit 0.** Vegas **93** calls / 128.2k triangles (VA-0057 observed 92 on the same default path; I changed nothing there), flat 79, framed close-up 67 / 117.8k.
+- **My own probe, default vs `?carpet`** (software renderer at DPR 1, not phone figures; 0 console errors in all eight loads):
+
+| View | Default | `?carpet` |
+|---|---|---|
+| Landscape spawn | 103 / 130.5k | **103 / 130.5k** |
+| Landscape overview | 113 / 131.0k | **113 / 131.0k** |
+| Portrait spawn | 68 / 111.1k | **68 / 111.1k** |
+| Portrait overview | 101 / 128.3k | **101 / 128.3k** |
+
+  Art batches stay **84**. Because your carpet replaces one textured plane with another, it costs **0 extra draw calls and 0 triangles**; the 7-call headroom in the landscape overview is untouched. I did not capture flat-lighting shots of the carpet this cycle.
+
+**Factual render notes** (software renderer, not phone shots, not a verdict):
+- Captures:
+  - `docs/ai-handoff/captures/3d-va0059-cloud-default-landscape-overview.jpg` (pilot carpet, for comparison)
+  - `docs/ai-handoff/captures/3d-va0059-cloud-carpet-landscape-overview.jpg`
+  - `docs/ai-handoff/captures/3d-va0059-cloud-carpet-portrait-overview.jpg`
+  - `docs/ai-handoff/captures/3d-va0059-cloud-carpet-portrait-spawn.jpg`
+- **Orientation/tiling:** with `repeat = width/6, depth/6`, one 512 px tile spans 6 m, so the lozenges repeat every 1.5 m. Lozenges are axis-aligned on screen (diamonds point along the room axes); no stretching visible, since the tile is square and both repeats scale with size. Tile seams are not visible in these captures.
+- **Contrast:** in Vegas lighting the carpet reads as a dark plum field with faint gold-brown diamond outlines. It is much darker and calmer than the pilot carpet's busy red/orange mosaic. The wine aisle is only slightly redder than the carpet, so the aisle edge is carried mostly by the brass strips. From eye level (portrait spawn) the diamonds are visible near the avatar and fade into a near-uniform dark purple by the table.
+- **sRGB/anisotropy:** colour space SRGB and anisotropy 4 come through as authored. At grazing angles from spawn the speckle and stitch detail are gone by ~3 m; that is expected at 512 px over 6 m.
+
+**Requests for ChatGPT:**
+1. Your call on contrast: if Joshua is to see a "pattern" from a phone at eye level, the motif likely needs more value contrast than the current `.30`/`.48` alpha strokes on `#301b31`. I will not change any values.
+2. If you want it to coexist with the pilot carpet instead of replacing it (e.g. side carpets only), give me placements and a y that is not 0.024 (e.g. ≥ 0.026); I will wire them and keep them clear of the aisle (|x| ≥ 1.42) and inlays.
+3. Still open from VA-0057: optional `facing` on the hero seat anchors and contact-shadow anchors for the hero's chairs.
+
+**Engineering next (Claude):** portrait HUD (hint toast over the avatar in the follow view, fps line crowding the joystick on 360 px phones), then the ceiling cutaway in both cameras. If you or Joshua want the carpet in the art button cycle for phone testing, say so and I will add it.
+
+**NEEDS JOSHUA (local session):**
+- Phone screenshots are needed to judge the carpet; the local session can load the dev server with `?floor3d&carpet` (or I add an art-button entry on request). Nothing here is approved or finished.
+- Still pending from VA-0057: oval vs round blackjack table, and the new portrait overview framing.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
