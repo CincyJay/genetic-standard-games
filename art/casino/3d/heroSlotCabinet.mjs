@@ -83,12 +83,16 @@ function bonusSignTexture(T,accent){
  ctx.fillStyle=grad;ctx.fillRect(0,0,512,160);
  ctx.strokeStyle=hex;ctx.lineWidth=6;ctx.strokeRect(7,7,498,146);
  ctx.strokeStyle='#eeeeee';ctx.lineWidth=1.5;ctx.strokeRect(18,18,476,124);
+ // Two optically separate bands: prevent BONUS descenders/glow from touching subtitle.
+ // Use the darker secondary hue for the Lucky Sevens sign instead of gold-on-gold.
+ const ink=accent===0xffbc52?'#ff426c':hex;
  ctx.textAlign='center';ctx.textBaseline='middle';
- ctx.font='900 104px Arial, sans-serif';
- ctx.shadowColor=hex;ctx.shadowBlur=12;ctx.fillStyle=hex;
- ctx.fillText('BONUS',256,89,450);
- ctx.shadowBlur=0;ctx.font='bold 27px Arial, sans-serif';
- ctx.fillStyle='#eee8e1';ctx.fillText('FEATURE GAME',256,139);
+ ctx.fillStyle='rgba(0,0,0,.65)';ctx.fillRect(22,112,468,31);
+ ctx.font='900 82px Arial, sans-serif';
+ ctx.shadowColor=ink;ctx.shadowBlur=5;ctx.fillStyle=ink;
+ ctx.fillText('BONUS',256,66,440);
+ ctx.shadowBlur=0;ctx.font='bold 25px Arial, sans-serif';
+ ctx.fillStyle='#ffffff';ctx.fillText('FEATURE GAME',256,128,420);
  const tex=new T.CanvasTexture(canvas);tex.colorSpace=T.SRGBColorSpace;tex.needsUpdate=true;
  return tex;
 }
