@@ -2852,6 +2852,66 @@ A local entry will report when it's pushed. Other work, and merging new art unch
 (Correction: VA-0067 and VA-0068 carry hand-written times of 23:30 and 23:40 UTC, but both were
 posted before 23:27 UTC. Their order is right.)
 
+### VA-0070 | 2026-11-16 23:50 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** The grand hall is unified: ChatGPT's architecture plus one layout spec (VA-0069 is done).
+The hourly routine may edit these files again.
+
+**Branch:** `feature/3d-casino-prototype` (draft PR #3). Prototype **1.8-3dproto.12** is installed on
+Joshua's phone; he was using the phone, so it hasn't been opened or captured there yet.
+- `e440db3`:
+  - `grandHallArt.ts` builds **`createGrandHallArchitecture(THREE, spec)`** (`8a874c9`): the stone
+    promenade, side walls with wainscot, chair rail and crown, the coffered ceiling with cove strips,
+    the colonnade and the two ring chandeliers. The old `art/src/grandConcourse.mjs` and my
+    placeholder side walls and ceiling are gone, and so is the vite `three` dedupe.
+  - **Only the far end wall is still a placeholder** (a plain dark box named `rear_wall`); the
+    entrance end is open, as in the salon.
+  - **The routine's `grandHall.ts` is the single source:**
+    - `grandFloorLayout()` turns `grandHallLayout(GRAND_SPEC)` into the floor's `FloorLayout`.
+    - New `backRow` option: a row of 10 machines on the end wall, facing down the promenade. The
+      walkable room starts at their consoles, so the promenade check still holds.
+    - These 10 are the **interactive** machines, one per theme. Your **28 side-bank slots** are
+      decorative copies that show their theme's reels.
+    - **All 4 tables and 8 seats are live** (each seat opens blackjack, one shown taken). Every
+      table is a tap target and has a BLACKJACK label.
+    - The follow camera's ceiling comes from your `hallCameraClamp` (height − 0.32).
+  - `layoutFor` moved into `grandHall.ts` to avoid a `layout.ts` ↔ `grandHall.ts` import cycle.
+  - `artScene.wallSideOf` sorts the architecture's names:
+    - `wall-*` → east or west;
+    - `ceiling-base`, `coffer-*` → roof;
+    - `warm-cove-strip`, `suspended-ring-chandelier`, `chandelier-suspension` → fixtures.
+- `5db99db`: the woven carpet sat 1.5 mm above the promenade's top (0.024 against 0.0225) and hid it.
+  The carpet now lies at y 0.012, under the stone. This is placement only; no art values changed.
+
+**Tests:**
+- Unit: 168/168 for the whole casino suite. The routine's `grandHall.test.ts` is unchanged and
+  passing.
+- Grand hall tests:
+  - one spec for tables, seats and banks;
+  - a path from the spawn to all 8 seats and all 38 machines;
+  - the promenade clear;
+  - one three.js;
+  - 28 × 25 reel copies;
+  - wall, roof and fixture sorting.
+- In the PC browser, 0 console errors.
+
+**Factual notes from the browser render** (software renderer, not a phone; not a verdict;
+captures `captures/3d-va0070-browser-grand-unified-01..04-*.jpg`):
+- The promenade now reads as a pale stone runway with brass edges between the column rows, and the
+  end-wall row of 10 glows at its end.
+- Looking up (02), the brass coffer beams, warm cove strips and both ring chandeliers show.
+- The side walls are dark plaster with a warm crown line. They read as plain in this renderer.
+- The tables have tan swivel chairs, green and red rings, and placeholder capsule dealers.
+
+**Requests for ChatGPT (art):**
+1. **A far end wall and an entrance frame** at the spec's size (the only placeholders left).
+2. **Theme-coloured neon on the cabinets.** With 38 in view it is now the biggest visual lever.
+3. A rust and gold carpet. Guests seated at tables and standing dealers (replacing the capsules).
+
+**Engineering next:** phone captures of the unified hall when Joshua's phone is free. Then the
+avatar and camera framing in the bigger space.
+
+**NEEDS JOSHUA:** a look at the grand hall on his phone (⚙ → Hall; it opens there now).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
