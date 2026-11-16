@@ -2498,6 +2498,77 @@ The plan in VA-0040 stands:
 
 **ChatGPT next:** React to actual render evidence; optionally add blackjack seat shadow anchors and improve ring legibility without altering Claude's placement logic.
 
+### VA-0061 | 2026-11-16 22:20 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** The Vegas lighting, the black-chassis hero, the woven carpet and the blackjack hero table
+are measured on the real Galaxy S25+ for the first time (local session; Joshua had wireless
+debugging on).
+
+**Branch:** `feature/3d-casino-prototype` (draft PR #3). Prototype **1.8-3dproto.7** (`versionCode
+1807`) is on the phone. Nothing went to main except this doc and the captures. The real app and
+Joshua's save were not touched.
+- `7cfd058`: ⚙ → "Carpet: pilot / woven" switch. `?carpet` only worked in the dev server; the APK has
+  no query string. The choice is stored in `va3d.carpet` and reloads the floor.
+- `320f8aa`: Vegas rig made darker after the first phone pass:
+  - hemi 0.38 → 0.20;
+  - sun 0.4 → 0.15;
+  - environment 0.4 → 0.25;
+  - lamps 22 → 26;
+  - bloom radius 0.45 → 0.20, strength 0.75 → 0.55.
+
+**Measured on the S25+ (real device, all with the pilot art)**
+
+| View | Flat | Vegas |
+|---|---|---|
+| Hero 3/4 close-up, portrait | 120 fps, 46 calls | 113–119 fps, 60 calls |
+| Follow, portrait | 119 fps, 54 calls | 120 fps, 68 calls |
+| Look-up, portrait | 120 fps, 55 calls | 120 fps, 69 calls |
+| Follow, landscape | 120 fps, 89 calls | 117–120 fps, 103 calls |
+| Hero framed, landscape | 120 fps, 49 calls | 120 fps, 63 calls |
+| Overview, landscape | 120 fps, 91 calls | 120 fps, 105 calls |
+| Blackjack hero + woven carpet (Vegas): follow, landscape | | 120 fps, 103 calls |
+| Blackjack hero + woven carpet (Vegas): table near, landscape | | 120 fps, 97 calls |
+| Blackjack hero + woven carpet (Vegas): overview, landscape | | 120 fps, **113** calls |
+
+- p95 was 8.4 ms everywhere, with the JS heap at 167 MB.
+- Bloom adds 14 draw calls and costs no measurable frame time on this phone.
+- Everything is under the 120-call budget. The tightest view is the overview with the blackjack hero
+  (113).
+
+**Factual notes on how it reads on the phone** (not a verdict; captures
+`captures/3d-va0060-device-01..06-*.jpg`):
+- **Vegas vs flat (02 vs 03):** the difference is small. The room still reads evenly lit, and the
+  darker rig changed it only a little. The carpet, walls and the nine pass-04 cabinets look almost
+  the same in both modes. They are painted, coloured bodies with no emissive parts, so nothing
+  glows except the hero.
+- **Hero (01):** the only glowing object. Every edge glows the same warm white-gold, and close up the
+  bloom fuses it into one bright outline. It doesn't read as the saturated green, magenta and blue
+  neon of reference 9. The reels and the BONUS sign stay crisp.
+- **Woven carpet (04, 05):** much calmer than the pilot carpet. It reads as dark purple with a faint
+  grid, almost plain at eye level. Joshua said the pilot carpet was "a little too busy"; this one may
+  have gone too far the other way. It's his call.
+- **Overview (06):** the room is readable. The hero glow is visible from above. The rest of the room
+  is the same matte look as before.
+
+**What this tells us:** lighting alone can't close the gap to the photos. The gap is mostly art:
+nine of ten machines are still the painted pass-04 boxes, and the one neon cabinet uses a single
+colour.
+
+**Requests (ChatGPT, art)**
+1. Give the hero **saturated, theme-coloured neon** (green, magenta or blue per theme, as in
+   reference 9) instead of white-gold. Keep it thinner and more separate, so the bloom can't fuse it
+   into one halo.
+2. Bring the black-chassis cabinet style to **all ten machines**, with shared materials, so the room
+   glows rather than one machine. Budget: landscape follow is at 103 calls today.
+3. Carpet: something between the two, as in reference 8 (dark rust, brown and gold, pattern visible
+   but low contrast).
+
+**Engineering (Claude), next:**
+- bloom per theme colour once the neon is coloured;
+- coloured light spill on the floor from cabinets (a cheap fake, such as a decal or vertex colour,
+  not real lights).
+
+**NEEDS JOSHUA:** a verdict from these phone screenshots, now in front of him. Nothing is approved.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
