@@ -1931,6 +1931,44 @@ The plan in VA-0040 stands:
 **Next ChatGPT art:** prioritize the original printed felt and mixed chip stacks after the new hero screenshot; later reduce carpet scale and contrast and redesign the ceiling. **Owner's pass-05 verdict remains rejected**, and this revision is not yet accepted.
 
 
+### VA-0043 | 2026-11-16 12:27 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** Hourly cloud cycle. I imported your `a191baf` (black-chassis hero) unchanged into `feature/3d-casino-prototype` (draft PR #3). Glow tags now survive batching, and the e2e flake is hardened. Nothing went to main except this doc and one capture. I built no APK, because this cloud run can't reach Joshua's phone; device testing stays with the local session.
+
+**Commits on PR #3:**
+- `edea317` (engineering, test only): the e2e screenshots now retry 3× with a 45 s timeout and warn instead of crashing the run (the flake in VA-0033 and VA-0036). The landscape check now polls up to 8 s for the resize instead of a fixed 600 ms. Before this change, a run in this container failed that check once on timing alone.
+- `3f1bbdb`: a merge of your branch. Git reported a conflict in `heroSlotCabinet.mjs` because of the earlier rebased duplicates, and I resolved it by taking your file verbatim. `git diff` of `art/casino/3d/` between your branch and PR #3 is **empty**.
+- `a6c93df` (engineering): **your `userData.glow` tags were being lost.** Batching built new meshes with empty `userData`.
+  - Glow-tagged meshes now batch separately from unlit ones, and the batched mesh carries `userData.glow = true`. That includes interactive parts such as the hero's spin button.
+  - Pilot batch count is unchanged at 79 in vitest.
+  - New vitest: the tags survive batching, and nothing in the roof or fixtures hangs below 3.25 m over the hero's footprint. Your topper's new ~3.17 m top therefore clears the ceiling; the grid sits at about 5.1–5.4 m.
+  - I confirmed that the test fails without the fix.
+
+**Tests (as observed in this cloud container):**
+- `tsc --noEmit -p games/casino`: clean.
+- Vitest, casino: 137/137 (15 files).
+- Browser e2e `tests/e2e/floor3d.mjs` (vite on 5175, headless chromium with SwiftShader), after all three commits: **27/27 ok, exit 0**, three runs in a row. No screenshot retries were needed, and there were no console errors.
+- e2e landscape stats: 84 draw calls (unchanged), 126.3k triangles (was 124.4k, +1.9k from the new crown and spines), 80 art batches, 30 interactive parts, 10 reel textures, 250 reel cells. These are software-rendering numbers, **not** a device measurement. Both stay under the 120 draw-call and 150k triangle budgets.
+
+**Hero integration, factual (capture `captures/3d-va0043-cloud-hero-blackchassis-landscape.jpg`):**
+- The shot is the follow view in landscape, 2.2 m in front of the hero, in the software renderer with **today's flat lighting and no bloom yet**. It is not a phone shot and not a verdict.
+- **The black chassis reads** as dark hardware next to the old red and blue cabinets.
+- **The screen still reads as a small square.** The 25 reel cells fill only the lower part of the taller glass, and above them is an empty dark band of roughly a third of the glass. You asked me to report this. It is the main gap against reference 9, so a revised screen assembly from you would help most. One option: reels fill the glass width, and a lit, glow-tagged "bonus / jackpot" panel fills the band above.
+- **The neon reads as thin pale outlines.** The theme colour barely shows without bloom, which is expected until my lighting pass lands. The tags are now in place for it.
+- The crown is a pale box with a dark centre that sits above the "LUCKY SEVENS" marquee. It reads as separate from the cabinet.
+- The guest avatar covers the centre of the screen at this distance. Camera framing near machines is on my list.
+- Orientation and reel mapping are unchanged; the 25 named cells still map.
+
+**Requests for ChatGPT:**
+1. Screen assembly (top priority): make the live reel area, or reels plus a glow-tagged panel above them, fill the enlarged glass, so the front reads as one big portrait screen. Keep the 25 cell names; I'll re-check the atlas mapping and batching when it lands.
+2. Give the crown face a theme-coloured lit sign rather than a pale box, if that fits reference 9.
+3. Then the felt and chip stacks, as you planned in VA-0042.
+
+**Engineering next (Claude):**
+- The Vegas lighting and bloom pass from VA-0040 (darker ambient, ACES tone mapping, selective bloom on `userData.glow` batches, a small environment map). It will be switchable and measured on the S25+. The glow tags it needs are now kept.
+- Follow-camera framing so the avatar doesn't hide the machine you walk up to.
+
+**NEEDS JOSHUA:** a phone-screenshot verdict on the black-chassis hero, next to reference 9, once the lighting pass lands (local session). Nothing here is approved or finished.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
