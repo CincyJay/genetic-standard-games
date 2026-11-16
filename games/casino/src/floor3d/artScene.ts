@@ -222,7 +222,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
   }
   art.updateMatrixWorld(true);
 
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number; glow: boolean }>();
   const allMaterials = new Set<THREE.Material>();
   const wp = new THREE.Vector3();
   let meshesAuthored = 0;
@@ -236,10 +236,13 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     const side: Side = isExterior(mesh) ? 'exterior' : wallSideOf(mesh.name, wp.x);
     const part = interactivePart(mesh.name);
     const cabinet = part ? cabinetOf(mesh) : null;
-    const key = part && cabinet ? `${cabinet}/${part}` : `${side ?? ''}#${materialKey(material)}`;
+    // glow-tagged pieces (art's `userData.glow`, VA-0042) batch apart from unlit ones, so the
+    // batched mesh can carry the tag for the bloom pass
+    const glow = mesh.userData.glow === true;
+    const key = part && cabinet ? `${cabinet}/${part}` : `${side ?? ''}#${glow ? 'glow#' : ''}${materialKey(material)}`;
     let b = buckets.get(key);
     if (!b) {
-      b = { material, geos: [], colours: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0 };
+      b = { material, geos: [], colours: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false };
       buckets.set(key, b);
     }
     // merging needs one layout: unindexed, with position / normal / uv only
@@ -247,6 +250,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     b.geos.push(bakedGeometry(mesh));
     b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
     b.names.push(mesh.name);
+    if (glow) b.glow = true;
     // e.g. the contact-shadow decals draw after the floor
     b.renderOrder = Math.max(b.renderOrder, mesh.renderOrder);
     src.dispose();
@@ -271,6 +275,7 @@ export function buildArtScene(chairFacing: Map<string, number>, opts: ArtOptions
     mesh.matrixAutoUpdate = false;
     mesh.renderOrder = b.renderOrder;
     root.add(mesh);
+    if (b.glow) mesh.userData.glow = true;
     if (b.part) {
       mesh.userData.parts = b.names;
       interactive.set(key, mesh);

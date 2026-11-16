@@ -236,6 +236,38 @@ describe('art pass 05 pilot', () => {
     expect(a.batches).toBeLessThanOrEqual(85);
   });
 
+  it('keeps the art\'s glow tags through batching and the hero\'s stacked topper clears the ceiling fixtures (VA-0042)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene, PILOT_HERO_SLOT } = await import('../src/floor3d/artScene.ts');
+    const { makeVelvetHeroCabinet } = await import('../../../art/casino/3d/heroSlotCabinet.mjs');
+    const hero = makeVelvetHeroCabinet(THREE, PILOT_HERO_SLOT) as InstanceType<typeof THREE.Group>;
+    const glowNames = new Set<string>();
+    hero.traverse((o) => { if ((o as InstanceType<typeof THREE.Mesh>).isMesh && o.userData.glow) glowNames.add(o.name); });
+    expect(glowNames.size).toBeGreaterThan(0);
+    const a = buildArtScene(new Map(), { pilot05: true });
+    const glowBatches: InstanceType<typeof THREE.Mesh>[] = [];
+    a.root.traverse((o) => { if ((o as InstanceType<typeof THREE.Mesh>).isMesh && o.userData.glow) glowBatches.push(o as InstanceType<typeof THREE.Mesh>); });
+    expect(glowBatches.length).toBeGreaterThan(0);
+    // the interactive spin button is glow-tagged art and stays tagged as its own part
+    expect(a.interactive.get(`slot_${PILOT_HERO_SLOT}/spin_button`)!.userData.glow).toBe(true);
+    // the hero (now ~3.17 m tall) stays below every overhead piece above its footprint
+    const reels = a.interactive.get(`slot_${PILOT_HERO_SLOT}/reels`)!;
+    reels.geometry.computeBoundingBox();
+    const c = reels.geometry.boundingBox!.getCenter(new THREE.Vector3());
+    let overhead = 0;
+    for (const m of [...a.ceiling.roof, ...a.ceiling.fixtures]) {
+      const pos = m.geometry.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        if (Math.abs(x - c.x) < 0.6 && Math.abs(z - c.z) < 0.6) {
+          overhead++;
+          expect(y).toBeGreaterThan(3.25);
+        }
+      }
+    }
+    expect(overhead).toBeGreaterThan(0);
+  });
+
   it('batches materials that differ only in colour through vertex colours, without changing the colours', async () => {
     const THREE = await import('three');
     const { makeVelvetWorld } = await import('../../../art/casino/3d/worldComposition.mjs');
