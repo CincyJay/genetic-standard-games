@@ -70,6 +70,8 @@ export interface FloorHandle {
     seatScreen: (id: string) => { x: number; y: number };
     tap: (sx: number, sy: number) => void;
     toggleCamera: () => void;
+    /** Stand the avatar at (x, z) facing `heading`, with the follow camera behind it. */
+    place: (x: number, z: number, heading: number) => void;
   };
 }
 
@@ -454,7 +456,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       };
     } else if (dragYaw && Math.abs(e.clientX - p.x0) > 12) {
       // one-finger horizontal drag swings the follow camera around the avatar
+      const before = camYaw;
       camYaw = dragYaw.yaw + ((e.clientX - dragYaw.x) / window.innerWidth) * Math.PI * 1.5;
+      // turning the view by hand while walking turns the walk with it
+      if (joyYaw !== null) joyYaw += camYaw - before;
     }
   };
   const onUp = (e: PointerEvent) => {
@@ -480,6 +485,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
 
   // joystick (follow view only): walks relative to the camera
   let joyId: number | null = null;
+  /** The camera's facing when the stick was pressed: the frame this push walks in. */
+  let joyYaw: number | null = null;
   const joyMove = (e: PointerEvent) => {
     const r = joy.getBoundingClientRect();
     const cx = r.left + r.width / 2;
@@ -493,12 +500,14 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   };
   const joyEnd = () => {
     joyId = null;
+    joyYaw = null;
     joyVec = { x: 0, y: 0 };
     knob.style.transform = '';
   };
   joy.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     joyId = e.pointerId;
+    joyYaw = camYaw;
     joy.setPointerCapture(e.pointerId);
     path = [];
     cancelSeat();
@@ -569,13 +578,15 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       }
     } else if (!seated) {
       let moving = false;
-      // the camera swings round behind the avatar on tap-walks and forward pushes only: on a
-      // sideways or backward push it holds still, or the walk would curl into a circle
+      // the camera swings round behind the avatar on tap-walks and forward pushes
       let swing = false;
       if (joyVec.x || joyVec.y) {
-        // camera-relative: up on the stick walks away from the camera
-        const fx = Math.sin(camYaw);
-        const fz = -Math.cos(camYaw);
+        // camera-relative, measured from where the camera faced when the stick was pressed: the
+        // camera swinging round during the walk must not turn the walk, or any push a little
+        // off straight-up curls into a circle (only a drag of the view turns it, see onMove)
+        const yaw = joyYaw ?? camYaw;
+        const fx = Math.sin(yaw);
+        const fz = -Math.cos(yaw);
         const mx = fx * -joyVec.y + -fz * joyVec.x;
         const mz = fz * -joyVec.y + fx * joyVec.x;
         const m = Math.hypot(mx, mz);
@@ -745,6 +756,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       },
       tap,
       toggleCamera: () => setMode(st.mode === 'follow' ? 'overview' : 'follow'),
+      place: (x: number, z: number, heading: number) => {
+        path = [];
+        cancelSeat();
+        st.pos = { x, z };
+        st.heading = heading;
+        camYaw = heading;
+      },
     },
   };
 }

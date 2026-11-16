@@ -123,6 +123,26 @@ for (const [name, dx, dy, along] of [['down', 0, 50, 'back'], ['up', 0, -50, 'fo
   const comp = along === 'forward' ? mv.x * f.x + mv.z * f.z : along === 'back' ? -(mv.x * f.x + mv.z * f.z) : mv.x * -f.z + mv.z * f.x;
   ok(comp > 0.5 && comp > 0.9 * Math.hypot(mv.x, mv.z), `the joystick pushed ${name} walks ${along} relative to the camera (${comp.toFixed(2)} m)`);
 }
+// held a little left of straight-up on open floor: the camera swings round behind the avatar,
+// but the walk must stay a straight line (it used to curl into a circle)
+await page.evaluate(() => globalThis.__floor3d.debug.place(0, 4.3, 0));
+const d0 = await settle();
+await touch('touchStart', cx, cy);
+await touch('touchMove', cx - 20, cy - 46);
+const trail = [];
+await until(async () => {
+  const q = await st();
+  trail.push(q.pos);
+  return Math.hypot(q.pos.x - d0.pos.x, q.pos.z - d0.pos.z) > 2;
+}, 8000);
+await touch('touchEnd');
+const d1 = await settle();
+const ln = Math.hypot(d1.pos.x - d0.pos.x, d1.pos.z - d0.pos.z);
+const ux = (d1.pos.x - d0.pos.x) / ln;
+const uz = (d1.pos.z - d0.pos.z) / ln;
+const off = Math.max(...trail.map((q) => Math.abs((q.x - d0.pos.x) * uz - (q.z - d0.pos.z) * ux)));
+ok(ln > 1.5 && off < 0.15, `a push a little off straight-up walks in a straight line (${ln.toFixed(2)} m, strays ${off.toFixed(3)} m)`);
+ok(Math.abs(d1.camYaw - d0.camYaw) > 0.1, `the camera still swings round behind the walk (${(d1.camYaw - d0.camYaw).toFixed(2)} rad)`);
 await page.screenshot({ path: `${out}/floor3d-06-follow-joystick.png` });
 
 // turned sideways (the phone build rotates the floor; here the viewport stands in for it)
