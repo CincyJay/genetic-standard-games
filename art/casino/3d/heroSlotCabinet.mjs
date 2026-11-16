@@ -84,11 +84,11 @@ function bonusSignTexture(T,accent){
  ctx.strokeStyle=hex;ctx.lineWidth=6;ctx.strokeRect(7,7,498,146);
  ctx.strokeStyle='#eeeeee';ctx.lineWidth=1.5;ctx.strokeRect(18,18,476,124);
  ctx.textAlign='center';ctx.textBaseline='middle';
- ctx.font='900 90px Arial, sans-serif';
+ ctx.font='900 104px Arial, sans-serif';
  ctx.shadowColor=hex;ctx.shadowBlur=12;ctx.fillStyle=hex;
- ctx.fillText('BONUS',256,84,450);
- ctx.shadowBlur=0;ctx.font='bold 18px Arial, sans-serif';
- ctx.fillStyle='#eee8e1';ctx.fillText('FEATURE GAME',256,136);
+ ctx.fillText('BONUS',256,89,450);
+ ctx.shadowBlur=0;ctx.font='bold 27px Arial, sans-serif';
+ ctx.fillStyle='#eee8e1';ctx.fillText('FEATURE GAME',256,139);
  const tex=new T.CanvasTexture(canvas);tex.colorSpace=T.SRGBColorSpace;tex.needsUpdate=true;
  return tex;
 }
@@ -141,7 +141,9 @@ export function makeVelvetHeroCabinet(T,id='sevens'){
  const bonusTexture=bonusSignTexture(T,theme.accent);
  if(bonusTexture){
    const sign=new T.MeshBasicMaterial({map:bonusTexture,toneMapped:false});
-   const signFace=cuboid(T,display,'bonus_header_world_texture_target',[0,.647,.211],[.75,.246,.005],sign);
+   // Dark screen bevel front is z=.214; place the art face beyond it at z=.2205.
+   // This removes the engineering-only sign-lift workaround at source.
+   const signFace=cuboid(T,display,'bonus_header_world_texture_target',[0,.647,.218],[.75,.246,.005],sign);
    // Texture itself contains readable theme-colour type. Do not mark the whole
    // rectangle HDR-glow: selective bloom would blur the lettering.
    signFace.userData={bonusSign:true,glow:false};
