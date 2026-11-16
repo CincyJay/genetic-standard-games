@@ -244,8 +244,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     /* storage unavailable: show the pilot */
   }
   if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('bjhero')) blackjackHero = pilot05;
-  // `?carpet`: ChatGPT's woven carpet in place of the pilot carpet (VA-0058); preview only, no button yet
-  const wovenCarpet = pilot05 && typeof location !== 'undefined' && new URLSearchParams(location.search).has('carpet');
+  // ChatGPT's woven carpet in place of the pilot carpet (VA-0058): `?carpet` in the dev server, or
+  // the ⚙ carpet button (stored, so it also works in the APK where there is no query string)
+  let carpetPref = false;
+  try {
+    carpetPref = localStorage.getItem('va3d.carpet') === 'woven';
+  } catch {
+    /* storage unavailable: pilot carpet */
+  }
+  const wovenCarpet =
+    pilot05 && (carpetPref || (typeof location !== 'undefined' && new URLSearchParams(location.search).has('carpet')));
   // the player's look: ChatGPT's guest avatar pilot (VA-0035) unless switched back to the capsule
   let guestAvatar = true;
   try {
@@ -471,6 +479,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="roof"></button>
     <button type="button" class="artpass"></button>
     <button type="button" class="avatarart"></button>
+    <button type="button" class="carpetart"></button>
     <button type="button" class="lightmode"></button>
   </div>
 </div>
@@ -492,6 +501,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const avatarBtn = $<HTMLButtonElement>('.avatarart');
   avatarBtn.textContent = guestAvatar ? 'Avatar: guest pilot' : 'Avatar: capsule';
   avatarBtn.setAttribute('aria-label', `Avatar: ${guestAvatar ? 'guest pilot' : 'capsule'}. Tap to switch (reloads the floor).`);
+  const carpetBtn = $<HTMLButtonElement>('.carpetart');
+  carpetBtn.hidden = !pilot05;
+  carpetBtn.textContent = wovenCarpet ? 'Carpet: woven' : 'Carpet: pilot';
+  carpetBtn.setAttribute('aria-label', `Carpet: ${wovenCarpet ? 'woven' : 'pilot'}. Tap to switch (reloads the floor).`);
   const lightBtn = $<HTMLButtonElement>('.lightmode');
   const gearBtn = $<HTMLButtonElement>('.gear');
   const menuEl = $<HTMLDivElement>('.menu');
@@ -591,6 +604,14 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       localStorage.setItem('va3d.avatar', guestAvatar ? 'capsule' : 'guest');
     } catch {
       return toast('Can’t switch the avatar: storage is unavailable');
+    }
+    location.reload();
+  });
+  carpetBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem('va3d.carpet', wovenCarpet ? 'pilot' : 'woven');
+    } catch {
+      return toast('Can’t switch the carpet: storage is unavailable');
     }
     location.reload();
   });
