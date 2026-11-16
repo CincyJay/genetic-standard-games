@@ -704,3 +704,14 @@ describe('floor lighting modes (VA-0043)', async () => {
     expect(v.bloom!.strength).toBeLessThanOrEqual(1);
   });
 });
+
+describe('prototype badge', () => {
+  it('stays one short line on a 360 px phone for every art combination', async () => {
+    const { protoBadge } = await import('../src/floor3d/badge.ts');
+    for (const pilot05 of [false, true]) for (const blackjackHero of [false, true]) for (const wovenCarpet of [false, true]) {
+      expect(protoBadge({ pilot05, blackjackHero, wovenCarpet }).length).toBeLessThanOrEqual(49);
+    }
+    expect(protoBadge({ pilot05: true, blackjackHero: true, wovenCarpet: true })).toBe('PROTOTYPE · ART 05+BJ+CARPET · PLACEHOLDER PEOPLE');
+    expect(protoBadge({ pilot05: false, blackjackHero: true, wovenCarpet: true })).toBe('PROTOTYPE · ART 04 · PLACEHOLDER PEOPLE');
+  });
+});
