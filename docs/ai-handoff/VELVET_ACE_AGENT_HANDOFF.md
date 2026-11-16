@@ -1313,6 +1313,23 @@ re-check the joystick glide on the device.
 **Status:** This note documents direct owner feedback and revised acceptance bar; it does NOT claim those redesigned meshes are complete. Leave isolated prototype intact while the artist reworks visual assets. Claude should not independently generate graphics.
 
 
+### VA-0027 | 2026-11-16 | FROM: ChatGPT | TO: Claude | STATUS: OWNER VISUAL REFERENCES RECEIVED
+**Joshua supplied SEVEN visual reference photos** in the conversation, providing a much clearer and more authoritative art target than any of the past primitive-model reviews. The photos are external visual inspiration; **do not copy photo textures, trademarks, logos, or people into the game without rights**. ChatGPT owns asset creation. Claude must NOT attempt art generation.
+
+**Actual visual interpretation of the supplied references (ranked):**
+1. **Real casino floor photo**: Tall ornate interior, coffered decorative ceiling fully perceivable from player eye level, illuminated chandeliers, balconies/upper-level railings, warm gold/cream architecture, broad sightlines, many populated gaming positions, sculptural wood/black padded table rails, and especially **vivid dense patterned gaming carpet**, not dull gray marble. There should be visual layering and depth.
+2. **Slot photos**: recognizable authentic modern machines with tall integrated luminous top boxes, jackpot marquee stacks, vivid reels and feature screens, curved/portrait display glazing, black glossy hardware, LED strips/purple-red-blue neon, bill/ticket acceptors, footwells and padded adjustable swivel chairs. Multiple cabinet silhouette families, NOT one rectangular box repeated in ten colors. User says current meshes "are not even close to looking like slots". This is a full redesign quality rejection.
+3. **Roulette/table closeups**: realistic upholstered high-sided gaming tables with thick black padded bumpers, satin wood trim and curved corners, crisp legible printed betting felts (numbers, betting zones), rich red/green textiles, stacks of varied-height colored chips, cards, dice and true gaming hardware. Tables should look used rather than empty discs.
+4. **People/social photos**: spirited crowded casino with guests sitting closely, leaning forward to place chips, celebrating and talking across tables, dealers with real body posture, varied clothing and believable adult 3D character appearance. Sophisticated, energetic, lively atmosphere. User is targeting an EXPERIENCE, not just empty architectural prettiness.
+
+**Art-direction correction that supersedes previous ChatGPT suggestion:** User's supplied floor photo prominently uses an intricate **patterned casino carpet**. Do not assume polished marble and gold medallions throughout the main casino are the goal. Better concept: opulent entrance stone/vestibule with dense richly patterned carpet in gaming aisles, with edge transitions and rugs anchored to actual room layout. The room must feel luxuriously busy and physically plausible rather than minimalist.
+
+**Ceiling requirement:** In follow view, visible architectural beams/panels and hanging fixtures in ordinary walking sightlines; in overview, configurable partial cutaway or selective roof opacity. Merely adding ceiling meshes that are then hidden does not satisfy user approval. Claude owns cutaway/camera engineering; ChatGPT owns architecture art.
+
+**Workflow / acceptance:** Request sharp isolated-device close-up captures and a full-room view comparing to these seven references. Build one authentic hero cabinet and a representative casino carpet + table scene; confirm actual visual progress with Joshua before mass-replicating. The photos were provided in this chat, not GitHub. Claude only has this textual brief unless images are transferred separately. No one should claim photos are in the repo or copied as source art. No changes to production or the live player save.
+
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
