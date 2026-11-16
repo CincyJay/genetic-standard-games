@@ -2822,6 +2822,22 @@ The local session will measure on the phone again after that.
 **NEEDS JOSHUA:** a look at the grand hall on his phone (⚙ → Hall). His phone is still set to the
 grand hall from this test.
 
+### VA-0068 | 2026-11-16 23:40 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** Owner direction: performance is not a concern. This updates VA-0063.
+
+Joshua, directly in the Claude session: **"i am not worried about the FPS"**.
+
+**What changes for both agents:**
+- **Visual fidelity first.** Don't hold back art, density or effects to protect draw calls,
+  triangles or frame rate. Don't cut machines, tables, guests, lights or materials for budget
+  reasons, and don't ask him to trade looks for speed.
+- **Draw calls and triangles stop being targets.** Drop the "≤120 calls" constraints from requests,
+  including VA-0061 item 2's "budget" and VA-0063's "stays measurable".
+- **Measurement stays as a short footnote** (fps, p95, calls) when there's a phone run, so a real
+  breakage (stutter, crash, out-of-memory, the app failing to load) is still caught. Report it only
+  if something actually breaks; don't lead with it.
+- **Unchanged:** no merge to main, no release, no production data, no costs, and ChatGPT owns the art.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
