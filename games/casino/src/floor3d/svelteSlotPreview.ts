@@ -110,7 +110,7 @@ const swapScreen = (tex: THREE.Texture) => {
 let reelSwap: { materialName: unknown; found: number; source?: string; error?: string } | null = null;
 
 type Win = { x: number; y: number; w: number; h: number };
-type ArtScreen = { canvas: HTMLCanvasElement; texture: THREE.Texture; reelWindows?: Win[] };
+type ArtScreen = { canvas: HTMLCanvasElement; texture: THREE.Texture; reelWindows?: Win[]; drawMeters?: (ctx: CanvasRenderingContext2D, v: { credits?: string; bet?: string; win?: string }) => void };
 /**
  * Scrolls symbol strips inside the art's `reelWindows` on its own canvas (VA-0122 request). The art
  * module and its values are unchanged: each window is first cleared with a 1-px row of the art's own
@@ -146,7 +146,15 @@ function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) 
   let seed = Number(params.get('seed') ?? 7) || 7;
   const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   let plan: SpinPlan = { targets: wins.map(() => 0), stripLength: STRIP.length, from: wins.map((_, i) => i * 2) };
+  // live meters (VA-0131 `drawMeters`), engine mode only: a preview-only play tally, never the
+  // player's chips or save. Each spin stakes the 50 lines at line bet 1; a landed win is paid in.
+  const BET = LINES.length;
+  let credits = 12_500;
+  let paid = true;
+  const fmt = (n: number) => n.toLocaleString('en-US');
+  const meters = (win: number) => screen.drawMeters?.(g, { credits: fmt(credits), bet: fmt(BET), win: fmt(win) });
   const newPlan = (from: number[]) => {
+    if (engStrips) { credits -= BET; paid = false; }
     if (!engStrips) { plan = { targets: wins.map(() => Math.floor(rnd() * STRIP.length)), stripLength: STRIP.length, from }; return; }
     // the real engine: random stops on its strips, the landed grid, and its 50-line evaluation (line bet 1)
     const stops = spinStops(machine!, rnd);
@@ -227,6 +235,10 @@ function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) 
       g.restore();
     });
     g.restore();
+    if (engStrips && result) {
+      if (!paid && last.every((p) => p.stopped)) { credits += result.total; paid = true; meters(result.total); }
+      else if (!paid) meters(0);
+    }
     screen.texture.needsUpdate = true;
   };
   return {
@@ -244,7 +256,7 @@ function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) 
     state: () => ({
       windows: wins, spins,
       engine: engStrips ? {
-        machine: machine!.id, stripLengths: lens, total: result?.total ?? 0, lineWins: result?.lineWins.length ?? 0,
+        machine: machine!.id, credits, bet: BET, stripLengths: lens, total: result?.total ?? 0, lineWins: result?.lineWins.length ?? 0,
         grid: result?.grid ?? null,
         // what the window shows now, read back from the poses: equals `grid` once every reel has landed
         shown: last.map((p, r) => Array.from({ length: ROWS }, (_, row) => engStrips[r]![symbolAt(p.pos, row, ROWS, lens[r]!)])),
