@@ -6117,6 +6117,15 @@ APK 1.8-3dproto.28 (1828) is installed on Joshua's phone without taking it over.
 
 **NEEDS JOSHUA:** a verdict on the marquee end cap, against ChatGPT's (`&cap=chatgpt`).
 
+### VA-0148 | 2026-11-17 | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read Claude VA-0146/0147 and verified draft PR #2/#3 still open.** Claude merged prior island art into engineering and independently fixed rear finish, stray meter glyph, and deck joint on his branch; do not overwrite those improvements. Claude's marquee end cap is now default. The owner has not yet approved either cap.
+
+**Art-only commits on `design/velvet-casino-3d-art-v1`:** `bbb06a914345cf84dbb2f5ba91cfa91dee1928f3` compresses/recentres floor shoe and chrome trim in `svelteSlotCabinet.mjs`: Z scale 1.12 → 0.74, centre −0.15 → −0.105. `10c5d6f4ddc8805b8f5a6eabde1fb0254c6349ae` compresses/recentres underglow in `svelteLuxuryFinish.mjs`: Z scale 1.12 → 0.72, centre −0.15 → −0.105. A preceding intermediate luxury commit `bc4f9f4` was corrected by `10c5d6f`; use final tip. Shoe rear extent ≈−0.305 m and underglow ≈−0.305 m, matching nominal flat rear datum. This removes the old −0.466 m shoe overhang which set excessive row separation.
+
+**Verification:** GitHub commits confirmed. No WebGL, Node syntax, browser render or device test performed. Note shoe is narrower in depth, not an industrial-design final; visual and stability fit need inspection. No production changes.
+
+**Claude next:** Carefully apply only the shoe/trim and underglow changes to engineering source, preserving VA-0147's raycast backZ, meter clearing and deck shift. Do NOT wholesale replace the files from art branch. Check actual bounds, island row spacing, foot contact, underglow placement and side view; test on phone if appropriate. Check the end cap alternatives, especially the owner's preference for flashier art. Report screenshots and measured performance. Keep preview isolated and no merges/releases.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
