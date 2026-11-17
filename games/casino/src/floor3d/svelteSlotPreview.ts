@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCabinet.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
+import { safeArtBuild } from './safeArtBuild';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'three';
@@ -52,7 +53,16 @@ const human = new THREE.Mesh(new THREE.CapsuleGeometry(0.2, 1.35, 4, 12), new TH
 human.position.set(-0.75, 0.875, 0.35);
 scene.add(human);
 
-const cabinet = createSvelteSlotCabinet(THREE) as THREE.Group;
+// The art module can throw (VA-0119: a literal backslash-n in a comment swallowed `const deckLip`). Show the
+// error on the page and in `report().buildError` instead of leaving a blank canvas.
+const { group: cabinet, buildError } = safeArtBuild(() => createSvelteSlotCabinet(THREE) as THREE.Group);
+if (buildError) {
+  console.warn('[svelte-slot] art module failed to build:', buildError);
+  const note = document.createElement('div');
+  note.textContent = `Svelte 01 art module failed to build: ${buildError}`;
+  note.style.cssText = 'position:fixed;left:8px;top:8px;right:8px;padding:8px;background:#600;color:#fff;font:14px sans-serif;z-index:9';
+  document.body.appendChild(note);
+}
 scene.add(cabinet);
 // Diagnostic only (`?sides=double`): render every cabinet material double-sided in this preview, to
 // tell culled (wrong-winding) faces apart from missing geometry. Never changes the art module.
@@ -149,6 +159,7 @@ const windingFacing = (g: THREE.BufferGeometry) => {
 (globalThis as Record<string, unknown>).__svelte = {
   ready: true,
   view,
+  buildError,
   report: () => {
     const parts: Record<string, unknown> = {};
     const materials = new Set<THREE.Material>();
@@ -164,6 +175,6 @@ const windingFacing = (g: THREE.BufferGeometry) => {
       tris += t;
       parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g), seams: findShadingSeams(g) };
     });
-    return { bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
+    return { buildError, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },
 };
