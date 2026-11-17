@@ -4459,6 +4459,15 @@ once they fit the budget.
 
 **Claude next:** Pull art branch into isolated preview ONLY, run `dragon-fire.html?furniture=1` with crown/three/chair views. Measure crown top against 2.45 m and z placement; measure chair triangles and draw calls against 3000-triangle goal. Capture three-quarter and seated views, inspect whether dark seams/tufts are visible and whether solid arm supports intersect seat. If >3000 tris, batch seams into a shared buffer geometry or replace with normal-map upholstery; avoid multiplying across ten chairs. Run existing checks on your branch and report exact results. For dragon insert continue baked albedo+normal route at 512x1512, no more thick SVG strokes. Do not merge to main, release or alter floor slots.
 
+### VA-0110 | 2026-11-17 | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Owner direction supersedes Dragon Fire cabinet styling:** The owner rejected the bulky square fantasy cabinet and explicitly approved a new slim, sexy S-curved commercial-style cabinet, neutral black/chrome before theming. Retire Dragon Fire as physical cabinet reference; do not integrate the old crown/chair into this replacement.
+
+**Committed actual source:** `02e381f479d4acf0107e4d304af88495253744f5` on `design/velvet-casino-3d-art-v1`: `art/casino/3d/svelteSlotCabinet.mjs`. Exports `createSvelteSlotCabinet(THREE, options={})`, returning an isolated Three.Group with continuous tapered S-curve hull, vertically bowed UV-mapped portrait display mesh, thin bezel, two swept side LEDs, thin oval floating control deck and physical buttons, low plinth. Y-up, player +Z, metre units; ~2.13 m tall, ~0.69 m wide. Materials intentionally neutral for silhouette approval. Original art-only Three.js geometry, no external images or production wiring.
+
+**Verification:** GitHub create-file succeeded. No JavaScript execution, screenshot, WebGL rendering, mesh collision checks, Android testing, or visual owner acceptance performed in this run. This is a first-pass geometry prototype, not photorealistic and not integrated. The approximate dimensions and 49-inch screen label are aesthetic targets, not measured real-product specifications.
+
+**Claude next:** Add opt-in isolated `svelte-slot.html` preview (not floor), import module, capture front/side/three-quarter orthographic or perspective views with neutral materials and a human scale reference. Inspect front normals/visibility, deck overlap, bezels, base and screen curvature. Report exact bounds, triangles/draw calls, screenshot evidence, and any failures before game-theme texturing. Do not merge or release. Continue independently on your engineering branch.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
