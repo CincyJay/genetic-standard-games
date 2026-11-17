@@ -6061,6 +6061,62 @@ the browser.
 **NEEDS JOSHUA:** a look at the island with end caps on the phone. In the Svelte preview, tap past the
 seven single views to reach `island`, `islandEnd` and `islandOther`.
 
+### VA-0147 | 2026-11-17 23:52 UTC | FROM: Claude (local session), with Joshua's OK | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Process change from the owner, verbatim:**
+- "i am pretty sure I said you could fix small things like that yourself"
+- "think you can come up with a better more flashy side pannel?"
+
+From now on the local session fixes small art issues directly in `art/casino/3d/`: stale lines, parts
+that float or don't fit after a profile change, text clipping and winding. Each change is noted here so
+it isn't reverted. Larger redesigns stay with ChatGPT, unless Joshua asks otherwise. ChatGPT: please pull
+before you next edit these files.
+
+**Small fixes** (`4121d80`, APK 1827):
+1. `svelteLuxuryFinish.mjs`: `backZ` now raycasts the cabinet's real rear hull
+   (`continuous_sculpted_S_curve_hull`). The old formula is kept only as a fallback.
+   - The velvet panel, pinstripes and medallion now sit on the VA-0145 flat back. The panel now spans
+     z −0.317 to −0.267; it was 19 cm behind the hull.
+   - This survives future profile changes.
+2. `svelteReelScreen.mjs` `drawMeters`: clears the whole value row (x 35 to 476, y 925 to 970) before
+   drawing.
+   - Fixes the stray ")" on Android (VA-0140). The static "12,500" spilled past the credits box in
+     Android's wider sans-serif.
+3. `svelteSlotCabinet.mjs`: a `DECK_BACK = 0.07` shift of the deck, mount, trim and buttons.
+   - After VA-0145, the hull front at deck height is z ≈ 0, and the deck's rear edge sat 7 cm in front
+     of it. The deck now spans z 0.002 to 0.348 and meets the hull.
+4. Preview: the page label moved to the top, so it no longer covers the meters.
+
+**New art: the marquee end cap** (`db8f73d`, `velvetIslandEndCapMarquee.mjs`, original), which replaces
+VA-0144's cap by default in the island views (`&cap=chatgpt` still shows yours):
+- 64 chasing marquee bulbs on a gold frame (one InstancedMesh with HDR instance colours, so they bloom);
+- a glowing VELVET ACE sign band and a gold ace of spades with a cyan neon outline;
+- diamond-tufted velvet with gold buttons, playing-card corner indices, and a "5 REELS · 50 LINES"
+  neon ribbon;
+- a gold top cap and kick plate.
+- The art is two canvases: colour, plus a glow layer used as the emissive map. The glow layer carries
+  a faint burgundy, so the velvet keeps its colour in the dark room.
+- `userData.animate(t)` drives the chase and the neon pulse. It has the same placement contract as
+  `svelteIslandEndCap.mjs`.
+
+**Measured** (swiftshader, 412×892): the whole island scene (8 cabinets and 2 caps) is 235 draw calls and
+72,494 triangles. Caps: east x 1.421 to 1.559, z −1.087 to 0.125; west mirrored.
+
+Captures:
+- `captures/3d-va0147-svelte-marquee-end.jpg`
+- `captures/3d-va0147-svelte-marquee-island.jpg`
+- `captures/3d-va0147-svelte-fixes-side.jpg`
+- `captures/3d-va0147-svelte-fixes-low.jpg`
+
+APK 1.8-3dproto.28 (1828) is installed on Joshua's phone without taking it over.
+
+**Still open for ChatGPT:**
+- The display still stands proud of the hull from the side.
+- The shoe and underglow are still centred on the old hull (z −0.15). Their reach (z −0.466) now sets
+  the island row spacing, so the rows stand about 32 cm further apart than the flat backs need.
+  Re-centring them on the new hull would let the rows close up.
+
+**NEEDS JOSHUA:** a verdict on the marquee end cap, against ChatGPT's (`&cap=chatgpt`).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
