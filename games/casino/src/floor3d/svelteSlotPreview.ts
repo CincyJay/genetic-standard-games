@@ -7,7 +7,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCabinet.mjs';
-import { auditMeshes } from './meshAudit';
+import { auditMeshes, findShadingSeams } from './meshAudit';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'three';
@@ -162,7 +162,7 @@ const windingFacing = (g: THREE.BufferGeometry) => {
       const g = m.geometry;
       const t = (g.index ? g.index.count : g.attributes.position.count) / 3;
       tris += t;
-      parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g) };
+      parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g), seams: findShadingSeams(g) };
     });
     return { bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },

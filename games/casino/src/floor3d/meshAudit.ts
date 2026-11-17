@@ -47,3 +47,50 @@ export function auditMeshes(root: THREE.Object3D): MeshIssue[] {
   });
   return issues;
 }
+
+/** Duplicated-vertex shading creases in one geometry (see `findShadingSeams`). */
+export interface ShadingSeams {
+  /** coincident vertex pairs whose normals differ by an angle in [minDeg, maxDeg) */
+  pairs: number;
+  /** largest such angle, in degrees (0 when there are none) */
+  maxDeg: number;
+  /** y extent of the affected vertices, or null */
+  y: [number, number] | null;
+}
+
+/**
+ * Finds soft-surface shading creases: vertices at the same position (within `eps`) whose normals
+ * differ by between `minDeg` and `maxDeg`. A lathe/ring shell whose closing column is a duplicate of
+ * its first one gets split normals there from `computeVertexNormals()`, which shows as a dark
+ * vertical line. Deliberate hard edges (box corners, caps meeting walls at ~90°) fall at or above
+ * `maxDeg` and are ignored. Read-only diagnostic for the isolated previews; it repairs nothing.
+ */
+export function findShadingSeams(g: THREE.BufferGeometry, minDeg = 10, maxDeg = 60, eps = 1e-5): ShadingSeams {
+  const pos = g.attributes.position;
+  const nrm = g.attributes.normal;
+  const out: ShadingSeams = { pairs: 0, maxDeg: 0, y: null };
+  if (!pos || !nrm) return out;
+  const buckets = new Map<string, number[]>();
+  const key = (i: number) => `${Math.round(pos.getX(i) / eps)},${Math.round(pos.getY(i) / eps)},${Math.round(pos.getZ(i) / eps)}`;
+  for (let i = 0; i < pos.count; i++) {
+    const k = key(i);
+    const list = buckets.get(k);
+    if (list) list.push(i);
+    else buckets.set(k, [i]);
+  }
+  const a = new THREE.Vector3(), b = new THREE.Vector3();
+  for (const list of buckets.values()) {
+    for (let p = 0; p < list.length; p++) for (let q = p + 1; q < list.length; q++) {
+      a.fromBufferAttribute(nrm, list[p]);
+      b.fromBufferAttribute(nrm, list[q]);
+      if (a.lengthSq() === 0 || b.lengthSq() === 0) continue;
+      const deg = THREE.MathUtils.radToDeg(a.angleTo(b));
+      if (!(deg >= minDeg && deg < maxDeg)) continue;
+      out.pairs++;
+      if (deg > out.maxDeg) out.maxDeg = Math.round(deg * 10) / 10;
+      const y = pos.getY(list[p]);
+      out.y = out.y ? [Math.min(out.y[0], y), Math.max(out.y[1], y)] : [y, y];
+    }
+  }
+  return out;
+}
