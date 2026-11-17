@@ -5583,6 +5583,59 @@ in the flank loop (`svelteLuxuryFinish.mjs`, about line 75).
 
 Joshua's rejection of the current look stands. Nothing here is finished or approved.
 
+### VA-0133 | 2026-11-17 20:16 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Re VA-0131: the repaired luxury finish and `drawMeters` are verified in the browser. Phone APK 1823 has been
+sent to Joshua; there is no phone verdict yet.**
+
+**Art bug, still in `ed3c919`:** `svelteLuxuryFinish.mjs:75` calls `led.push([sign*.285,y,z-.13]);` after
+the `led` array was removed. It throws `ReferenceError: led is not defined` after the rear panel is
+built, so the pinstripes, underglow and medallion never appear. The local session reproduced this
+independently of the routine.
+- **Fix for ChatGPT:** delete line 75 (and its comment on line 74).
+- The routine's preview workaround (`45914ca`, a temporary global `led` sink) makes the finish build in
+  full meanwhile. The local session kept the routine's version, and its own duplicate meter wiring was
+  dropped in the merge.
+
+**Measured** (swiftshader, 412×892, `?reel=art&engine=sevens&seed=6&finish=luxury&look=vegas&spin=6`):
+- `finishError`: null, with the workaround.
+- Cabinet: 21 meshes, 21 draw calls and 5,712 triangles. Before the repair (VA-0130) it was 24 meshes and
+  8,976 triangles.
+  - For scale: 38 machines × 5,712 is about 217k triangles without instancing. That is still over
+    the floor's 150k budget, so the floor needs instancing or a lower-detail version.
+- Finish parts present: `rear_burgundy_velvet_inset`, `rear_left/right_gold_pinstripe`, `underglow`,
+  `rear_ace_medallion`. There are no `led_left`/`led_right`, so each flank has one LED line.
+- **Rear panel:** it now sits on the hull, with no hull poking through at the bottom. It reads as
+  burgundy under the Vegas rig, though dark. The pinstripes follow its edges. The medallion is a
+  plain gold disc on the panel and doesn't intersect it.
+- **Underglow:** visible as a cyan ring on the floor around the shoe in the low and back views. It
+  blooms and pulses with the host LED animation.
+- **Engine and meters:** the landed window equals the engine grid (`match: true`). Seed 6 pays 139.
+  `meterError`: null.
+- **`drawMeters` at 512×1024 and 256×512:** every changed pixel lies inside `meterRects`, and none falls in
+  a reel window. At 512 the changed area is x 70 to 424, y 937 to 959. At 256 it is x 17 to 237, y 462
+  to 484; that starts 1 px above `meterRects` y = 463 (rounding), which is harmless.
+- Unit tests: 210/210.
+
+Captures (browser):
+- `captures/3d-va0133-svelte-luxury-vegas-front.jpg`
+- `captures/3d-va0133-svelte-luxury-vegas-three.jpg`
+- `captures/3d-va0133-svelte-luxury-vegas-back.jpg`
+- `captures/3d-va0133-svelte-luxury-vegas-low.jpg`
+- `captures/3d-va0133-svelte-luxury-vegas-seated.jpg`
+
+**Phone:** proto APK 1.8-3dproto.23 (1823), feature `42a9ccb`. The floor's settings-menu button now opens
+`svelte-slot.html?view=front&reel=art&spin=loop&engine=sevens&finish=luxury&look=vegas&from=floor`.
+Joshua is away from home and installs it himself.
+
+**Still open for art (VA-0125/0128), in priority order:**
+1. The screen bezel and recess. The screen still reads as a sheet in the three-quarter view.
+2. The deck joined to the trunk. In the low view, the deck's underside and the cone still float.
+3. The trunk curve.
+4. The medallion: an engraved or embossed emblem (the ace or VA) rather than a flat disc.
+5. A topper crest (VA-0128 #4).
+
+**NEEDS JOSHUA:** a phone look at APK 1823.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
