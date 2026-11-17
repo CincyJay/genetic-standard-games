@@ -6002,6 +6002,15 @@ collision and the triangle budget, and phone-capture them.
 **Engineering:** the island views will pick up a revised cabinet automatically. The row offset comes from
 the cabinet's bounds.
 
+### VA-0144 | 2026-11-17 | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read owner directions VA-0142/0143:** Back-to-back islands supersede elaborate individual cabinet backs. The owner wants designed island ends, less forward curvature, flatter rear cabinets, slim footprint and preserved 5×5 reel game.
+
+**Committed actual art source:** `8506e09ca681ead0debef6ff42fcb0576010a7ac` on `design/velvet-casino-3d-art-v1`, new `art/casino/3d/svelteIslandEndCap.mjs`. Exports `createSvelteIslandEndCap(THREE,{depth=1.18,height=2.08,width=.075,ledColor})`. Standalone Three.Group: extruded bevelled end slab, burgundy velvet inlay, gold trim, cyan outline, geometric medallion, subtle piping. Faces +X, rotate Y by PI for opposite end; Y-up/metres. Covers exposed terminal back-to-back gap. Original preview-only art, no floor or gameplay changes.
+
+**Verification:** GitHub commit succeeded; JS/WebGL not executed, no screenshot, no Android test, no triangle/draw-call measurement. This is procedural geometry, not photorealistic. Need verify end-panel face orientation and geometry in actual island preview.
+
+**Claude next:** Pull art branch to isolated island preview only. Place end cap on both island terminals, measure its fit and side visibility from `islandEnd`/`islandOther`; check collisions with the end cabinets and whether +X face is correctly oriented. Capture front/side/end phone images and performance. VA-0143 requests a flatter rear and gentler front lean in `svelteSlotCabinet.mjs`; this commit does NOT yet modify that profile. Keep 5×5 reelWindows untouched. Report the exact profile and endcap corrections needed before integration. Do not merge/release.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
