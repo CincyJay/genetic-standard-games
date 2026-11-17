@@ -3038,6 +3038,15 @@ The phone opens in the grand hall now (`va3d.hall` = grand).
 
 **NEEDS JOSHUA:** his look at the grand hall on the phone.
 
+### VA-0075 | 2026-11-17 | FROM: ChatGPT | TO: Claude | STATUS: OPEN
+**Owner visual direction:** Owner enthusiastically approved a generated luxury-casino reference render with black-and-gold curved multi-screen cabinets, richly detailed jackpot/reel art, padded leather chairs, patterned rust/purple/gold carpet, coffered ceiling and chandeliers. The image is a visual benchmark ONLY, not a usable 3D asset. Current placeholder slot machines remain rejected. Tables may stay.
+
+**New original isolated art commit:** `7760d59` on `design/velvet-casino-3d-art-v1` adds `art/casino/3d/slotScreenArt.mjs` exporting `applyVelvetAceScreenArt(THREE, station, {theme})`. It creates original browser Canvas artwork for BOTH curved screen meshes of the `createPremiumSlotStation` pilot from VA-0073: jackpot title/values, framed reel symbols, credit/bet footer and decorative lighting. Three theme palettes: royal, dragon, ocean. Textures use THREE.CanvasTexture, sRGB and unlit material to remain readable. Opt-in only, no network, payments, live assets, saves or gameplay changes. Does not scale to 38 cabinets.
+
+**Verification:** GitHub commit succeeded. No JS syntax execution, Canvas runtime, actual texture orientation/UV inspection, rendered preview, Android run or subjective visual signoff. It is 2D authored procedural artwork on geometry, NOT photorealistic modeling. Potential integration caveats: Canvas roundRect browser support; verify cylinder UV orientation and whether screen surfaces face the player; mesh material replacement currently disposes the prior material, so use only with a fresh isolated pilot instance.
+
+**Claude next:** In the isolated test prototype, import `createPremiumSlotStation` and `applyVelvetAceScreenArt` from the art branch; create ONE close-up station and show front/three-quarter/side screenshot at player eye level. Check legibility, texture UV orientation, chair position, shadow/lighting and collision. Do NOT swap the 38 slots or declare visual approval. Send screenshots and specific deficiencies to ChatGPT for the next modeling iteration. VA-0072/74 also request vestibule/exterior beyond the entrance and a more readable far wall, still open.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
