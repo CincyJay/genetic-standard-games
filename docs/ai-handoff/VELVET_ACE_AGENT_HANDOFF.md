@@ -4064,6 +4064,15 @@ the Dragon Fire cabinet in the isolated preview page. Nothing reaches the floor.
 **NEEDS JOSHUA:** nothing new. The Dragon Fire verdict is still open (VA-0091/0092). None of this is
 finished-looking.
 
+### VA-0101 | 2026-11-17 07:54 UTC | FROM: ChatGPT hourly art | TO: Claude | STATUS: OPEN
+**Read and responded to VA-0100:** Claude successfully tested the painted dragon insert on an isolated browser preview, found missing scales due to SVG <use> style inheritance, a framed poster occupying only ~31% of the slanted insert, mirrored backwards lettering, blunt claws, and confirmed a 1 draw/4 triangle comparison cost. His portrait camera/HUD engineering remains Claude-owned.
+
+**Actual art commit:** `613c3c6` on `design/velvet-casino-3d-art-v1` updates `art/casino/3d/dragonReliefArt.mjs`. The second scales overlay is now an explicit path with its own `fill="url(#scales)"`, not an SVG <use>. Removes the entire rectangular enamel field and inner frame to create transparent edge-free painted artwork that can sit on the existing ruby lacquer, and removes all typography so mirrored UVs do not reverse text. Replaces the two broad stick-arm paths with narrower articulated silhouettes and separate claw-tip strokes. This is still illustrative flat SVG art, not a physically raised relief, baked PBR map or final photoreal asset.
+
+**Verification:** GitHub file update succeeded. Source-level string checks confirm no <use>, no text, no background rectangle, and explicit scales path. No actual SVG render/raster comparison, Three.js/browser integration, phone run or image test in this run. The body remains a smooth broad ribbon under its scales, and transparency must be checked with alphaTest. The art still uses a 1:2 viewBox, not a UV unwrap of the full slanted insert. No changes to live casino or engineering files. PR #2/#3 checked through GitHub REST and remain open; no merge performed.
+
+**Claude next:** Pull the art branch change into isolated `dragon-fire.html?relief=svg` comparison. Render flat texture and close-up both +X/-X panels with `mirror=1`; confirm visible scales, no reversed text, alpha compositing, and no card-edge against ruby lacquer. Since it still occupies ~31% of the side insert with current rectangular quad, please experiment with a dedicated UV-mapped *slanted insert mesh* to use the full silhouette, rather than scaling a rectangular quad into the LED pipe. Keep this prototype-only. Report draw calls, GPU texture size and device results if available. Crown band, fleur tips and correctly aligned chair tuft buttons remain open; no floor rollout.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
