@@ -18,6 +18,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import modelUrl from '../../../../art/casino/3d/models/dragon_fire_hero.glb?url';
 import { dragonReliefDataUrl } from '../../../../art/casino/3d/dragonReliefArt.mjs';
 import { DRAGON_INSERT_ASPECT, dragonTallDataUrl } from '../../../../art/casino/3d/dragonTallInsertArt.mjs';
+import { createDragonFireFurniture } from '../../../../art/casino/3d/dragonFireFurniture.mjs';
 import { LIGHT_RIGS } from './lighting.ts';
 import { decalArtFit, decalSafeSpans, insertFaceDecal, reliefInsertQuads } from './dragonRelief.ts';
 
@@ -32,6 +33,8 @@ const VIEWS: Record<string, { pos: [number, number, number]; target: [number, nu
   insertl: { pos: [-2.9, 1.18, 0.14], target: [-0.56, 1.18, 0.14] },
   seat: { pos: [0, 1.22, 1.0], target: [0, 1.25, 0] },
   wide: { pos: [3.4, 2.3, 4.4], target: [0, 1.0, 0.2] },
+  crown: { pos: [0.9, 2.55, 1.6], target: [0, 2.3, 0] },
+  chair: { pos: [1.7, 1.1, 2.4], target: [0, 0.75, 0.9] },
 };
 
 const insertSideIsPlus = (g: THREE.BufferGeometry) => (g.computeBoundingBox(), g.boundingBox!.min.x + g.boundingBox!.max.x >= 0);
@@ -150,6 +153,44 @@ function start(): void {
       holder.position.set(-kc2.x, -new THREE.Box3().setFromObject(model).min.y, -kc2.z);
       scene.add(holder);
       holder.updateMatrixWorld(true);
+
+      // VA-0107: `furniture=1` swaps the exported chair for ChatGPT's standalone tufted chair and
+      // sets the fleur crown on the cabinet top (art/casino/3d/dragonFireFurniture.mjs, unchanged)
+      let furnitureInfo: unknown = null;
+      if (params.get('furniture') === '1') {
+        const { crown, chair } = createDragonFireFurniture(THREE) as { crown: THREE.Group; chair: THREE.Group };
+        const oldChair = new THREE.Box3();
+        for (const m of chairParts) oldChair.expandByObject(m);
+        for (const m of chairParts) m.visible = false;
+        const cab = new THREE.Box3();
+        for (const m of cabinetParts) cab.expandByObject(m);
+        const cabC = cab.getCenter(new THREE.Vector3());
+        crown.position.set(cabC.x, cab.max.y, cabC.z);
+        const oc = oldChair.getCenter(new THREE.Vector3());
+        chair.position.set(oc.x, 0, oc.z);
+        scene.add(crown, chair);
+        scene.updateMatrixWorld(true);
+        const stats = (g: THREE.Object3D) => {
+          let meshes = 0, tris = 0;
+          const mats = new Set<THREE.Material>();
+          g.traverse((o) => {
+            const m = o as THREE.Mesh;
+            if (!m.isMesh) return;
+            meshes++;
+            mats.add(m.material as THREE.Material);
+            tris += (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+          });
+          return { meshes, materials: mats.size, triangles: Math.round(tris) };
+        };
+        const cb = new THREE.Box3().setFromObject(crown);
+        const hb = new THREE.Box3().setFromObject(chair);
+        const named2 = (g: THREE.Object3D, re: RegExp) => { const b = new THREE.Box3(); g.traverse((o) => re.test(o.name) && b.expandByObject(o)); return { min: r3(b.min), max: r3(b.max) }; };
+        furnitureInfo = {
+          cabinet: { min: r3(cab.min), max: r3(cab.max) },
+          crown: { box: { min: r3(cb.min), max: r3(cb.max) }, top: +cb.max.y.toFixed(3), widthVsCabinet: +((cb.max.x - cb.min.x) / (cab.max.x - cab.min.x)).toFixed(2), ...stats(crown) },
+          chair: { box: { min: r3(hb.min), max: r3(hb.max) }, replaces: { min: r3(oldChair.min), max: r3(oldChair.max) }, seat: named2(chair, /seat/), back: named2(chair, /back/), gapToCabinetFront: +(hb.min.z - cab.max.z).toFixed(3), ...stats(chair) },
+        };
+      }
 
       // painted side art: one quad per ruby insert, placed in the model's own space
       let reliefInfo: unknown = null;
@@ -273,6 +314,7 @@ function start(): void {
           chair: boxOf(chairParts),
           cabinet: boxOf(cabinetParts),
           relief: reliefInfo,
+          furniture: furnitureInfo,
         };
       };
       api.ready = true;
