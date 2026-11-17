@@ -3381,6 +3381,86 @@ the captures).
 
 **Claude next:** Pull the art adapter into the isolated `royal-crescent.html` preview, call `applyRoyalCrescentFinish(THREE,gltf.scene,{theme:'royal'})` after GLTFLoader returns, and capture front/3/4/side/seated screenshots on S25+ with the actual Vegas lighting. Validate both display UV directions, chair front face, material response and geometry; report defects, especially if triangulation causes flat normals. Do not replace 38 slots or merge production. Keep original GLB and gameplay untouched.
 
+### VA-0085 | 2026-11-17 02:02 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0084's `royalCrescentFinish.mjs` (`817bb1f`) is merged unchanged and running in the
+isolated `royal-crescent.html` preview. These are browser results, not phone results. No rollout;
+the 38 floor slots, the tables and gameplay are untouched.
+
+**Branch** `feature/3d-casino-prototype` (draft PR #3):
+- `97cb903`: merges `817bb1f` unchanged. `art/` is byte-identical to the art branch.
+- `49a0132`: after GLTFLoader, the preview calls `applyRoyalCrescentFinish(THREE, gltf.scene, {theme})`
+  exactly as you specified.
+  - The default is `?finish=v2`; `?finish=none` still shows the bare GLB.
+  - `?theme=royal|dragon|ocean` picks the theme.
+  - `report()` now includes the adapter's result and each material's side and texture.
+  - New `tests/e2e/royalCrescent.mjs` captures four views. It fails on console errors or if the
+    adapter doesn't texture both displays.
+
+**Tests (observed):**
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **175/175** passed, 17 files.
+- `tests/e2e/royalCrescent.mjs` (swiftshader, 832 × 384 landscape, royal theme):
+  - no console errors in front, three, side or seat;
+  - the adapter textured both displays.
+- `tests/e2e/floor3d.mjs`: **not run** this cycle. The floor doesn't import this module.
+- No APK, no phone run. The cloud can't reach the S25+, so device captures are left to the
+  local session.
+
+**Captures** (browser, Vegas rig with bloom, not a phone):
+`docs/ai-handoff/captures/3d-va0085-browser-royal-crescent-finish-01..04-*.png`.
+These are not a verdict, and the look is not finished.
+
+**What the adapter fixed:**
+1. **Screens:**
+   - Both curved displays now carry your canvas art.
+   - Text reads left to right and the right way up, so the XY projection isn't mirrored or
+     flipped.
+   - At seated eye height (04), the 5×3 reel grid fills the view and is sharp.
+2. **Chair back:** it now shows from the front and the three-quarter view (01, 02). DoubleSide
+   works around the inward winding.
+3. **Materials:**
+   - The brass trim reads as metal under the spot (02).
+   - The cyan accent strips and button lenses glow without blowing out.
+
+**Remaining defects, measured in the page's report** (station space, +Z toward the player):
+1. **Body reads as pure black.**
+   - The lacquer is `#090e18`, metalness 0.42, roughness 0.19.
+   - In the side (03) and three-quarter (02) views, the cheeks and core are a black silhouette
+     with no visible highlight or edge.
+   - The sculpted side profile, the main gain of this model, is lost.
+   - Request: a lighter or more reflective lacquer, an edge or bevel highlight, or a trim line
+     along the cheek outline.
+2. **Hot glow above the topper.** A bright gold-white streak sits across the top edge (01, and the
+   top of 04): bloom on a brass part under the spot, probably `crown_badge` or
+   `upper_outer_bezel`. Request: lower metalness or raise roughness on that part.
+3. **Chair:**
+   - The arms are still flat round discs (`chair_padded_arm`, y 0.888–0.982) on posts (03).
+   - The seat sits on a square black plate (`chair_seat_underframe`).
+   - The welts (`chair_edge_welt_*`, z 1.22–1.285) still read as two red sticks at the back's
+     edges (01, 02).
+   - The back now spans y 0.745–1.065, which is a good height.
+4. **Screen art:**
+   - The reel grid and footer are drawn on the canvas but lit as flat MeshBasic, so there's no
+     glass sheen. That is fine for now.
+   - Only the royal theme was captured. Dragon and ocean use emoji (🐉 🔥 🐚 💎), which depend on
+     each platform's emoji font; Android WebView may render them differently than this browser.
+5. **Shading:** `computeVertexNormals` on the indexed GLB smooths across shared vertices.
+   - No obvious faceting in these captures.
+   - Hard box edges may look soft or rounded up close. Needs a phone look.
+6. **Budget:** unchanged from VA-0083 (61 meshes, about 4.35k triangles).
+   - The adapter shares 9 materials and adds 2 canvas textures.
+   - Batched by material, that would be about 11 draw calls per station.
+   - Not measured on the floor; no rollout is proposed.
+
+**Requests for ChatGPT (art):** items 1 to 3. Consider canvas-drawn symbols instead of emoji for
+the dragon and ocean themes. Longer term, authored UVs and baked maps in the GLB itself would
+replace the runtime projection.
+
+**For the local session:** rebuild the prototype APK and capture `royal-crescent.html` (default
+finish v2) on the S25+, in all three themes.
+
+**NEEDS JOSHUA:** a look at the finished Royal Crescent close-up on the phone.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
