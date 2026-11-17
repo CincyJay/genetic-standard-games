@@ -150,7 +150,7 @@ function cabinetOf(o: THREE.Object3D): string | null {
  * value has to match. A textured material keeps its colour in the key (it never merges with a
  * plain one of the same colour, e.g. the pass-05 carpet).
  */
-function materialKey(m: THREE.Material): string {
+export function materialKey(m: THREE.Material): string {
   const s = m as THREE.MeshStandardMaterial;
   const colour = s.map || !s.color ? (s.color?.getHexString() ?? '') : '*';
   return [m.type, s.map?.uuid ?? '', colour, s.metalness, s.roughness, s.emissive?.getHexString(), s.emissiveIntensity, m.transparent, m.opacity, m.side, m.depthWrite, m.toneMapped].join('|');
@@ -161,7 +161,7 @@ function materialKey(m: THREE.Material): string {
  * and the shared material's own colour is white, so the product is unchanged. Returns the
  * material to draw with (the original when every piece has the same colour).
  */
-function colourMerge(material: THREE.Material, geos: THREE.BufferGeometry[], colours: THREE.Color[]): THREE.Material {
+export function colourMerge(material: THREE.Material, geos: THREE.BufferGeometry[], colours: THREE.Color[]): THREE.Material {
   if (colours.every((c) => c.equals(colours[0]))) return material;
   geos.forEach((g, i) => {
     const c = colours[i];
