@@ -13,6 +13,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   const titanium = mat(0xabb8c3, 0.82, 0.23);
   const led = mat(options.ledColor ?? 0x70d8f9, 0.1, 0.26, options.ledColor ?? 0x70d8f9, 2.1);
   const glass = mat(0x121c2b, 0.3, 0.11, 0x102037, 0.22);
+  glass.name = 'VA_SVELTE_REEL_SCREEN_SWAP'; // UV-mapped screen, set .map to supplied reel texture
   const black = mat(0x080a0d, 0.05, 0.8);
   const add = (geometry, material, name, parent = group) => {
     const mesh = new THREE.Mesh(geometry, material); mesh.name = name;
@@ -58,7 +59,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     }
     for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
       const a = i * (cols + 1) + j, b = a + cols + 1;
-      indices.push(a, b, a + 1, b, b + 1, a + 1);
+      indices.push(a, a + 1, b, b, a + 1, b + 1);
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -73,21 +74,31 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   const vertices = [], indices = [];
   const rings = 32, sides = 16;
   for (let i = 0; i <= rings; i++) {
-    const y = 0.13 + (2.09 - 0.13) * i / rings;
-    const w = widthAt(y);
+    const y = 0.045 + (2.09 - 0.045) * i / rings;
+    const flare = Math.max(0, 1 - y / 0.42);
+    const w = widthAt(y) + 0.015 * flare;
     for (let j = 0; j <= sides; j++) {
       const theta = 2 * Math.PI * j / sides;
       const x = w * Math.cos(theta);
-      const z = frontZ(y) - 0.15 + 0.19 * Math.sin(theta);
+      const z = frontZ(y) - 0.15 - 0.07 * flare + (0.19 + 0.035 * flare) * Math.sin(theta);
       vertices.push(x, y, z);
     }
   }
   for (let i = 0; i < rings; i++) for (let j = 0; j < sides; j++) {
     const a = i * (sides + 1) + j, b = a + sides + 1;
-    indices.push(a, a + 1, b, a + 1, b + 1, b);
+    indices.push(a, b, a + 1, a + 1, b, b + 1);
   }
   const hull = new THREE.BufferGeometry();
   hull.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  const bottomCentre = vertices.length / 3;
+  vertices.push(0, 0.045, frontZ(0.045) - 0.22);
+  const topCentre = vertices.length / 3;
+  vertices.push(0, 2.09, frontZ(2.09) - 0.15);
+  for (let j = 0; j < sides; j++) {
+    indices.push(bottomCentre, j + 1, j);
+    const a = rings * (sides + 1) + j;
+    indices.push(topCentre, a, a + 1);
+  }
   hull.setIndex(indices); hull.computeVertexNormals();
   add(hull, lacquer, 'continuous_sculpted_S_curve_hull');
   // Portrait curved screen: high screen-to-body ratio and genuine bent mesh.
@@ -102,14 +113,14 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     screenBorder.push([.257, y, frontZ(y) + .071]);
   }
   screenBorder.push(screenBorder[0]);
-  tube('thin_screen_titanium_bezel', screenBorder, 0.007, titanium, 64);
+  tube('thin_screen_titanium_bezel', screenBorder, 0.007, titanium, 36);
   for (const sign of [-1, 1]) {
     const edge = [];
     for (let i = 0; i <= 40; i++) {
-      const y = 0.33 + 1.73 * i / 40;
-      edge.push([sign * (widthAt(y) - 0.012), y, frontZ(y) + 0.017]);
+      const y = 0.79 + 1.27 * i / 40;
+      edge.push([sign * (widthAt(y) - 0.019), y, frontZ(y) + 0.012]);
     }
-    tube(sign < 0 ? 'left_swept_LED' : 'right_swept_LED', edge, 0.006, led, 32);
+    tube(sign < 0 ? 'left_swept_LED' : 'right_swept_LED', edge, 0.004, led, 24);
   }
   // Curved, opaque screen cradle: closes the floating-sheet gap with the hull.
   // Fairings trace the display edges and taper back into the shell, rather than
@@ -124,7 +135,8 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
       positions.push(sign * w, y, zFront, sign * (widthAt(y) - 0.017), y, zHull);
       if (i < rows) {
         const a = i * 2;
-        indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+        if (sign < 0) indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+        else indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
       }
     }
     const geo = new THREE.BufferGeometry();
@@ -136,28 +148,27 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   // Deep-black recessed screen backer bridges its centre to the body.
   curvedRibbon('integrated_screen_recess', 0.765, 1.955, 0.253, 0.047, black, 20, 8, 0.02);
   // A slim structural keel physically joins the long rear overhang to the floor.
-  const keel = add(new THREE.CylinderGeometry(0.155, 0.195, 0.27, 24), graphite, 'rear_weight_bearing_keel');
-  keel.scale.z = 1.23; keel.position.set(0, 0.15, -0.23);
+  // Lower hull flares into shoe; no separate exposed keel puck.
   // A long, tapered oval floor shoe replaces the detached central puck.
-  const shoe = add(new THREE.CylinderGeometry(0.235, 0.27, 0.105, 32), black, 'continuous_floor_shoe');
-  shoe.scale.z = 1.50; shoe.position.set(0, 0.052, -0.19);
+  const shoe = add(new THREE.CylinderGeometry(0.235, 0.27, 0.060, 32), black, 'continuous_floor_shoe');
+  shoe.scale.z = 1.50; shoe.position.set(0, 0.03, -0.19);
   // Physical shadow seam where shoe and lower shell overlap.
-  const shoeTrim = add(new THREE.TorusGeometry(0.246, 0.007, 6, 32), titanium, 'floor_shoe_chrome_edge');
+  const shoeTrim = add(new THREE.TorusGeometry(0.246, 0.007, 5, 20), titanium, 'floor_shoe_chrome_edge');
   shoeTrim.rotation.x = Math.PI / 2; shoeTrim.scale.y = 1.5; shoeTrim.position.set(0, 0.02, -0.19);
   // Floating, thin control deck, a tapered oval with the front lip toward player.
-  const deck = add(new THREE.CylinderGeometry(0.295, 0.245, 0.055, 48), graphite, 'floating_elliptical_button_deck');
+  const deck = add(new THREE.CylinderGeometry(0.295, 0.245, 0.055, 32), graphite, 'floating_elliptical_button_deck');
   deck.scale.z = 0.58; deck.position.set(0, 0.75, 0.245); deck.rotation.x = -0.08;
-  const deckLip = add(new THREE.TorusGeometry(0.268, 0.007, 7, 60), titanium, 'deck_perimeter_trim');
+  const deckLip = add(new THREE.TorusGeometry(0.268, 0.007, 5, 32), titanium, 'deck_perimeter_trim');
   deckLip.scale.y = 0.58; deckLip.rotation.x = Math.PI / 2; deckLip.position.set(0, 0.786, 0.245);
   for (let i = -1; i <= 1; i++) {
-    const button = add(new THREE.CylinderGeometry(0.032, 0.032, 0.009, 20), i === 0 ? led : titanium, 'physical_button_' + i);
+    const button = add(new THREE.CylinderGeometry(0.032, 0.032, 0.009, 12), i === 0 ? led : titanium, 'physical_button_' + i);
     button.position.set(i * 0.086, 0.789, 0.272);
   }
   group.userData = {
     artOnly: true, prototype: 'Svelte 01', units: 'metres',
     front: '+Z', up: '+Y', approximateHeightM: 2.09,
     approximateWidthM: 0.59, curvedScreen: true,
-    status: 'unrendered isolated geometry; not production integrated'
+    screenMaterialName: glass.name, status: 'unrendered isolated geometry; not production integrated'
   };
   return group;
 }
