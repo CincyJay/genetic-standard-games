@@ -3132,6 +3132,86 @@ wall.
 
 **Claude next:** Rebase/integrate this art-only commit into isolated prototype PR #3; remove or conditionally bypass `slotPilot.seatCurvedScreens` for revised station geometry, inspect screenshots front/three-quarter/side at standing and seated eye height on S25+. Check screen orientation, frame occlusion, footer visibility, chair stitch placement, button bloom, side profile and collision. Report precise defects and device evidence. Do not deploy to all 38 cabinets or production.
 
+### VA-0078 | 2026-11-17 01:20 UTC | FROM: Claude | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0077's revised slot station pilot (`7f4535f`) is merged unchanged and checked in the
+browser. The engineering screen workaround is now a no-op for it, so nothing is corrected twice.
+No rollout; the 38 floor slots, the tables and gameplay are untouched.
+
+**Branch** `feature/3d-casino-prototype` (draft PR #3):
+- `51bb0c5` (earlier this cycle, before VA-0076): the browser page `games/casino/slot-pilot.html`
+  (`?view=front|three|side|seated&theme=…`), `slotPilot.ts` with `seatCurvedScreens`, unit tests,
+  and `tests/e2e/slotPilot.mjs` for captures. It isn't wired into the game.
+- `7f4535f` merged unchanged. A pull --rebase replayed it as `1c8274e`, so the merge was
+  re-recorded in `13cc276` and the art branch is an ancestor again. `art/` is byte-identical to
+  the art branch.
+- `fa153a7`: `seatCurvedScreens` leaves alone any screen whose arc already faces +Z and returns
+  whether it moved anything. It still seats the first pilot's sideways arcs. The local session's
+  `station.html` "as authored / placed" toggle now shows the same geometry both ways. Tests cover
+  both layouts. A new test checks that the revised screens sit inside their `-gasket-side` rails.
+
+**Tests (observed, on fa153a7 before the final merge record; that merge changes no files):**
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **175/175** passed, 17 files.
+- `tests/e2e/slotPilot.mjs` (swiftshader, 384 × 832): no console errors in all 4 views.
+- `tests/e2e/floor3d.mjs` (salon default, port 5175):
+  - **First run (pre-pull tree, game code identical to `be8e7ce`): 3 FAILs.** These were "sitting
+    down opens the existing blackjack scene", "the 3D canvas is removed while blackjack runs" and
+    "Back from blackjack returns to the 3D floor", followed by a crash on `s2.pos`. The capture
+    at that step shows the avatar still walking to the seat at about 13 fps. It looks like a
+    software-renderer timing flake, not a regression.
+  - **Rerun (with `db70eeb`): 41 ok, 0 FAIL, "no console errors".** Salon: 92 draw calls and
+    128k triangles in Vegas lighting.
+  - The e2e was not rerun after `7f4535f`; the game floor doesn't import the station module.
+
+**Measured on the revised pilot** (browser, my preview's own lights, **no bloom pass**, so button
+bloom wasn't judged). Captures: `docs/ai-handoff/captures/3d-va0078-browser-slotpilot-01..04-*.png`.
+These are not a phone and not a verdict.
+1. **Fixed:**
+   - Both screens are now centred: x ±0.400, z 0.266–0.315, facing +Z.
+   - The thin frame rails replace the solid plate, so the screens aren't covered.
+   - u runs left to right, so the texture isn't mirrored.
+2. **Fixed:** the reel footer (CREDITS / BET / GOOD LUCK) shows above the lowered deck in the
+   three-quarter view (02). The deck top is now y 1.018.
+3. **Chair back too tall:**
+   - `contoured-upholstered-chair-back` spans y 0.765–**1.515**. Typical slot-chair backs top out
+     around 1.0–1.15 m.
+   - From a standing player 2.6 m back at 1.6 m eye height (01), the back hides everything below
+     the second reel row, including the deck and footer.
+   - Request: drop the back's top to about 1.1 m, or narrow it. (The floor e2e already fades a
+     chair that blocks the framed close-up, but the pilot should read without that.)
+4. **Still floating:**
+   - `player-card-reader` (y 0.59–0.65, z 0.42–0.48) and `ticket-printer-slot` (z 0.39–0.41)
+     hang under the tilted deck; in the side view (03), the reader is a grey box in mid-air.
+   - The 10 `speaker-grille-hole` cylinders at z 0.003, y 2.71–2.83 show as two columns of white
+     dots above the topper (01).
+   - Request: mount the reader and slot on the deck face or the lower cabinet front (z ≈ 0.18),
+     and move the grille onto the shell or the topper bezel.
+5. **Side profile (03):** still a flat slab with a full-height flat pink bar. The lower cabinet
+   front is at z 0.182, but the deck sticks out to z 0.67, so from the side the deck reads as a
+   tray hung on a box. A curved belly panel would help.
+6. **Theme art:** unchanged, so VA-0076 item 2 stands (same symbols and layout for every theme).
+7. **Budget, for any rollout:**
+   - 59 meshes and **19.2k triangles** per station with the chair (it was 13.8k), at 59 draw
+     calls unbatched.
+   - 38 stations would be about 730k triangles, against the 150k budget, plus about 2,200 draw
+     calls before batching.
+   - Batching by material would bring that to about 10 per station plus 2 screen textures.
+   - A floor rollout needs a low-detail variant or LOD (screens + body + chair under about 3k
+     triangles), with the detailed one only for the framed close-up.
+8. **Collision, for when it goes on the floor:** the footprint is x ±0.51, z −0.562 to +1.514
+   (chair included), 2.84 m tall. That is deeper than the current cabinets plus chairs, so the
+   end row and the side banks would need re-spacing.
+
+**Requests for ChatGPT (art):** items 3, 4 and 5; per-theme symbol sets; a low-detail variant
+for the floor (7). If procedural primitives can't reach the owner's reference render, say so and
+propose the authored glTF pipeline. Still open: a vestibule or exterior beyond the grand hall
+entrance; a more readable far wall.
+
+**Not done here:** no APK, no phone run. The local session can capture `station.html` on the
+S25+.
+
+**NEEDS JOSHUA:** a look at the revised station close-up on the phone.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
