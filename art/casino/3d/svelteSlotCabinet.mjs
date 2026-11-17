@@ -7,7 +7,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   const group = new THREE.Group();
   group.name = 'VA_SVELTE_01_CURVED_CABINET';
   const mat = (color, metalness = 0, roughness = 0.35, emissive = 0x000000, emissiveIntensity = 0) =>
-    new THREE.MeshStandardMaterial({ color, metalness, roughness, emissive, emissiveIntensity, side: THREE.DoubleSide });
+    new THREE.MeshStandardMaterial({ color, metalness, roughness, emissive, emissiveIntensity, side: THREE.FrontSide });
   const lacquer = mat(0x090d15, 0.55, 0.17);
   const graphite = mat(0x252c36, 0.76, 0.28);
   const titanium = mat(0xabb8c3, 0.82, 0.23);
@@ -19,7 +19,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
   };
   // Vertical S profile: bowed display toward the player at eye level, swept-back crown.
-  // Dimensions: 2.13m tall, 0.69m wide, ~0.74m deep including deck.
+  // First-pass dimensions measured by Claude: 2.09m tall, 0.59m wide, ~0.89m deep.
   const profile = [
     [0.13, -0.13, 0.29], [0.27, -0.11, 0.285],
     [0.43, -0.055, 0.268], [0.64, 0.00, 0.258],
@@ -71,7 +71,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   }
   // Shell: a continuous tapered hull, not stacked boxes.
   const vertices = [], indices = [];
-  const rings = 60, sides = 24;
+  const rings = 32, sides = 16;
   for (let i = 0; i <= rings; i++) {
     const y = 0.13 + (2.09 - 0.13) * i / rings;
     const w = widthAt(y);
@@ -91,7 +91,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   hull.setIndex(indices); hull.computeVertexNormals();
   add(hull, lacquer, 'continuous_sculpted_S_curve_hull');
   // Portrait curved screen: high screen-to-body ratio and genuine bent mesh.
-  curvedRibbon('portrait_glass_curved_49inch_visual_target', 0.78, 1.94, 0.244, 0.072, glass, 64, 24, 0.035);
+  curvedRibbon('portrait_glass_curved_49inch_visual_target', 0.78, 1.94, 0.244, 0.072, glass, 28, 12, 0.035);
   const screenBorder = [];
   for (let i = 0; i <= 40; i++) {
     const y = 0.77 + (1.95 - 0.77) * i / 40;
@@ -102,15 +102,48 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     screenBorder.push([.257, y, frontZ(y) + .071]);
   }
   screenBorder.push(screenBorder[0]);
-  tube('thin_screen_titanium_bezel', screenBorder, 0.007, titanium, 160);
+  tube('thin_screen_titanium_bezel', screenBorder, 0.007, titanium, 64);
   for (const sign of [-1, 1]) {
     const edge = [];
     for (let i = 0; i <= 40; i++) {
       const y = 0.33 + 1.73 * i / 40;
       edge.push([sign * (widthAt(y) - 0.012), y, frontZ(y) + 0.017]);
     }
-    tube(sign < 0 ? 'left_swept_LED' : 'right_swept_LED', edge, 0.006, led);
+    tube(sign < 0 ? 'left_swept_LED' : 'right_swept_LED', edge, 0.006, led, 32);
   }
+  // Curved, opaque screen cradle: closes the floating-sheet gap with the hull.
+  // Fairings trace the display edges and taper back into the shell, rather than
+  // looking like a second rectangular cabinet bolted to the first.
+  function screenFairing(sign) {
+    const positions = [], indices = [], rows = 28;
+    for (let i = 0; i <= rows; i++) {
+      const y = 0.77 + 1.18 * i / rows;
+      const zFront = frontZ(y) + 0.075;
+      const zHull = frontZ(y) + 0.035;
+      const w = 0.252 + 0.004 * Math.sin(Math.PI * i / rows);
+      positions.push(sign * w, y, zFront, sign * (widthAt(y) - 0.017), y, zHull);
+      if (i < rows) {
+        const a = i * 2;
+        indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setIndex(indices); geo.computeVertexNormals();
+    add(geo, graphite, sign < 0 ? 'left_screen_shell_fairing' : 'right_screen_shell_fairing');
+  }
+  screenFairing(-1); screenFairing(1);
+  // Deep-black recessed screen backer bridges its centre to the body.
+  curvedRibbon('integrated_screen_recess', 0.765, 1.955, 0.253, 0.047, black, 20, 8, 0.02);
+  // A slim structural keel physically joins the long rear overhang to the floor.
+  const keel = add(new THREE.CylinderGeometry(0.155, 0.195, 0.27, 24), graphite, 'rear_weight_bearing_keel');
+  keel.scale.z = 1.23; keel.position.set(0, 0.15, -0.23);
+  // A long, tapered oval floor shoe replaces the detached central puck.
+  const shoe = add(new THREE.CylinderGeometry(0.235, 0.27, 0.105, 32), black, 'continuous_floor_shoe');
+  shoe.scale.z = 1.50; shoe.position.set(0, 0.052, -0.19);
+  // Physical shadow seam where shoe and lower shell overlap.
+  const shoeTrim = add(new THREE.TorusGeometry(0.246, 0.007, 6, 32), titanium, 'floor_shoe_chrome_edge');
+  shoeTrim.rotation.x = Math.PI / 2; shoeTrim.scale.y = 1.5; shoeTrim.position.set(0, 0.02, -0.19);
   // Floating, thin control deck, a tapered oval with the front lip toward player.
   const deck = add(new THREE.CylinderGeometry(0.295, 0.245, 0.055, 48), graphite, 'floating_elliptical_button_deck');
   deck.scale.z = 0.58; deck.position.set(0, 0.75, 0.245); deck.rotation.x = -0.08;
@@ -120,14 +153,10 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     const button = add(new THREE.CylinderGeometry(0.032, 0.032, 0.009, 20), i === 0 ? led : titanium, 'physical_button_' + i);
     button.position.set(i * 0.086, 0.789, 0.272);
   }
-  const foot = add(new THREE.CylinderGeometry(0.20, 0.245, 0.115, 48), black, 'low_flared_floor_plinth');
-  foot.scale.z = 0.72; foot.position.y = 0.065;
-  const footTrim = add(new THREE.TorusGeometry(0.217, 0.008, 8, 48), titanium, 'floor_plinth_chrome_foot');
-  footTrim.rotation.x = Math.PI / 2; footTrim.scale.y = 0.72; footTrim.position.y = 0.023;
   group.userData = {
     artOnly: true, prototype: 'Svelte 01', units: 'metres',
-    front: '+Z', up: '+Y', approximateHeightM: 2.13,
-    approximateWidthM: 0.69, curvedScreen: true,
+    front: '+Z', up: '+Y', approximateHeightM: 2.09,
+    approximateWidthM: 0.59, curvedScreen: true,
     status: 'unrendered isolated geometry; not production integrated'
   };
   return group;
