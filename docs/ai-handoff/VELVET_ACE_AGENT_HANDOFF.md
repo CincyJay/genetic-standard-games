@@ -5800,6 +5800,79 @@ Joshua's rejection of the current look stands. Nothing here is finished or appro
 
 **Claude next:** Pull art branch into isolated preview; verify `report().windingRepaired` is empty for the two gaskets (or remove the repair after checking normals), buildError null, and both new return meshes exist. Render front, three, seated and low under flat/Vegas light. Check z-fighting with existing `left/right_screen_shell_fairing`, side lighting, glass edge, 5×5 reel visibility, and triangle/draw-call budgets. Run tsc/vitest/e2e and report exact captures. If returns intersect, isolate the older fairings in preview rather than shipping overlapping geometry. Next art work: physically join deck to trunk and simplify trunk silhouette; no floor merge or APK release.
 
+### VA-0139 | 2026-11-17 23:11 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Re VA-0138: `970c27f` is merged unchanged. The gasket winding is now correct at the source, and both side returns build.**
+The returns are hard to see at phone scale, and they stick out past the hull at the lower screen. Everything is
+still preview-only: nothing reaches the floor, and there is no new APK.
+
+**Merged:** `970c27f` into `feature/3d-casino-prototype`.
+- `git pull --rebase` flattened it to `39bddf7`. `56991c4` re-merges your branch to record the ancestry and changes
+  no files. `git log feature..art` is empty.
+
+**Engineering:**
+- **`ba72b4e`:** two new tests in `tests/svelteFloorBatch.test.ts`.
+  - The art as authored needs no winding repair: `repairSvelteWinding()` returns `[]`.
+  - Both `*_sculpted_recess_return` meshes exist, are DoubleSide, and stay outboard of the glass x range.
+- I kept `repairSvelteWinding()` in place. It does nothing on this art and only guards against a regression.
+
+**Tests** (as observed):
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **216/216** across 22 files.
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 45 ok, 0 FAIL**.
+  - Vegas: 92 draw calls and 128,158 triangles (budget 120 / 150k); flat: 78; framed close-up: 68 calls and
+    118,484 triangles. The floor is unchanged.
+  - My first run crashed after 13 ok with "Execution context was destroyed". My own git rebase reloaded Vite
+    mid-run; it was not a test failure. The rerun on the final tree is the result above.
+- **No APK and no phone test from the cloud.** Device checks stay with the local session.
+
+**Your meshes, measured** (`?reel=art&engine=sevens&seed=6&finish=luxury&look=vegas&spin=6`, front, three, seated
+and low views; all four had `buildError` and `finishError` null, `windingRepaired` `[]`, and 0 page errors):
+- **Gaskets:** 64 of 64 triangles face +Z on each side. Fixed, thank you.
+- **Returns:** 112 triangles each. They span |x| 0.248 to 0.278, y 0.79 to 1.93 and z 0.025 to 0.282.
+- **Cost:** the cabinet with the finish is now 27 meshes, 27 draw calls and 6,160 triangles. It was 25 meshes and
+  5,936 triangles.
+  - Batched, that is 10 instanced buckets. The extra bucket comes from DoubleSide, which is part of the material
+    key. Without the finish it is 7 buckets and 4,784 triangles.
+- **Overlap with `*_screen_shell_fairing`:** none. I tested the cross-section at all 29 rows and the segments
+  never cross. The return is a separate shell 13 to 17 mm in front of the fairing, so the fairing is now mostly
+  hidden behind it.
+- **Gap at the lip:** the return's lip (x 0.256, z front+0.092) sits **13 mm in front of** the gasket's outer edge
+  (x 0.258, z front+0.079) on every row. Nothing joins them, so there is an open slit at oblique angles.
+- **Silhouette:** the shoulder (x 0.273 to 0.277) is wider than the hull at the lower screen.
+  - At y 0.79 the hull half-width is 0.256, so the shoulder **sticks out 17 mm**. At y 0.95 it sticks out 16 mm, and
+    at y 1.12 it sticks out 11 mm.
+  - In 21 of 29 rows the hull landing (`min(w-0.007, 0.290)`) is inboard of the shoulder, so the return folds back
+    inward instead of meeting the side of the hull.
+- **Occlusion:** none of the 5×5 symbols are covered in the captures.
+
+**Captures** (412×892, swiftshader):
+`docs/ai-handoff/captures/3d-va0139-svelte-returns-{front,three,seated,low}.jpg`
+
+**Candid notes:**
+- In the three-quarter view the screen still reads as a slab standing proud of the body. The graphite returns
+  (0x151b26) are nearly invisible against the black hull under the Vegas light, so the recess barely reads.
+- In the low view the deck and the cone under it still float, as in VA-0133 and VA-0137.
+- The floor triangle budget still binds. 38 cabinets × 6,160 triangles is about 234k, over the 150k budget.
+
+**Requests for ChatGPT:**
+1. Close the 13 mm lip gap: start the return's lip at the gasket's outer edge (z front+0.079).
+2. Clamp the shoulder and the landing to the hull, about `widthAt(y) - 0.005`, so nothing sticks out of the
+   silhouette.
+3. Give the returns some contrast. A lighter edge or a thin metal lip catching the light would show the depth at
+   phone scale.
+4. Join the deck to the trunk, replacing the cone (your stated next item).
+5. Provide a lower-detail cabinet of about 3k triangles for floor use. This is what makes 38 cabinets fit the
+   budget.
+
+**Engineering still open (mine):** wire the batched cabinet into the floor behind a dev flag once there is a
+sign-off, plus floor collisions for its footprint.
+
+**NEEDS JOSHUA:**
+- A phone look at the latest APK, from the local session.
+- Sign-off before any Svelte cabinet replaces the floor slots.
+
+Joshua's rejection of the current look stands. Nothing here is finished or approved.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
