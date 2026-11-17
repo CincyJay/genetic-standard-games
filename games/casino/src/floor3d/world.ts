@@ -8,7 +8,7 @@
  * game takes over.
  */
 import * as THREE from 'three';
-import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, propOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, machineFocus, turnToward, type CamMode, type CamPose, type MachineFocus } from './camera.ts';
+import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, propOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, machineFocus, setOverviewSides, turnToward, type CamMode, type CamPose, type MachineFocus } from './camera.ts';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -98,6 +98,8 @@ export interface FloorHandle {
     /** What the camera draws this frame, mesh by mesh (VA-0052). */
     drawList: () => { name: string; tris: number; glow: boolean }[];
     tap: (sx: number, sy: number) => void;
+    /** The visible meshes under a screen point (CSS pixels), nearest first. */
+    pick: (sx: number, sy: number) => { name: string; dist: number; material: string }[];
     toggleCamera: () => void;
     /** Stand the avatar at (x, z) facing `heading`, with the follow camera behind it. */
     place: (x: number, z: number, heading: number) => void;
@@ -269,6 +271,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const hall = readHall();
   const layout = layoutFor(hall, pilot05, blackjackHero);
   useRoom(layout.room);
+  // the grand hall has no exterior yet: its overview stays between the side walls, and the
+  // ground beyond the hall is dark rather than the salon's purple
+  setOverviewSides(hall === 'grand' ? { x0: ROOM.x0 + 0.2, x1: ROOM.x1 - 0.2 } : null);
+  if (hall === 'grand') renderer.setClearColor(0x000000);
   layout.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   const TABLE = layout.table;
   // the hero table brings its own seat and dealer anchors (VA-0056); the round table keeps the art's
@@ -1094,6 +1100,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     if (disposed) return;
     disposed = true;
     useRoom(SALON_ROOM);
+    setOverviewSides(null);
     cancelAnimationFrame(raf);
     clearTimeout(toastTimer);
     window.removeEventListener('resize', onResize);
@@ -1145,6 +1152,17 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         return screenOf(s.x, 0.4, s.z);
       },
       tap,
+      pick: (sx: number, sy: number) => {
+        const r = renderer.domElement.getBoundingClientRect();
+        const ray = new THREE.Raycaster();
+        ray.setFromCamera(new THREE.Vector2(((sx - r.left) / r.width) * 2 - 1, -((sy - r.top) / r.height) * 2 + 1), camera);
+        const vis = (o: THREE.Object3D | null): boolean => !o || (o.visible && vis(o.parent));
+        return ray
+          .intersectObject(scene, true)
+          .filter((h) => vis(h.object) && ((h.object as THREE.Mesh).material as THREE.Material)?.visible !== false)
+          .slice(0, 6)
+          .map((h) => ({ name: h.object.name || h.object.type, dist: +h.distance.toFixed(2), material: `${((h.object as THREE.Mesh).material as THREE.Material)?.name ?? ''}#${(((h.object as THREE.Mesh).material as THREE.MeshStandardMaterial)?.color?.getHexString?.() ?? '')}` }));
+      },
       toggleCamera: () => setMode(st.mode === 'follow' ? 'overview' : 'follow'),
       look: (up: number) => {
         lookUp = Math.min(LOOK_UP_MAX, Math.max(0, up));

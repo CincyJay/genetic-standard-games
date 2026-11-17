@@ -198,7 +198,25 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     y: target.y + dist * Math.sin(OVERVIEW_PITCH),
     z: target.z + Math.cos(OVERVIEW_YAW) * dist * Math.cos(OVERVIEW_PITCH),
   };
+  // a hall with side walls (the grand hall) keeps the camera between them: the whole view slides
+  // sideways, at the same angle, so the side wall stays up and frames the floor instead of being
+  // cut away onto the empty ground outside
+  if (overviewSides) {
+    const x = Math.min(overviewSides.x1, Math.max(overviewSides.x0, pos.x));
+    target.x += x - pos.x;
+    pos.x = x;
+  }
   return { pos, target, fov };
+}
+
+let overviewSides: { x0: number; x1: number } | null = null;
+/**
+ * Where the overview camera may stand across the hall (x), or null for anywhere (the salon,
+ * whose surroundings have the exterior backdrop). Keep the range inside ROOM's x so the side
+ * walls aren't cut away.
+ */
+export function setOverviewSides(sides: { x0: number; x1: number } | null): void {
+  overviewSides = sides;
 }
 
 /** On the tallest screens the overview puts the avatar this far below the middle (NDC, 0..1). */

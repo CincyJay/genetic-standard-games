@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_FADE_MIN, LIMITS, overviewLift, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
+import { AVATAR_FADE_MIN, LIMITS, overviewLift, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, setOverviewSides, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
 import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, DEALER_SPOT, dealerSpotFor, OBSTACLES, ROOM, SEATS, seatsFor, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
@@ -724,6 +724,20 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(cutawayWalls({ x: 0, y: 5, z: 10 }).size).toBe(0);
     useRoom(SALON_ROOM);
     expect(ROOM.x1).toBe(8.61);
+  });
+  it('the overview stays between the grand hall side walls, at the same angle', () => {
+    useRoom(g.room);
+    const free = desiredPose('overview', { x: 7.5, z: 12 }, 0, 17);
+    expect(free.pos.x).toBeGreaterThan(ROOM.x1); // outside the east wall, which would be cut away
+    setOverviewSides({ x0: ROOM.x0 + 0.2, x1: ROOM.x1 - 0.2 });
+    const kept = desiredPose('overview', { x: 7.5, z: 12 }, 0, 17);
+    expect(kept.pos.x).toBeCloseTo(ROOM.x1 - 0.2);
+    expect(cutawayWalls(kept.pos).has('east')).toBe(false);
+    // slid sideways: same offset from target to camera, so the same angle
+    expect(kept.pos.x - kept.target.x).toBeCloseTo(free.pos.x - free.target.x);
+    expect(kept.pos.z - kept.target.z).toBeCloseTo(free.pos.z - free.target.z);
+    setOverviewSides(null);
+    useRoom(SALON_ROOM);
   });
   it('comes from the one grand hall spec: same tables, seats, columns and side banks', () => {
     const l = grandHallLayout(GRAND_SPEC);
