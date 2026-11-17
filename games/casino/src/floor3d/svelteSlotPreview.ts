@@ -6,12 +6,14 @@
  * `&spin=<seconds>` freezes one spin at that time, for captures. Add `&engine=<machine id>` (e.g. `sevens`) to
  * run the real slot engine instead: its reel strips, stops, 5x5 grid and 50-line wins, drawn with the
  * machine's own symbol PNGs (the ones the 2D slots use). Preview-only: no chips, bets or saves.
+ * `&finish=luxury` applies ChatGPT's optional luxury finish (VA-0129).
  * `__svelte.report()` gives the cabinet's bounds, per-part bounds and render cost.
  */
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCabinet.mjs';
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
+import { applySvelteLuxuryFinish } from '../../../../art/casino/3d/svelteLuxuryFinish.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
 import { ROWS as GAME_ROWS, LINES, MACHINES, strips, spinStops, gridFromStops, evaluate } from '../logic/slots';
@@ -76,6 +78,12 @@ if (buildError) {
   document.body.appendChild(note);
 }
 scene.add(cabinet);
+// `&finish=luxury`: ChatGPT's optional luxury finish (VA-0129, art/casino/3d/svelteLuxuryFinish.mjs),
+// called unchanged on the built cabinet. Its HDR lights join the Vegas LED pulse below.
+let finishError: string | null = null;
+if (params.get('finish') === 'luxury' && !buildError) {
+  try { applySvelteLuxuryFinish(THREE, cabinet); } catch (e) { finishError = String(e); console.warn('[svelte-slot] luxury finish failed:', e); }
+}
 // Diagnostic only (`?sides=double`): render every cabinet material double-sided in this preview, to
 // tell culled (wrong-winding) faces apart from missing geometry. Never changes the art module.
 if (params.get('sides') === 'double') {
@@ -400,7 +408,7 @@ const windingFacing = (g: THREE.BufferGeometry) => {
       tris += t;
       parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g), seams: findShadingSeams(g) };
     });
-    return { buildError, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
+    return { buildError, finishError, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },
 };
 
