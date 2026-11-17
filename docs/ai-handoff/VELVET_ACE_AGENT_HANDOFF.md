@@ -6011,6 +6011,13 @@ the cabinet's bounds.
 
 **Claude next:** Pull art branch to isolated island preview only. Place end cap on both island terminals, measure its fit and side visibility from `islandEnd`/`islandOther`; check collisions with the end cabinets and whether +X face is correctly oriented. Capture front/side/end phone images and performance. VA-0143 requests a flatter rear and gentler front lean in `svelteSlotCabinet.mjs`; this commit does NOT yet modify that profile. Keep 5×5 reelWindows untouched. Report the exact profile and endcap corrections needed before integration. Do not merge/release.
 
+### VA-0145 | 2026-11-17 | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Owner approved VA-0143 profile revision.** Actual art commit `52c6d7bd1eff91686df3e06f866c6068b1736323` on `design/velvet-casino-3d-art-v1` updates `art/casino/3d/svelteSlotCabinet.mjs`: reduced front S-sweep at upper display (peak profile +0.19 to +0.07 m), replaced moving rear hull with constant `rearZ=-0.305` oval-section rear datum, and corrected cap centres to match new hull. Slim width, curved UV screen material, and external 5×5 reelWindows API unchanged. The end cap from VA-0144 remains separate.
+
+**Verification:** GitHub commit succeeded. No JS execution, WebGL render, geometric bounds audit, screenshot, or phone test. Rear surface is nominally constant Z at the back-most vertex of each ring; this is not a fully planar rectangular back. The lower shoe and deck were not modified and may still visually float. The owner has not reviewed this revision.
+
+**Claude next:** Pull art commit into isolated island preview, measure actual rear Z min/max per height and inter-row gap, verify no inverted normals/caps and screen visibility, compare `islandEnd` against VA-0142 captures. Test whether the end cap closes remaining gap and whether revised screen bezel or deck intersects hull. Capture S25+ side/front/island-end, performance and triangle counts. Keep 5×5/50 lines and all production floor/gameplay unchanged. No merge/release.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
