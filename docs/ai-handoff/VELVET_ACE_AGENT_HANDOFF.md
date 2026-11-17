@@ -3687,6 +3687,67 @@ richer screens).
 
 **NEEDS JOSHUA:** his verdict.
 
+### VA-0093 | 2026-11-17 03:47 UTC | FROM: Claude (cloud routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Topic:** the art sources are now merged into the engineering branch, and Dragon Fire was
+reproduced on Linux. This adds to VA-0088–0092 and changes no models, previews or gameplay.
+
+**Merged** (`cba7d7a`, `feature/3d-casino-prototype`):
+- `origin/design/velvet-casino-3d-art-v1` at `d321c32`, merged unchanged.
+- The local session had committed the exported GLBs, but not the art branch itself. So
+  `aurelia_hero.blend.py`, `aurelia_screen_art.py` and `dragon_fire_hero.py` were not on the
+  engineering branch yet.
+- `art/` now equals the art branch, plus the three GLBs that exist only on the engineering branch
+  (Royal Crescent, Aurelia, Dragon Fire).
+
+**Linux reproduction** (cloud container, Python 3.11, `bpy` 4.2.0 wheel and Pillow, all from
+PyPI and free; nothing committed):
+- **`aurelia_screen_art.py`, unchanged:**
+  - it wrote the six PNGs;
+  - the DejaVu paths exist on Linux, and DejaVu Sans Bold has every glyph (7 ♛ ♠ ♦ ★ ✦ ✧ • $);
+  - so the VA-0089 font failure is **Windows only**. The request for a bundled font, or Windows
+    paths, still stands.
+  - Small layout note: the topper's random star dots land on the text in places (for example on
+    the last letter of "FORTUNE" and inside "$125,640.32").
+- **`dragon_fire_hero.py`, unchanged**, using those dragon PNGs:
+  - it wrote three Cycles renders, the `.blend` and the `.glb`;
+  - the GLB has **53 meshes, 13,228 triangles, 10 materials and 2 images**, the same counts as the
+    local Blender 4.5.5 run (VA-0091);
+  - the byte size differs (848,784 here against 845,200 there), as expected across Blender
+    versions and PNG encoders. Only the committed GLB is used.
+  - Caveat: `bpy` used as a Python module segfaults at interpreter exit, after every file is
+    written. That is a known teardown quirk of the module, not a script error; real Blender
+    (local) exits 0.
+- **`aurelia_hero.blend.py`** also ran here and showed the same defects as VA-0088. Aurelia is
+  rejected, so nothing more on it.
+
+**Tests (observed, on `cba7d7a`):**
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **175/175** passed, 17 files.
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 41 ok, no FAIL lines**.
+  - Vegas overview: 92 draw calls and 128,158 triangles (flat: 78 calls), against the
+    120-call / 150k budget;
+  - framed close-up: 67 calls and 117,764 triangles.
+  - Two earlier runs this cycle were interrupted by my own branch reset and a concurrent Blender
+    job, and are not counted.
+- No APK and no phone run: the cloud can't reach the S25+.
+
+**Dropped on purpose:** I had also built an Aurelia screen-mapping stand-in (a planar UV projection
+of the PNGs onto the displays). I did not push it. Aurelia is rejected (VA-0090), and VA-0089
+chose to have the art wire screens in Blender instead.
+
+**Budget note for Dragon Fire** (no rollout is proposed):
+- one cabinet is 13.2k triangles and 10 materials;
+- 38 of them unbatched would be about 503k triangles, more than three times the 150k floor budget;
+- a floor version would need an LOD (a bevel-free low mesh at about 2–3k triangles) and its
+  materials shared with the floor's batches. Only relevant if Joshua approves the look.
+
+**For ChatGPT:**
+- the font fix from VA-0089 and VA-0091 (bundle an OFL font next to the script and load it by a
+  relative path; fail loudly instead of `load_default()`);
+- keep the star dots out of the text areas.
+
+**NEEDS JOSHUA:** nothing new. The Dragon Fire verdict in VA-0091/0092 is still open.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
