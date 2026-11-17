@@ -2,7 +2,9 @@
  * Dev-only page (`/svelte-slot.html?view=front|three|side|top|seated|back|low`, optional `&reel=art` for ChatGPT's reel-screen texture (VA-0120), `&sides=double` / `&reel=checker` diagnostics): ChatGPT's slim S-curve
  * "Svelte 01" cabinet (VA-0110, art/casino/3d/svelteSlotCabinet.mjs) alone on a plain floor, with
  * a 1.75 m grey human-scale reference beside it. For review captures and measurements only; never
- * in the game. `__svelte.report()` gives the cabinet's bounds, per-part bounds and render cost.
+ * in the game. `&reel=art&spin=loop` scrolls symbol strips inside the art's `reelWindows` (VA-0122);
+ * `&spin=<seconds>` freezes one spin at that time, for captures. Preview-only motion, not the slot engine.
+ * `__svelte.report()` gives the cabinet's bounds, per-part bounds and render cost.
  */
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -10,6 +12,7 @@ import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCab
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
+import { reelPoses, symbolAt, type SpinPlan } from './reelSpin';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'three';
@@ -89,11 +92,80 @@ const swapScreen = (tex: THREE.Texture) => {
 // Diagnostic only (`?reel=checker`): put a labelled UV test card on the screen material, to check the
 // lookup and the UV orientation. Not reel art.
 let reelSwap: { materialName: unknown; found: number; source?: string; error?: string } | null = null;
+
+type Win = { x: number; y: number; w: number; h: number };
+type ArtScreen = { canvas: HTMLCanvasElement; texture: THREE.Texture; reelWindows?: Win[] };
+/**
+ * Scrolls symbol strips inside the art's `reelWindows` on its own canvas (VA-0122 request). The art
+ * module and its values are unchanged: each window is first cleared with a 1-px row of the art's own
+ * rail gradient taken above the symbols, then strip symbols are drawn in the art's font and colours,
+ * clipped to the window. Outcomes are preview-only pseudo-random picks, not the slot engine.
+ */
+function makeReelAnim(screen: ArtScreen, mode: string) {
+  const wins = screen.reelWindows ?? [];
+  const STRIP = ['7', '◆', '♛', '◆', '7', '♛'];
+  const ROWS = 3;
+  const g = screen.canvas.getContext('2d')!;
+  const base = document.createElement('canvas');
+  base.width = screen.canvas.width; base.height = screen.canvas.height;
+  base.getContext('2d')!.drawImage(screen.canvas, 0, 0);
+  const sy = screen.canvas.height / 1024;
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+  let plan: SpinPlan = { targets: wins.map(() => 0), stripLength: STRIP.length, from: wins.map((_, i) => i * 2) };
+  const newPlan = (from: number[]) => { plan = { targets: wins.map(() => Math.floor(rnd() * STRIP.length)), stripLength: STRIP.length, from }; };
+  newPlan(plan.from!);
+  let started = performance.now();
+  const frozen = Number(mode);
+  let spins = 1;
+  let last = reelPoses(plan, 0);
+  const draw = (t: number) => {
+    last = reelPoses(plan, t);
+    g.save();
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.font = `bold ${Math.round(68 * sy)}px Georgia,serif`;
+    wins.forEach((w, i) => {
+      const pose = last[i]!;
+      // clear the window with the art's own rail gradient (a symbol-free row 5 px below the window top)
+      g.drawImage(base, w.x, w.y + Math.round(5 * sy), w.w, 1, w.x, w.y, w.w, w.h);
+      g.save();
+      g.beginPath(); g.rect(w.x, w.y, w.w, w.h); g.clip();
+      const rowH = w.h / ROWS;
+      const frac = pose.pos - Math.floor(pose.pos);
+      for (let row = -1; row <= ROWS; row++) {
+        const cy = w.y + (row + 0.5 + frac) * rowH;
+        const idx = symbolAt(pose.pos, row, ROWS, STRIP.length);
+        g.fillStyle = pose.stopped && row === 1 ? '#ab1733' : '#1c3759';
+        g.fillText(STRIP[idx]!, w.x + w.w / 2, cy);
+        g.fillStyle = 'rgba(28,41,59,.25)';
+        g.fillRect(w.x + 3, cy + rowH / 2 - 1, w.w - 6, 2);
+      }
+      g.restore();
+    });
+    g.restore();
+    screen.texture.needsUpdate = true;
+  };
+  return {
+    windows: wins,
+    frozen: Number.isFinite(frozen) ? frozen : null,
+    tick(now: number) {
+      if (Number.isFinite(frozen)) { draw(frozen); return; }
+      let t = (now - started) / 1000;
+      if (t > 4) { newPlan(last.map((p) => p.pos % STRIP.length)); started = now; t = 0; spins++; }
+      draw(t);
+    },
+    state: () => ({ windows: wins, spins, targets: plan.targets.map((i) => STRIP[i]), poses: last.map((p) => ({ pos: Math.round(p.pos * 100) / 100, stopped: p.stopped })) }),
+  };
+}
+let reelAnim: ReturnType<typeof makeReelAnim> | null = null;
 if (params.get('reel') === 'art') {
   // ChatGPT's still reel-screen texture (VA-0120, art/casino/3d/svelteReelScreen.mjs), used unchanged.
   try {
-    const screen = createSvelteReelScreen(THREE, { width: 512, height: 1024 }) as { texture: THREE.Texture };
+    const screen = createSvelteReelScreen(THREE, { width: 512, height: 1024 }) as ArtScreen;
     reelSwap = { ...swapScreen(screen.texture), source: 'svelteReelScreen.mjs' };
+    if (params.has('spin')) reelAnim = makeReelAnim(screen, params.get('spin')!);
   } catch (e) {
     reelSwap = { materialName: cabinet.userData.screenMaterialName, found: 0, source: 'svelteReelScreen.mjs', error: String(e) };
   }
@@ -124,6 +196,7 @@ const box = (o: THREE.Object3D) => {
   return { min: [r3(b.min.x), r3(b.min.y), r3(b.min.z)], max: [r3(b.max.x), r3(b.max.y), r3(b.max.z)] };
 };
 
+reelAnim?.tick(performance.now());
 renderer.render(scene, camera);
 const before = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
 // cabinet-only cost: render it alone once (floor, figure hidden)
@@ -132,6 +205,9 @@ renderer.render(scene, camera);
 const cabinetOnly = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
 floor.visible = human.visible = true;
 renderer.render(scene, camera);
+if (reelAnim && reelAnim.frozen === null) {
+  renderer.setAnimationLoop((now) => { reelAnim!.tick(now); renderer.render(scene, camera); });
+}
 
 /**
  * Area-weighted mean face normal from triangle winding (what FrontSide culling uses), in cabinet
@@ -190,6 +266,6 @@ const windingFacing = (g: THREE.BufferGeometry) => {
       tris += t;
       parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g), seams: findShadingSeams(g) };
     });
-    return { buildError, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
+    return { buildError, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },
 };
