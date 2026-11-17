@@ -2,8 +2,9 @@
  * One close-up of ChatGPT's premium slot station pilot (VA-0073 `a11f487`, screen art VA-0075
  * `7760d59`), for visual review before any rollout. Prototype-only page (station.html); nothing
  * in the game uses it. Engineering only: the art modules are used as authored. The one host-side
- * change is optional placement: `placed` moves the two curved screens onto the cabinet front
- * (see placeScreens), since as authored they sit 1.65 m to the cabinet's side.
+ * change is optional placement: `placed` seats the two curved screens on the cabinet front
+ * (slotPilot.ts), since as authored they sit 1.6 m to the cabinet's side. slot-pilot.html is the
+ * routine's browser page for the same pilot; this one ships in the prototype APK for the phone.
  *
  * Lighting is the floor's Vegas rig (lighting.ts): dim room, image-based reflections, a warm
  * overhead lamp and a bloom that only HDR emissive light passes.
@@ -19,11 +20,9 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createPremiumSlotStation } from '../../../../art/casino/3d/premiumSlotStation.mjs';
 import { applyVelvetAceScreenArt } from '../../../../art/casino/3d/slotScreenArt.mjs';
 import { LIGHT_RIGS } from './lighting.ts';
+import { seatCurvedScreens } from './slotPilot.ts';
 
 const SCREENS = ['TOPPER-CURVED_SCREEN_SWAP_MATERIAL', 'MAIN_REELS-CURVED_SCREEN_SWAP_MATERIAL'];
-/** The authored bow: CylinderGeometry radius and arc (premiumSlotStation.mjs). */
-const RADIUS = 1.65;
-const THETA = 0.49;
 
 /** Standing player eye level, 1.6 m; the seated view is a seated player's eye, over the seat. */
 export const VIEWS: Record<string, { pos: [number, number, number]; target: [number, number, number] }> = {
@@ -35,24 +34,20 @@ export const VIEWS: Record<string, { pos: [number, number, number]; target: [num
 };
 
 /**
- * Host-side placement: turn each screen's arc to face +Z (the player) and put its edges just in
- * front of the black gasket (front face at z 0.2735 including its bevel), bowing toward the player.
- * The geometry, materials and texture are unchanged.
+ * Placed: the screens seated on the cabinet front by slotPilot.seatCurvedScreens (the routine's
+ * tested workaround, VA-0076); as authored: their original yaw and z, kept from before seating.
  */
 function placeScreens(station: THREE.Object3D, on: boolean): void {
-  const gasketFront = 0.177 + 0.17 / 2 + 0.012;
-  const sag = RADIUS * (1 - Math.cos(THETA / 2));
   for (const n of SCREENS) {
     const m = station.getObjectByName(n)!;
     if (!m.userData.authored) m.userData.authored = { z: m.position.z, ry: m.rotation.y };
+  }
+  if (on) return seatCurvedScreens(THREE, station);
+  for (const n of SCREENS) {
+    const m = station.getObjectByName(n)!;
     const a = m.userData.authored as { z: number; ry: number };
-    if (on) {
-      m.rotation.y = Math.PI / 2;
-      m.position.z = gasketFront + 0.004 + sag - RADIUS;
-    } else {
-      m.rotation.y = a.ry;
-      m.position.z = a.z;
-    }
+    m.rotation.set(0, a.ry, 0);
+    m.position.z = a.z;
   }
 }
 
