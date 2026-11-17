@@ -3479,6 +3479,74 @@ finish v2) on the S25+, in all three themes.
 
 **Claude next:** Execute `python art/casino/3d/blender/aurelia_screen_art.py <output-dir>` in a Python environment with Pillow, inspect all six textures and flag missing glyphs. Run the separate Blender model generator only if Blender 4.x available, fix any modeling API errors, create UV-mapped display materials, and render the new Aurelia standalone model with textured screens at front, three-quarter, side and seated eye height. Send actual screenshots for owner evaluation before integrating or replacing any floor slots. If geometry is still primitive, stop and shift to manual authored modeling, rather than polishing it indefinitely.
 
+### VA-0088 | 2026-11-17 03:18 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** VA-0086's **Aurelia** Blender script, executed locally. Royal Crescent is kept as
+history only (VA-0085's findings are not acted on).
+
+**Run:**
+- Joshua approved installing **Blender 4.5.5 LTS**: free, from the Blender Foundation via winget.
+- `aurelia_hero.blend.py` (`c2e6af6`) ran **unchanged**, headless (`blender -b -t 4
+  --factory-startup --python …`).
+- **Exit 0, no Python or Blender errors or warnings.** Cycles rendered the 3 views in about 2.5
+  minutes in total, and it wrote `aurelia_hero.blend` (962 KB), `aurelia_hero.glb` (575 KB) and
+  three 1200 × 1200 PNGs.
+
+**Committed** (`2e2624d`, `feature/3d-casino-prototype`):
+- `art/casino/3d/models/aurelia_hero.glb`, as exported (sha256 `87f52427…c138`);
+- the isolated `aurelia.html` / `aureliaPreview.ts` page, in the prototype APK 1.8-3dproto.16
+  only. It uses GLTFLoader, the floor's Vegas rig with bloom, and the same views and report as
+  the Royal Crescent page.
+- The `.blend` was not committed (it can be regenerated from the script).
+- The 38 floor slots, tables and gameplay are untouched.
+
+**Captures** (`captures/3d-va0088-aurelia-*`):
+- 01–03: your Cycles renders (front, three-quarter, side);
+- 04–07: in engine, in the browser (front, three-quarter, side, seated).
+- **No phone capture yet:** the S25+ is locked. The APK is installed; I'll capture when Joshua
+  unlocks it.
+
+**GLB facts (from the loaded file):**
+- 28 meshes, **10,780 triangles**, with NORMAL and TEXCOORD_0.
+- 7 PBR materials with your names: obsidian lacquer, champagne brass, warm brass edge, dark glass,
+  blue light, graphite, oxblood leather. No textures.
+- Size: 1.07 × **2.08** m tall × 1.73 m deep with the chair. The height is good.
+- Placement:
+  - glass is in front of its bezels (front z 0.191 against bezel 0.166);
+  - buttons are on the deck, y 0.77–0.81;
+  - the card reader and ticket parts are on the belly front;
+  - seat top 0.678, arms 0.79–0.88 (11–20 cm above the seat, about right), back top 1.11.
+
+**Defects found by running it:**
+1. **The gold outlines and arm supports are missing from the GLB.** They are CURVE objects, and
+   the export selects only MESH (`o.type=='MESH'`). Convert them first (`bpy.ops.object.convert(
+   target='MESH')`) or select curves too. They are the cabinet's signature line, and in engine it
+   reads as a black slab from the side (06).
+2. **The gold outlines overshoot in the Blender renders:**
+   - the AUTO-handle Bezier points bulge outside the cheek profile;
+   - the loops float in the air above and behind the cabinet (02, 03).
+   - Use VECTOR handles, or a poly spline that follows the extruded profile exactly.
+3. **Everything floats above the floor:**
+   - the lowest point is z 0.068 in Blender, and the studio floor top is at −0.02, so there is
+     about 9 cm of air under the cabinet and the chair foot (shadow gaps in 02, 03);
+   - in engine I stand the model on the floor, so it doesn't show there.
+4. **The displays are flat boxes** (0.025 m deep cubes), not curved, and their UVs are a cube
+   unwrap. For screen art, give each display front its own 0..1 UV face (or a separate plane).
+   Both are still blank, as you noted.
+5. **Look (not a verdict; Joshua decides):**
+   - Blender renders: the bright grey world and strong area lights make the lacquer read slate
+     blue and the leather pink (01, 02).
+   - In engine the colours are right: black lacquer, oxblood leather, brass trim (05).
+   - The forms are still big bevelled boxes: the chair is three rounded slabs; the cheeks are
+     smooth extrusions with no surface detail.
+   - VA-0086 says to stop if the design stays primitive. This is Joshua's call once he has seen it.
+
+**For ChatGPT:**
+- fix 1–4 in the script, and I'll re-run it here (Blender is now installed);
+- tell me if you want specific render settings (camera, world, samples).
+
+**NEEDS JOSHUA:** a look at the Aurelia renders, and on the phone (prototype app → `aurelia.html`)
+once it's unlocked.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
