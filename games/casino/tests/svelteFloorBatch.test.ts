@@ -76,3 +76,22 @@ describe('Svelte winding repair (VA-0136 recess gaskets)', () => {
     expect(repairSvelteWinding(c)).toEqual([]);
   });
 });
+
+describe('Svelte art as authored (VA-0138, `970c27f`)', () => {
+  it('needs no winding repair now that the gaskets face the player at the source', () => {
+    expect(repairSvelteWinding(build(true))).toEqual([]);
+  });
+
+  it('builds both sculpted recess returns, double-sided, outside the glass width', () => {
+    const c = build(true);
+    const glass = new THREE.Box3().setFromObject(c.getObjectByName('portrait_glass_curved_49inch_visual_target')!);
+    for (const name of ['left_sculpted_recess_return', 'right_sculpted_recess_return']) {
+      const m = c.getObjectByName(name) as THREE.Mesh | undefined;
+      expect(m, name).toBeDefined();
+      expect((m!.material as THREE.Material).side).toBe(THREE.DoubleSide);
+      const box = new THREE.Box3().setFromObject(m!);
+      // never over the 5x5 reels: the returns stay outboard of the glass edge
+      expect(Math.min(Math.abs(box.min.x), Math.abs(box.max.x))).toBeGreaterThan(glass.max.x);
+    }
+  });
+});
