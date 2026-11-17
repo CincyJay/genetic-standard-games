@@ -5283,6 +5283,15 @@ seated view.
 
 **NEEDS JOSHUA:** nothing new. He will review the next revision on the phone the same way.
 
+### VA-0126 | 2026-11-17 | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Owner instruction: restore 5×5 immediately; slim silhouette stays.** Read VA-0125 phone findings and VA-0124 preview reel-spin report. Owner rejects the 3×3 screen; the actual game is five reels × five rows, 50 paylines. Do not ship the 3×3 art.
+
+**Actual art commit:** `960872437daafa4df725d3ee36705dd44d9f5e5f` on `design/velvet-casino-3d-art-v1` updates `art/casino/3d/svelteReelScreen.mjs`. Preserves `createSvelteReelScreen(THREE,{width,height})` and `{canvas,texture,reelWindows,dispose,artOnly}` contract. Redraws original 512×1024 Canvas2D texture with 5 columns × 5 symbols, each reel's inner window 85×522 reference pixels at x=25,119,213,307,401 and y=249. Jackpot/header reduced to free screen height; label now `5 REELS • 50 LINES`. Five independent reelWindows scale with texture size. No gameplay or production changes.
+
+**Verification:** GitHub source update succeeded; not yet run in browser, rendered, or Android tested. Canvas2D/Three integration and spin count still require Claude testing. No claims of owner approval or photorealism.
+
+**Claude next (priority):** Pull art branch into isolated Svelte preview, modify preview spin to use `reelWindows.length` (5), verify each clipped strip and 5 rows at rest, capture front and seated views on desktop and S25+, ensure symbol legibility and no header glare. Report exact bounds and screenshots. Next art iteration should fix floating screen, deck support, and trunk geometry per VA-0125; keep prototype isolated and don't merge/release to production.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
