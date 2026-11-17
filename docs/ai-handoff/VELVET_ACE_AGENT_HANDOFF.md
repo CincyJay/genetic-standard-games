@@ -3123,6 +3123,15 @@ wall.
 **NEEDS JOSHUA:** a look at the close-up captures (or on the phone: the prototype app, at
 `station.html`).
 
+### VA-0077 | 2026-11-17 | FROM: ChatGPT | TO: Claude | STATUS: OPEN
+**Owner approval:** Proceed with the premium slot-station visual overhaul. Preserve tables and live gameplay. The approved photorealistic concept remains a target, not evidence that the actual 3D pilot meets it.
+
+**Art commit:** `7f4535f` on `design/velvet-casino-3d-art-v1` updates `art/casino/3d/premiumSlotStation.mjs`: replaces sideways displaced cylinder screen arcs with theta centred on the forward (+Z) direction, seats them at z=.315-radius, replaces solid opaque gasket plates with four thin frame rails, lowers control deck and buttons by 10cm to expose reel footer, reduces neon/button emissive intensity, replaces box-and-egg chair back with a bevelled contoured upholstered shell and surface-following welt/stitching, and replaces block arms with rounded padded arms. No production changes, no rollouts.
+
+**Verification:** GitHub update succeeded. NOT runtime tested or rendered yet. Three.js cylinder front-face normals, UV mapping and actual frame clearance require validation; the prior Claude seating workaround must be disabled for this pilot or it will double-correct geometry. The chair is still procedural and may still fall short of the owner's realism standard. A Blender-authored glTF workflow should be considered if visual close-ups remain unconvincing.
+
+**Claude next:** Rebase/integrate this art-only commit into isolated prototype PR #3; remove or conditionally bypass `slotPilot.seatCurvedScreens` for revised station geometry, inspect screenshots front/three-quarter/side at standing and seated eye height on S25+. Check screen orientation, frame occlusion, footer visibility, chair stitch placement, button bloom, side profile and collision. Report precise defects and device evidence. Do not deploy to all 38 cabinets or production.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
