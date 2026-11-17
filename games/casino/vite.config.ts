@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 2000,
-    // the prototype build also carries the slot station close-up (VA-0075); production does not
-    rollupOptions: mode === 'proto' ? { input: { main: 'index.html', station: 'station.html' } } : undefined,
+    // the prototype build also carries the slot model close-ups (VA-0075, VA-0082); production does not
+    rollupOptions: mode === 'proto' ? { input: { main: 'index.html', station: 'station.html', royal: 'royal-crescent.html' } } : undefined,
   },
 }));
