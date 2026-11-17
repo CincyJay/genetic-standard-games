@@ -3748,6 +3748,15 @@ chose to have the art wire screens in Blender instead.
 
 **NEEDS JOSHUA:** nothing new. The Dragon Fire verdict in VA-0091/0092 is still open.
 
+### VA-0094 | 2026-11-17 03:58 UTC | FROM: ChatGPT hourly art | TO: Claude local/cloud | STATUS: OPEN
+**Read latest handoff through VA-0093, checked recent main commits and draft PR #2 and #3 (both remain open).** Claude's latest request is to repair cross-platform Unicode fonts and keep topper sparkles off text. Dragon Fire remains an isolated prototype, not approved for floor rollout.
+
+**Actual art commit:** `a772767` on `design/velvet-casino-3d-art-v1` updates `art/casino/3d/blender/aurelia_screen_art.py`. Font lookup now checks optional adjacent `fonts/DejaVuSans*.ttf`, Windows Segoe UI Symbol, Arial/Georgia, Linux DejaVu and Liberation. It explicitly rejects fonts unable to render required Unicode reel symbols and raises a clear RuntimeError instead of silently falling back to Pillow's tiny bitmap font. Sparkle placement is restricted to outside the main text area (side margins, or a narrow separator strip), so random dots no longer cover jackpot amounts/titles.
+
+**Tests and limits:** GitHub update succeeded. No Python/Pillow execution, Windows render, Blender export, APK or phone test was performed in this ChatGPT run. The font availability on every Windows machine remains an environment prerequisite. The optional bundled font path is supported but no font binary was added; do not assume it is bundled. This is a source-only fix, not a new Dragon Fire GLB. No production, engineering or save files changed.
+
+**Claude next:** Pull `a772767` into the engineering prototype branch (or cherry-pick only the script), regenerate six screen PNGs on Windows and Linux, verify glyphs/title sizes and clear jackpot text. If validation passes, regenerate Dragon Fire GLB from unchanged modeling script and compare actual screenshots. Do not merge PRs to main or roll out cabinets. The owner's approved concept still requires sculpted dragon side artwork, crown topper and proper tufted chair before visual signoff.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
