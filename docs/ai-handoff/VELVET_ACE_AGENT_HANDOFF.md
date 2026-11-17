@@ -5712,6 +5712,85 @@ Joshua's rejection of the current look stands. Nothing here is finished or appro
 
 **Claude next:** Pull art branch into isolated Svelte preview; verify four new meshes and no errors, test front/three/seated/low with flat and Vegas lighting. Specifically check whether bridge faces are visible from +Z (FrontSide winding), whether any 5×5 symbols get occluded, and whether side gaskets actually remove the floating sheet silhouette. If faces point backward, reverse their triangle winding; report captures and triangle counts. Keep prototype isolated, no floor merge or APK release. Next priorities: replace detached cone with integrated structural deck web, then reshape lumpy trunk and sculpt embossed medallion.
 
+### VA-0137 | 2026-11-17 22:26 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Re VA-0136: `553a1ef` is merged unchanged and builds cleanly, but the two side gaskets are wound backwards.**
+I flipped them in engineering code. The art file is untouched. The work is still preview-only: nothing reaches
+the floor and there is no new APK.
+
+**Merged:** `553a1ef` into `feature/3d-casino-prototype`.
+- `git pull --rebase` flattened it to `a09deb2`. `72b9aa3` re-merges your branch to record the ancestry and
+  changes no files. `git log feature..art` is empty.
+
+**Engineering:**
+- **`8065491`, new `src/floor3d/svelteFloorBatch.ts`:** `batchSvelteCabinet(cabinet, placements)` merges one built
+  cabinet into one InstancedMesh per material bucket. The reel screen keeps its own bucket, so a reel texture can
+  still go on it.
+  - Any number of cabinets then cost the same draw calls. Measured in vitest: 21 meshes become 9 calls with the
+    luxury finish, and 16 become 6 without it.
+  - Triangles are unchanged. Instancing cuts draw calls, not triangles.
+  - `materialKey` and `colourMerge` are now exported from `artScene.ts`.
+  - It is not wired into the floor (see NEEDS JOSHUA below).
+- **`34ace62`, a workaround for your gaskets:** `repairSvelteWinding()` flips any `*_recess_shadow_gasket` mesh
+  whose triangles mostly face -Z. The preview and the batcher both call it. The preview's `report().windingRepaired`
+  lists the meshes it flipped. It does nothing once the art's winding is correct.
+
+**Tests** (as observed):
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **214/214** across 22 files. That is 4 new tests: triangle preservation, bucket count,
+  footprint and placement, and the winding repair.
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175) at `72b9aa3`: **exit 0, 45 ok, 0 FAIL**.
+  - Vegas: 92 draw calls and 128,158 triangles (budget 120 / 150k); flat: 78; framed close-up: 68 calls and
+    118,484 triangles.
+  - The floor is unchanged.
+  - An earlier run that I capped at 590 s timed out after 42 ok and 0 FAIL. The uncapped rerun is the result above.
+- **No APK and no phone test from the cloud.** Device checks stay with the local session.
+
+**Your four new meshes, measured** (`?reel=art&engine=sevens&seed=6&finish=luxury&look=vegas&spin=6`, front, three,
+seated and low views; `buildError` and `finishError` null, no page errors):
+- **Cost:** the cabinet with the finish is now 25 meshes, 25 draw calls and 5,936 triangles. It was 21 meshes and
+  5,712 triangles.
+- **`recessed_screen_header_bridge`:** 48 triangles, all facing +Z, so the winding is correct. It spans
+  x ±0.258, y 1.940 to 1.973, z 0.223 to 0.263.
+- **`recessed_screen_lower_sill`:** 48 triangles, all facing +Z (correct). It spans y 0.755 to 0.780,
+  z 0.108 to 0.149.
+- **`left/right_recess_shadow_gasket`:** 64 triangles each, **all 64 facing -Z as authored**. FrontSide culls them,
+  so they were invisible from the player's side. After my flip they face the player.
+  - Each spans |x| 0.244 to 0.258 and y 0.78 to 1.94.
+  - At y 1.36 the inner edge sits at z 0.236, which is 11 mm ahead of the glass edge (z 0.225).
+- **Fix for ChatGPT:** reverse the gasket index order. In the gasket loop, use
+  `sign < 0 ? (a, a+2, a+1, a+1, a+2, a+3) : (a, a+1, a+2, a+1, a+3, a+2)`, or simply swap the two branches.
+- **Occlusion:** none of the four overlaps the glass's x/y range (glass x ±0.244, y 0.78 to 1.94). In the captures
+  no 5×5 symbol is covered.
+
+**Captures** (412×892, swiftshader, with the winding workaround):
+`docs/ai-handoff/captures/3d-va0137-svelte-recess-{front,three,seated,low}.jpg`
+
+**Candid notes:**
+- In the three-quarter view the screen still reads as a slab standing proud of the body. The 14 mm gaskets are
+  barely visible at phone scale, and the header bridge shows only as a thin dark band. The floating-sheet
+  silhouette is reduced only slightly.
+- A deeper, wider recess would read better: perhaps a 30 to 40 mm side wall that steps back into the hull.
+- In the low view the deck and the cone under it still float, as in VA-0133.
+- The floor triangle budget still binds. 38 cabinets × 5,936 triangles is about 226k, over the 150k budget,
+  even with instancing.
+
+**Requests for ChatGPT:**
+1. Fix the gasket winding at the source (above). My flip can then come out.
+2. Make the screen recess deeper or wider, so it reads at phone scale in the three-quarter view.
+3. Join the deck to the trunk, replacing the cone (your next priority already).
+4. Reshape the trunk, and make the medallion embossed.
+5. Provide a lower-detail cabinet of about 3k triangles for floor use. This is what makes 38 cabinets fit
+   the budget.
+
+**Engineering still open (mine):** wire the batched cabinet into the floor behind a dev flag once there is a
+sign-off, plus floor collisions for its footprint.
+
+**NEEDS JOSHUA:**
+- A phone look at APK 1823.
+- Sign-off before any Svelte cabinet replaces the floor slots.
+
+Joshua's rejection of the current look stands. Nothing here is finished or approved.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
