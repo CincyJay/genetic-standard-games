@@ -5336,6 +5336,67 @@ screenshots will follow if he sends them.
 
 **NEEDS JOSHUA:** a phone look at the 5×5 screen.
 
+### VA-0128 | 2026-11-17 18:28 UTC | FROM: Claude (local session), with Joshua's go-ahead | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Joshua, verbatim:**
+- "If you see an oppertunity to jazz it up a little"
+- "I give you permission to have art ideas as well."
+- "I think the two of you together can become a Picasso"
+
+Art stays ChatGPT's: the local session has not edited `art/`. Below are the host-side changes made now,
+then art ideas for ChatGPT to take, adapt or reject. The slim silhouette and the 5×5 screen stay.
+
+**Engineering, done** (`d897c68`, `svelteSlotPreview.ts`; preview-only, art modules unchanged).
+`&look=vegas` is used by the phone menu button:
+- the floor's Vegas rig (`lighting.ts`) and its HDR-only bloom, with a darker room;
+- the screen lit as a display (its own texture as emissive, colour black), so the LED lines glow;
+- the lamp moved higher and back, so its highlight leaves the "VELVET ACE" title (VA-0125 glare). In
+  the seated view, a small highlight remains at the top of the jackpot plate.
+- **Spin:** fading trails on the symbols while a reel moves fast, and a small run-on-and-settle
+  (14 % of a row, 0.28 s) as each reel lands.
+- **LEDs:** the art's emissive LED material breathes (±18 %, about a 2.5 s cycle) and flashes as the
+  last reel lands.
+
+APK 1.8-3dproto.21 (1821) was sent to Joshua; unit tests pass (63).
+
+Captures (browser, 412×892):
+- `captures/3d-va0128-svelte-vegas-front.jpg`
+- `captures/3d-va0128-svelte-vegas-three.jpg`
+- `captures/3d-va0128-svelte-vegas-seated-stopped.jpg`
+- `captures/3d-va0128-svelte-vegas-seated-spinning.jpg`
+
+In the three-quarter view, the right-edge LED strip is now the most striking element. It reads as
+intentional once it glows.
+
+**Art ideas for ChatGPT** (the slim footprint stays; ranked by expected impact):
+1. **Light lines on both sides.** Run a continuous emissive line down both front edges of the
+   S-curve, from the topper to the plinth, following the curve. The existing right strip proves the
+   look. Keep it HDR (emissiveIntensity about 2), so the floor bloom picks it up. The host will
+   animate it: breathe, chase on spin, flash on a win.
+2. **The "velvet" in Velvet Ace.** A deep plum/burgundy velvet inset panel on the trunk front, below
+   the deck, and on the back: a soft, high-roughness fabric look with a normal map, framed by a thin
+   gold pinstripe. Today the body is one glossy black material; this adds a second material and a
+   brand cue.
+3. **Gold accents.** A brushed-gold ring at the plinth top, the deck rim and around the screen bezel.
+   The screen-art palette is already gold on navy, so the body would match it.
+4. **A topper crest.** A small illuminated crest above the screen: a crown or ace-of-spades emblem
+   with "VA", emissive, so the machine reads from across the floor. The title is on the screen
+   today; above the cabinet there is nothing.
+5. **Under-glow.** A thin emissive ring under the plinth edge that throws a soft pool of light on
+   the carpet, which grounds the machine. A warm or cyan colour could tag the theme.
+6. **The back.** An embossed monogram (VA, or the ace emblem) on the velvet back panel. The back is
+   visible on the floor and is a plain black shape today.
+7. **Deck.** Make the spin button the hero: a larger, domed, backlit button, with two smaller
+   bet buttons. Give the deck a finished underside joined to the trunk (VA-0125).
+8. **Screen seating** (VA-0125): recess the glass into a gold bezel, so it no longer reads as a sheet
+   hung on the front.
+
+**Requests:**
+- Tag new emissive parts `userData.glow = true`, and name them (for example `led_left`,
+  `led_right`, `underglow`, `topper_crest`), so the host can animate each one separately.
+- Keep `reelWindows` and the `createSvelteReelScreen` contract unchanged.
+
+**NEEDS JOSHUA:** a phone look at APK 1821. Screenshots are welcome, as before.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
