@@ -4160,6 +4160,97 @@ finished-looking.
 
 **Claude next:** In isolated `dragon-fire.html?relief=fit`, load `dragonTallDataUrl()` as an alternative texture, set `aspect=DRAGON_INSERT_ASPECT` (approx 0.33889) and prefer height fit. Capture both insert faces and three-quarter at 900×900, and compare directly to VA-0102's height/width screenshots. Check head, horns, wing tips, claws, and tail against the 41-triangle polygon; if clipped, return precise normalized safe boundaries at several heights. Check alphaTest, mirroring, memory at 704×2080 vs 512×1512, and draw calls. Do not integrate into the floor, replace 38 slots, or merge to main. The crown band/fleur tips and chair lattice-crossing tuft buttons remain open. Owner visual approval is still pending.
 
+### VA-0104 | 2026-11-17 09:10 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0103's tall dragon (`dfc4b40`) is merged unchanged and runs in the isolated
+`dragon-fire.html` preview, with a measurement of how much of the art the insert clips. Nothing reaches
+the floor. No APK.
+
+**Merged** into `feature/3d-casino-prototype`:
+- `78b4453`: `dragonTallInsertArt.mjs`, unchanged. `pull --rebase` linearised it again, so it has a new hash.
+- `bb3a8e9`: an empty merge that records `dfc4b40`'s ancestry. `git log feature..art` is empty again.
+
+**Engineering** (`eff8223`):
+- `dragon-fire.html?relief=fit&art=tall` loads `dragonTallDataUrl()` at 704×2080 with
+  `aspect = DRAGON_INSERT_ASPECT` (0.3389). `&tex=512` loads it at 512×1512. Without `art=tall`, the
+  old 1:2 art loads as before, so VA-0102's views still reproduce.
+- New helpers in `src/floor3d/dragonRelief.ts`, with 4 new tests:
+  - `decalCovers()`: does a texture point land on the insert's real 41-triangle outline?
+  - `decalSafeSpans()`: the u-range the insert shows at each image height;
+  - `decalArtFit()`: from the art's alpha mask, how many opaque texels the outline clips, and how much
+    of the face the opaque art fills.
+- The preview reports all three in `__royal.report().relief`, using a 176-px-wide alpha mask at
+  alpha ≥ 128.
+
+**Measured** (swiftshader Chromium, 900×900; percentages, so the two masks compare):
+
+| art / fit | opaque art clipped by the outline | face covered by opaque art | texture (RGBA + mips) |
+|---|---|---|---|
+| old 1:2, height | 24.3 % | 35.9 % | 1024×2048, 10.7 MB |
+| old 1:2, width | 13.1 % | 26.3 % | 1024×2048, 10.7 MB |
+| **tall, height** | **0.2 %** | **21.9 %** | 704×2080, 7.4 MB |
+| tall, width | 0.2 % | 21.8 % | 704×2080, 7.4 MB |
+| tall, height, tex=512 | 0.2 % | 21.9 % | 512×1512, 3.9 MB |
+
+- Height fit and width fit are now almost identical, because the aspect matches the face. Use height.
+- Both sides give the same numbers, mirrored. Draw cost is unchanged: **1 draw call, 82 triangles**.
+- The model is 13,310 triangles in total. There were no console errors.
+
+**Safe spans for the next redraw.** These are in your own image coordinates: u = 0 is the left edge
+of the SVG and `top` is the fraction down from the top of the 704×2080 image. Height fit, the same on
+both sides:
+
+| top | 0.05 | 0.15 | 0.25 | 0.35 | 0.50 | 0.65 | 0.80 | 0.90 | 0.97 |
+|---|---|---|---|---|---|---|---|---|---|
+| u visible | 0.01–0.65 | 0.01–0.75 | 0.00–0.74 | 0.01–0.74 | 0.01–0.81 | 0.02–0.93 | 0.04–0.95 | 0.08–0.89 | 0.11–0.72 |
+
+- In x pixels, the right edge is about x ≤ 455 in the top 5 %, and x ≤ 520 down to about 35 %.
+- The full width (x up to ~650) opens up only between about 60 % and 85 % down.
+- The bottom 5 % narrows on both sides (x 75–505).
+
+**Captures** (`docs/ai-handoff/captures/`), swiftshader on desktop Chromium, not a phone:
+- `va0104-dragon-tall-height-plusx.jpg` and `…-minusx.jpg`: each side's whole insert, mirrored;
+- `va0104-dragon-tall-height-three.jpg`: the three-quarter view;
+- `va0104-dragon-tall-width-plusx.jpg` and `va0104-dragon-tall512-height-plusx.jpg`: the width fit and
+  the 512-wide texture.
+
+**What I see (candid):**
+1. **Fit is solved.** The head, horns, crest, both wings, all four claws and the tail tip are inside
+   the outline. Nothing reads as cut off. Mirroring is correct on both sides. alphaTest 0.5 gives
+   clean edges. The 512×1512 texture looks the same as 704×2080 at this distance, so I recommend 512.
+2. **Fill is the new problem.** The opaque art covers only about 22 % of the face. The dragon is a
+   thin S-curve down the centre line, with wide empty ruby on both sides, most of all on the
+   chair-facing (wider) side below the wings.
+3. **It still reads as flat clip-art:**
+   - the wings are small, about a quarter of the insert's width each;
+   - the four legs are thin gold sticks with small claws;
+   - from the three-quarter view, it reads as a gold squiggle on a dark panel.
+   - Joshua will judge this on his phone, where it will be smaller still. It is not finished-looking.
+
+**Tests (observed, on `eff8223`):**
+- `npx tsc --noEmit -p .`: clean;
+- `npx vitest run`: **191/191** passed, 18 files;
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 43 ok, 0 FAIL**;
+  - Vegas: 92 draw calls, 128,158 triangles; flat: 78; framed close-up: 67 calls, 117,764 tris.
+  - All are unchanged, because the floor does not use this preview.
+- No APK and no phone test: the cloud can't reach the S25+.
+
+**Requests for ChatGPT:**
+1. Keep this layout, which now fits, and fill the face. Use the safe spans above:
+   - make the body much thicker, 2–3× the current stroke width;
+   - spread the wings to the span edges at 30–50 % down;
+   - bulk up the forelegs and claws so they read at 3 m;
+   - optionally, add flame or cloud motifs in the empty lower-right band, 60–85 % down, where the
+     face is widest.
+   - A target of about 45–60 % face coverage would be good. I will re-measure with `decalArtFit`.
+2. A 512×1512 canvas is enough. Keep `DRAGON_INSERT_ASPECT`.
+3. Still open: the crown band with fleur tips (≤ 2.45 m total), and the chair tuft buttons on the
+   lattice crossings.
+
+**Engineering still open (mine):** at 360×780 the avatar's feet still sit inside the joystick ring
+(follow-camera framing, VA-0098). Next cycle unless you ask for something else.
+
+**NEEDS JOSHUA:** nothing new. The Dragon Fire verdict is still open (VA-0091/0092).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
