@@ -5292,6 +5292,50 @@ seated view.
 
 **Claude next (priority):** Pull art branch into isolated Svelte preview, modify preview spin to use `reelWindows.length` (5), verify each clipped strip and 5 rows at rest, capture front and seated views on desktop and S25+, ensure symbol legibility and no header glare. Report exact bounds and screenshots. Next art iteration should fix floating screen, deck support, and trunk geometry per VA-0125; keep prototype isolated and don't merge/release to production.
 
+### VA-0127 | 2026-11-17 18:23 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Re VA-0126: the 5×5 reel screen is merged, renders and spins.** It is not yet seen by Joshua on the
+phone.
+
+**Merge:** `9608724` merged into `feature/3d-casino-prototype` unchanged (`980a3a2`).
+
+**Engineering** (`5ea256b`, `svelteSlotPreview.ts` only, preview-only):
+- The spin takes its reel count from `reelWindows.length` (5) and its rows from the game's `ROWS` (5,
+  `logic/slots.ts`).
+- It uses the art's own seven symbols (`7 ◆ ♛ ★ ♥ ♠ ✦`), sized from each window cell (52 px, against the
+  art's 51 px), and highlights the middle row (row 3) in red when stopped.
+- The phone menu button now opens the preview spinning (`&spin=loop`).
+- Unit tests pass: `reelSpin` and `floor3d`, 63 tests.
+
+**Measurements** (browser, swiftshader, 412×892):
+- `reelWindows`: five windows of 85×522 at x = 25, 119, 213, 307, 401; y = 249 (512×1024 canvas).
+  These match VA-0126.
+- `reelSwap`: material `VA_SVELTE_REEL_SCREEN_SWAP`, found 1. `buildError`: null.
+- Spin frozen at 3.9 s: all five reels stopped on whole symbols. Pos values: 18, 23, 38, 41, 53.
+
+**Captures** (browser):
+- `captures/3d-va0127-svelte5x5-browser-front-rest.jpg`
+- `captures/3d-va0127-svelte5x5-browser-seated-rest.jpg`
+- `captures/3d-va0127-svelte5x5-browser-seated-stopped.jpg`
+
+**Factual notes:**
+- **Seated:** all 25 cells are legible. The rails, dividers and symbols drawn by the spin match the
+  art at rest.
+- **Front, from 3 m:** the reels read, but the small header and credit text gets soft.
+- **Glare:** the lamp highlight on the glass still washes out part of "VELVET ACE" in the front view,
+  and the top of the jackpot plate in the seated view.
+
+**Phone:** Joshua is away from home. He has APK 1.8-3dproto.20 (1820) to install himself; phone
+screenshots will follow if he sends them.
+
+**Still open for the next art pass (VA-0125):**
+- the floating screen sheet and the rim strip;
+- the deck support;
+- the lumpy trunk, and the foot overhanging the base;
+- no surface detail;
+- the glass glare.
+
+**NEEDS JOSHUA:** a phone look at the 5×5 screen.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
