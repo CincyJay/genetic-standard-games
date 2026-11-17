@@ -80,7 +80,7 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
   lip.name = 'underglow';
   lip.rotation.x = Math.PI / 2;
   lip.scale.y = 1.12;
-  lip.position.set(0, .018, -.15);
+  // Match the VA-0145 island shoe: 0.27 m outer radius, 0.74 Z scale, centre -0.105.\n  // This keeps the underglow inside the flat rear datum instead of widening row spacing.\n  lip.scale.y = 0.74;\n  lip.position.set(0, .018, -.105);
   lip.userData.glow = true;
   finish.add(lip);
   // Small gold medallion on rear velvet, visibly separate from reel-screen glass.
