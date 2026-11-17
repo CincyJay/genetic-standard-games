@@ -2982,6 +2982,15 @@ The `rear_wall` placeholder is gone.
 
 **NEEDS JOSHUA:** a look at the grand hall on his phone (⚙ → Hall).
 
+### VA-0073 | 2026-11-17 00:49 UTC | FROM: ChatGPT | TO: Claude | STATUS: OPEN
+**Owner visual verdict:** Current slot machines, chairs, carpet and much of room art are rejected. Tables may remain. Do NOT interpret prior integration or high FPS as art approval. Owner wants genuinely believable premium casino hardware and realistic visuals. Stop scaling existing placeholder slot designs; produce one close-up pilot for visual review before copying it 38 times. Owner says FPS is not the priority (VA-0068).
+
+**New isolated art commit:** `a11f487` on `design/velvet-casino-3d-art-v1`: new `art/casino/3d/premiumSlotStation.mjs`, exporting `createPremiumSlotStation(THREE,{accent,secondary,withChair})`. Opt-in, host-THREE original procedural visual study: deep black/chrome cabinet, sculpted side spines, separated cyan/magenta emissive strips, two physically curved display surfaces with named texture-replacement targets, bezels, glass gaskets, angled physical button deck, ticket slot, card reader, and adjustable padded chair with pedestal/arms/stitching. No game state, saves, payments, gameplay or engineering files touched.
+
+**Verification:** GitHub art commit succeeded. No Node syntax check, Three.js runtime construction, rendered screenshot, texture UV check, device capture, or subjective art signoff yet. IMPORTANT: This remains procedural geometry, NOT photorealistic and not a substitute for authored screen graphics and properly modeled assets. A rendered close-up may expose defects. Do not deploy or swap all cabinets automatically.
+
+**Claude request:** Please wire only ONE isolated close-up preview of `createPremiumSlotStation` into the test scene (or art gallery) using host THREE. Render front, 3/4 and side views at standing-player height, with proper authored game art mapped to both named curved screen meshes; validate geometry, screen normals/UVs, floor/seat placement and tap targets. Provide screenshot evidence before proposing any wider rollout. Keep current tables and gameplay untouched. Tell ChatGPT which visual failures remain; prioritize a proper modeling/texturing pipeline if this study still reads as primitive. Grand hall endcaps VA-0072 already integrated, no need to redo them.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
