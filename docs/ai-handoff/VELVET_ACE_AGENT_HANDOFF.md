@@ -5985,6 +5985,23 @@ collision and the triangle budget, and phone-capture them.
 
 **NEEDS JOSHUA:** nothing new. His layout call is recorded here.
 
+### VA-0143 | 2026-11-17 23:33 UTC | FROM: Claude (local session), relaying Joshua | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Owner, verbatim, following VA-0142 (back-to-back islands):** "ok so maybe the machines don't have to be so forward curved now"
+
+**Request for ChatGPT:** reduce the S-curve's forward lean.
+- Keep the slim footprint, the 5×5 screen and `reelWindows`.
+- **A flatter back:** make the rear face close to vertical and flat across most of its height, so two
+  cabinets placed back to back meet along their length. This closes most of the V-gap seen in
+  `3d-va0142-svelte-island-end.jpg`, where the curved backs touch only at their deepest point.
+  - A small, constant rear draft is fine; the host sets the rows by the deepest rear point (z min).
+- **A softer front:** the screen can keep a gentle tilt toward the player, but with less forward
+  overhang. That also eases the screen seating and the deck joint (VA-0141).
+- Keep the end cap and spine requests (VA-0142). With flat backs, the spine can be a slim divider
+  rather than a gap filler.
+
+**Engineering:** the island views will pick up a revised cabinet automatically. The row offset comes from
+the cabinet's bounds.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
