@@ -13,7 +13,12 @@ import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScre
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
 import { ROWS as GAME_ROWS } from '../logic/slots';
-import { reelPoses, symbolAt, type SpinPlan } from './reelSpin';
+import { reelPoses, stopTime, symbolAt, type SpinPlan } from './reelSpin';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { LIGHT_RIGS } from './lighting';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'three';
@@ -123,8 +128,15 @@ function makeReelAnim(screen: ArtScreen, mode: string) {
   const frozen = Number(mode);
   let spins = 1;
   let last = reelPoses(plan, 0);
+  let prev: number[] | null = null;
+  let lastT = 0;
   const draw = (t: number) => {
     last = reelPoses(plan, t);
+    lastT = t;
+    // rows moved since the last frame (or over 1/60 s when frozen for a capture): drives the blur
+    const ahead = reelPoses(plan, t + 1 / 60);
+    const speed = last.map((p, i) => Math.abs((prev && !Number.isFinite(frozen) ? p.pos - prev[i]! : ahead[i]!.pos - p.pos)));
+    prev = last.map((p) => p.pos);
     g.save();
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.textAlign = 'center';
@@ -139,11 +151,24 @@ function makeReelAnim(screen: ArtScreen, mode: string) {
       // symbol size from the cell, so five narrow reels' symbols fit their windows
       g.font = `bold ${Math.round(Math.min(rowH * 0.62, w.w * 0.62))}px Georgia,serif`;
       const frac = pose.pos - Math.floor(pose.pos);
+      // a small settle when the reel lands: it runs on a little past the stop and eases back
+      const since = t - stopTime(plan, i);
+      const settle = pose.stopped && since < 0.28 ? Math.sin((since / 0.28) * Math.PI) * (1 - since / 0.28) * 0.14 * rowH : 0;
+      // motion blur while fast: fading trailing copies along the travel, scaled by speed
+      const blur = Math.min(speed[i]! * 1.6, 1);
       for (let row = -1; row <= ROWS; row++) {
-        const cy = w.y + (row + 0.5 + frac) * rowH;
+        const cy = w.y + (row + 0.5 + frac) * rowH + settle;
         const idx = symbolAt(pose.pos, row, ROWS, STRIP.length);
         g.fillStyle = pose.stopped && row === MID ? '#ab1733' : '#1c3759';
+        if (blur > 0.08) {
+          for (let k = 1; k <= 3; k++) {
+            g.globalAlpha = 0.28 * blur * (1 - k / 4);
+            g.fillText(STRIP[idx]!, w.x + w.w / 2, cy - k * blur * rowH * 0.16);
+          }
+          g.globalAlpha = 1 - 0.45 * blur;
+        }
         g.fillText(STRIP[idx]!, w.x + w.w / 2, cy);
+        g.globalAlpha = 1;
         g.fillStyle = 'rgba(28,41,59,.25)';
         g.fillRect(w.x + 3, cy + rowH / 2 - 1, w.w - 6, 2);
       }
@@ -161,6 +186,8 @@ function makeReelAnim(screen: ArtScreen, mode: string) {
       if (t > 4) { newPlan(last.map((p) => p.pos % STRIP.length)); started = now; t = 0; spins++; }
       draw(t);
     },
+    /** Seconds since the last reel landed (negative while any reel still spins). */
+    landedFor: () => lastT - stopTime(plan, wins.length - 1),
     state: () => ({ windows: wins, spins, targets: plan.targets.map((i) => STRIP[i]), poses: last.map((p) => ({ pos: Math.round(p.pos * 100) / 100, stopped: p.stopped })) }),
   };
 }
@@ -201,6 +228,51 @@ const box = (o: THREE.Object3D) => {
   return { min: [r3(b.min.x), r3(b.min.y), r3(b.min.z)], max: [r3(b.max.x), r3(b.max.y), r3(b.max.z)] };
 };
 
+// `&look=vegas` (the phone review page): the floor's Vegas rig (lighting.ts), a darker room, the
+// screen lit as a display (its own texture as emissive) and the floor's HDR-only bloom, so the LED
+// lines glow as they would on the floor. Host-side lighting and material setup only; the art is unchanged.
+let draw = () => renderer.render(scene, camera);
+let ledPulse: ((now: number) => void) | null = null;
+if (params.get('look') === 'vegas') {
+  const rig = LIGHT_RIGS.vegas;
+  renderer.toneMappingExposure = rig.exposure;
+  scene.environmentIntensity = rig.envIntensity;
+  scene.background = new THREE.Color(0x07040a);
+  scene.traverse((o) => { const l = o as THREE.HemisphereLight; if (l.isHemisphereLight) { l.color.set(rig.hemi.sky); l.groundColor.set(rig.hemi.ground); l.intensity = rig.hemi.intensity; } });
+  key.color.set(rig.lamp.color);
+  key.intensity = rig.lamp.intensity * 1.2;
+  key.decay = rig.lamp.decay;
+  // higher and further back, so its highlight on the glass falls above the screen in the front view (VA-0125 glare)
+  key.position.set(0.9, 4.6, 1.4);
+  key.target.position.set(0, 0.9, 0.3);
+  (floor.material as THREE.MeshStandardMaterial).color.set(0x1a1218);
+  human.visible = false;
+  cabinet.traverse((o) => {
+    const m = o as THREE.Mesh;
+    const mat = m.isMesh ? (m.material as THREE.MeshStandardMaterial) : null;
+    if (mat && mat.name === cabinet.userData.screenMaterialName && mat.map) { mat.emissiveMap = mat.map; mat.emissive.set(0xffffff); mat.emissiveIntensity = 0.8; mat.color.set(0x000000); mat.needsUpdate = true; }
+  });
+  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+  composer.addPass(new RenderPass(scene, camera));
+  composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), rig.bloom!.strength, rig.bloom!.radius, rig.bloom!.threshold));
+  composer.addPass(new OutputPass());
+  composer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  composer.setSize(innerWidth, innerHeight);
+  draw = () => composer.render();
+  // the art's LED lines (its HDR emissive material) breathe slowly, and flash as the last reel lands
+  const leds: { mat: THREE.MeshStandardMaterial; base: number }[] = [];
+  cabinet.traverse((o) => {
+    const m = o as THREE.Mesh;
+    const mat = m.isMesh ? (m.material as THREE.MeshStandardMaterial) : null;
+    if (mat && mat.emissiveIntensity > 1 && !leds.some((l) => l.mat === mat)) leds.push({ mat, base: mat.emissiveIntensity });
+  });
+  ledPulse = (now) => {
+    const landed = reelAnim?.landedFor() ?? -1;
+    const flash = landed >= 0 && landed < 0.9 ? 0.9 * Math.abs(Math.sin(landed * Math.PI * 3.3)) * (1 - landed / 0.9) : 0;
+    for (const l of leds) l.mat.emissiveIntensity = l.base * (0.82 + 0.18 * Math.sin(now * 0.0025) + flash);
+  };
+}
+
 reelAnim?.tick(performance.now());
 renderer.render(scene, camera);
 const before = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
@@ -208,10 +280,11 @@ const before = { calls: renderer.info.render.calls, triangles: renderer.info.ren
 floor.visible = human.visible = false;
 renderer.render(scene, camera);
 const cabinetOnly = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
-floor.visible = human.visible = true;
-renderer.render(scene, camera);
+floor.visible = true;
+human.visible = params.get('look') !== 'vegas';
+draw();
 if (reelAnim && reelAnim.frozen === null) {
-  renderer.setAnimationLoop((now) => { reelAnim!.tick(now); renderer.render(scene, camera); });
+  renderer.setAnimationLoop((now) => { reelAnim!.tick(now); ledPulse?.(now); draw(); });
 }
 
 /**

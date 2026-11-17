@@ -688,7 +688,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const svelteBtn = $<HTMLButtonElement>('.sveltepreview');
   svelteBtn.hidden = !(import.meta.env.MODE === 'proto' || import.meta.env.DEV);
   svelteBtn.addEventListener('click', () => {
-    if (!sitting && !seated) location.href = 'svelte-slot.html?view=front&reel=art&spin=loop&from=floor';
+    if (!sitting && !seated) location.href = 'svelte-slot.html?view=front&reel=art&spin=loop&look=vegas&from=floor';
   });
   $<HTMLButtonElement>('.back').addEventListener('click', () => {
     if (!sitting && !seated) opts.onBack(snapshot());
