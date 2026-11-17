@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { insertFaceDecal, reliefInsertQuads } from '../src/floor3d/dragonRelief.ts';
+import { decalArtFit, decalCovers, decalSafeSpans, insertFaceDecal, reliefInsertQuads } from '../src/floor3d/dragonRelief.ts';
 import { dragonReliefSvg } from '../../../art/casino/3d/dragonReliefArt.mjs';
 
 // the two ruby inserts of dragon_fire_hero.glb, glTF space (VA-0100)
@@ -110,5 +110,46 @@ describe('insert-shaped decal (VA-0101)', () => {
     expect(svg).not.toMatch(/<use\b/);
     expect(svg).not.toMatch(/<text\b/);
     expect(svg).toMatch(/fill="url\(#scales\)"/);
+  });
+});
+
+describe('decal coverage checks (VA-0103)', () => {
+  const { pos, idx } = slab(0.542, 0.56);
+  const d = insertFaceDecal(pos, idx, { aspect: 0.592 / 0.7 }); // texture exactly as wide as the bottom edge
+  it('covers the face centre and not the corner the slanted top cuts away', () => {
+    expect(decalCovers(d, 0.5, 0.5)).toBe(true);
+    // +X: u = 0 is +Z (0.441 at the bottom, 0.281 at the top), so the top-left corner is off the face
+    expect(decalCovers(d, 0.02, 0.98)).toBe(false);
+    expect(decalCovers(d, 0.02, 0.02)).toBe(true);
+  });
+  it('safe spans narrow toward the top on the slanted side', () => {
+    const [bottom, top] = decalSafeSpans(d, [0.01, 0.99]);
+    expect(bottom.spans).toHaveLength(1);
+    expect(top.spans).toHaveLength(1);
+    expect(bottom.spans[0][0]).toBeLessThan(0.02);
+    expect(top.spans[0][0]).toBeGreaterThan(0.2);
+    expect(top.spans[0][1]).toBeGreaterThan(0.97);
+  });
+  it('art fit counts clipped opaque texels and face coverage', () => {
+    const w = 20, h = 20;
+    const full = new Uint8Array(w * h).fill(255);
+    const f = decalArtFit(d, full, w, h);
+    expect(f.opaque).toBe(400);
+    expect(f.faceCoveredPct).toBe(100);
+    expect(f.clipped).toBeGreaterThan(0);
+    // the trapezoid covers (0.592+0.441)/2 / 0.592 of the texture
+    expect(f.faceTexels / 400).toBeCloseTo((0.592 + 0.441) / 2 / 0.592, 1);
+    const none = decalArtFit(d, new Uint8Array(w * h), w, h);
+    expect(none).toMatchObject({ opaque: 0, clipped: 0, faceCoveredPct: 0 });
+  });
+});
+
+describe('tall insert art module (VA-0103)', () => {
+  it('is a 704×2080 self-contained SVG with no text or <use>, aspect ≈ 0.61/1.80', async () => {
+    const m = await import('../../../art/casino/3d/dragonTallInsertArt.mjs');
+    const svg = m.dragonTallSvg();
+    expect(svg).toMatch(/viewBox="0 0 704 2080"/);
+    expect(svg).not.toMatch(/<use\b|<text\b|<image\b|<script\b/);
+    expect(m.DRAGON_INSERT_ASPECT).toBeCloseTo(0.3389, 3);
   });
 });

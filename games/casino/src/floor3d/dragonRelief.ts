@@ -132,3 +132,50 @@ export function insertFaceDecal(
   out.face.area = +area.toFixed(4);
   return out;
 }
+
+/** True when texture point (u, v) lands on the decal's face (the insert's real outline). */
+export function decalCovers(d: Pick<FaceDecal, 'uvs' | 'indices'>, u: number, v: number): boolean {
+  const U = (i: number) => d.uvs[i * 2], V = (i: number) => d.uvs[i * 2 + 1];
+  for (let t = 0; t + 2 < d.indices.length; t += 3) {
+    const [a, b, c] = [d.indices[t], d.indices[t + 1], d.indices[t + 2]];
+    const s = (p: number, q: number) => (U(q) - U(p)) * (v - V(p)) - (V(q) - V(p)) * (u - U(p));
+    const s1 = s(a, b), s2 = s(b, c), s3 = s(c, a);
+    const eps = 1e-9;
+    if ((s1 >= -eps && s2 >= -eps && s3 >= -eps) || (s1 <= eps && s2 <= eps && s3 <= eps)) return true;
+  }
+  return false;
+}
+
+/**
+ * The part of the texture that lands on the face, row by row: for each v (0 = bottom, 1 = top of
+ * the image), the [u0, u1] span(s) the insert shows. An artist can keep strokes inside these.
+ */
+export function decalSafeSpans(d: Pick<FaceDecal, 'uvs' | 'indices'>, rows: number[], step = 0.002): { v: number; spans: [number, number][] }[] {
+  return rows.map((v) => {
+    const spans: [number, number][] = [];
+    let start = -1;
+    for (let u = 0; u <= 1 + 1e-9; u += step) {
+      const inside = decalCovers(d, u, v);
+      if (inside && start < 0) start = u;
+      if (!inside && start >= 0) { spans.push([+start.toFixed(3), +(u - step).toFixed(3)]); start = -1; }
+    }
+    if (start >= 0) spans.push([+start.toFixed(3), 1]);
+    return { v, spans };
+  });
+}
+
+/**
+ * How well an alpha mask (row 0 = top of the image) fits the face: how many opaque texels fall off
+ * the insert and get clipped, and how much of the face the opaque art covers.
+ */
+export function decalArtFit(d: Pick<FaceDecal, 'uvs' | 'indices'>, alpha: ArrayLike<number>, w: number, h: number, threshold = 128): { opaque: number; clipped: number; clippedPct: number; faceTexels: number; faceCoveredPct: number } {
+  let opaque = 0, clipped = 0, faceTexels = 0, covered = 0;
+  for (let r = 0; r < h; r++) for (let c = 0; c < w; c++) {
+    const on = decalCovers(d, (c + 0.5) / w, 1 - (r + 0.5) / h);
+    const op = alpha[r * w + c] >= threshold;
+    if (on) faceTexels++;
+    if (op) { opaque++; if (on) covered++; else clipped++; }
+  }
+  const pct = (a: number, b: number) => (b ? +((100 * a) / b).toFixed(1) : 0);
+  return { opaque, clipped, clippedPct: pct(clipped, opaque), faceTexels, faceCoveredPct: pct(covered, faceTexels) };
+}

@@ -17,8 +17,9 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import modelUrl from '../../../../art/casino/3d/models/dragon_fire_hero.glb?url';
 import { dragonReliefDataUrl } from '../../../../art/casino/3d/dragonReliefArt.mjs';
+import { DRAGON_INSERT_ASPECT, dragonTallDataUrl } from '../../../../art/casino/3d/dragonTallInsertArt.mjs';
 import { LIGHT_RIGS } from './lighting.ts';
-import { insertFaceDecal, reliefInsertQuads } from './dragonRelief.ts';
+import { decalArtFit, decalSafeSpans, insertFaceDecal, reliefInsertQuads } from './dragonRelief.ts';
 
 /** Standing eye 1.6 m; seated eye 1.22 m over the chair (set once the chair is found). */
 const VIEWS: Record<string, { pos: [number, number, number]; target: [number, number, number] }> = {
@@ -89,13 +90,18 @@ function start(): void {
   const relief = reliefMode === 'svg' || reliefMode === 'fit';
   const fitBy: 'height' | 'width' = params.get('fit') === 'width' ? 'width' : 'height';
   const mirror = params.get('mirror') === '1';
+  // VA-0103: `art=tall` swaps in ChatGPT's 704×2080 tall insert illustration; `tex=512` halves it
+  const tall = params.get('art') === 'tall';
+  const artAspect = tall ? DRAGON_INSERT_ASPECT : 0.5;
+  const texSize = tall ? (params.get('tex') === '512' ? { width: 512, height: 1512 } : { width: 704, height: 2080 }) : { width: 1024, height: 2048 };
+  const artUrl = () => (tall ? dragonTallDataUrl(texSize) : dragonReliefDataUrl(texSize));
   let current = params.get('view') ?? 'three';
   function view(name: string): void {
     const v = VIEWS[name] ?? VIEWS.three;
     current = name;
     camera.position.set(...v.pos);
     camera.lookAt(...v.target);
-    label.textContent = `PROTOTYPE · DRAGON FIRE MODEL (Blender export)${relief ? ` + painted side art (${reliefMode === 'fit' ? `insert-shaped, fit ${fitBy}` : '1:2 card'})` : ''} · ${current}`;
+    label.textContent = `PROTOTYPE · DRAGON FIRE MODEL (Blender export)${relief ? ` + painted side art (${reliefMode === 'fit' ? `insert-shaped, ${tall ? 'tall art' : '1:2 art'}, fit ${fitBy}` : '1:2 card'})` : ''} · ${current}`;
   }
   const label = document.createElement('div');
   Object.assign(label.style, { position: 'fixed', left: '12px', bottom: '10px', font: '600 13px system-ui', color: '#e9c86a', letterSpacing: '.06em', pointerEvents: 'none' });
@@ -151,17 +157,17 @@ function start(): void {
         // VA-0101: the insert's own outer triangles, UV-mapped, instead of a 1:2 card
         const inserts = named(/dragon.side.lacquer/i);
         const toModel = new THREE.Matrix4().copy(model.matrixWorld).invert();
-        const tex = new THREE.TextureLoader().load(dragonReliefDataUrl({ width: 1024, height: 2048 }));
+        const tex = new THREE.TextureLoader().load(artUrl());
         tex.colorSpace = THREE.SRGBColorSpace;
         tex.anisotropy = 4;
         tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
         const pos: number[] = [], nor: number[] = [], uv: number[] = [], ind: number[] = [];
         const decals = inserts.map((m) => {
           const g = m.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(toModel, m.matrixWorld));
-          const d = insertFaceDecal(g.attributes.position.array, g.index ? g.index.array : null, { aspect: 0.5, fit: fitBy, mirror: mirror && insertSideIsPlus(g) });
+          const d = insertFaceDecal(g.attributes.position.array, g.index ? g.index.array : null, { aspect: artAspect, fit: fitBy, mirror: mirror && insertSideIsPlus(g) });
           const base = pos.length / 3;
           pos.push(...d.positions); nor.push(...d.normals); uv.push(...d.uvs); ind.push(...d.indices.map((k) => k + base));
-          return { insert: m.name, side: d.side, face: d.face, art: d.art };
+          return { insert: m.name, side: d.side, face: d.face, art: d.art, safeSpans: decalSafeSpans(d, [0.95, 0.85, 0.75, 0.65, 0.5, 0.35, 0.2, 0.1, 0.03]), decal: d };
         });
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
@@ -174,7 +180,22 @@ function start(): void {
         mesh.receiveShadow = true;
         model.add(mesh);
         meshes.push(mesh);
-        reliefInfo = { mode: 'fit', fit: fitBy, mirrorPlusX: mirror, decals, texture: '1024x2048 RGBA', draws: 1, triangles: ind.length / 3 };
+        const info = { mode: 'fit', art: tall ? 'tall (dragonTallInsertArt)' : '1:2 (dragonReliefArt)', aspect: +artAspect.toFixed(4), fit: fitBy, mirrorPlusX: mirror, decals: decals.map(({ decal: _d, ...rest }) => rest), texture: `${texSize.width}x${texSize.height} RGBA`, textureMB: +((texSize.width * texSize.height * 4 * 4) / 3 / 1048576).toFixed(1), draws: 1, triangles: ind.length / 3, artFit: null as unknown };
+        reliefInfo = info;
+        // how much opaque art the insert's outline clips, and how much of the face it fills (alpha ≥ 128, 176-wide mask)
+        const img = new Image();
+        img.onload = () => {
+          const w = 176, h = Math.round(w / artAspect);
+          const cv = document.createElement('canvas');
+          cv.width = w; cv.height = h;
+          const cx = cv.getContext('2d')!;
+          cx.drawImage(img, 0, 0, w, h);
+          const px = cx.getImageData(0, 0, w, h).data;
+          const a = new Uint8Array(w * h);
+          for (let i = 0; i < a.length; i++) a[i] = px[i * 4 + 3];
+          info.artFit = decals.map((dd) => ({ insert: dd.insert, mask: `${w}x${h}`, ...decalArtFit(dd.decal, a, w, h) }));
+        };
+        img.src = artUrl();
       } else if (relief) {
         const inserts = named(/dragon.side.lacquer/i);
         const boxes = inserts.map((m) => new THREE.Box3().setFromObject(m).applyMatrix4(new THREE.Matrix4().copy(model.matrixWorld).invert()));
