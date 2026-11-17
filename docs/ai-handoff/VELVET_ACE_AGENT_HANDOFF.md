@@ -3047,6 +3047,82 @@ The phone opens in the grand hall now (`va3d.hall` = grand).
 
 **Claude next:** In the isolated test prototype, import `createPremiumSlotStation` and `applyVelvetAceScreenArt` from the art branch; create ONE close-up station and show front/three-quarter/side screenshot at player eye level. Check legibility, texture UV orientation, chair position, shadow/lighting and collision. Do NOT swap the 38 slots or declare visual approval. Send screenshots and specific deficiencies to ChatGPT for the next modeling iteration. VA-0072/74 also request vestibule/exterior beyond the entrance and a more readable far wall, still open.
 
+### VA-0076 | 2026-11-17 01:09 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** VA-0075 done as asked: ONE close-up of `createPremiumSlotStation` +
+`applyVelvetAceScreenArt`. It was run on Joshua's S25+ and in the browser. No rollout; the 38
+floor slots are untouched.
+
+**Branch** `feature/3d-casino-prototype`:
+- `a11f487` and `7760d59` are merged unchanged.
+- `station.html` / `stationPreview.ts`: a phone page that ships in the prototype APK only
+  (1.8-3dproto.13; production builds don't include it).
+  - It uses the floor's Vegas light rig, a warm overhead spot that casts shadows, and a plain dark
+    floor.
+  - Tap to cycle the views.
+  - It seats the screens with the routine's `slotPilot.seatCurvedScreens` (51bb0c5), so there is
+    one workaround, not two. The routine's `slot-pilot.html` stays as the browser page.
+- `db70eeb` (separate): the grand hall overview camera now stays between the side walls, and
+  outside the hall is black instead of the purple void from VA-0074.
+- Tests: tsc clean; vitest **174/174** in 17 files.
+
+**Captures** (`captures/3d-va0076-*`):
+- 01–05: device views (front, three-quarter, side, seated eye, wide), screens seated;
+- 06: device, screens as authored;
+- 07: device, three-quarter in portrait;
+- 08–09: browser, dragon and ocean themes.
+
+Views are at standing eye height (1.6 m), except the seated view (1.22 m, over the seat).
+
+**Factual findings, by priority** (not a verdict; Joshua has not reviewed this):
+1. **Screens, as authored, are not on the cabinet (06).**
+   - Each `CylinderGeometry(1.65, …, thetaStart −π/2 − θ/2)` arc is centred on its axis, and the
+     `rotation.y = π` puts it at x ≈ +1.65 m, facing sideways.
+   - The solid `-black-gasket` (front at z ≈ 0.274) covers where the screen should be.
+   - Fix in the art: build the arc around θ = 0 and offset z by −r, or use a bent PlaneGeometry.
+     Put the glass in front of the gasket, or make the gasket a frame with an opening.
+   - With the host seating, normals face +Z and u runs left to right, so the texture is not
+     mirrored.
+2. **Screen art reads well** on the phone (01, 02, 07): sharp text, correct orientation,
+   readable jackpot values.
+   - The three themes differ only in the background tint and the titles. The reel symbols and
+     layout are identical (08, 09).
+   - The 5×3 symbols are flat glyphs (7, crown, diamond, star, club) in boxes.
+3. **The control deck hides the bottom of the main screen.** The CREDITS/BET footer is cut off
+   in every standing view (02, 07). The deck's top edge (y ≈ 0.95 after its −0.48 tilt) overlaps
+   the reels screen's bottom (y 0.92). Lower the deck or raise the screen about 8–10 cm.
+4. **The chair reads primitive** (02, 03, 05):
+   - the back is a squashed sphere (an egg shape) in front of a plain grey `chair-back-frame`
+     box, 0.63 × 0.68 m;
+   - the 10 stitch spheres at x ±0.23 float in the air beside the back, not on it;
+   - the arm boxes float above the seat on thin rods.
+5. **Cabinet body:**
+   - the side neon is a flat, uniformly pink bar the full height, with no diffuser or variation;
+   - the buttons render as blown-out white-cyan discs under bloom (emissive 2.4 is above the
+     1.0 threshold);
+   - the sides and back are plain dark slabs, and from the side (03) it reads as a box with a
+     screen on the front;
+   - the speaker grille holes at y 2.72–2.83 sit behind the topper bezel and don't show.
+6. **Scale and fit:** the station is 0.98 m wide and 2.93 m tall, 1.85 m deep with the chair.
+   That is taller than the floor's current cabinets (about 2.2 m) and taller than most real
+   upright slots (about 1.9–2.3 m), so 38 of them would change the end row and side banks.
+   63 meshes; 13.8k triangles.
+
+**Requests for ChatGPT (art), for the next iteration:**
+- fix 1 in the module itself;
+- move the deck or screen (3);
+- a chair rebuilt with a real seat and back profile: lathe or extruded shapes, stitching on the
+  surface (4);
+- side neon with a diffuser and a cabinet side profile (5);
+- per-theme symbol sets.
+- If procedural primitives can't reach Joshua's reference render, say so on the board, and
+  propose the modeling pipeline (authored glTF) VA-0073 mentioned.
+
+**Still open from VA-0072/0074:** a vestibule or exterior beyond the entrance; a more readable far
+wall.
+
+**NEEDS JOSHUA:** a look at the close-up captures (or on the phone: the prototype app, at
+`station.html`).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
