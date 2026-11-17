@@ -5,7 +5,9 @@
  * tables and gameplay are untouched. The rejected premium station (station.html) stays as
  * historical reference only.
  *
- * Engineering only: no materials, textures or geometry are changed. The one host-side step is
+ * Engineering adds no materials, textures or geometry of its own: by default (`?finish=v2`) it runs
+ * ChatGPT's `applyRoyalCrescentFinish` (VA-0084) as authored; `?finish=none` shows the bare GLB.
+ * The one host-side step is
  * framing: the model is turned so its chair is toward +Z (the views' front) and stood on the
  * floor (its lowest point at y 0). Both are reported, so the art can bake them in if wanted.
  *
@@ -23,6 +25,11 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import modelUrl from '../../../../art/casino/3d/models/royal_crescent_station.glb?url';
 import { LIGHT_RIGS } from './lighting.ts';
+// ChatGPT's opt-in post-load finish (VA-0084, art commit 817bb1f), used exactly as authored.
+import { applyRoyalCrescentFinish } from '../../../../art/casino/3d/royalCrescentFinish.mjs';
+
+/** `?finish=v2` (default) runs the art adapter after load; `?finish=none` shows the GLB as exported. */
+export const FINISH_THEMES = ['royal', 'dragon', 'ocean'] as const;
 
 /** Standing eye 1.6 m; seated eye 1.22 m over the chair (set once the chair is found). */
 const VIEWS: Record<string, { pos: [number, number, number]; target: [number, number, number] }> = {
@@ -84,13 +91,15 @@ function start(): void {
   composer.setPixelRatio(pixelRatio);
   composer.setSize(window.innerWidth, window.innerHeight);
 
+  const finish = params.get('finish') === 'none' ? 'none' : 'v2';
+  const theme = (FINISH_THEMES as readonly string[]).includes(params.get('theme') ?? '') ? params.get('theme')! : 'royal';
   let current = params.get('view') ?? 'three';
   function view(name: string): void {
     const v = VIEWS[name] ?? VIEWS.three;
     current = name;
     camera.position.set(...v.pos);
     camera.lookAt(...v.target);
-    label.textContent = `PROTOTYPE · ROYAL CRESCENT MODEL (as exported) · ${current}`;
+    label.textContent = `PROTOTYPE · ROYAL CRESCENT · ${finish === 'none' ? 'as exported' : `finish v2 · ${theme}`} · ${current}`;
   }
   const label = document.createElement('div');
   Object.assign(label.style, { position: 'fixed', left: '12px', bottom: '10px', font: '600 13px system-ui', color: '#e9c86a', letterSpacing: '.06em', pointerEvents: 'none' });
@@ -113,6 +122,14 @@ function start(): void {
     modelUrl,
     (gltf) => {
       const model = gltf.scene;
+      let finishResult: { screens: number } | null = null;
+      if (finish === 'v2') {
+        try {
+          finishResult = applyRoyalCrescentFinish(THREE, model, { theme });
+        } catch (e) {
+          api.error = 'finish failed: ' + String(e);
+        }
+      }
       const meshes: THREE.Mesh[] = [];
       model.traverse((o) => {
         const m = o as THREE.Mesh;
@@ -149,7 +166,7 @@ function start(): void {
           tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
           Object.keys(g.attributes).forEach((a) => attrs.add(a));
           const mat = m.material as THREE.MeshStandardMaterial;
-          mats.add(`${mat.type} metal ${mat.metalness} rough ${mat.roughness} vc ${mat.vertexColors} flat ${mat.flatShading}`);
+          mats.add(`${mat.type} metal ${mat.metalness} rough ${mat.roughness} vc ${mat.vertexColors} flat ${mat.flatShading} side ${mat.side}${mat.map ? ' map' : ''}`);
         }
         // which way each display faces: its area-weighted face normal, in world space
         const facing = (m: THREE.Mesh) => {
@@ -167,6 +184,7 @@ function start(): void {
         };
         const displays = named(/CURVED_DISPLAY/).map((m) => ({ name: m.name, box: boxOf([m]), facing: facing(m), tris: (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3 }));
         return {
+          finish: { mode: finish, theme, screens: finishResult?.screens ?? null },
           exported: { box: raw, chairFromCabinet: r3(cc.clone().sub(kc)) },
           framing: { turnDeg: +((turn * 180) / Math.PI).toFixed(1) },
           placed: boxOf([holder]),
