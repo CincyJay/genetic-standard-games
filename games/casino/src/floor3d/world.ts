@@ -524,6 +524,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="carpetart"></button>
     <button type="button" class="hall"></button>
     <button type="button" class="lightmode"></button>
+    <button type="button" class="sveltepreview" hidden>Preview: Svelte 01 slot</button>
   </div>
 </div>
 <div class="badge"></div>
@@ -683,6 +684,12 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     syncHud();
   });
   gearBtn.addEventListener('click', () => setMenu(!menuEl.classList.contains('open')));
+  // prototype builds only: open ChatGPT's Svelte 01 close-up page so Joshua can review it on the phone (VA-0121)
+  const svelteBtn = $<HTMLButtonElement>('.sveltepreview');
+  svelteBtn.hidden = !(import.meta.env.MODE === 'proto' || import.meta.env.DEV);
+  svelteBtn.addEventListener('click', () => {
+    if (!sitting && !seated) location.href = 'svelte-slot.html?view=front&reel=art&from=floor';
+  });
   $<HTMLButtonElement>('.back').addEventListener('click', () => {
     if (!sitting && !seated) opts.onBack(snapshot());
   });

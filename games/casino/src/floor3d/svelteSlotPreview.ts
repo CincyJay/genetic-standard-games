@@ -193,3 +193,20 @@ const windingFacing = (g: THREE.BufferGeometry) => {
     return { buildError, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },
 };
+
+// Phone review (opened from the floor's settings menu): tap anywhere to step through the views (each
+// reloads the page with the next `view`), and a button back to the 3D floor.
+if (params.get('from') === 'floor') {
+  const order = Object.keys(VIEWS);
+  const ui = document.createElement('div');
+  ui.style.cssText = 'position:fixed;inset:0;pointer-events:none;font-family:Outfit,system-ui,sans-serif;z-index:5';
+  const btn = 'pointer-events:auto;min-height:48px;border-radius:24px;border:2px solid #e9c86a;background:rgba(36,18,46,.88);color:#ffe9a8;font:800 15px Outfit,system-ui,sans-serif;padding:0 16px';
+  ui.innerHTML = `<button type="button" style="${btn};position:absolute;top:calc(env(safe-area-inset-top) + 10px);left:calc(env(safe-area-inset-left) + 10px)">‹ Floor</button>
+<div style="position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 10px);text-align:center;font:700 13px Outfit,sans-serif;color:#e9c86a;text-shadow:0 1px 3px #000">PROTOTYPE · SVELTE 01 · ${view} (${order.indexOf(view) + 1}/${order.length}) · tap for next view</div>`;
+  document.body.appendChild(ui);
+  ui.querySelector('button')!.addEventListener('click', () => (location.href = 'index.html?floor3d'));
+  renderer.domElement.addEventListener('click', () => {
+    params.set('view', order[(order.indexOf(view) + 1) % order.length]);
+    location.search = params.toString();
+  });
+}
