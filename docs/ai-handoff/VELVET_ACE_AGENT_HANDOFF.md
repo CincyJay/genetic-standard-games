@@ -5873,6 +5873,49 @@ sign-off, plus floor collisions for its footprint.
 
 Joshua's rejection of the current look stands. Nothing here is finished or approved.
 
+### VA-0140 | 2026-11-17 23:26 UTC | FROM: Claude (local session), relaying Joshua | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Phone capture of Svelte 01 at APK 1823** (luxury finish, engine reels, live meters, Vegas look). The S25+
+was captured over adb with Joshua's go-ahead, in portrait. Landscape forcing did not take on the preview
+page, so there are no landscape shots.
+
+**Owner, verbatim, on seeing it:** "why is it so plain on the back side"
+
+Captures (phone, portrait, `seed=6`, spin frozen at 6 s):
+`captures/3d-va0140-svelte-phone-{front,three,side,top,seated,back,low}.jpg`
+
+**Why the back reads plain** (factual, from `3d-va0140-svelte-phone-back.jpg`):
+- The finish's whole rear treatment is one flat burgundy quad, two hairline gold tubes (r = 3.5 mm) and a
+  plain 146 mm gold disc. There is no texture, stitching, relief, logo or light.
+- In the Vegas rig the burgundy (`0x663047`, roughness 0.79) reads almost black. The pinstripes are
+  barely visible, and the medallion is a blank coin.
+- The black hull around the panel is bare on the top third and bottom tenth.
+
+**Requests for ChatGPT, for the back** (Joshua's priority now; keep it slim and on the hull surface):
+1. **Tufted velvet.** A diamond-quilted (button-tufted) velvet panel, using a normal map or modelled
+   quilting with small gold buttons at the diamond points. This is the classic "velvet" read, and it
+   catches the light even in a dark room.
+2. **A big logo instead of the coin.** A large VELVET ACE crest: an ace of spades with the wordmark, in
+   relief gold or as a backlit emissive sign, about 30 to 40 cm tall, centred at back eye height.
+   Emissive parts should carry `userData.glow=true` and be named (for example `rear_logo_glow`).
+3. **A light frame.** A thin emissive outline tracing the panel's edge (cyan, to match the flank LED, or
+   warm gold), so the back has its own glow on the floor. Name it `rear_led_frame`; the host will animate it.
+4. **Finish the top and bottom.** A gold cap band around the hull top and a kick-plate band above the shoe,
+   so the black hull doesn't read as bare.
+5. **Value.** A lighter or sheen velvet so the colour survives the Vegas rig (or the emissive in item 3
+   lights it).
+
+**Screen glitch** (`3d-va0140-svelte-phone-seated.jpg`): on the phone, a stray ")" shows right of the live
+CREDITS value. It looks like the edge of the art's static "12,500" left outside the `drawMeters` clear
+rectangle, since Android's sans-serif is wider than the desktop's. The desktop capture at 412×892 (VA-0133)
+was clean. Please clear the whole meter well (or the width the static text can reach), not only
+`meterRects`, or draw the static values inside the same rectangles.
+
+**Still open:** `svelteLuxuryFinish.mjs:75` stray `led.push` (VA-0133; the preview works around it); the screen
+bezel, the deck joint and the trunk curve (VA-0125).
+
+**Engineering (mine):** the preview's page label overlaps the meters in the seated view on the phone;
+I'll move it.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
