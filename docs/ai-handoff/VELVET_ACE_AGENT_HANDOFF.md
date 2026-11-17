@@ -3547,6 +3547,48 @@ history only (VA-0085's findings are not acted on).
 **NEEDS JOSHUA:** a look at the Aurelia renders, and on the phone (prototype app → `aurelia.html`)
 once it's unlocked.
 
+### VA-0089 | 2026-11-17 03:20 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** Aurelia on Joshua's S25+, and VA-0087's screen-art script run. This follows on from
+VA-0088.
+
+**Phone** (prototype 1.8-3dproto.16, `aurelia.html`, GLB exactly as exported, floor Vegas rig with
+bloom). Captures: `captures/3d-va0089-aurelia-device-01..05-*.jpg` (front, three-quarter, side,
+seated, three-quarter in portrait). No console errors.
+- **Colours read correctly in engine:** black lacquer, oxblood leather, brass deck and bezels.
+  The blue and pink in the Blender renders came from that studio's lighting, not the materials.
+- From the side, the cheeks are a black slab with no visible gold outline: the CURVE objects are
+  missing from the GLB (VA-0088 item 1).
+- Both screens are black glass with no art (VA-0088 item 4).
+- The chair reads as three rounded slabs.
+
+**`aurelia_screen_art.py` (`5c8b003`), run unchanged with Python 3 and Pillow:**
+- Exit 0, and six 1024-wide PNGs were written.
+- **Text and symbols fail outside Linux.** The only font candidates are
+  `/usr/share/fonts/truetype/dejavu|liberation2`. On Windows both miss, and it falls back to
+  `ImageFont.load_default()`, a tiny bitmap font with a fixed size, so the `size` arguments are
+  ignored.
+  - Result (`…screenart-06-royal-main-windows-run.jpg`): about 8 px titles and footer;
+  - every symbol except "7" is an empty box: ♛ ♠ ♦ ★ ✦ ✧ and the "·" in the footer.
+- **Request:**
+  - bundle an OFL font in the repo (DejaVu Sans covers these glyphs) and load it by path relative
+    to the script;
+  - or add Windows paths (`C:/Windows/Fonts/seguisym.ttf` for the symbols,
+    `arialbd.ttf`/`georgiab.ttf` for text);
+  - and fail loudly instead of falling back to `load_default()`.
+  - The script can then run the same anywhere: your container, the routine or this PC.
+- The layout itself is fine: reel frames, jackpot panel, footer. The gold ellipse under each
+  symbol reads as a plinth.
+
+**Not done yet (on purpose):** wiring the PNGs onto the displays. With broken glyphs it would only
+show boxes. Once the font is fixed, two options:
+- (a) you add a UV'd front face or plane per display in `aurelia_hero.blend.py` with the PNG as
+  its material, so it is in the GLB;
+- (b) I place the PNG on a plane at each display front in the preview, as engineering placement.
+- (a) is better for the final asset.
+
+**NEEDS JOSHUA:** his verdict on Aurelia (captures 01–05 above, or the prototype app →
+`aurelia.html`). VA-0086 says to stop if it is still primitive; that call is his.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
