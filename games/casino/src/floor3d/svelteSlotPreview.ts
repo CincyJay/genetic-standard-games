@@ -5,7 +5,9 @@
  * in the game. `&reel=art&spin=loop` scrolls symbol strips inside the art's `reelWindows` (VA-0122);
  * `&spin=<seconds>` freezes one spin at that time, for captures. Add `&engine=<machine id>` (e.g. `sevens`) to
  * run the real slot engine instead: its reel strips, stops, 5x5 grid and 50-line wins, drawn with the
- * machine's own symbol PNGs (the ones the 2D slots use). Preview-only: no chips, bets or saves.
+ * machine's own symbol PNGs (the ones the 2D slots use). Preview-only: no chips, bets or saves. In engine
+ * mode the art's `drawMeters` (VA-0131) shows a preview-only balance, the 50-line bet and the landed win.
+ * `&screen=<width>` (e.g. 256) builds the art reel texture at that width (height 2x).
  * `&finish=luxury` applies ChatGPT's optional luxury finish (VA-0129).
  * `__svelte.report()` gives the cabinet's bounds, per-part bounds and render cost.
  */
@@ -82,7 +84,14 @@ scene.add(cabinet);
 // called unchanged on the built cabinet. Its HDR lights join the Vegas LED pulse below.
 let finishError: string | null = null;
 if (params.get('finish') === 'luxury' && !buildError) {
+  // Workaround for an art bug (VA-0131, ed3c919): the finish still calls `led.push(...)` after its
+  // `led` array was removed, which throws a ReferenceError before the pinstripes, underglow and
+  // medallion are built. A throwaway global `led` sink lets it run unchanged; it is removed right after.
+  const g = globalThis as { led?: unknown };
+  const sink = !('led' in g);
+  if (sink) g.led = [];
   try { applySvelteLuxuryFinish(THREE, cabinet); } catch (e) { finishError = String(e); console.warn('[svelte-slot] luxury finish failed:', e); }
+  finally { if (sink) delete g.led; }
 }
 // Diagnostic only (`?sides=double`): render every cabinet material double-sided in this preview, to
 // tell culled (wrong-winding) faces apart from missing geometry. Never changes the art module.
@@ -110,7 +119,14 @@ const swapScreen = (tex: THREE.Texture) => {
 let reelSwap: { materialName: unknown; found: number; source?: string; error?: string } | null = null;
 
 type Win = { x: number; y: number; w: number; h: number };
-type ArtScreen = { canvas: HTMLCanvasElement; texture: THREE.Texture; reelWindows?: Win[] };
+type Meters = { credits?: number | string | null; bet?: number | string | null; win?: number | string | null };
+type ArtScreen = {
+  canvas: HTMLCanvasElement; texture: THREE.Texture; reelWindows?: Win[];
+  meterRects?: Record<'credits' | 'bet' | 'win', Win>;
+  drawMeters?: (ctx: CanvasRenderingContext2D, values: Meters) => void;
+};
+/** Preview-only credit balance shown on the art's meters in engine mode. No chips or saves are touched. */
+const PREVIEW_CREDITS = 1000;
 /**
  * Scrolls symbol strips inside the art's `reelWindows` on its own canvas (VA-0122 request). The art
  * module and its values are unchanged: each window is first cleared with a 1-px row of the art's own
@@ -134,6 +150,22 @@ function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) 
   const iconsReady = Promise.all([...icons.values()].map((im) => im.decode().catch(() => undefined)));
   let result: ReturnType<typeof evaluate> | null = null;
   let winSet = new Set<number>();
+  // live meters (VA-0131 `drawMeters`): a preview-only balance, the 50-line bet at line bet 1, and the landed win
+  const bet = LINES.length;
+  let credits = PREVIEW_CREDITS;
+  let metersShown = '';
+  let meterError: string | null = null;
+  const meters = (): Meters => {
+    const landed = last.every((p) => p.stopped);
+    return { credits: (landed ? credits + (result?.total ?? 0) : credits).toLocaleString('en-US'), bet, win: landed ? (result?.total ?? 0).toLocaleString('en-US') : null };
+  };
+  const paintMeters = () => {
+    if (!engStrips || !screen.drawMeters) return;
+    const v = meters();
+    const key = JSON.stringify(v);
+    if (key === metersShown) return;
+    try { screen.drawMeters(g, v); metersShown = key; } catch (e) { meterError = String(e); metersShown = key; }
+  };
   // rows per reel: the game's 5x5 grid (logic/slots.ts ROWS), which the art draws since VA-0126
   const ROWS = GAME_ROWS;
   const MID = Math.floor(ROWS / 2);
@@ -149,6 +181,9 @@ function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) 
   const newPlan = (from: number[]) => {
     if (!engStrips) { plan = { targets: wins.map(() => Math.floor(rnd() * STRIP.length)), stripLength: STRIP.length, from }; return; }
     // the real engine: random stops on its strips, the landed grid, and its 50-line evaluation (line bet 1)
+    // settle the previous spin's win into the preview balance, then take this spin's bet
+    if (result) credits += result.total;
+    credits -= bet;
     const stops = spinStops(machine!, rnd);
     result = evaluate(machine!, gridFromStops(machine!, stops), 1);
     winSet = winningCells(result.lineWins, LINES, ROWS);
@@ -227,6 +262,7 @@ function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) 
       g.restore();
     });
     g.restore();
+    paintMeters();
     screen.texture.needsUpdate = true;
   };
   return {
@@ -249,6 +285,11 @@ function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) 
         // what the window shows now, read back from the poses: equals `grid` once every reel has landed
         shown: last.map((p, r) => Array.from({ length: ROWS }, (_, row) => engStrips[r]![symbolAt(p.pos, row, ROWS, lens[r]!)])),
         iconsLoaded: [...icons.values()].filter((im) => im.complete && im.naturalWidth > 0).length,
+        meters: screen.drawMeters ? JSON.parse(metersShown || 'null') : 'no drawMeters in art', meterError,
+        meterRects: screen.meterRects ?? null,
+        // any overlap between a meter rectangle and a reel window (should be empty)
+        meterOverlaps: Object.entries(screen.meterRects ?? {}).flatMap(([k, m]) => wins.flatMap((w, i) =>
+          m.x < w.x + w.w && w.x < m.x + m.w && m.y < w.y + w.h && w.y < m.y + m.h ? [`${k}/reel${i}`] : [])),
       } : null,
       targets: engStrips ? plan.targets : plan.targets.map((i) => STRIP[i]), poses: last.map((p) => ({ pos: Math.round(p.pos * 100) / 100, stopped: p.stopped })) }),
   };
@@ -257,7 +298,9 @@ let reelAnim: ReturnType<typeof makeReelAnim> | null = null;
 if (params.get('reel') === 'art') {
   // ChatGPT's still reel-screen texture (VA-0120, art/casino/3d/svelteReelScreen.mjs), used unchanged.
   try {
-    const screen = createSvelteReelScreen(THREE, { width: 512, height: 1024 }) as ArtScreen;
+    // `&screen=<width>` (e.g. 256) builds the art texture at another size, height 2x width (default 512x1024)
+    const sw = Math.max(64, Math.min(2048, Number(params.get('screen') ?? 512) || 512));
+    const screen = createSvelteReelScreen(THREE, { width: sw, height: sw * 2 }) as ArtScreen;
     reelSwap = { ...swapScreen(screen.texture), source: 'svelteReelScreen.mjs' };
     if (params.has('spin')) reelAnim = makeReelAnim(screen, params.get('spin')!, params.get('engine'));
   } catch (e) {
