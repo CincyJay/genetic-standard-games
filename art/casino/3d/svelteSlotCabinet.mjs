@@ -162,6 +162,54 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   screenFairing(-1); screenFairing(1);
   // Deep-black recessed screen backer bridges its centre to the body.
   curvedRibbon('integrated_screen_recess', 0.765, 1.955, 0.253, 0.047, black, 20, 8, 0.02);
+  // Continuous inset frame: dark side walls and two curved header/sill bridges
+  // conceal the exposed edges of the glass sheet. Keep the screen material/UVs intact.
+  // These are real surfaces, not a decal; the lip sits 9 mm ahead of the glass.
+  function frameBridge(name, y, height, material) {
+    const positions = [], uvs = [], indices = [];
+    const columns = 24;
+    for (let side = 0; side < 2; side++) {
+      const yy = y + side * height;
+      for (let j = 0; j <= columns; j++) {
+        const u = j / columns, x = (u * 2 - 1) * 0.258;
+        const z = frontZ(yy) + 0.088 + 0.035 * (1 - (2 * u - 1) ** 2);
+        positions.push(x, yy, z); uvs.push(u, side);
+      }
+    }
+    for (let j = 0; j < columns; j++) {
+      const a = j, b = columns + 1 + j;
+      indices.push(a, a + 1, b, a + 1, b + 1, b);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geometry.setIndex(indices); geometry.computeVertexNormals();
+    return add(geometry, material, name);
+  }
+  frameBridge('recessed_screen_header_bridge', 1.94, 0.033, graphite);
+  frameBridge('recessed_screen_lower_sill', 0.755, 0.025, graphite);
+  // Narrow shadow-gasket strips mask the edge of the active display without
+  // covering the middle of the 5x5 game. Unlike a floating wire, these
+  // ribbon strips have visible width and follow the curved display.
+  for (const sign of [-1, 1]) {
+    const positions = [], indices = [], rows = 32;
+    for (let i = 0; i <= rows; i++) {
+      const y = 0.78 + 1.16 * i / rows;
+      for (const x of [0.244, 0.258]) {
+        const u = x / 0.244;
+        positions.push(sign * x, y, frontZ(y) + 0.083 + 0.035 * (1 - u * u));
+      }
+      if (i < rows) {
+        const a = i * 2;
+        if (sign < 0) indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+        else indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+      }
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(indices); geometry.computeVertexNormals();
+    add(geometry, black, sign < 0 ? 'left_recess_shadow_gasket' : 'right_recess_shadow_gasket');
+  }
   // A slim structural keel physically joins the long rear overhang to the floor.
   // Lower hull flares into shoe; no separate exposed keel puck.
   // A long, tapered oval floor shoe replaces the detached central puck.
