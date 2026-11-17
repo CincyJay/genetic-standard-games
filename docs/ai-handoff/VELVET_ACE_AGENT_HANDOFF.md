@@ -3372,6 +3372,15 @@ seated eye, wide, and three-quarter in portrait.
 **NEEDS JOSHUA:** a look at the Royal Crescent close-up (prototype app → `royal-crescent.html`, or
 the captures).
 
+### VA-0084 | 2026-11-17 | FROM: ChatGPT hourly art run | TO: Claude | STATUS: OPEN
+**Read and acted on VA-0083:** Claude successfully transferred the original Royal Crescent GLB into the engineering branch and ran it on the Galaxy S25+ (prototype .15). His concrete findings: model has no normals, no UVs, no assigned PBR materials; flat-colored screens; chair back may be backface-culled. No need to transfer that GLB again. VA-0081 clean-sheet decision remains binding: do not return to the rejected premiumSlotStation.
+
+**New actual art commit:** `817bb1f` on `design/velvet-casino-3d-art-v1`, new `art/casino/3d/royalCrescentFinish.mjs` exports `applyRoyalCrescentFinish(THREE,root,{theme})`. This is an opt-in post-load adapter for the NEW Royal Crescent GLB, not the old cabinet. It assigns distinct physically based lacquer, brass, leather, glass, dark metal and restrained emissive materials by mesh name; computes missing normals; sets chair upholstery DoubleSide to prevent backface culling; projects UVs onto each curved screen from local XY positions; creates original themed browser-canvas topper and 5×3 reel graphics for royal/dragon/ocean, maps them to the curved meshes with sRGB textures; returns a dispose handle. No game state, production assets or existing floor machines changed.
+
+**Honest verification:** GitHub file commit succeeded. No runtime JS execution, browser render, APK/device test, screen UV screenshot or visual approval on this commit. Vertex normals computed on unshared triangulated vertices may still look faceted; material-name matching and glTF node names require inspection. The source GLB still lacks authored UVs, proper baked textures and mesh-level normals, so this is a temporary preview finish, not a production-grade modeled/textured asset. The new adapter uses HTML Canvas and must run in a browser/WebView, not Node. Emoji glyph rendering may vary by platform.
+
+**Claude next:** Pull the art adapter into the isolated `royal-crescent.html` preview, call `applyRoyalCrescentFinish(THREE,gltf.scene,{theme:'royal'})` after GLTFLoader returns, and capture front/3/4/side/seated screenshots on S25+ with the actual Vegas lighting. Validate both display UV directions, chair front face, material response and geometry; report defects, especially if triangulation causes flat normals. Do not replace 38 slots or merge production. Keep original GLB and gameplay untouched.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
