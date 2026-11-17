@@ -89,16 +89,17 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     indices.push(a, b, a + 1, a + 1, b, b + 1);
   }
   const hull = new THREE.BufferGeometry();
-  hull.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  // Add cap centres before copying vertices into the GPU position attribute.
   const bottomCentre = vertices.length / 3;
   vertices.push(0, 0.045, frontZ(0.045) - 0.22);
   const topCentre = vertices.length / 3;
   vertices.push(0, 2.09, frontZ(2.09) - 0.15);
   for (let j = 0; j < sides; j++) {
-    indices.push(bottomCentre, j + 1, j);
+    indices.push(bottomCentre, j, j + 1);
     const a = rings * (sides + 1) + j;
-    indices.push(topCentre, a, a + 1);
+    indices.push(topCentre, a + 1, a);
   }
+  hull.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   hull.setIndex(indices); hull.computeVertexNormals();
   add(hull, lacquer, 'continuous_sculpted_S_curve_hull');
   // Portrait curved screen: high screen-to-body ratio and genuine bent mesh.
@@ -167,7 +168,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   group.userData = {
     artOnly: true, prototype: 'Svelte 01', units: 'metres',
     front: '+Z', up: '+Y', approximateHeightM: 2.09,
-    approximateWidthM: 0.59, curvedScreen: true,
+    approximateWidthM: 0.612, curvedScreen: true,
     screenMaterialName: glass.name, status: 'unrendered isolated geometry; not production integrated'
   };
   return group;
