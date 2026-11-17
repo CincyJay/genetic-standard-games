@@ -3766,6 +3766,87 @@ chose to have the art wire screens in Blender instead.
 
 **Claude next:** First pull latest art branch, run the detail pass in isolated Blender workspace using `blender -b <path>/dragon_fire_hero.blend --python art/casino/3d/blender/dragon_fire_detail_pass.py`, set `VELVET_ACE_ART_OUT` if desired. Open `dragon_fire_detailed.blend` in Blender and render front, side and three-quarter comparisons under the same rig, especially whether the side relief is correctly placed and visible. Fix geometry defects in the art branch or report precise mesh coordinates. Do not integrate into floor or replace the current Dragon Fire GLB until visual evaluation. Keep font fix from VA-0094 pending separate Windows/Linux test. Do not merge draft PRs.
 
+### VA-0096 | 2026-11-17 05:14 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0094's font fix and VA-0095's Dragon Fire detail pass, both merged unchanged and
+run on Linux. No floor integration, no gameplay change, no APK.
+
+**Merged** to `feature/3d-casino-prototype` (head `130ae2c`):
+- art commits `a772767` and `6611334`, unchanged;
+- my `git pull --rebase` flattened the first merge into copies (`9f35a00`, `07e9f65`, same
+  contents). Merge `130ae2c` records the real art commits as ancestors, so
+  `git log feature..design` is empty again. No files differ; nothing was force-pushed.
+
+**Font fix (`aurelia_screen_art.py`, run unchanged, bpy-venv Python 3.11 + Pillow):**
+- it wrote all six PNGs, and every glyph rendered with Linux DejaVu
+  (capture `captures/va0096-dragon-topper-text-linux.jpg`);
+- **bug:** line 54 contains a literal `\n` inside a comment:
+  `# Keep sparkle dots ... lettering.\n  if x<115 ...: d.ellipse(...)`.
+  The `if` and the `ellipse` are part of the comment, so the topper now draws **zero** sparkle
+  dots. Text is clear, but only because nothing is drawn. Please split it into real lines.
+- Windows is still untested; no font binary is bundled.
+
+**Detail pass (`dragon_fire_detail_pass.py`, run unchanged on a freshly regenerated
+`dragon_fire_hero.blend`; the hero GLB came out at 53 meshes / 13,228 tris / 10 materials,
+the same as VA-0093):**
+- it ran, saved `dragon_fire_detailed.blend` and exported `dragon_fire_detailed.glb`:
+  **145 meshes, 13 materials, 2 images, 25,696 triangles** (+12.5k, nearly double).
+- Renders use the hero's own studio rig, 40 Cycles samples:
+  `captures/va0096-dragon-detail-{front,three-quarter,side}.jpg`. Nothing is committed to art/.
+
+**Candid read of the renders and bounding boxes (Blender coordinates, metres):**
+- **Side "dragon" reads as a fishbone or centipede, not a dragon.** It is a thin gold S-curve
+  with 19 short scale ticks and 5 wing ribs all the same size; the head is a two-prong fork.
+  There is no head mass, jaw, eye, wing membrane or claws.
+- **It floats off the panel.** The spine's inner edge is at |x|=0.583, while the panel's outer
+  surface (the violet LED pipe) ends at |x|=0.576 and the ruby lacquer at 0.560. That leaves a
+  7 mm air gap, plus about 23 mm in front of the lacquer, so it is a wire hovering in front of
+  the panel, not a relief. It sits inside the panel outline (y −0.31…0.12, z 0.34…2.02,
+  against a panel of y −0.46…0.18, z 0.26…2.09), and the side view shows it centred.
+- **Crown:** five flat-topped prisms, z 2.245 up to 2.395–2.525, sunk into the housing (top
+  2.32) and standing 24 mm proud of its front face, with a ruby at z 2.33. From the front they
+  read as plain gold blocks and battlements, not a crown. There are no points, scrolls or
+  facets.
+- **Chair:** the new lattice (y −1.584) is laid **on top of** the base script's 12 existing
+  "diamond upholstery seam" pieces (y −1.583…−1.574) at a different pitch. The front render
+  shows two overlapping irregular lattices. The tuft buttons are asymmetric: odd rows go
+  −0.135…+0.27, so there is a button at +0.27 with no mirror. Both lattices are on the −Y face
+  of the back, the side facing away from the cabinet. That is the side the floor camera sees,
+  so it is fine for screenshots, but the seated face (y −1.395) is still plain.
+
+**Budget, if this ever reaches the floor (not proposed):** 25.7k tris and 145 meshes per
+cabinet. A single hero would fit (the floor overview is now **92 draw calls / 128,158 tris**
+against 120 / 150k), but only with the curve meshes joined per material and a low LOD. A row
+of these would not fit.
+
+**Tests (observed, engineering branch, contents identical to `130ae2c`):**
+- `npx tsc --noEmit -p .`: clean;
+- `npx vitest run`: **175/175** passed, 17 files;
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 41 ok, no FAIL lines**;
+  - Vegas: 92 calls, 128,158 tris; flat: 78 calls;
+  - framed close-up: 67 calls, 117,764 tris.
+- No APK and no phone test; the cloud can't reach the S25+. Device check is for the local
+  session.
+
+**Requests for ChatGPT:**
+1. Fix the `\n` in `aurelia_screen_art.py` line 54 so the sparkles draw again, outside the
+   text.
+2. Dragon relief:
+   - set the spine's inner surface at |x|≤0.565 so it sits on or into the ruby lacquer;
+   - give it a real silhouette: a head with jaw and eye, tapered body thickness, wing
+     membranes (not only ribs), and claws;
+   - or emboss a displaced or normal-mapped plate.
+3. Crown: pointed or faceted fins (not flat tops), or a scrolled crown.
+4. Chair:
+   - delete or replace the base 12 "diamond upholstery seam" objects before adding the new
+     lattice;
+   - make the button grid symmetric;
+   - consider tufting the seated face too.
+5. If the cabinet is meant for the floor, join the detail meshes per material and add a ≤8k-tri
+   LOD.
+
+**NEEDS JOSHUA:** nothing new. The Dragon Fire look is still awaiting his verdict
+(VA-0091/0092), and nothing here is finished-looking.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
