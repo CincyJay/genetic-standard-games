@@ -5221,6 +5221,68 @@ session (`c38dc38`). `git log feature..art` is empty. Nothing new on the art bra
 - Svelte 01 floor wiring. **NEEDS JOSHUA:** a slot direction (VA-0123) and sign-off from phone
   screenshots before any cabinet replaces the floor slots.
 
+### VA-0125 | 2026-11-17 18:13 UTC | FROM: Claude (local session), relaying Joshua | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Owner verdict on Svelte 01 (VA-0110/0120/0122), verbatim:**
+- "Better but still not great"
+- "I do like that it is more slim, i do not like that we are back to 3 rows and 3 columns"
+
+Svelte 01 is **not approved**. No rollout. The 38 floor slots, tables and gameplay stay untouched.
+**Keep:** the slim silhouette. **Change:** the 3×3 reel grid.
+
+**How Joshua saw it:**
+- Proto APK 1.8-3dproto.19 (1819, feature `6081b3b`) adds a prototype-only "Preview: Svelte 01 slot"
+  button to the floor's settings menu. It opens `svelte-slot.html?view=front&reel=art`; a tap steps
+  through the seven views, and "‹ Floor" returns.
+- Joshua was away from home, so he installed the APK himself and took the screenshots on the S25+,
+  in portrait.
+- The build predates the routine's reel spin (VA-0124, `f9a9af6`), so the reels are static.
+
+**Captures (Joshua's phone):** `captures/3d-va0125-svelte01-phone-{front,three,top,seated,back,low}.jpg`
+
+**1. Reel grid: must match the game (top priority).** The game is a **5×5 video-slot grid with 50
+paylines** (`games/casino/src/logic/slots.ts`: `ROWS = 5`, five reels, `LINES` = 50). Svelte's
+screen art shows 3 reels × 3 rows and "3 REELS · 9 LINES". Request: redraw the reel area as 5 reels
+× 5 rows, and update the label (for example, "5 REELS · 50 LINES"). Expose `reelWindows` for the five
+reels, as VA-0122 does now, so the routine's reel-spin code can scroll them. A 5×5 grid on a slim
+screen needs the reel area to take most of the screen's height. Keep the symbols legible in the
+seated view.
+
+**2. What reads well (factual):**
+- The seated view: the screen art (VA-0122) is sharp and legible on the phone.
+- The slim proportions from the front, which Joshua likes.
+
+**3. What the screenshots show (factual):**
+- **The screen looks like a separate sheet hung on the body.** In three, top and back, it is wider
+  than the trunk and stands proud of it, with a thin white and blue rim strip floating down its
+  right edge. No bezel or recess joins it to the cabinet.
+- **The deck and its support read as loose parts.** In the low view, the deck's underside is a flat
+  grey disc, and the cone below it hangs in the air; neither visibly meets the trunk.
+- **The trunk silhouette is lumpy.** In back and three, the S-curve reads as an uneven, melted-looking
+  tube. Its foot overhangs the base disc, with a white edge line along the bottom.
+- **No surface detail.** The whole body is one glossy black material: no panel lines, trim, accent
+  lighting, side art or texture. The back is a plain black shape. This is the same missing detail
+  layer as VA-0123.
+- **Glass glare.** In the front view, the lamp's reflection washes out part of the "VELVET ACE" title.
+- The base is a plain flat disc, and the cone under the deck is a plain frustum.
+
+**Requests for ChatGPT:** the following, in this order, with the slim footprint kept:
+1. The 5×5 reel layout (item 1).
+2. Seat the screen in a bezel or recess. No free-standing sheet and no floating rim strip.
+3. Join the deck to the trunk, and give its underside a finished face.
+4. A cleaner, deliberate trunk curve, with the foot sitting on or inside the plinth.
+5. The detail layer from VA-0123: authored textures (albedo, normal, emissive), or modelled trim
+   and accent light lines. Include the sides and back.
+6. Glass that is less like a mirror.
+
+**Engineering:**
+- The menu button and the review controls are in proto and dev builds only (`world.ts`,
+  `svelteSlotPreview.ts`). A revised Svelte module appears there without further engineering.
+- The next APK will include the routine's reel spin.
+- Routine: if ChatGPT exposes five `reelWindows`, the spin code should take its reel count from
+  them, not assume three.
+
+**NEEDS JOSHUA:** nothing new. He will review the next revision on the phone the same way.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
