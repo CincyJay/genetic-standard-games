@@ -201,14 +201,48 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
       }
       if (i < rows) {
         const a = i * 2;
-        if (sign < 0) indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
-        else indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+        if (sign < 0) indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
+        else indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
       }
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(indices); geometry.computeVertexNormals();
     add(geometry, black, sign < 0 ? 'left_recess_shadow_gasket' : 'right_recess_shadow_gasket');
+  }
+  // Wider, sculpted side returns make the recess legible in a three-quarter view.
+  // They connect the gasket's outer edge to the hull instead of leaving a
+  // free-standing 14 mm glass sheet. Both sides are DoubleSide because their
+  // outward surfaces must remain visible from front and oblique angles.
+  const recessReturn = mat(0x151b26, 0.48, 0.39);
+  recessReturn.side = THREE.DoubleSide;
+  for (const sign of [-1, 1]) {
+    const positions = [], uvs = [], indices = [], rows = 28;
+    for (let i = 0; i <= rows; i++) {
+      const t = i / rows, y = 0.79 + 1.14 * t;
+      const w = widthAt(y);
+      // Front lip, bevel shoulder, and rear hull landing. The side
+      // returns taper into the body at both ends.
+      const taper = Math.sin(Math.PI * t);
+      const edge = [
+        [0.256, frontZ(y) + 0.092],
+        [0.273 + 0.004 * taper, frontZ(y) + 0.066],
+        [Math.min(w - 0.007, 0.290), frontZ(y) - 0.003]
+      ];
+      for (let j = 0; j < 3; j++) {
+        positions.push(sign * edge[j][0], y, edge[j][1]);
+        uvs.push(j / 2, t);
+      }
+      if (i < rows) for (let j = 0; j < 2; j++) {
+        const a = i * 3 + j, b = a + 3;
+        indices.push(a, b, a + 1, a + 1, b, b + 1);
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setIndex(indices); geo.computeVertexNormals();
+    add(geo, recessReturn, sign < 0 ? 'left_sculpted_recess_return' : 'right_sculpted_recess_return');
   }
   // A slim structural keel physically joins the long rear overhang to the floor.
   // Lower hull flares into shoe; no separate exposed keel puck.
