@@ -1,27 +1,46 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createPremiumSlotStation } from '../../../art/casino/3d/premiumSlotStation.mjs';
-import { PILOT_SCREENS, buildPremiumSlotPilot, pilotStats } from '../src/floor3d/slotPilot.ts';
+import { PILOT_SCREENS, buildPremiumSlotPilot, pilotStats, seatCurvedScreens } from '../src/floor3d/slotPilot.ts';
 
 const box = (o: THREE.Object3D) => new THREE.Box3().setFromObject(o);
 const screen = (s: THREE.Object3D, l: string) => s.getObjectByName(l + '-CURVED_SCREEN_SWAP_MATERIAL') as THREE.Mesh;
 
 describe('premium slot station pilot (VA-0073/0075)', () => {
-  it('the unpatched art puts its screens off to the side (the bug the workaround is for)', () => {
+  it('the revised art (7f4535f) authors its screens facing the player, so the workaround is a no-op', () => {
     const raw = createPremiumSlotStation(THREE) as THREE.Object3D;
     raw.updateMatrixWorld(true);
-    expect(box(screen(raw, 'MAIN_REELS')).min.x).toBeGreaterThan(1.5);
+    const before = PILOT_SCREENS.map((l) => box(screen(raw, l)));
+    expect(seatCurvedScreens(THREE, raw)).toBe(false);
+    PILOT_SCREENS.forEach((l, i) => expect(box(screen(raw, l)).equals(before[i])).toBe(true));
   });
 
-  it('seats both curved screens centred on the cabinet, in front of their gaskets', () => {
+  it('still seats a sideways screen (the first pilot, a11f487) against its gasket', () => {
+    const s = createPremiumSlotStation(THREE) as THREE.Group;
+    const glass = screen(s, 'MAIN_REELS');
+    const { radiusTop: r, thetaLength: t } = (glass.geometry as THREE.CylinderGeometry).parameters;
+    // rebuild the first pilot's layout: arc centred on -PI/2, turned by PI, behind a solid gasket
+    glass.geometry = new THREE.CylinderGeometry(r, r, 1.04, 32, 1, true, -Math.PI / 2 - t / 2, t);
+    glass.rotation.y = Math.PI;
+    const gasket = new THREE.Mesh(new THREE.BoxGeometry(0.864, 1.1, 0.194));
+    gasket.name = 'MAIN_REELS-black-gasket';
+    gasket.position.set(0, glass.position.y, 0.177);
+    s.add(gasket);
+    expect(seatCurvedScreens(THREE, s)).toBe(true);
+    const b = box(glass);
+    expect(Math.abs(b.min.x + b.max.x)).toBeLessThan(0.01);
+    expect(b.min.z).toBeGreaterThan(box(gasket).max.z);
+  });
+
+  it('both curved screens sit centred on the cabinet with a gentle bow, inside their frame rails', () => {
     const s = buildPremiumSlotPilot(THREE);
     for (const l of PILOT_SCREENS) {
       const b = box(screen(s, l));
-      const gasket = box(s.getObjectByName(l + '-black-gasket')!);
       expect(Math.abs(b.min.x + b.max.x)).toBeLessThan(0.01);
-      expect(b.max.x - b.min.x).toBeLessThan(gasket.max.x - gasket.min.x);
-      expect(b.min.z).toBeGreaterThan(gasket.max.z);
       expect(b.max.z - b.min.z).toBeLessThan(0.1); // a gentle bow, not sideways
+      let railX = 0;
+      s.traverse((o) => { if (o.name === l + '-gasket-side') railX = Math.max(railX, box(o).max.x); });
+      expect(b.max.x).toBeLessThan(railX);
     }
   });
 

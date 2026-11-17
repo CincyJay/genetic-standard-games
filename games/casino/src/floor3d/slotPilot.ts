@@ -15,29 +15,39 @@ const SCREEN_SUFFIX = '-CURVED_SCREEN_SWAP_MATERIAL';
 const GLASS_CLEARANCE = 0.004;
 
 /**
- * Engineering workaround for the art pilot's curved screens (reported on the board, VA-0076).
+ * Engineering workaround for the FIRST art pilot's curved screens (a11f487; VA-0076). ChatGPT's
+ * revision (7f4535f, VA-0077) builds the arcs facing +Z itself; for that geometry this is a
+ * no-op, so it never double-corrects. Returns whether anything was moved.
+ *
  * The art builds each screen as an open cylinder arc centred on theta = -PI/2 and turns it by
  * PI, which puts the arc 1.6 m to the station's +X side, facing sideways, while the solid black
  * gasket covers where the screen should be. Here each arc is re-aimed so its middle faces +Z
  * (the player) and moved just in front of its gasket. Geometry, radius, arc and size are
  * untouched; only the mesh's yaw and z position change.
  */
-export function seatCurvedScreens(THREE: Three, station: THREE_NS.Object3D): void {
+export function seatCurvedScreens(THREE: Three, station: THREE_NS.Object3D): boolean {
   station.updateMatrixWorld(true);
+  let moved = false;
   for (const label of PILOT_SCREENS) {
     const glass = station.getObjectByName(label + SCREEN_SUFFIX) as THREE_NS.Mesh | undefined;
-    const gasket = station.getObjectByName(label + '-black-gasket');
-    if (!glass || !gasket) throw new Error('slot pilot: missing ' + label + ' display');
+    if (!glass) throw new Error('slot pilot: missing ' + label + ' display');
     const g = glass.geometry as THREE_NS.CylinderGeometry;
     const { radiusTop: radius, thetaStart, thetaLength } = g.parameters;
     const mid = thetaStart + thetaLength / 2;
+    // already facing the player (the revised art): leave it exactly as authored
+    const facing = mid + glass.rotation.y;
+    if (Math.cos(facing) > 0.99) continue;
+    const gasket = station.getObjectByName(label + '-black-gasket');
+    if (!gasket) throw new Error('slot pilot: ' + label + ' screen faces sideways and has no gasket to seat against');
     // a cylinder vertex at angle t sits at (r sin t, r cos t); turning by -mid brings the middle to +Z
     glass.rotation.set(0, -mid, 0);
     const gasketFront = new THREE.Box3().setFromObject(gasket).max.z;
     const edgeZ = radius * Math.cos(thetaLength / 2);
     glass.position.set(0, glass.position.y, gasketFront + GLASS_CLEARANCE - edgeZ);
     glass.updateMatrixWorld(true);
+    moved = true;
   }
+  return moved;
 }
 
 /** The station, with the screens seated. Screen art is applied by the caller (needs a canvas). */

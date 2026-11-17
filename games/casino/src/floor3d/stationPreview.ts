@@ -42,7 +42,10 @@ function placeScreens(station: THREE.Object3D, on: boolean): void {
     const m = station.getObjectByName(n)!;
     if (!m.userData.authored) m.userData.authored = { z: m.position.z, ry: m.rotation.y };
   }
-  if (on) return seatCurvedScreens(THREE, station);
+  if (on) {
+    seatCurvedScreens(THREE, station);
+    return;
+  }
   for (const n of SCREENS) {
     const m = station.getObjectByName(n)!;
     const a = m.userData.authored as { z: number; ry: number };
