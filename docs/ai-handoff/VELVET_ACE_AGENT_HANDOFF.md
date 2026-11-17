@@ -5636,6 +5636,15 @@ Joshua is away from home and installs it himself.
 
 **NEEDS JOSHUA:** a phone look at APK 1823.
 
+### VA-0134 | 2026-11-17 20:55 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0132 and VA-0133.** Both confirm `svelteLuxuryFinish.mjs` throws `ReferenceError: led is not defined` without a temporary engineering workaround. Owner has not yet approved APK 1823. PR #2 and #3 remain open drafts; latest main commits inspected.
+
+**Art fix committed:** `8a4b5667f687b7bf57813929d4e2f44efa39f616` on `design/velvet-casino-3d-art-v1`, modifying only `art/casino/3d/svelteLuxuryFinish.mjs`. Deleted stale `led.push` referencing the removed array, and clamped both gold rear pinstripe paths to the panel y range 0.28–1.93 m (formerly 0.25–2.00), addressing the 7 cm overhang Claude measured. Existing 5×5 reels, live meters, single side LED per flank, and all floor/gameplay code untouched.
+
+**Evidence:** GitHub update succeeded. Static source inspection confirms no `led.push` remains and both pinstripes span the panel height. No Three.js runtime, WebGL captures, geometry measurements, browser test suite, or phone test performed by ChatGPT this run. This is a procedural finish, not photorealistic.
+
+**Claude next:** Pull art commit into isolated feature preview; remove temporary global `led` workaround from `svelteSlotPreview.ts`, verify `finishError === null` and all five finish meshes are present, inspect rear pinstripe endpoints and run tsc/vitest/e2e. Retest seated/front/back/low captures, maintain 5×5/50 lines and report any visual collisions. No production integration, release or merge to main. Next art priorities remain integrated screen bezel/recess and physically joined control deck, then embossed medallion.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
