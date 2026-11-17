@@ -1,5 +1,5 @@
 /**
- * Dev-only page (`/svelte-slot.html?view=front|three|side|top|seated|back|low`, optional `&sides=double` diagnostic): ChatGPT's slim S-curve
+ * Dev-only page (`/svelte-slot.html?view=front|three|side|top|seated|back|low`, optional `&sides=double` / `&reel=checker` diagnostics): ChatGPT's slim S-curve
  * "Svelte 01" cabinet (VA-0110, art/casino/3d/svelteSlotCabinet.mjs) alone on a plain floor, with
  * a 1.75 m grey human-scale reference beside it. For review captures and measurements only; never
  * in the game. `__svelte.report()` gives the cabinet's bounds, per-part bounds and render cost.
@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCabinet.mjs';
+import { auditMeshes } from './meshAudit';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'three';
@@ -62,6 +63,32 @@ if (params.get('sides') === 'double') {
   });
 }
 
+// Diagnostic only (`?reel=checker`): put a labelled UV test card on the material the art module names in
+// `userData.screenMaterialName` (VA-0114), to check the lookup and the UV orientation. Not reel art.
+let reelSwap: { materialName: unknown; found: number } | null = null;
+if (params.get('reel') === 'checker') {
+  const name = cabinet.userData.screenMaterialName;
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 512;
+  const g = c.getContext('2d')!;
+  for (let y = 0; y < 8; y++) for (let x = 0; x < 4; x++) {
+    g.fillStyle = (x + y) % 2 ? '#202020' : '#e0e0e0';
+    g.fillRect(x * 64, y * 64, 64, 64);
+  }
+  g.font = 'bold 44px sans-serif';
+  const corner = (t: string, x: number, y: number, col: string) => { g.fillStyle = col; g.fillRect(x, y, 96, 56); g.fillStyle = '#fff'; g.fillText(t, x + 8, y + 44); };
+  corner('TL', 0, 0, '#c00000'); corner('TR', 160, 0, '#00a000'); corner('BL', 0, 456, '#0000c0'); corner('BR', 160, 456, '#a0a000');
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  let found = 0;
+  cabinet.traverse((o) => {
+    const m = o as THREE.Mesh;
+    const mat = m.isMesh ? (m.material as THREE.MeshStandardMaterial) : null;
+    if (mat && mat.name === name) { mat.map = tex; mat.color.set(0xffffff); mat.needsUpdate = true; found++; }
+  });
+  reelSwap = { materialName: name, found };
+}
+
 const camera = new THREE.PerspectiveCamera(innerWidth > innerHeight ? 45 : 60, innerWidth / innerHeight, 0.05, 50);
 camera.position.set(...v.pos);
 camera.lookAt(...v.look);
@@ -93,7 +120,7 @@ const windingFacing = (g: THREE.BufferGeometry) => {
   const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), sum = new THREE.Vector3();
   g.computeBoundingBox();
   const centre = g.boundingBox!.getCenter(new THREE.Vector3());
-  let out = 0, total = 0;
+  let out = 0, total = 0, vert = 0, vertOut = 0;
   for (let i = 0; i < n; i += 3) {
     const [i0, i1, i2] = idx ? [idx.getX(i), idx.getX(i + 1), idx.getX(i + 2)] : [i, i + 1, i + 2];
     a.fromBufferAttribute(pos, i0); b.fromBufferAttribute(pos, i1); c.fromBufferAttribute(pos, i2);
@@ -101,12 +128,22 @@ const windingFacing = (g: THREE.BufferGeometry) => {
     const fn = b.sub(a).cross(c.sub(a));
     if (fn.lengthSq() < 1e-14) continue;
     sum.add(fn);
+    // cap-like faces (mostly vertical normal): outward means the normal's y sign matches the face's side of centre
+    if (Math.abs(fn.y) > 0.9 * fn.length()) {
+      vert++;
+      if (Math.sign(fn.y) === Math.sign(mid.y)) vertOut++;
+      continue;
+    }
     total++;
     mid.y = 0; fn.y = 0;
     if (fn.dot(mid) > 0) out++;
   }
   const s = sum.normalize();
-  return { mean: [r3(s.x), r3(s.y), r3(s.z)], outward: total ? r3(out / total) : null };
+  return {
+    mean: [r3(s.x), r3(s.y), r3(s.z)],
+    outward: total ? r3(out / total) : null,
+    caps: vert ? { faces: vert, outward: r3(vertOut / vert) } : null,
+  };
 };
 
 (globalThis as Record<string, unknown>).__svelte = {
@@ -127,6 +164,6 @@ const windingFacing = (g: THREE.BufferGeometry) => {
       tris += t;
       parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g) };
     });
-    return { bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, parts, userData: cabinet.userData };
+    return { bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },
 };
