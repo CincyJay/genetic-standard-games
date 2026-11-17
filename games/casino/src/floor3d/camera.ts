@@ -33,8 +33,17 @@ const OVERVIEW_PITCH = (54 * Math.PI) / 180;
 const FOLLOW_LOOK_AHEAD = 1.2;
 const BLOCKED_EXTRA_PITCH = (34 * Math.PI) / 180;
 const FOLLOW_MAX_PITCH = (70 * Math.PI) / 180;
-/** Sideways the view is shorter, so the follow camera sits lower to keep the ceiling in frame. */
-const FOLLOW_LANDSCAPE_PITCH = (9 * Math.PI) / 180;
+/**
+ * Sideways the view is shorter, so the follow camera looks flatter and sits lower
+ * (FOLLOW_LANDSCAPE_DROP) to keep the ceiling in frame. At 9° and no drop the ceiling was a
+ * ~25 px strip (6 %) of a 915×412 screen from the spawn point and the chandeliers were cut off
+ * (VA-0107). At 5° and 0.25 m lower it is ~43 px and the whole chandelier shows; the feet move up
+ * from 399 px (on the bottom label) to 360 px. Going lower or flatter puts the avatar's head over
+ * the blackjack table from the spawn point, so FOLLOW_SHOULDER.landscape also widened.
+ */
+const FOLLOW_LANDSCAPE_PITCH = (5 * Math.PI) / 180;
+/** Landscape only: the follow camera and its aim point both sit this much lower (pure vertical shift). */
+export const FOLLOW_LANDSCAPE_DROP = 0.25;
 /** How far a vertical drag can tilt the follow view up (the camera drops behind the avatar). */
 export const LOOK_UP_MAX = (26 * Math.PI) / 180;
 /**
@@ -42,7 +51,7 @@ export const LOOK_UP_MAX = (26 * Math.PI) / 180;
  * placeholder avatar sits left of centre instead of covering the middle of the view.
  * Landscape is wider, so it can move further aside.
  */
-export const FOLLOW_SHOULDER = { portrait: 0.32, landscape: 0.55 };
+export const FOLLOW_SHOULDER = { portrait: 0.32, landscape: 0.8 };
 /**
  * Portrait only: the follow camera and its aim point both sit this much lower (a pure vertical
  * shift, same angle and distance). Without it the avatar's feet landed at ~81 % of the screen
@@ -167,7 +176,7 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     const landscape = !!opts.aspect && opts.aspect > 1;
     const shoulder = landscape ? FOLLOW_SHOULDER.landscape : FOLLOW_SHOULDER.portrait;
     const sx = Math.cos(heading) * shoulder;
-    const drop = opts.aspect && opts.aspect < 1 ? FOLLOW_PORTRAIT_DROP : 0;
+    const drop = opts.aspect && opts.aspect < 1 ? FOLLOW_PORTRAIT_DROP : landscape ? FOLLOW_LANDSCAPE_DROP : 0;
     const sz = Math.sin(heading) * shoulder;
     let target = { x: avatar.x + sx + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7 - drop + lookUp * 1.1, z: avatar.z + sz - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
     // framing a machine: aim at its screen, swing to the avatar's right and close in

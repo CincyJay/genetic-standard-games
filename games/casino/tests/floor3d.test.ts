@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { AVATAR_FADE_MIN, LIMITS, overviewLift, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, setOverviewSides, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
-import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, DEALER_SPOT, dealerSpotFor, OBSTACLES, ROOM, SEATS, seatsFor, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
+import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, DEALER_SPOT, dealerSpotFor, OBSTACLES, ROOM, SALON_ROOM, SEATS, seatsFor, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
 
@@ -167,6 +167,31 @@ describe('cameras', () => {
     const over = desiredPose('follow', avatar, 0, 4.2, { lookUp: 5 });
     expect(over).toEqual(up); // clamped to LOOK_UP_MAX
   });
+  /** Pinhole projection of a world point into screen pixels from the top (matches debug.screenOf to the pixel). */
+  const screenRow = (p: ReturnType<typeof desiredPose>, pt: { x: number; y: number; z: number }, h: number): number => {
+    const f = { x: p.target.x - p.pos.x, y: p.target.y - p.pos.y, z: p.target.z - p.pos.z };
+    const fl = Math.hypot(f.x, f.y, f.z);
+    const fw = { x: f.x / fl, y: f.y / fl, z: f.z / fl };
+    const r0 = { x: -fw.z, y: 0, z: fw.x }; // forward × up
+    const rl = Math.hypot(r0.x, r0.z);
+    const rt = { x: r0.x / rl, y: 0, z: r0.z / rl };
+    const up = { x: rt.y * fw.z - rt.z * fw.y, y: rt.z * fw.x - rt.x * fw.z, z: rt.x * fw.y - rt.y * fw.x };
+    const v = { x: pt.x - p.pos.x, y: pt.y - p.pos.y, z: pt.z - p.pos.z };
+    const depth = v.x * fw.x + v.y * fw.y + v.z * fw.z;
+    const ndcY = (v.x * up.x + v.y * up.y + v.z * up.z) / depth / Math.tan(((p.fov / 2) * Math.PI) / 180);
+    return ((1 - ndcY) / 2) * h;
+  };
+  it('landscape follow from the spawn shows a real band of ceiling and still the avatar\'s feet (VA-0107)', () => {
+    for (const [w, h] of [[915, 412], [844, 390]]) {
+      const avatar = SPAWN;
+      const p = desiredPose('follow', avatar, 0, LIMITS.follow.initial, { aspect: w / h });
+      // where the ceiling meets the back wall, straight ahead: everything above it is ceiling
+      const ceilingEdge = screenRow(p, { x: p.pos.x, y: SALON_ROOM.wallHeight, z: SALON_ROOM.z0 }, h);
+      expect(ceilingEdge / h).toBeGreaterThan(0.095); // was 0.06 (~25 px of 412) at 9° pitch, no drop
+      const feet = screenRow(p, { x: avatar.x, y: 0, z: avatar.z }, h);
+      expect(feet).toBeLessThan(h - 24); // above the bottom "PROTOTYPE" label
+    }
+  });
   it('the landscape follow view sits lower than portrait, so more of the ceiling shows', () => {
     const portrait = desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 0.46 });
     const landscape = desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 2.17 });
@@ -175,18 +200,7 @@ describe('cameras', () => {
   it('portrait follow keeps the avatar\'s feet above the joystick ring on 360×780 and 384×832 (VA-0098)', () => {
     for (const [w, h] of [[360, 780], [384, 832], [412, 915]]) {
       const p = desiredPose('follow', { x: 0, z: 0 }, 0, LIMITS.follow.initial, { aspect: w / h });
-      // pinhole projection of the feet (avatar origin on the floor) into screen pixels from the top
-      const f = { x: p.target.x - p.pos.x, y: p.target.y - p.pos.y, z: p.target.z - p.pos.z };
-      const fl = Math.hypot(f.x, f.y, f.z);
-      const fw = { x: f.x / fl, y: f.y / fl, z: f.z / fl };
-      const r0 = { x: -fw.z, y: 0, z: fw.x }; // forward × up
-      const rl = Math.hypot(r0.x, r0.z);
-      const rt = { x: r0.x / rl, y: 0, z: r0.z / rl };
-      const up = { x: rt.y * fw.z - rt.z * fw.y, y: rt.z * fw.x - rt.x * fw.z, z: rt.x * fw.y - rt.y * fw.x };
-      const v = { x: -p.pos.x, y: -p.pos.y, z: -p.pos.z };
-      const depth = v.x * fw.x + v.y * fw.y + v.z * fw.z;
-      const ndcY = (v.x * up.x + v.y * up.y + v.z * up.z) / depth / Math.tan(((p.fov / 2) * Math.PI) / 180);
-      const feetY = ((1 - ndcY) / 2) * h;
+      const feetY = screenRow(p, { x: 0, y: 0, z: 0 }, h);
       const joyTop = h - 40 - 136; // .joy: bottom 40 px, 132 px + 2 px border each side
       expect(feetY).toBeLessThan(joyTop - 8);
     }
