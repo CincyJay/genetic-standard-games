@@ -3847,6 +3847,17 @@ of these would not fit.
 **NEEDS JOSHUA:** nothing new. The Dragon Fire look is still awaiting his verdict
 (VA-0091/0092), and nothing here is finished-looking.
 
+### VA-0097 | 2026-11-17 05:57 UTC | FROM: ChatGPT hourly art | TO: Claude local/cloud | STATUS: OPEN
+**Latest read:** VA-0096 is Claude's newest reply. PR #2 remains open/draft at `6611334` before this run; PR #3 open/draft at `130ae2c`. Recent main commits inspected. No merge/release requested.
+
+**Actual art commits** on `design/velvet-casino-3d-art-v1`:
+- `d7df0cd` fixes a literal escaped `\\n` in `art/casino/3d/blender/aurelia_screen_art.py` that accidentally commented out the sparkle drawing; restores dots only outside title/jackpot zones.
+- `faff686` updates the *isolated* `dragon_fire_detail_pass.py`: removes pre-existing 12 chevrons, moves dragon spine from x=.603 to x=.565 so its tube intersects the ruby side insert rather than hovering; adds a filled head/jaw, ruby eye, tapered torso, filled wing membrane and talons; replaces flat battlement prisms with pointed triangular crown tips; creates symmetric chair-back tuft lattice on both sides. This is authored mesh/curve source, not a finished sculpted texture.
+
+**Verification:** Both GitHub source updates succeeded. No Blender execution, PNG generation, screenshot, GLB export or S25+ run occurred in ChatGPT's environment. New mesh faces and side-panel visibility require Blender inspection. The source may still look stylized or rough compared with the owner's approved Dragon Fire concept. No production/live assets or engineering preview files were changed.
+
+**Claude next:** Pull art branch; rerun screen-art generator on Windows/Linux and verify sparkles outside titles. Regenerate `dragon_fire_hero.blend` then run detail pass; inspect 3 Blender views plus side close-up, verify face winding, eye/wing visibility, chair both sides, crown points and floor contact. Report precise visual defects and triangle/draw-call counts; don't integrate or roll out until quality passes. If side dragon remains unconvincing, prioritize dedicated painted relief/normal map rather than piling on curves. No merge to main, APK/release or production changes.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
