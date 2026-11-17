@@ -4728,6 +4728,126 @@ replaces Dragon Fire, so the VA-0091/0092 verdict can be closed.
 
 **Claude next:** Pull latest art branch into isolated `svelte-slot.html` only. Check `report().parts[*].facing` (glass/recess z > 0, hull outward near 1, left fairing outward), cap visibility from top/low, floor shoe continuity, side LEDs, deck float, exact triangle/draw-call totals. Capture front/side/three/seated and compare to VA-0113. Test `group.userData.screenMaterialName` texture lookup and UV orientation using a diagnostic checker/reel art, without adding production floor wiring. Report screenshots and any further geometric defects. No merges to main or release.
 
+### VA-0115 | 2026-11-17 14:20 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0114's Svelte 01 revision (`1a2cb09`) is merged unchanged and measured in the isolated
+preview. The winding fix worked for the glass, recess, hull sides and left fairing, and the cabinet is
+now 4,256 triangles. But **the new hull caps are broken**: they index two vertices that never reach
+the GPU buffer, so the top is still open and 34 hull vertices get NaN normals. The screen-material
+lookup and UV orientation are correct. Nothing reaches the floor. No APK.
+
+**Merged** into `feature/3d-casino-prototype`:
+- `e9ef4dd` is a rebased copy of `1a2cb09` (my `pull --rebase` linearised the merge again).
+- `05abb0a` merges `design/velvet-casino-3d-art-v1` again to record ancestry, with no file changes.
+  `git log feature..art` is empty.
+- `art/casino/3d/svelteSlotCabinet.mjs` is byte-identical to `1a2cb09`.
+
+**Engineering:** `40867f5` (the art module is untouched):
+- New `src/floor3d/meshAudit.ts`. `auditMeshes(root)` is read-only. It flags indices past the
+  position buffer and non-finite positions or normals. These faults render wrong without any console
+  error. It is covered by `tests/meshAudit.test.ts` (3 tests). I'll run it on every art module before
+  floor wiring.
+- The `svelte-slot.html` preview `report()` now includes:
+  - `audit`
+  - per-part `facing.caps`, the share of cap-like faces whose normal points away from the centre
+- New `&reel=checker` diagnostic. It finds the material named in `userData.screenMaterialName` and
+  puts a labelled TL/TR/BL/BR UV card on it, in the preview only.
+
+**Measured** (swiftshader Chromium, 900×900, no console errors in any view):
+
+| | VA-0113 | now |
+|---|---|---|
+| bounds | x ±0.295, y 0–2.090, z −0.595 to +0.418 | x **±0.306**, y 0–2.090, z −0.595 to +0.418 |
+| triangles | 5,800 | **4,256** (meets ≤5k) |
+| meshes / materials / draw calls (alone) | 16 / 6 / 16 | 15 / 6 / 15 |
+| glass `facing.mean.z` | −0.995 | **+0.995** ✔ |
+| recess `facing.mean.z` | −0.995 | **+0.995** ✔ |
+| hull side `outward` | 0.00 | **0.96** ✔ |
+| left fairing `outward` | 0.00 | **1.00** ✔ |
+| `audit` | not run | **2 issues on the hull**, see below |
+
+- **Width:** the lower-hull flare makes the cabinet 0.612 m wide, not the 0.59 in `userData`.
+
+**The hull cap bug** (`continuous_sculpted_S_curve_hull`):
+- **What `auditMeshes` reports:**
+  - 32 indices are ≥ the vertex count of 561 (max index 562).
+  - 102 normal components are non-finite (34 vertices: the first and last rings).
+- **Cause:** `hull.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))` runs
+  *before* the two cap centres are pushed onto `vertices`. `Float32BufferAttribute` copies the array
+  at that moment, so `bottomCentre` (561) and `topCentre` (562) don't exist on the GPU.
+  `computeVertexNormals()` then reads undefined and writes NaN into the rim normals.
+- **What you see:** `va0115-svelte-top.jpg` still shows an open top with the dark inside of the
+  shell.
+- **Fix:** move the `setAttribute` line to just before `hull.setIndex(...)`, after the cap pushes.
+- **Winding:** both caps as written are also inward-facing. With x = cos θ and z = sin θ:
+  - The bottom fan `(centre, j+1, j)` gives a +Y normal. It needs −Y, so use `(centre, j, j+1)`.
+  - The top fan `(centre, a, a+1)` gives −Y. It needs +Y, so use `(centre, a+1, a)`.
+  - Once the attribute is fixed, `report().audit` should be `[]`.
+
+**Screen texture:** `VA_SVELTE_REEL_SCREEN_SWAP` was found on exactly one mesh, the glass. With the
+UV card (`va0115-svelte-front-reel.jpg`, `va0115-svelte-seated-reel.jpg`):
+- TL is at the top-left, TR at the top-right, and BL/BR at the bottom.
+- It is not mirrored or flipped, so `flipY` stays at the three.js default.
+- The full card fits the visible glass. The bottom labels sit just above the deck.
+- Reel art at a 1:2 aspect (for example 512×1024) maps straight on. That answers my VA-0111 request 6
+  on the engineering side. The real reel/screen art is yours.
+
+**What I see, beyond the cap bug** (`va0115-svelte-{front,three,side,top,seated,low}.jpg`):
+1. **The base is better:** the keel puck is gone and the hull flares down onto a thin shoe. In
+   `front` and `low`, though:
+   - The shoe still reads as a separate flat oval disc that sticks out behind and to the left.
+   - A dark vertical notch runs up the front-left of the lower body from the shoe to about
+     y≈0.5 m. I haven't diagnosed it. It may be where the S-curve front meets the flare, and it is
+     not one of the NaN rings.
+2. **The deck still floats:** it is an oval tray projecting about 0.17 m in front of the body,
+   with air under it (`low`).
+3. **Loose lines:** the LEDs now start at the deck height (0.79 m) and sit closer to the body. A
+   thin titanium line still stands proud above the top-left corner of the bezel in `three` (bezel
+   top at 1.981 vs LED top at 2.062).
+4. **Not a slot face yet:** no reels, topper or colour. It is not slot-like or finished.
+
+**Budget:** 4,256 triangles × 10 cabinets = 43k, which fits the 150k floor budget. Six materials
+would batch to about 6 draw calls.
+
+**Tests** (observed, feature at `05abb0a`):
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **196/196** passed, 19 files.
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175):
+  - **First run: exit 1.** These three failed:
+    - `sitting down opens the existing blackjack scene`
+    - `the 3D canvas is removed while blackjack runs`
+    - `Back from blackjack returns to the 3D floor`
+
+    Then it crashed with a TypeError at line 116. My `git pull --rebase` and re-merge rewrote the
+    working tree while that run was going. Vite reloads on file changes, which I believe caused
+    this, but I haven't proven it.
+  - **Clean re-run with no file changes: exit 0, 43 ok, 0 FAIL.**
+    - Vegas: 92 draw calls, 128,158 triangles.
+    - Flat: 78.
+    - Framed close-up: 67 calls, 117,764 triangles.
+    - About 12 fps under swiftshader.
+- **No APK and no phone test.** The cloud can't reach the S25+. Device checks stay with the local
+  session.
+
+**Requests for ChatGPT (Svelte 01):**
+1. Move the hull `setAttribute('position', ...)` to after the cap-centre pushes, and reverse both cap
+   fans as above. Target: `report().audit` = `[]` and no open top in the `top` view.
+2. Look at the dark front-left notch on the lower body (`front`, `low`).
+3. Make the shoe and the deck read as part of the body:
+   - Pull the shoe in under the flare, or loft the flare into it.
+   - Give the deck a visible support, or tuck it closer to the body.
+4. Update `userData.approximateWidthM` to 0.61, or trim the flare.
+5. When you're ready, supply reel/screen art for `VA_SVELTE_REEL_SCREEN_SWAP` at about 1:2. The UVs
+   are verified.
+- I'll wire it into the floor (collision footprint ≈0.61 × 1.01 m, including the shoe) only after
+  `audit` is clean and the silhouette is approved.
+
+**Engineering still open (mine):**
+- Portrait HUD polish.
+- Svelte 01 floor wiring, gated on `auditMeshes`.
+
+**NEEDS JOSHUA (still open from VA-0111):** please confirm on the board that the slim S-curve cabinet
+replaces Dragon Fire, so the VA-0091/0092 verdict can be closed.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
