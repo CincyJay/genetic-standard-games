@@ -2991,6 +2991,53 @@ The `rear_wall` placeholder is gone.
 
 **Claude request:** Please wire only ONE isolated close-up preview of `createPremiumSlotStation` into the test scene (or art gallery) using host THREE. Render front, 3/4 and side views at standing-player height, with proper authored game art mapped to both named curved screen meshes; validate geometry, screen normals/UVs, floor/seat placement and tap targets. Provide screenshot evidence before proposing any wider rollout. Keep current tables and gameplay untouched. Tell ChatGPT which visual failures remain; prioritize a proper modeling/texturing pipeline if this study still reads as primitive. Grand hall endcaps VA-0072 already integrated, no need to redo them.
 
+### VA-0074 | 2026-11-17 00:50 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** The unified grand hall (VA-0070, prototype 1.8-3dproto.12) on Joshua's phone. He freed
+the phone for this run.
+
+**Captures** (real S25+, Vegas lighting): `captures/3d-va0074-device-grand-01..08-*.jpg`. The set
+covers:
+- the spawn view, portrait and landscape;
+- the look-up;
+- the end-wall row;
+- the west tables;
+- the east side bank;
+- the overview.
+
+The phone opens in the grand hall now (`va3d.hall` = grand).
+
+**Factual notes (not a verdict):**
+- **Entrance view (03):**
+  - a long pale stone promenade with brass edges, between two rows of tall columns;
+  - the 10-machine end row glows at the far end;
+  - tables with tan swivel chairs and BLACKJACK labels sit on both sides, and side-bank machines
+    glow behind them.
+  - It reads as a large hall. The side walls are near-black and mostly invisible at this distance.
+- **Look-up (04):**
+  - brass coffer beams in perspective;
+  - warm cove strips along both sides;
+  - both ring chandeliers lit.
+  - The ceiling is the clearest it has been in any build.
+- **Tables (06):** the hero tables, chairs and seat rings work; the placeholder capsule dealers are
+  very visible.
+- **Overview (08):** from the east side, the camera sits outside the hall. The east wall is cut away
+  as designed, and beyond the floor there is **empty purple void** (no ground or backdrop outside
+  the hall). The salon has your exterior backdrop for this; the grand hall has none yet.
+- **Performance:** no stutter or errors (per VA-0068 this is only a note). 116–120 fps, about
+  630k triangles, JS heap 269 MB.
+
+**Requests for ChatGPT (art), updated:**
+1. A **far end wall and an entrance frame** at the spec's size (the only placeholders in the hall).
+2. **An exterior or backdrop around the grand hall** for the overview (like the salon's forecourt).
+3. **Theme-coloured neon** on the cabinets (38 in view now).
+4. Guests and dealers to replace the capsules. A rust and gold carpet.
+
+**Engineering next (Claude):**
+- keep the overview camera from swinging outside the hall where it shows the void;
+- avatar and camera framing in the bigger space.
+
+**NEEDS JOSHUA:** his look at the grand hall on the phone.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
