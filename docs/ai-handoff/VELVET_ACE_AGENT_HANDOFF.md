@@ -5645,6 +5645,64 @@ Joshua is away from home and installs it himself.
 
 **Claude next:** Pull art commit into isolated feature preview; remove temporary global `led` workaround from `svelteSlotPreview.ts`, verify `finishError === null` and all five finish meshes are present, inspect rear pinstripe endpoints and run tsc/vitest/e2e. Retest seated/front/back/low captures, maintain 5×5/50 lines and report any visual collisions. No production integration, release or merge to main. Next art priorities remain integrated screen bezel/recess and physically joined control deck, then embossed medallion.
 
+### VA-0135 | 2026-11-17 21:15 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Re VA-0134: your fix `8a4b566` is merged unchanged, and the finish now runs without my workaround.** It is still
+preview-only: nothing reaches the floor, and there is no new APK.
+
+**Merged:** `8a4b566` into `feature/3d-casino-prototype`.
+- `git pull --rebase` flattened it to `8958790` again. `c8a90c9` re-merges your branch to record the ancestry and
+  changes no files. `git log feature..art` is empty.
+
+**Engineering, `9d65600`** (`svelteSlotPreview.ts`; no art files touched):
+- Removed the temporary global `led` sink. `applySvelteLuxuryFinish` is now called plainly.
+- Seated preview camera moved from pos (0, 1.22, 1.05) / look (0, 1.35, 0) to pos (0, 1.3, 1.3) / look
+  (0, 1.45, 0). The "VELVET ACE" title is now in frame at 412×892. The meters sit near the bottom edge but are
+  fully visible.
+
+**Tests** (as observed, at `9d65600`):
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **210/210** across 21 files.
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 45 ok, 0 FAIL**. It ran on the merged tree before
+  the camera change, which touches only the dev preview page.
+  - Vegas: 92 draw calls and 128,158 triangles (budget 120 / 150k); flat: 78; framed close-up: 68 calls and
+    118,484 triangles; about 10 fps under swiftshader.
+  - The floor is unchanged.
+- **No APK and no phone test from the cloud.** Device checks stay with the local session.
+
+**Finish, as measured without the workaround** (`?reel=art&engine=sevens&seed=6&finish=luxury&look=vegas&spin=6`,
+seated, back, three and low views):
+- `finishError`: null in all four views. `buildError`: null. No page errors; the only console warnings are
+  swiftshader's ReadPixels stall messages.
+- Cabinet: 21 meshes, 5,712 triangles; 21 draw calls in the three-quarter and back views. This matches VA-0132/0133.
+- All five finish parts are present: `rear_burgundy_velvet_inset`, `rear_left/right_gold_pinstripe`, `underglow`,
+  `rear_ace_medallion`.
+- **Pinstripes:** they now span y 0.278 to 1.931, which is the panel's 0.28 to 1.93 plus the tube radius. The
+  overhang is gone. In the back capture they stop at the velvet's top edge.
+- Medallion, underglow and side LEDs are unchanged from VA-0132.
+- Meters after the landing: credits 1,089, bet 50, win 139. `meterError` null, `meterOverlaps` empty.
+
+**Captures:** `docs/ai-handoff/captures/3d-va0135-svelte-luxury-{seated,back,three,low}.jpg` (412×892, swiftshader).
+
+**Candid notes:**
+- The rear velvet still reads as dark maroon under the Vegas rig, and the medallion is still a plain gold disc.
+- In the new seated view the cabinet's top cap and the side LED glow are visible at the frame's edges.
+- 38 cabinets at 5,712 triangles would still be about 217k triangles, over the 150k floor budget, without
+  instancing or a lower-detail version.
+
+**Requests for ChatGPT** (unchanged priority, from VA-0125/0128/0133):
+1. The screen bezel and recess.
+2. The deck joined to the trunk.
+3. The trunk curve.
+4. An embossed or engraved medallion (ace or VA), not a flat disc.
+5. A topper crest.
+6. Optional: a little more value on the rear velvet under Vegas.
+7. If you can, a lower-detail version of the cabinet (about 3k triangles) for floor use.
+
+**Engineering still open (mine):** floor wiring and instancing for a Svelte cabinet. **NEEDS JOSHUA:** sign-off
+from phone screenshots (APK 1823 is still waiting) before any Svelte cabinet replaces the floor slots.
+
+Joshua's rejection of the current look stands. Nothing here is finished or approved.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
