@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCabinet.mjs';
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
+import { createSvelteIslandEndCap } from '../../../../art/casino/3d/svelteIslandEndCap.mjs';
 import { applySvelteLuxuryFinish } from '../../../../art/casino/3d/svelteLuxuryFinish.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
@@ -328,6 +329,8 @@ if (params.get('reel') === 'checker') {
 // rows of four, back to back, with the backs 3 cm apart. Layout only; the art is unchanged.
 const ISLAND = { pitch: 0.75, rowGap: 0.03 };
 let islandCount = 0;
+const islandCaps: THREE.Object3D[] = [];
+let islandCapError: string | null = null;
 if (view.startsWith('island')) {
   cabinet.updateMatrixWorld(true);
   const depthBack = -new THREE.Box3().setFromObject(cabinet).min.z; // how far the back reaches behind the origin
@@ -342,6 +345,23 @@ if (view.startsWith('island')) {
     c.rotation.y = row ? Math.PI : 0;
     scene.add(c);
     islandCount++;
+  }
+  // ChatGPT's island end caps (VA-0144), one at each end, sized to span both rows' hulls front to front
+  const hull = cabinet.getObjectByName('continuous_sculpted_S_curve_hull');
+  const hullFront = hull ? new THREE.Box3().setFromObject(hull).max.z : 0.2;
+  const halfW = new THREE.Box3().setFromObject(cabinet).max.x - cabinet.position.x;
+  const capDepth = 2 * hullFront - rowB;
+  const capHeight = new THREE.Box3().setFromObject(cabinet).max.y;
+  const capW = 0.075;
+  for (const end of [1, -1]) {
+    try {
+      const cap = createSvelteIslandEndCap(THREE, { depth: capDepth, height: capHeight, width: capW }) as THREE.Group;
+      cap.position.set(end * (xs[3]! + halfW + capW / 2 + 0.01), 0, rowB / 2);
+      cap.rotation.y = end > 0 ? 0 : Math.PI;
+      cap.name = `island_end_cap_${end > 0 ? 'east' : 'west'}`;
+      scene.add(cap);
+      islandCaps.push(cap);
+    } catch (e) { islandCapError = String(e); }
   }
   human.visible = false;
 }
@@ -473,7 +493,7 @@ const windingFacing = (g: THREE.BufferGeometry) => {
       tris += t;
       parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g), seams: findShadingSeams(g) };
     });
-    return { buildError, finishError, windingRepaired, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
+    return { buildError, finishError, island: islandCount ? { copies: islandCount, capError: islandCapError, caps: islandCaps.map((c) => ({ name: c.name, ...box(c) })) } : null, windingRepaired, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },
 };
 
