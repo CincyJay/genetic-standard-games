@@ -3,7 +3,9 @@
  * "Svelte 01" cabinet (VA-0110, art/casino/3d/svelteSlotCabinet.mjs) alone on a plain floor, with
  * a 1.75 m grey human-scale reference beside it. For review captures and measurements only; never
  * in the game. `&reel=art&spin=loop` scrolls symbol strips inside the art's `reelWindows` (VA-0122);
- * `&spin=<seconds>` freezes one spin at that time, for captures. Preview-only motion, not the slot engine.
+ * `&spin=<seconds>` freezes one spin at that time, for captures. Add `&engine=<machine id>` (e.g. `sevens`) to
+ * run the real slot engine instead: its reel strips, stops, 5x5 grid and 50-line wins, drawn with the
+ * machine's own symbol PNGs (the ones the 2D slots use). Preview-only: no chips, bets or saves.
  * `__svelte.report()` gives the cabinet's bounds, per-part bounds and render cost.
  */
 import * as THREE from 'three';
@@ -12,8 +14,8 @@ import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCab
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
-import { ROWS as GAME_ROWS } from '../logic/slots';
-import { reelPoses, stopTime, symbolAt, type SpinPlan } from './reelSpin';
+import { ROWS as GAME_ROWS, LINES, MACHINES, strips, spinStops, gridFromStops, evaluate } from '../logic/slots';
+import { reelPoses, stopTime, symbolAt, targetsFromStops, winningCells, type SpinPlan } from './reelSpin';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -107,10 +109,23 @@ type ArtScreen = { canvas: HTMLCanvasElement; texture: THREE.Texture; reelWindow
  * rail gradient taken above the symbols, then strip symbols are drawn in the art's font and colours,
  * clipped to the window. Outcomes are preview-only pseudo-random picks, not the slot engine.
  */
-function makeReelAnim(screen: ArtScreen, mode: string) {
+function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) {
   const wins = screen.reelWindows ?? [];
   // the art's own symbol set (VA-0126)
   const STRIP = ['7', '◆', '♛', '★', '♥', '♠', '✦'];
+  // `&engine=<id>`: the slot engine's machine, its per-reel strips and its symbol images
+  const machine = engineId ? MACHINES.find((m) => m.id === engineId) ?? null : null;
+  const engStrips = machine && wins.length === 5 ? strips(machine) : null;
+  const lens = engStrips ? engStrips.map((st) => st.length) : wins.map(() => STRIP.length);
+  const icons = new Map<string, HTMLImageElement>();
+  if (engStrips) for (const sym of machine!.symbols) {
+    const img = new Image();
+    img.src = `./art/slots/${machine!.id}/${sym}.png`;
+    icons.set(sym, img);
+  }
+  const iconsReady = Promise.all([...icons.values()].map((im) => im.decode().catch(() => undefined)));
+  let result: ReturnType<typeof evaluate> | null = null;
+  let winSet = new Set<number>();
   // rows per reel: the game's 5x5 grid (logic/slots.ts ROWS), which the art draws since VA-0126
   const ROWS = GAME_ROWS;
   const MID = Math.floor(ROWS / 2);
@@ -119,10 +134,19 @@ function makeReelAnim(screen: ArtScreen, mode: string) {
   base.width = screen.canvas.width; base.height = screen.canvas.height;
   base.getContext('2d')!.drawImage(screen.canvas, 0, 0);
   const sy = screen.canvas.height / 1024;
-  let seed = 7;
+  // `&seed=<n>` picks the preview's (non-secure, preview-only) random sequence, for repeatable captures
+  let seed = Number(params.get('seed') ?? 7) || 7;
   const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
   let plan: SpinPlan = { targets: wins.map(() => 0), stripLength: STRIP.length, from: wins.map((_, i) => i * 2) };
-  const newPlan = (from: number[]) => { plan = { targets: wins.map(() => Math.floor(rnd() * STRIP.length)), stripLength: STRIP.length, from }; };
+  const newPlan = (from: number[]) => {
+    if (!engStrips) { plan = { targets: wins.map(() => Math.floor(rnd() * STRIP.length)), stripLength: STRIP.length, from }; return; }
+    // the real engine: random stops on its strips, the landed grid, and its 50-line evaluation (line bet 1)
+    const stops = spinStops(machine!, rnd);
+    result = evaluate(machine!, gridFromStops(machine!, stops), 1);
+    winSet = winningCells(result.lineWins, LINES, ROWS);
+    // the engine's strips are long (60-plus symbols): one extra turn per later reel is plenty
+    plan = { targets: targetsFromStops(stops, lens, ROWS), stripLength: lens[0]!, stripLengths: lens, from, minTurns: 1 };
+  };
   newPlan(plan.from!);
   let started = performance.now();
   const frozen = Number(mode);
@@ -158,7 +182,27 @@ function makeReelAnim(screen: ArtScreen, mode: string) {
       const blur = Math.min(speed[i]! * 1.6, 1);
       for (let row = -1; row <= ROWS; row++) {
         const cy = w.y + (row + 0.5 + frac) * rowH + settle;
-        const idx = symbolAt(pose.pos, row, ROWS, STRIP.length);
+        const idx = symbolAt(pose.pos, row, ROWS, lens[i]!);
+        if (engStrips) {
+          const img = icons.get(engStrips[i]![idx]!);
+          const sz = Math.min(rowH, w.w) * 0.86;
+          const x0 = w.x + (w.w - sz) / 2;
+          if (img?.complete && img.naturalWidth) {
+            if (blur > 0.08) for (let k = 1; k <= 3; k++) {
+              g.globalAlpha = 0.28 * blur * (1 - k / 4);
+              g.drawImage(img, x0, cy - sz / 2 - k * blur * rowH * 0.16, sz, sz);
+            }
+            g.globalAlpha = blur > 0.08 ? 1 - 0.45 * blur : 1;
+            g.drawImage(img, x0, cy - sz / 2, sz, sz);
+            g.globalAlpha = 1;
+          }
+          // winning cells, once every reel has landed: an outline in the preview's existing red
+          if (row >= 0 && row < ROWS && last.every((p) => p.stopped) && winSet.has(i * ROWS + row)) {
+            g.strokeStyle = '#ab1733'; g.lineWidth = 3;
+            g.strokeRect(w.x + 2, cy - rowH / 2 + 2, w.w - 4, rowH - 4);
+          }
+          continue;
+        }
         g.fillStyle = pose.stopped && row === MID ? '#ab1733' : '#1c3759';
         if (blur > 0.08) {
           for (let k = 1; k <= 3; k++) {
@@ -180,15 +224,25 @@ function makeReelAnim(screen: ArtScreen, mode: string) {
   return {
     windows: wins,
     frozen: Number.isFinite(frozen) ? frozen : null,
+    iconsReady,
     tick(now: number) {
       if (Number.isFinite(frozen)) { draw(frozen); return; }
       let t = (now - started) / 1000;
-      if (t > 4) { newPlan(last.map((p) => p.pos % STRIP.length)); started = now; t = 0; spins++; }
+      if (t > 4) { newPlan(last.map((p, i) => p.pos % lens[i]!)); started = now; t = 0; spins++; }
       draw(t);
     },
     /** Seconds since the last reel landed (negative while any reel still spins). */
     landedFor: () => lastT - stopTime(plan, wins.length - 1),
-    state: () => ({ windows: wins, spins, targets: plan.targets.map((i) => STRIP[i]), poses: last.map((p) => ({ pos: Math.round(p.pos * 100) / 100, stopped: p.stopped })) }),
+    state: () => ({
+      windows: wins, spins,
+      engine: engStrips ? {
+        machine: machine!.id, stripLengths: lens, total: result?.total ?? 0, lineWins: result?.lineWins.length ?? 0,
+        grid: result?.grid ?? null,
+        // what the window shows now, read back from the poses: equals `grid` once every reel has landed
+        shown: last.map((p, r) => Array.from({ length: ROWS }, (_, row) => engStrips[r]![symbolAt(p.pos, row, ROWS, lens[r]!)])),
+        iconsLoaded: [...icons.values()].filter((im) => im.complete && im.naturalWidth > 0).length,
+      } : null,
+      targets: engStrips ? plan.targets : plan.targets.map((i) => STRIP[i]), poses: last.map((p) => ({ pos: Math.round(p.pos * 100) / 100, stopped: p.stopped })) }),
   };
 }
 let reelAnim: ReturnType<typeof makeReelAnim> | null = null;
@@ -197,7 +251,7 @@ if (params.get('reel') === 'art') {
   try {
     const screen = createSvelteReelScreen(THREE, { width: 512, height: 1024 }) as ArtScreen;
     reelSwap = { ...swapScreen(screen.texture), source: 'svelteReelScreen.mjs' };
-    if (params.has('spin')) reelAnim = makeReelAnim(screen, params.get('spin')!);
+    if (params.has('spin')) reelAnim = makeReelAnim(screen, params.get('spin')!, params.get('engine'));
   } catch (e) {
     reelSwap = { materialName: cabinet.userData.screenMaterialName, found: 0, source: 'svelteReelScreen.mjs', error: String(e) };
   }
@@ -286,6 +340,8 @@ draw();
 if (reelAnim && reelAnim.frozen === null) {
   renderer.setAnimationLoop((now) => { reelAnim!.tick(now); ledPulse?.(now); draw(); });
 }
+// a frozen capture draws once, so redraw it when the engine's symbol images finish loading
+if (reelAnim && reelAnim.frozen !== null) void reelAnim.iconsReady.then(() => { reelAnim!.tick(performance.now()); draw(); });
 
 /**
  * Area-weighted mean face normal from triangle winding (what FrontSide culling uses), in cabinet

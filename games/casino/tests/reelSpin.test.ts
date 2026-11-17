@@ -46,3 +46,38 @@ describe('reelSpin', () => {
     expect(symbolAt(5.7, 2, 3, 6)).toBe(0);
   });
 });
+
+describe('slot-engine wiring (Svelte preview)', async () => {
+  const { MACHINES, ROWS, LINES, strips, spinStops, gridFromStops, evaluate } = await import('../src/logic/slots');
+  const { targetsFromStops, winningCells } = await import('../src/floor3d/reelSpin');
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff);
+
+  it('lands every reel showing exactly the engine grid, for every machine', () => {
+    for (const m of MACHINES) {
+      const st = strips(m);
+      const lens = st.map((s) => s.length);
+      for (let k = 0; k < 20; k++) {
+        const stops = spinStops(m, rnd);
+        const p: SpinPlan = { targets: targetsFromStops(stops, lens, ROWS), stripLength: lens[0]!, stripLengths: lens, from: lens.map((n) => Math.floor(rnd() * n)), minTurns: 1 };
+        const landed = reelPoses(p, 99);
+        const shown = landed.map((pose, r) => Array.from({ length: ROWS }, (_, row) => st[r]![symbolAt(pose.pos, row, ROWS, lens[r]!)]!));
+        expect(shown).toEqual(gridFromStops(m, stops));
+      }
+    }
+  });
+
+  it('per-reel strip lengths drive travel', () => {
+    const t = travelRows({ targets: [3, 3], stripLength: 0, stripLengths: [10, 20], from: [0, 0], minTurns: 1 });
+    expect(t).toEqual([13, 43]);
+  });
+
+  it('winning cells follow each line for its count only', () => {
+    const cells = winningCells([{ line: 0, count: 3 }], LINES, ROWS);
+    expect([...cells].sort((a, b) => a - b)).toEqual([0, 5, 10].map((c) => c + LINES[0]![0]!));
+    const m = MACHINES[0]!;
+    const grid = Array.from({ length: 5 }, () => new Array(ROWS).fill(m.symbols[0]));
+    const res = evaluate(m, grid, 1);
+    expect(winningCells(res.lineWins, LINES, ROWS).size).toBe(25);
+  });
+});

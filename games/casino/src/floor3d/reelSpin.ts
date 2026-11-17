@@ -9,6 +9,8 @@ export interface SpinPlan {
   targets: number[];
   /** Symbols on the strip (the strip repeats). */
   stripLength: number;
+  /** Per-reel strip lengths, when reels have different strips (the slot engine's do); overrides `stripLength`. */
+  stripLengths?: number[];
   /** Strip position each reel starts from (rows); defaults to 0. */
   from?: number[];
   /** Seconds for the first reel. */
@@ -29,9 +31,9 @@ const mod = (a: number, n: number) => ((a % n) + n) % n;
 
 /** Rows each reel travels: at least `minTurns` turns, then on to the target (plus a turn per later reel). */
 export function travelRows(plan: SpinPlan): number[] {
-  const n = plan.stripLength;
   const turns = plan.minTurns ?? 2;
   return plan.targets.map((t, i) => {
+    const n = plan.stripLengths?.[i] ?? plan.stripLength;
     const from = plan.from?.[i] ?? 0;
     return (turns + i) * n + mod(t - from, n);
   });
@@ -59,4 +61,21 @@ export function reelPoses(plan: SpinPlan, t: number): ReelPose[] {
 export function symbolAt(pos: number, row: number, rows: number, stripLength: number): number {
   const mid = Math.floor(rows / 2);
   return mod(Math.floor(pos) + row - mid, stripLength);
+}
+
+/**
+ * Middle-row strip targets that make a window `rows` tall show the slot engine's grid: the engine's
+ * `gridFromStops` puts `strip[stop + row]` on row `row` (0 = top), and `symbolAt` puts
+ * `pos + row - mid` there, so the reel must stop at `stop + mid`.
+ */
+export function targetsFromStops(stops: number[], stripLengths: number[], rows: number): number[] {
+  const mid = Math.floor(rows / 2);
+  return stops.map((s, i) => mod(s + mid, stripLengths[i]!));
+}
+
+/** Cells (`reel*rows + row`) on the winning stretch of each line win: the first `count` reels of that line. */
+export function winningCells(wins: { line: number; count: number }[], lines: number[][], rows: number): Set<number> {
+  const out = new Set<number>();
+  for (const w of wins) lines[w.line]!.slice(0, w.count).forEach((row, reel) => out.add(reel * rows + row));
+  return out;
 }
