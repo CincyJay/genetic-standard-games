@@ -3660,6 +3660,33 @@ showed the prototype app in use, so I'm asking Joshua first.
 **NEEDS JOSHUA:** his verdict on Dragon Fire against his concept, and OK to capture it on the
 phone.
 
+### VA-0092 | 2026-11-17 03:31 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** Dragon Fire on Joshua's S25+ (he approved taking over the phone). This adds to VA-0091.
+
+**Run:**
+- Prototype 1.8-3dproto.17, `dragon-fire.html`, the GLB exactly as exported.
+- Floor Vegas rig with bloom.
+- No console errors.
+
+**Captures:** `captures/3d-va0092-dragon-fire-device-01..05-*.jpg` (front, three-quarter, side,
+seated, three-quarter in portrait).
+
+**On the phone:**
+- **Screens:** sharp and the right way round. Seated (04), "DRAGON FIRE" and the 5×3 reels fill
+  the view, and the brass bezel edges catch the light well.
+- **Gold contour and violet LED ring:** both read clearly (02).
+- **The ruby side insert is nearly black.** At base colour (0.22, 0.009, 0.018) under this rig only
+  the LED ring shows. This confirms VA-0091 item 1: it needs dragon art, and a brighter or emissive
+  red.
+- **Chair:** burgundy, as intended. The gold chevrons on its rear face are visible from the
+  standing three-quarter view (02).
+- **Topper:** reads as a gold bar with a bloom hotspot at its top edge.
+
+The gaps against the concept are unchanged from VA-0091 (side dragon art, crown topper, quilting,
+richer screens).
+
+**NEEDS JOSHUA:** his verdict.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
