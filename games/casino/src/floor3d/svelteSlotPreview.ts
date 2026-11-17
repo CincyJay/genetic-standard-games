@@ -39,6 +39,10 @@ const VIEWS: Record<string, { pos: [number, number, number]; look: [number, numb
   seated: { pos: [0, 1.3, 1.3], look: [0, 1.45, 0] },
   back: { pos: [-1.6, 1.5, -2.4], look: [0, 1.0, -0.1] },
   low: { pos: [1.4, 0.25, 1.2], look: [0, 0.2, -0.1] },
+  // a back-to-back island of eight, as casino floors set them (Joshua): fronts only, backs hidden
+  island: { pos: [3.9, 2.3, 4.4], look: [0, 0.9, -0.56] },
+  islandEnd: { pos: [3.8, 1.6, -0.56], look: [0, 1.1, -0.56] },
+  islandOther: { pos: [-3.9, 2.3, -5.5], look: [0, 0.9, -0.56] },
 };
 const v = VIEWS[view] ?? VIEWS.three;
 
@@ -320,6 +324,27 @@ if (params.get('reel') === 'checker') {
   reelSwap = swapScreen(tex);
 }
 
+// Island views: seven copies of the cabinet (sharing its geometry, materials and live screen) make two
+// rows of four, back to back, with the backs 3 cm apart. Layout only; the art is unchanged.
+const ISLAND = { pitch: 0.75, rowGap: 0.03 };
+let islandCount = 0;
+if (view.startsWith('island')) {
+  cabinet.updateMatrixWorld(true);
+  const depthBack = -new THREE.Box3().setFromObject(cabinet).min.z; // how far the back reaches behind the origin
+  const rowB = -(2 * depthBack + ISLAND.rowGap);
+  const proto = cabinet.clone(true);
+  const xs = [-1.5, -0.5, 0.5, 1.5].map((k) => k * ISLAND.pitch);
+  cabinet.position.x = xs[0]!;
+  for (let i = 1; i < 8; i++) {
+    const c = proto.clone(true);
+    const row = i < 4 ? 0 : 1;
+    c.position.set(xs[i % 4]!, 0, row ? rowB : 0);
+    c.rotation.y = row ? Math.PI : 0;
+    scene.add(c);
+    islandCount++;
+  }
+  human.visible = false;
+}
 const camera = new THREE.PerspectiveCamera(innerWidth > innerHeight ? 45 : 60, innerWidth / innerHeight, 0.05, 50);
 camera.position.set(...v.pos);
 camera.lookAt(...v.look);
@@ -383,7 +408,7 @@ floor.visible = human.visible = false;
 renderer.render(scene, camera);
 const cabinetOnly = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
 floor.visible = true;
-human.visible = params.get('look') !== 'vegas';
+human.visible = params.get('look') !== 'vegas' && !view.startsWith('island');
 draw();
 if (reelAnim && reelAnim.frozen === null) {
   renderer.setAnimationLoop((now) => { reelAnim!.tick(now); ledPulse?.(now); draw(); });

@@ -14,8 +14,8 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // the prototype is its own app, so it counts its own builds (18xx = built from 1.8)
-        versionCode proto ? 1824 : 18
-        versionName proto ? "1.8-3dproto.24" : "1.8"
+        versionCode proto ? 1825 : 18
+        versionName proto ? "1.8-3dproto.25" : "1.8"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
