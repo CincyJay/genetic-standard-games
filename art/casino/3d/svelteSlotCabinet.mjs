@@ -21,13 +21,16 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   };
   // Vertical S profile: bowed display toward the player at eye level, swept-back crown.
   // First-pass dimensions measured by Claude: 2.09m tall, 0.59m wide, ~0.89m deep.
+  // Island revision: restrained front sweep and near-vertical back.
+  // Retains the screen UVs and the existing 5x5 reel texture interface.
   const profile = [
-    [0.13, -0.13, 0.29], [0.27, -0.11, 0.285],
-    [0.43, -0.055, 0.268], [0.64, 0.00, 0.258],
-    [0.85, 0.035, 0.255], [1.12, 0.095, 0.265],
-    [1.42, 0.16, 0.28], [1.72, 0.19, 0.285],
-    [1.95, 0.14, 0.282], [2.09, 0.075, 0.266]
-  ]; // [height, forward Z, half-width]
+    [0.13, -0.105, 0.29], [0.27, -0.095, 0.285],
+    [0.43, -0.075, 0.268], [0.64, -0.045, 0.258],
+    [0.85, -0.020, 0.255], [1.12, 0.015, 0.265],
+    [1.42, 0.055, 0.28], [1.72, 0.070, 0.285],
+    [1.95, 0.055, 0.282], [2.09, 0.025, 0.266]
+  ];
+  const rearZ = -0.305; // constant cabinet rear datum for back-to-back banks // [height, forward Z, half-width]
   const frontZ = (y) => {
     for (let i = 1; i < profile.length; i++) {
       if (y <= profile[i][0]) {
@@ -80,7 +83,12 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     for (let j = 0; j <= sides; j++) {
       const theta = 2 * Math.PI * j / sides;
       const x = w * Math.cos(theta);
-      const z = frontZ(y) - 0.15 - 0.07 * flare + (0.19 + 0.035 * flare) * Math.sin(theta);
+      // Oval section with a fixed rear extremity. The old profile moved
+      // the rear wall forward/back with height, creating a large V gap.
+      const front = frontZ(y) + 0.040 + 0.010 * flare;
+      const centre = (front + rearZ) / 2;
+      const radius = (front - rearZ) / 2;
+      const z = centre + radius * Math.sin(theta);
       vertices.push(x, y, z);
     }
   }
@@ -91,9 +99,9 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   const hull = new THREE.BufferGeometry();
   // Add cap centres before copying vertices into the GPU position attribute.
   const bottomCentre = vertices.length / 3;
-  vertices.push(0, 0.045, frontZ(0.045) - 0.22);
+  vertices.push(0, 0.045, (frontZ(0.045) + 0.05 + rearZ) / 2);
   const topCentre = vertices.length / 3;
-  vertices.push(0, 2.09, frontZ(2.09) - 0.15);
+  vertices.push(0, 2.09, (frontZ(2.09) + 0.04 + rearZ) / 2);
   for (let j = 0; j < sides; j++) {
     indices.push(bottomCentre, j, j + 1);
     const a = rings * (sides + 1) + j;
@@ -268,7 +276,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   group.userData = {
     artOnly: true, prototype: 'Svelte 01', units: 'metres',
     front: '+Z', up: '+Y', approximateHeightM: 2.09,
-    approximateWidthM: 0.612, curvedScreen: true,
+    approximateWidthM: 0.612, curvedScreen: true, rearDatumM: rearZ,
     screenMaterialName: glass.name, status: 'isolated geometry revision; not production integrated'
   };
   return group;
