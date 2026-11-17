@@ -9,7 +9,7 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
   finish.name = 'VA_SVELTE_LUXURY_FINISH';
   cabinet.add(finish);
   const gold = new THREE.MeshStandardMaterial({ color: 0xc4a46b, metalness: .8, roughness: .32 });
-  const velvet = new THREE.MeshStandardMaterial({ color: 0x321324, metalness: .04, roughness: .94 });
+  const velvet = new THREE.MeshStandardMaterial({ color: 0x663047, metalness: .08, roughness: .79 });
   const glowColor = options.ledColor ?? 0x6bdcf5;
   const light = new THREE.MeshStandardMaterial({
     color: glowColor, emissive: glowColor, emissiveIntensity: 2.1,
@@ -17,7 +17,7 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
   });
   const makeTube = (name, pts, radius, material, glow = false) => {
     const curve = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)));
-    const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 56, radius, 6, false), material);
+    const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, radius, 4, false), material);
     mesh.name = name;
     if (glow) mesh.userData.glow = true;
     finish.add(mesh);
@@ -36,7 +36,13 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
     }
     return profile[profile.length-1][1];
   };
-  const backZ = y => forward(y) - .15 - .19 - .006;
+  const backZ = (y, x = 0) => {
+    const flare = Math.max(0, 1 - y / .42);
+    const halfWidth = .29 + .015 * flare;
+    const depth = .19 + .035 * flare;
+    const lateral = Math.min(.99, Math.abs(x) / halfWidth);
+    return forward(y) - .15 - .07 * flare - depth * Math.sqrt(1 - lateral * lateral) - .012;
+  };
   // Slim, rear burgundy fabric panel with rounded elliptical cross-section.
   const positions = [], uvs = [], indices = [];
   const rows = 28, cols = 12, y0 = .28, y1 = 1.93;
@@ -44,7 +50,7 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
     const t = i / rows, y = y0 + t * (y1-y0);
     for (let j = 0; j <= cols; j++) {
       const u = j / cols, x = (u*2-1)*.18;
-      const z = backZ(y) + .10 * (1 - Math.sqrt(Math.max(0, 1-(x/.29)**2)));
+      const z = backZ(y, x);
       positions.push(x,y,z); uvs.push(u,t);
     }
   }
@@ -60,7 +66,7 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
   panel.name='rear_burgundy_velvet_inset';panel.material.side=THREE.DoubleSide;
   finish.add(panel);
   for (const sign of [-1,1]) {
-    const seam = [], led = [];
+    const seam = [];
     for (let i=0;i<=40;i++) {
       const y=.25+i*(1.75/40);
       const z=forward(y);
@@ -69,22 +75,22 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
       led.push([sign*.285,y,z-.13]);
     }
     makeTube(sign<0?'rear_left_gold_pinstripe':'rear_right_gold_pinstripe',seam,.0035,gold);
-    makeTube(sign<0?'led_left':'led_right',led,.0045,light,true);
+    // Existing cabinet swept LEDs remain the single light line per flank.
   }
-  // A restrained gold plinth line and illuminated underglow.
-  const ring=(name,radius,y,z,material,glow=false)=>{
-    const m=new THREE.Mesh(new THREE.TorusGeometry(radius,.006,6,48),material);
-    m.name=name;m.rotation.x=Math.PI/2;m.scale.y=1.10;m.position.set(0,y,z);
-    if(glow)m.userData.glow=true;
-    finish.add(m);return m;
-  };
-  ring('gold_plinth_band',.235,.072,-.15,gold);
-  ring('underglow',.225,.014,-.15,light,true);
+  // The cabinet already has a chrome shoe edge; avoid a detached second hoop.
+  // Put the emissive lip just OUTSIDE the 0.27 m shoe, above the floor.
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(.278, .004, 4, 32), light);
+  lip.name = 'underglow';
+  lip.rotation.x = Math.PI / 2;
+  lip.scale.y = 1.12;
+  lip.position.set(0, .018, -.15);
+  lip.userData.glow = true;
+  finish.add(lip);
   // Small gold medallion on rear velvet, visibly separate from reel-screen glass.
-  const medallion=new THREE.Mesh(new THREE.CylinderGeometry(.073,.073,.008,32),gold);
+  const medallion=new THREE.Mesh(new THREE.CylinderGeometry(.073,.073,.008,16),gold);
   medallion.name='rear_ace_medallion';
   medallion.rotation.x=Math.PI/2;
-  medallion.position.set(0,1.44,backZ(1.44)-.014);
+  medallion.position.set(0,1.44,backZ(1.44)-.018);
   finish.add(medallion);
   finish.userData={artOnly:true,optional:true,finish:'burgundy-gold-cyan',
     note:'Procedural material pass, not photorealistic or device verified'};
