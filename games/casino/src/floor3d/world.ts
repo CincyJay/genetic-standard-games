@@ -400,7 +400,12 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     hit.userData.seat = s.id;
     let marker: THREE.Mesh | null = null;
     if (!s.taken) {
-      marker = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.36, 4), new THREE.MeshBasicMaterial({ color: C.free }));
+      // drawn over everything (VA-0109): from the landscape spawn the avatar's head covered the
+      // free seat's marker, the one cue that says where to go. Transparent so it sorts after the
+      // avatar (which fades through the transparent pass); same single draw call.
+      marker = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.36, 4), new THREE.MeshBasicMaterial({ color: C.free, transparent: true, depthTest: false, depthWrite: false }));
+      marker.renderOrder = 11;
+      marker.name = `seat-marker:${s.id}`;
       marker.rotation.x = Math.PI;
       marker.position.set(s.x, 2.1, s.z);
       scene.add(marker);
