@@ -5051,6 +5051,70 @@ the game theme reusable separately. Floor wiring still waits for his visual sign
 
 **Claude next:** Pull art branch into isolated Svelte preview only. Run Node module constructor before browser captures to verify `deckLip` bug is gone. Run geometry audit, front/three/top/low/seated screenshots, inspect deck mount against buttons and screen normals. Integrate new reel texture behind existing opt-in screen-swap interface, check vertical orientation and readable symbols from player view; capture before/after. Do not wire to floor or merge to main without owner silhouette approval.
 
+### VA-0121 | 2026-11-17 17:18 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0120's two art commits are merged unchanged. Svelte 01 builds again. The reel screen
+shows in the isolated preview with `?reel=art`. Nothing reaches the floor. No APK.
+
+**Merged** into `feature/3d-casino-prototype`:
+- `0eb1a76` and `c49d513` are rebased copies of `b115ef4` and `5a6382f`.
+  `67aec0c` records ancestry with no file changes. `git log feature..art` is empty.
+- `svelteSlotCabinet.mjs` and `svelteReelScreen.mjs` are byte-identical to the art branch.
+
+**Engineering** (art untouched):
+- `ad99cd2`: `svelte-slot.html?reel=art` loads `createSvelteReelScreen(THREE, {512×1024})` and puts
+  its texture on the material named by `userData.screenMaterialName`. It uses the same swap as the UV
+  checker. `report().reelSwap` gives `{materialName, found, source}`, or the error text.
+- `b08bb7a` (portrait HUD): the open ⚙ menu covers about 65% of a 360 px portrait screen. Tapping
+  the floor to close it used to also walk the avatar there, sit, or start a drag. Now that tap only
+  closes the menu. The rotation button reads "⟳ Rotate: auto", matching "Motion: …" and "Lighting: …".
+  There is a new e2e check for both. Capture: `captures/va0121-portrait-menu-360.jpg`.
+
+**Svelte 01 as measured** (Node build with three, plus the preview in swiftshader; no phone):
+- **Build:** clean. `buildError` null, `audit` `[]`, 16 meshes, 4,336 triangles. The `deckLip` bug is gone.
+- **Hull:** `seams.pairs` **0** (VA-0117 had 33).
+- **Deck mount:** world AABB x ±0.135, y 0.585–0.745, z −0.070 to +0.280.
+  - Its top at 0.745 is below the 0.76 target, and I saw no clipping through the buttons from the front or seated views.
+  - **Low view:** it reads as a separate truncated cone whose flat bottom cap hangs in the air, ahead of the hull and above the floor.
+    It does not look like it grows out of the body (`captures/va0121-svelte-reel-low.jpg`).
+- **Reel texture:** `found: 1` on `VA_SVELTE_REEL_SCREEN_SWAP`.
+  - Upright and not mirrored. The three reel windows and the 7 / ♛ / ◆ symbols read clearly from the
+    front, three-quarter and seated views (`front`, `three`, `seated` captures).
+  - It is a still image. Nothing spins, and nothing is wired to the slot engine.
+- **Seated view:** a specular hotspot from the glass sits over the "VELVET" title, and the title is
+  cropped at the top edge.
+- **Three-quarter view:** the screen sheet and its bezel stand visibly proud of the black hull on the
+  left edge. It reads as a panel stuck on, not one recessed into the body.
+- **Copy:** "WIN 2,450" appears twice, in the win panel and in the credits row.
+- **Overall:** far more slot-like than the blank glass. It is still a preview, not finished, and
+  Joshua's rejection of the current look stands until he judges it on his phone.
+
+**Tests** (observed):
+- `npx tsc --noEmit -p .`: clean. `npx vitest run`: **201/201**, 20 files (at `ad99cd2`).
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175, at `b08bb7a`): **exit 0, 45 ok, 0 FAIL**.
+  - Two screenshot captures timed out on their first attempt and passed on retry.
+  - Vegas: 92 draw calls, 128,158 triangles. Flat: 78.
+  - Framed close-up: 67 calls, 117,764 triangles. About 11.6 fps under swiftshader.
+  - The floor does not load Svelte 01, so these numbers match VA-0119.
+  - I did not re-run e2e after `ad99cd2`, which only changes the preview page.
+- **No APK and no phone test.** The cloud can't reach the S25+. Device checks stay with the local session.
+
+**Requests for ChatGPT (Svelte 01):**
+1. **Deck mount:** make it read as part of the hull. For example, sink its base into the body (z
+   further back, around the hull front) or flare it into the hull, so no free-floating bottom cap shows from low views.
+2. **Screen:** seat the screen sheet and bezel into the hull's front recess on both edges, so no gap
+   or step shows in the three-quarter view.
+3. **Reel art (optional):** move the title down about 20–30 px, or shrink it, so the seated view
+   doesn't crop it. Drop the duplicate "WIN 2,450".
+4. **For spinning reels later:** please also export the reel-window rectangles in texture pixels,
+   e.g. `reelWindows: [{x, y, w, h}]` for the three columns. Engineering can then scroll symbol strips
+   inside them, wired to the existing slot engine. Keep it 1:2 and keep the screen UVs as they are.
+
+**Engineering still open (mine):**
+- Spinning-reel wiring inside the Svelte screen, once the window rectangles exist.
+- Svelte 01 floor wiring (collision footprint about 0.61 × 0.97 m). **NEEDS JOSHUA:** visual sign-off
+  of Svelte 01 from phone screenshots before it replaces Dragon Fire on the floor.
+- Further portrait HUD polish.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
