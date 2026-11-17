@@ -101,6 +101,20 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   }
   hull.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   hull.setIndex(indices); hull.computeVertexNormals();
+  // The first and last vertex of each ring occupy the same point.
+  // Average their normals to remove the dark 30-degree seam without
+  // changing indexed topology, cap winding, or the screen's UVs.
+  const normals = hull.getAttribute('normal');
+  for (let ring = 0; ring <= rings; ring++) {
+    const first = ring * (sides + 1), last = first + sides;
+    const nx = normals.getX(first) + normals.getX(last);
+    const ny = normals.getY(first) + normals.getY(last);
+    const nz = normals.getZ(first) + normals.getZ(last);
+    const len = Math.hypot(nx, ny, nz) || 1;
+    normals.setXYZ(first, nx / len, ny / len, nz / len);
+    normals.setXYZ(last, nx / len, ny / len, nz / len);
+  }
+  normals.needsUpdate = true;
   add(hull, lacquer, 'continuous_sculpted_S_curve_hull');
   // Portrait curved screen: high screen-to-body ratio and genuine bent mesh.
   curvedRibbon('portrait_glass_curved_49inch_visual_target', 0.78, 1.94, 0.244, 0.072, glass, 28, 12, 0.035);
@@ -118,7 +132,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   for (const sign of [-1, 1]) {
     const edge = [];
     for (let i = 0; i <= 40; i++) {
-      const y = 0.79 + 1.27 * i / 40;
+      const y = 0.79 + 1.17 * i / 40;
       edge.push([sign * (widthAt(y) - 0.019), y, frontZ(y) + 0.012]);
     }
     tube(sign < 0 ? 'left_swept_LED' : 'right_swept_LED', edge, 0.004, led, 24);
@@ -152,14 +166,14 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   // Lower hull flares into shoe; no separate exposed keel puck.
   // A long, tapered oval floor shoe replaces the detached central puck.
   const shoe = add(new THREE.CylinderGeometry(0.235, 0.27, 0.060, 32), black, 'continuous_floor_shoe');
-  shoe.scale.z = 1.50; shoe.position.set(0, 0.03, -0.19);
+  shoe.scale.z = 1.12; shoe.position.set(0, 0.03, -0.15);
   // Physical shadow seam where shoe and lower shell overlap.
   const shoeTrim = add(new THREE.TorusGeometry(0.246, 0.007, 5, 20), titanium, 'floor_shoe_chrome_edge');
-  shoeTrim.rotation.x = Math.PI / 2; shoeTrim.scale.y = 1.5; shoeTrim.position.set(0, 0.02, -0.19);
+  shoeTrim.rotation.x = Math.PI / 2; shoeTrim.scale.y = 1.12; shoeTrim.position.set(0, 0.02, -0.15);
   // Floating, thin control deck, a tapered oval with the front lip toward player.
   const deck = add(new THREE.CylinderGeometry(0.295, 0.245, 0.055, 32), graphite, 'floating_elliptical_button_deck');
   deck.scale.z = 0.58; deck.position.set(0, 0.75, 0.245); deck.rotation.x = -0.08;
-  const deckLip = add(new THREE.TorusGeometry(0.268, 0.007, 5, 32), titanium, 'deck_perimeter_trim');
+  // A tapered, swept mounting web joins the button deck to the cabinet.\n  // It is tucked behind the lip and follows the body rather than floating in air.\n  const deckMount = add(new THREE.CylinderGeometry(0.105, 0.155, 0.18, 20), lacquer, 'sculpted_deck_mount');\n  deckMount.scale.z = 1.45; deckMount.position.set(0, 0.666, 0.15); deckMount.rotation.x = -0.24;\n  const deckLip = add(new THREE.TorusGeometry(0.268, 0.007, 5, 32), titanium, 'deck_perimeter_trim');
   deckLip.scale.y = 0.58; deckLip.rotation.x = Math.PI / 2; deckLip.position.set(0, 0.786, 0.245);
   for (let i = -1; i <= 1; i++) {
     const button = add(new THREE.CylinderGeometry(0.032, 0.032, 0.009, 12), i === 0 ? led : titanium, 'physical_button_' + i);
@@ -169,7 +183,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     artOnly: true, prototype: 'Svelte 01', units: 'metres',
     front: '+Z', up: '+Y', approximateHeightM: 2.09,
     approximateWidthM: 0.612, curvedScreen: true,
-    screenMaterialName: glass.name, status: 'unrendered isolated geometry; not production integrated'
+    screenMaterialName: glass.name, status: 'isolated geometry revision; not production integrated'
   };
   return group;
 }
