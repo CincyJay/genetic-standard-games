@@ -51,7 +51,9 @@ def topper(p):
  frame(d,(18,18,w-19,h-19),p,36,10)
  for i in range(24):
   x=64+(i*173)%900;y=75+(i*107)%485
-  # Keep sparkle dots in the outer margins, clear of jackpot/title lettering.\n  if x<115 or x>910 or (y>295 and y<333):\n   d.ellipse((x-2,y-2,x+2,y+2),fill=p['light'])
+  # Keep sparkle dots in the outer margins, clear of jackpot/title lettering.
+  if x<115 or x>910 or (295<y<333):
+   d.ellipse((x-2,y-2,x+2,y+2),fill=p['light'])
  textcenter(d,(512,110),'VELVET ACE',p['rim'],59,True)
  textcenter(d,(512,236),p['name'],p['light'],75,True)
  d.line((160,310,864,310),fill=p['rim'],width=4)
