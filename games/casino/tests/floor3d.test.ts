@@ -836,3 +836,14 @@ describe('prototype badge', () => {
     expect(protoBadge({ pilot05: false, blackjackHero: true, wovenCarpet: true })).toBe('PROTOTYPE · ART 04 · PLACEHOLDER PEOPLE');
   });
 });
+
+describe('fps readout', () => {
+  it('is two lines short enough for the strip beside the joystick on a 360 px phone', async () => {
+    const { perfText } = await import('../src/floor3d/badge.ts');
+    // 360 − 172 (joystick + gap) − 10 px margin = 178 px; 11 px monospace is about 6.6 px a character
+    const worst = perfText({ fps: 120, intervalP95Ms: 1000, cpuAvgMs: 100, drawCalls: 999 }).split('\n');
+    expect(worst).toHaveLength(2);
+    for (const line of worst) expect(line.length).toBeLessThanOrEqual(26);
+    expect(perfText({ fps: 59.6, intervalP95Ms: 17.04, cpuAvgMs: 3.25, drawCalls: 92 })).toBe('60 fps · p95 17.0 ms\ncpu 3.3 ms · 92 calls');
+  });
+});

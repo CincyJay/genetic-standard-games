@@ -63,7 +63,14 @@ ok(s0.mode === 'follow' && Math.abs(s0.pos.z - 4.3) < 0.01, 'starts at the entra
 const rows = await page.evaluate(() => ['.back', '.cam', '.gear'].map((c) => document.querySelector(`#va3d-hud ${c}`).getBoundingClientRect().top));
 const badgeTop = await page.evaluate(() => document.querySelector('#va3d-hud .badge').getBoundingClientRect().top);
 ok(Math.max(...rows) - Math.min(...rows) < 2 && badgeTop > 832 - 40, 'portrait: the top bar is one row and the prototype badge sits at the bottom, clear of the floor labels');
-ok(!(await page.locator('#va3d-hud .rotate').isVisible()), 'rotation, motion and roof settings wait in the ⚙ menu');
+const hudBox = await page.evaluate(() => {
+  const r = (c) => document.querySelector(`#va3d-hud ${c}`).getBoundingClientRect();
+  const s = globalThis.__floor3d.debug.state();
+  return { toast: r('.toast'), perf: r('.perf'), joy: r('.joy'), badge: r('.badge'), head: globalThis.__floor3d.debug.screenOf(s.pos.x, 1.75, s.pos.z).y };
+});
+ok(hudBox.toast.bottom < hudBox.head, `portrait: the hint toast sits above the avatar's head (toast bottom ${hudBox.toast.bottom.toFixed(0)}, head ${hudBox.head.toFixed(0)})`);
+ok(hudBox.perf.left > hudBox.joy.right && hudBox.perf.bottom <= hudBox.badge.top, 'portrait: the fps lines stay right of the joystick and above the badge');
+ok(!(await page.locator('#va3d-hud .rotate').isVisible()),'rotation, motion and roof settings wait in the ⚙ menu');
 const whole = () => page.evaluate(() => globalThis.__floor3d.debug.drawList().filter((d) => d.name.startsWith('art:whole')).length);
 const w0 = await whole();
 ok(w0 > 0, `the eye-level view draws the walls' and ceiling's shared materials in single room batches (${w0} drawn)`);

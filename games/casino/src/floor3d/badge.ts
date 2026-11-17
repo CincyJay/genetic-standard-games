@@ -6,3 +6,12 @@ export function protoBadge(f: { pilot05: boolean; blackjackHero: boolean; wovenC
   const art = !f.pilot05 ? '04' : ['05', f.blackjackHero && 'BJ', f.wovenCarpet && 'CARPET'].filter(Boolean).join('+');
   return `PROTOTYPE · ART ${art} · PLACEHOLDER PEOPLE`;
 }
+
+/**
+ * The fps readout as two short lines. As one line (about 46 characters) it ran under the walk
+ * joystick on 360 px portrait; each line here stays under 24 characters, so both fit the
+ * right-hand strip beside the joystick.
+ */
+export function perfText(s: { fps: number; intervalP95Ms: number; cpuAvgMs: number; drawCalls: number }): string {
+  return `${s.fps.toFixed(0)} fps · p95 ${s.intervalP95Ms.toFixed(1)} ms\ncpu ${s.cpuAvgMs.toFixed(1)} ms · ${s.drawCalls} calls`;
+}

@@ -21,7 +21,7 @@ import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { layoutFor } from './grandHall.ts';
 import { NavGrid } from './nav.ts';
-import { protoBadge } from './badge.ts';
+import { perfText, protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
 
 export interface FloorState {
@@ -493,12 +493,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
 @media (max-height:520px){#va3d-hud .menu.open{display:grid;grid-template-columns:auto auto;gap:8px}}
 #va3d-hud .badge{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 4px);text-align:center;font:700 10px Outfit,sans-serif;
   letter-spacing:1px;color:#e9c86a;opacity:.85;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
-#va3d-hud .toast{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom) + min(190px, 26vh));text-align:center;font:700 17px Outfit,sans-serif;
-  opacity:0;transition:opacity .25s;text-shadow:0 1px 4px #000}
+/* the hint sits just under the top bar: lower down it ran across the avatar in the follow view (VA-0057) */
+#va3d-hud .toast{position:absolute;left:16px;right:16px;top:calc(env(safe-area-inset-top) + 68px);text-align:center;font:700 16px Outfit,sans-serif;
+  opacity:0;transition:opacity .25s;text-shadow:0 1px 4px #000,0 0 10px rgba(0,0,0,.6)}
+#va3d-hud .head{z-index:1}
 #va3d-hud .joy{pointer-events:auto;position:absolute;left:calc(env(safe-area-inset-left) + 24px);bottom:calc(env(safe-area-inset-bottom) + 40px);width:132px;height:132px;border-radius:50%;
   background:rgba(20,12,26,.45);border:2px solid rgba(233,200,106,.7);touch-action:none}
 #va3d-hud .knob{position:absolute;left:41px;top:41px;width:50px;height:50px;border-radius:50%;background:rgba(233,200,106,.85)}
-#va3d-hud .perf{position:absolute;right:calc(env(safe-area-inset-right) + 10px);bottom:calc(env(safe-area-inset-bottom) + 20px);font:600 11px ui-monospace,monospace;color:#cbb6d6;text-shadow:0 1px 2px #000}
+/* two short right-aligned lines kept right of the joystick (24 + 132 px): one long line ran under it on 360 px phones */
+#va3d-hud .perf{position:absolute;left:calc(env(safe-area-inset-left) + 172px);right:calc(env(safe-area-inset-right) + 10px);bottom:calc(env(safe-area-inset-bottom) + 22px);
+  text-align:right;white-space:pre-line;line-height:1.25;font:600 11px ui-monospace,monospace;color:#cbb6d6;text-shadow:0 1px 2px #000}
 </style>
 <div class="head">
   <div class="top">
@@ -884,7 +888,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     if (now - perfShown > 500) {
       perfShown = now;
       const s = stats();
-      perfEl.textContent = `${s.fps.toFixed(0)} fps · p95 ${s.intervalP95Ms.toFixed(1)} ms · cpu ${s.cpuAvgMs.toFixed(1)} ms · ${s.drawCalls} calls`;
+      perfEl.textContent = perfText(s);
     }
   }
 
