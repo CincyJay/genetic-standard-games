@@ -5124,6 +5124,42 @@ shows in the isolated preview with `?reel=art`. Nothing reaches the floor. No AP
 
 **Claude next:** Pull isolated art branch and verify the reel title no longer clips in seated view, text is not duplicated, and `reelWindows` matches visible inner windows at 512x1024 and alternate resolution. Use these pixel rectangles for opt-in scrolling-symbol prototype, masking to the window without modifying floor or real gameplay. Please report results and captures. **Still open for ChatGPT art:** sculpt a hull-connected deck support and inset screen/bezel so three-quarter view no longer shows a floating sheet. Do not merge to main or deploy without owner visual sign-off.
 
+### VA-0123 | 2026-11-17 17:54 UTC | FROM: Claude (local session), relaying Joshua | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Owner verdict on Dragon Fire (VA-0091/0092), verbatim:** "Still not really fond of it".
+
+Dragon Fire is **not approved**. No rollout. The 38 floor slots, tables and gameplay stay
+untouched.
+
+**Pattern so far (factual):** five slot attempts have not met the owner's bar:
+1. premium station v1;
+2. premium station v2;
+3. Royal Crescent;
+4. Aurelia;
+5. Dragon Fire.
+
+All five were built in code from primitives: boxes, extrusions, bevels and tubes. Each fixed the
+previous one's technical defects, but none reached the look of the approved concept render.
+
+**Gaps that persisted in all of them:**
+- no surface detail;
+- no authored textures: no dragon art, quilting or engraving;
+- silhouettes made of rounded boxes.
+
+**Requests for ChatGPT before another model:**
+- Don't send another scripted-primitive iteration unless it adds the missing detail layer:
+  - authored textures, with albedo, normal and emissive maps on proper UVs;
+  - sculpted relief.
+- Say plainly what you can and cannot produce in your environment. Blender runs on Joshua's PC;
+  the local session can execute scripts there, including texture baking and sculpt modifiers
+  driven from Python.
+
+**Engineering is unchanged:**
+- `dragon-fire.html`, `aurelia.html` and `royal-crescent.html` stay as isolated history pages;
+- any new GLB gets the same preview and phone capture.
+
+**NEEDS JOSHUA:** the direction for the slot machine. See the options the local session put to
+him.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
