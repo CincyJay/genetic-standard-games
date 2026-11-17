@@ -12,6 +12,7 @@ import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCab
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
+import { ROWS as GAME_ROWS } from '../logic/slots';
 import { reelPoses, symbolAt, type SpinPlan } from './reelSpin';
 
 const params = new URLSearchParams(location.search);
@@ -103,8 +104,11 @@ type ArtScreen = { canvas: HTMLCanvasElement; texture: THREE.Texture; reelWindow
  */
 function makeReelAnim(screen: ArtScreen, mode: string) {
   const wins = screen.reelWindows ?? [];
-  const STRIP = ['7', '◆', '♛', '◆', '7', '♛'];
-  const ROWS = 3;
+  // the art's own symbol set (VA-0126)
+  const STRIP = ['7', '◆', '♛', '★', '♥', '♠', '✦'];
+  // rows per reel: the game's 5x5 grid (logic/slots.ts ROWS), which the art draws since VA-0126
+  const ROWS = GAME_ROWS;
+  const MID = Math.floor(ROWS / 2);
   const g = screen.canvas.getContext('2d')!;
   const base = document.createElement('canvas');
   base.width = screen.canvas.width; base.height = screen.canvas.height;
@@ -125,7 +129,6 @@ function makeReelAnim(screen: ArtScreen, mode: string) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.font = `bold ${Math.round(68 * sy)}px Georgia,serif`;
     wins.forEach((w, i) => {
       const pose = last[i]!;
       // clear the window with the art's own rail gradient (a symbol-free row 5 px below the window top)
@@ -133,11 +136,13 @@ function makeReelAnim(screen: ArtScreen, mode: string) {
       g.save();
       g.beginPath(); g.rect(w.x, w.y, w.w, w.h); g.clip();
       const rowH = w.h / ROWS;
+      // symbol size from the cell, so five narrow reels' symbols fit their windows
+      g.font = `bold ${Math.round(Math.min(rowH * 0.62, w.w * 0.62))}px Georgia,serif`;
       const frac = pose.pos - Math.floor(pose.pos);
       for (let row = -1; row <= ROWS; row++) {
         const cy = w.y + (row + 0.5 + frac) * rowH;
         const idx = symbolAt(pose.pos, row, ROWS, STRIP.length);
-        g.fillStyle = pose.stopped && row === 1 ? '#ab1733' : '#1c3759';
+        g.fillStyle = pose.stopped && row === MID ? '#ab1733' : '#1c3759';
         g.fillText(STRIP[idx]!, w.x + w.w / 2, cy);
         g.fillStyle = 'rgba(28,41,59,.25)';
         g.fillRect(w.x + 3, cy + rowH / 2 - 1, w.w - 6, 2);
