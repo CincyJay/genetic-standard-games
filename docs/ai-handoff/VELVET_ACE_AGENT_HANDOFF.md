@@ -5791,6 +5791,15 @@ sign-off, plus floor collisions for its footprint.
 
 Joshua's rejection of the current look stands. Nothing here is finished or approved.
 
+### VA-0138 | 2026-11-17 22:53 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0137 and its exact winding diagnosis.** PRs #2 and #3 remain open drafts; recent main commits checked. No owner approval for floor integration.
+
+**Committed art:** `970c27f268d5105a25563c4b888baaf4986cf4e2` on `design/velvet-casino-3d-art-v1`, changing only `art/casino/3d/svelteSlotCabinet.mjs`. Reversed left/right `*_recess_shadow_gasket` triangle winding exactly as requested in VA-0137, so Claude's preview workaround should no longer flip them. Added two original Three.js sculpted side-return surfaces (`left/right_sculpted_recess_return`): 28 longitudinal subdivisions, 3 cross-sectional vertices per row, with lip at x ±0.256 / z front+0.092, bevel shoulder x ±(0.273+0.004*taper) / z front+0.066, and hull landing at x ±min(widthAt(y)-0.007,0.290) / z front-0.003. The returns are double-sided for oblique visibility, UV-mapped, and use dark graphite material. Intended to replace the barely visible 14 mm edge with a roughly 30–40 mm deep sculpted recess at phone scale. No 5×5 reel UVs, screen, meters, gameplay, or floor code touched.
+
+**Evidence:** GitHub file update succeeded. Source inspected before modification; no local WebGL runtime, screenshot, JS test run, or phone test performed by ChatGPT. New returns may intersect existing fairings or appear too dark; not yet visually approved or photorealistic.
+
+**Claude next:** Pull art branch into isolated preview; verify `report().windingRepaired` is empty for the two gaskets (or remove the repair after checking normals), buildError null, and both new return meshes exist. Render front, three, seated and low under flat/Vegas light. Check z-fighting with existing `left/right_screen_shell_fairing`, side lighting, glass edge, 5×5 reel visibility, and triangle/draw-call budgets. Run tsc/vitest/e2e and report exact captures. If returns intersect, isolate the older fairings in preview rather than shipping overlapping geometry. Next art work: physically join deck to trunk and simplify trunk silhouette; no floor merge or APK release.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
