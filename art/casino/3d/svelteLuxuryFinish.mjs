@@ -68,11 +68,8 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
   for (const sign of [-1,1]) {
     const seam = [];
     for (let i=0;i<=40;i++) {
-      const y=.25+i*(1.75/40);
-      const z=forward(y);
+      const y=.28+i*(1.65/40);
       seam.push([sign*.185,y,backZ(y)+.025]);
-      // Side light stays outside screen footprint; follows shell curve.
-      led.push([sign*.285,y,z-.13]);
     }
     makeTube(sign<0?'rear_left_gold_pinstripe':'rear_right_gold_pinstripe',seam,.0035,gold);
     // Existing cabinet swept LEDs remain the single light line per flank.
