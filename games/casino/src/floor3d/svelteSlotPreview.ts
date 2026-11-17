@@ -1,5 +1,5 @@
 /**
- * Dev-only page (`/svelte-slot.html?view=front|three|side|top|seated|back|low`, optional `&sides=double` / `&reel=checker` diagnostics): ChatGPT's slim S-curve
+ * Dev-only page (`/svelte-slot.html?view=front|three|side|top|seated|back|low`, optional `&reel=art` for ChatGPT's reel-screen texture (VA-0120), `&sides=double` / `&reel=checker` diagnostics): ChatGPT's slim S-curve
  * "Svelte 01" cabinet (VA-0110, art/casino/3d/svelteSlotCabinet.mjs) alone on a plain floor, with
  * a 1.75 m grey human-scale reference beside it. For review captures and measurements only; never
  * in the game. `__svelte.report()` gives the cabinet's bounds, per-part bounds and render cost.
@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCabinet.mjs';
+import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
 
@@ -73,11 +74,31 @@ if (params.get('sides') === 'double') {
   });
 }
 
-// Diagnostic only (`?reel=checker`): put a labelled UV test card on the material the art module names in
-// `userData.screenMaterialName` (VA-0114), to check the lookup and the UV orientation. Not reel art.
-let reelSwap: { materialName: unknown; found: number } | null = null;
-if (params.get('reel') === 'checker') {
+/** Puts `tex` on every cabinet material named `userData.screenMaterialName` (VA-0114); returns how many. */
+const swapScreen = (tex: THREE.Texture) => {
   const name = cabinet.userData.screenMaterialName;
+  let found = 0;
+  cabinet.traverse((o) => {
+    const m = o as THREE.Mesh;
+    const mat = m.isMesh ? (m.material as THREE.MeshStandardMaterial) : null;
+    if (mat && mat.name === name) { mat.map = tex; mat.color.set(0xffffff); mat.needsUpdate = true; found++; }
+  });
+  return { materialName: name as unknown, found };
+};
+
+// Diagnostic only (`?reel=checker`): put a labelled UV test card on the screen material, to check the
+// lookup and the UV orientation. Not reel art.
+let reelSwap: { materialName: unknown; found: number; source?: string; error?: string } | null = null;
+if (params.get('reel') === 'art') {
+  // ChatGPT's still reel-screen texture (VA-0120, art/casino/3d/svelteReelScreen.mjs), used unchanged.
+  try {
+    const screen = createSvelteReelScreen(THREE, { width: 512, height: 1024 }) as { texture: THREE.Texture };
+    reelSwap = { ...swapScreen(screen.texture), source: 'svelteReelScreen.mjs' };
+  } catch (e) {
+    reelSwap = { materialName: cabinet.userData.screenMaterialName, found: 0, source: 'svelteReelScreen.mjs', error: String(e) };
+  }
+}
+if (params.get('reel') === 'checker') {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 512;
   const g = c.getContext('2d')!;
@@ -90,13 +111,7 @@ if (params.get('reel') === 'checker') {
   corner('TL', 0, 0, '#c00000'); corner('TR', 160, 0, '#00a000'); corner('BL', 0, 456, '#0000c0'); corner('BR', 160, 456, '#a0a000');
   const tex = new THREE.CanvasTexture(c);
   tex.colorSpace = THREE.SRGBColorSpace;
-  let found = 0;
-  cabinet.traverse((o) => {
-    const m = o as THREE.Mesh;
-    const mat = m.isMesh ? (m.material as THREE.MeshStandardMaterial) : null;
-    if (mat && mat.name === name) { mat.map = tex; mat.color.set(0xffffff); mat.needsUpdate = true; found++; }
-  });
-  reelSwap = { materialName: name, found };
+  reelSwap = swapScreen(tex);
 }
 
 const camera = new THREE.PerspectiveCamera(innerWidth > innerHeight ? 45 : 60, innerWidth / innerHeight, 0.05, 50);
