@@ -16,13 +16,17 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import modelUrl from '../../../../art/casino/3d/models/dragon_fire_hero.glb?url';
+import { dragonReliefDataUrl } from '../../../../art/casino/3d/dragonReliefArt.mjs';
 import { LIGHT_RIGS } from './lighting.ts';
+import { reliefInsertQuads } from './dragonRelief.ts';
 
 /** Standing eye 1.6 m; seated eye 1.22 m over the chair (set once the chair is found). */
 const VIEWS: Record<string, { pos: [number, number, number]; target: [number, number, number] }> = {
   front: { pos: [0, 1.6, 3.1], target: [0, 1.3, 0] },
   three: { pos: [2.1, 1.6, 2.4], target: [0, 1.2, 0.1] },
   side: { pos: [3.0, 1.5, 0.3], target: [0, 1.15, 0.3] },
+  left: { pos: [-3.0, 1.5, 0.3], target: [0, 1.15, 0.3] },
+  panel: { pos: [1.6, 1.2, 0.065], target: [0.56, 1.175, 0.065] },
   seat: { pos: [0, 1.22, 1.0], target: [0, 1.25, 0] },
   wide: { pos: [3.4, 2.3, 4.4], target: [0, 1.0, 0.2] },
 };
@@ -78,13 +82,15 @@ function start(): void {
   composer.setPixelRatio(pixelRatio);
   composer.setSize(window.innerWidth, window.innerHeight);
 
+  const relief = params.get('relief') === 'svg';
+  const mirror = params.get('mirror') === '1';
   let current = params.get('view') ?? 'three';
   function view(name: string): void {
     const v = VIEWS[name] ?? VIEWS.three;
     current = name;
     camera.position.set(...v.pos);
     camera.lookAt(...v.target);
-    label.textContent = `PROTOTYPE · DRAGON FIRE MODEL (Blender export) · ${current}`;
+    label.textContent = `PROTOTYPE · DRAGON FIRE MODEL (Blender export)${relief ? ' + painted side art' : ''} · ${current}`;
   }
   const label = document.createElement('div');
   Object.assign(label.style, { position: 'fixed', left: '12px', bottom: '10px', font: '600 13px system-ui', color: '#e9c86a', letterSpacing: '.06em', pointerEvents: 'none' });
@@ -134,6 +140,36 @@ function start(): void {
       scene.add(holder);
       holder.updateMatrixWorld(true);
 
+      // painted side art: one quad per ruby insert, placed in the model's own space
+      let reliefInfo: unknown = null;
+      if (relief) {
+        const inserts = named(/dragon.side.lacquer/i);
+        const boxes = inserts.map((m) => new THREE.Box3().setFromObject(m).applyMatrix4(new THREE.Matrix4().copy(model.matrixWorld).invert()));
+        // The insert is a slanted polygon, not a rectangle: its outer face (read from the GLB) runs
+        // z −0.151…0.441 at y 0.77 but only −0.16…0.281 at y 1.47. Keep the art inside the
+        // narrowest band so it never crosses the violet light-pipe.
+        const INNER_Z: [number, number] = [-0.145, 0.275];
+        const quads = reliefInsertQuads(
+          boxes.map((b) => ({ min: [b.min.x, b.min.y, Math.max(b.min.z, INNER_Z[0])], max: [b.max.x, b.max.y, Math.min(b.max.z, INNER_Z[1])] })),
+          { aspect: 0.5, mirrorPlusX: mirror, margin: 0 },
+        );
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(quads.positions, 3));
+        geo.setAttribute('normal', new THREE.Float32BufferAttribute(quads.normals, 3));
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(quads.uvs, 2));
+        geo.setIndex(quads.indices);
+        const tex = new THREE.TextureLoader().load(dragonReliefDataUrl({ width: 1024, height: 2048 }));
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 4;
+        const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42, metalness: 0.15, alphaTest: 0.5, name: 'VA0100 painted dragon side (preview)' });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.name = 'relief_svg_quads';
+        mesh.receiveShadow = true;
+        model.add(mesh);
+        meshes.push(mesh);
+        reliefInfo = { inserts: inserts.map((m) => m.name), insertBoxes: boxes.map((b) => ({ min: r3(b.min), max: r3(b.max) })), quads: quads.placed, mirrorPlusX: mirror, texture: '1024x2048 RGBA', draws: 1, triangles: quads.indices.length / 3 };
+      }
+
       api.report = () => {
         let tris = 0;
         const attrs = new Set<string>();
@@ -182,6 +218,7 @@ function start(): void {
           chairFoot: boxOf(named(/chair_base/)),
           chair: boxOf(chairParts),
           cabinet: boxOf(cabinetParts),
+          relief: reliefInfo,
         };
       };
       api.ready = true;
