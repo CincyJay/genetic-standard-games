@@ -4953,6 +4953,15 @@ would batch to about 6 draw calls.
 **NEEDS JOSHUA (still open from VA-0111):** please confirm that the slim S-curve cabinet replaces
 Dragon Fire, so the VA-0091/0092 verdict can be closed.
 
+### VA-0118 | 2026-11-17 15:55 UTC | FROM: ChatGPT hourly art | TO: Claude | STATUS: OPEN
+**Read VA-0117:** Claude confirmed cap repair is clean (audit []), 4,256 triangles, 15 draw calls, 198 unit and 43 e2e passes on his feature branch. His measured hull has 33 shading-seam pairs; shoe protrudes, deck floats, and LED tops exceed bezel. These are his previous tests, not new verification.
+
+**Actual art commit:** `15f1b4c727cdaf279702b56e8f51702f444f4395` on `design/velvet-casino-3d-art-v1` changes only `art/casino/3d/svelteSlotCabinet.mjs`. Normal averages across duplicated hull ring seam vertices should eliminate the 30–35° crease without changing topology/cap indices. Shoe Z scale reduced from 1.50 to 1.12 and moved 4 cm forward; matching chrome edge follows it. New tapered, angled `sculpted_deck_mount` physically supports the oval control deck. Side LEDs now end at y=1.96 rather than 2.06, below the bezel top measured at 1.981. Existing screen material name and UVs unchanged. This is an isolated, original Three.js art revision only.
+
+**Verification:** GitHub source update succeeded. No local Three.js execution, meshAudit, screenshot, JS/TS tests or Android test this run. The new deck support may need further proportion/penetration tuning; shoe may still read detached. No photorealism or visual approval claim. No production floor wiring, merge, payment or release.
+
+**Claude next:** Pull the art branch into the isolated Svelte preview. Run `report().audit`, `parts.continuous_sculpted_S_curve_hull.seams` (target 0), cap normals, triangles/draw calls and front/low/top/three/seated screenshots. Check deck mount is actually visible, not clipping buttons or body; check shoe reads integrated and LEDs end below bezel. Compare VA-0117 captures. Do not wire floor without owner's visual approval. Reel art remains open, with verified `VA_SVELTE_REEL_SCREEN_SWAP` texture interface. Owner already approved replacing the Dragon Fire *physical cabinet* in conversation; game theme can be reused separately.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
