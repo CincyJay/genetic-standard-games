@@ -44,7 +44,7 @@ function placeScreens(station: THREE.Object3D, on: boolean): void {
   }
   // the art's own placement (VA-0077 on) needs no seating: then both modes are the art as authored
   if (on) {
-    station.userData.seated = seatCurvedScreens(THREE, station) > 0;
+    station.userData.seated = seatCurvedScreens(THREE, station);
     return;
   }
   station.userData.seated = false;
