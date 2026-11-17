@@ -9,7 +9,7 @@ export function createPremiumSlotStation(THREE, {accent=0x08d6f0, secondary=0xf8
   const T=THREE, root=new T.Group(); root.name='VA_PremiumDualScreen_VisualPilot';
   const mat=(color,metalness=0,roughness=.38,emissive=0,intensity=0)=>new T.MeshStandardMaterial({color,metalness,roughness,emissive,emissiveIntensity:intensity,side:T.DoubleSide});
   const black=mat(0x090d15,.38,.23), side=mat(0x1c2331,.72,.26), chrome=mat(0xa8aeb8,.95,.17),
-    bronze=mat(0xa88556,.83,.26), glow=mat(accent,.16,.27,accent,2.4), glow2=mat(secondary,.1,.32,secondary,1.9),
+    bronze=mat(0xa88556,.83,.26), glow=mat(accent,.16,.27,accent,.72), glow2=mat(secondary,.1,.32,secondary,.64),
     screen=mat(0x080b1d,.05,.11), leather=mat(0x281b2d,.04,.78), stitch=mat(0xc9a87c,.18,.6);
   const add=(name,geo,material,x,y,z,parent=root)=>{const o=new T.Mesh(geo,material);o.name=name;o.position.set(x,y,z);o.castShadow=true;o.receiveShadow=true;parent.add(o);return o;};
   const box=(n,w,h,d,x,y,z,m)=>add(n,new T.BoxGeometry(w,h,d),m,x,y,z);
@@ -33,26 +33,27 @@ export function createPremiumSlotStation(THREE, {accent=0x08d6f0, secondary=0xf8
   // Two curved displays, each with physical depth, bezel and glass, rather than a flat painted box.
   const curvedDisplay=(label,cy,h)=>{
     rounded(label+'-metal-bezel',.89,h+.10,.19,.10,0,cy,.065,chrome);
-    rounded(label+'-black-gasket',.84,h+.055,.17,.09,0,cy,.177,black);
+    for(const x of [-.414,.414]) rounded(label+'-gasket-side',.024,h+.045,.065,.01,x,cy,.273,black);
+    for(const y of [cy-h/2-.017,cy+h/2+.017]) rounded(label+'-gasket-horizontal',.83,.025,.065,.01,0,y,.273,black);
     // Slight cylindrical bow across screen: segment geometry creates visible curved glass.
     const radius=1.65,theta=.49;
-    const g=new T.CylinderGeometry(radius,radius,h,32,1,true,-Math.PI/2-theta/2,theta);
-    const glass=add(label+'-CURVED_SCREEN_SWAP_MATERIAL',g,screen,0,cy,.16);
-    glass.rotation.y=Math.PI;glass.userData={displayRole:label,replaceMaterial:true};
+    const g=new T.CylinderGeometry(radius,radius,h,48,1,true,-theta/2,theta);
+    const glass=add(label+'-CURVED_SCREEN_SWAP_MATERIAL',g,screen,0,cy,.315-radius);
+    glass.userData={displayRole:label,replaceMaterial:true};
     rounded(label+'-top-LED',.82,.016,.018,.008,0,cy+h/2+.033,.202,glow2);
     rounded(label+'-bottom-LED',.82,.016,.018,.008,0,cy-h/2-.033,.202,glow);
   };
   curvedDisplay('TOPPER',2.33,.55);
   curvedDisplay('MAIN_REELS',1.44,1.04);
   // Physical control deck slants toward the player. Real buttons and player card reader.
-  const deck=rounded('angled-control-deck',.84,.28,.45,.075,0,.77,.35,side);
+  const deck=rounded('angled-control-deck',.84,.28,.45,.075,0,.67,.35,side);
   deck.rotation.x=-.48;
-  const deckGlass=rounded('control-deck-glass',.76,.18,.025,.045,0,.79,.605,black);deckGlass.rotation.x=-.48;
+  const deckGlass=rounded('control-deck-glass',.76,.18,.025,.045,0,.69,.605,black);deckGlass.rotation.x=-.48;
   for(let i=0;i<5;i++){
     const x=(i-2)*.135;
-    const btn=cylinder('physical-illuminated-button-'+(i+1),.043,.049,.022,x,.82,.64,i===4?glow2:glow,16);
+    const btn=cylinder('physical-illuminated-button-'+(i+1),.043,.049,.022,x,.72,.64,i===4?glow2:glow,16);
     btn.rotation.x=Math.PI/2-.48;
-    cylinder('button-metal-rim-'+(i+1),.051,.052,.012,x,.808,.632,chrome,16).rotation.x=Math.PI/2-.48;
+    cylinder('button-metal-rim-'+(i+1),.051,.052,.012,x,.708,.632,chrome,16).rotation.x=Math.PI/2-.48;
   }
   box('ticket-printer-slot',.20,.016,.012,-.24,.60,.40,black);
   box('player-card-reader',.18,.055,.06,.27,.62,.45,chrome);
@@ -69,12 +70,22 @@ export function createPremiumSlotStation(THREE, {accent=0x08d6f0, secondary=0xf8
     ch('chair-pedestal',new T.CylinderGeometry(.055,.075,.52,16),chrome,0,.34,0);
     ch('seat-underpan',new T.CylinderGeometry(.31,.29,.07,24),black,0,.61,0);
     ch('deep-cushioned-seat',new T.SphereGeometry(.34,24,12),leather,0,.69,0).scale.set(1,.22,.83);
-    ch('chair-back-frame',new T.BoxGeometry(.63,.68,.105),chrome,0,1.06,.25);
-    ch('contoured-leather-back',new T.SphereGeometry(.34,24,16),leather,0,1.08,.34).scale.set(.94,1.07,.24);
-    for(const x of [-.23,.23]){
-      ch('padded-chair-arm',new T.BoxGeometry(.105,.08,.36),leather,x,.91,.06);
-      ch('chrome-arm-support',new T.CylinderGeometry(.018,.018,.28,10),chrome,x,.76,.06);
-      for(let i=0;i<5;i++)ch('chair-upholstery-stitch',new T.SphereGeometry(.005,6,4),stitch,x,1.0+i*.07,.41);
+    // Sculpted upholstered back with bevelled contours, not a box and squashed sphere.
+    const outline=new T.Shape();
+    outline.moveTo(-.23,-.29);
+    outline.bezierCurveTo(-.35,-.2,-.35,.19,-.22,.32);
+    outline.quadraticCurveTo(0,.41,.22,.32);
+    outline.bezierCurveTo(.35,.19,.35,-.2,.23,-.29);
+    outline.quadraticCurveTo(0,-.36,-.23,-.29);
+    const backGeo=new T.ExtrudeGeometry(outline,{depth:.11,bevelEnabled:true,bevelThickness:.03,bevelSize:.03,bevelSegments:4,curveSegments:16});
+    ch('contoured-upholstered-chair-back',backGeo,leather,0,1.12,.23);
+    const welt=mat(0x9c7447,.15,.75);
+    const points=outline.getSpacedPoints(48).map(p=>new T.Vector3(p.x*.94,p.y*.94,.39));
+    const seam=new T.CatmullRomCurve3(points,true);
+    ch('chair-surface-stitching',new T.TubeGeometry(seam,96,.004,5,true),welt,0,1.12,0);
+    for(const x of [-.245,.245]){
+      ch('padded-chair-arm',new T.CapsuleGeometry(.052,.28,5,12),leather,x,.86,.07).rotation.x=Math.PI/2;
+      ch('chrome-arm-support',new T.CylinderGeometry(.014,.019,.21,12),chrome,x,.75,.05);
     }
   }
   root.userData={artPilot:true,front:'+Z',width:.98,depth:withChair?1.85:1.0,height:2.93,
