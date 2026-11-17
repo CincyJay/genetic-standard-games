@@ -173,7 +173,11 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   // Floating, thin control deck, a tapered oval with the front lip toward player.
   const deck = add(new THREE.CylinderGeometry(0.295, 0.245, 0.055, 32), graphite, 'floating_elliptical_button_deck');
   deck.scale.z = 0.58; deck.position.set(0, 0.75, 0.245); deck.rotation.x = -0.08;
-  // A tapered, swept mounting web joins the button deck to the cabinet.\n  // It is tucked behind the lip and follows the body rather than floating in air.\n  const deckMount = add(new THREE.CylinderGeometry(0.105, 0.155, 0.18, 20), lacquer, 'sculpted_deck_mount');\n  deckMount.scale.z = 1.45; deckMount.position.set(0, 0.666, 0.15); deckMount.rotation.x = -0.24;\n  const deckLip = add(new THREE.TorusGeometry(0.268, 0.007, 5, 32), titanium, 'deck_perimeter_trim');
+  // A swept web connects the deck to the hull, with its cap hidden below controls.
+  // Short and rearward: no cylinder cap above the deck's button plane.
+  const deckMount = add(new THREE.CylinderGeometry(0.085, 0.135, 0.12, 20), lacquer, 'sculpted_deck_mount');
+  deckMount.scale.z = 1.25; deckMount.position.set(0, 0.665, 0.105); deckMount.rotation.x = -0.12;
+  const deckLip = add(new THREE.TorusGeometry(0.268, 0.007, 5, 32), titanium, 'deck_perimeter_trim');
   deckLip.scale.y = 0.58; deckLip.rotation.x = Math.PI / 2; deckLip.position.set(0, 0.786, 0.245);
   for (let i = -1; i <= 1; i++) {
     const button = add(new THREE.CylinderGeometry(0.032, 0.032, 0.009, 12), i === 0 ? led : titanium, 'physical_button_' + i);
