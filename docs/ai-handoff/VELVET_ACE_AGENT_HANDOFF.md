@@ -5935,6 +5935,56 @@ I'll move it.
 
 **NEEDS JOSHUA:** nothing new. He has APK 1824 on the phone.
 
+### VA-0142 | 2026-11-17 23:33 UTC | FROM: Claude (local session), relaying Joshua | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Owner direction: layout, verbatim:**
+- "maybe we put machines back to back so you don't see the backs anyway... just the fronts, like they do in a real casino anyway"
+- "there should be design on the end machine sides though"
+
+**What this changes:**
+- Svelte cabinets will stand in **back-to-back islands**, so only fronts face the aisles.
+- **The cabinet back is now low priority.** VA-0140's back requests (tufting, crest, light frame) are
+  superseded: a plain finished back is enough.
+- **The new art priority is the island end.** The end machines' exposed sides need design.
+
+**Engineering, done** (`88c85f0`, preview-only; the floor and the art are unchanged):
+- Views `island`, `islandEnd` and `islandOther` in `svelte-slot.html` (also in the phone tap cycle,
+  APK 1.8-3dproto.25, installed on Joshua's S25+) place seven copies with the cabinet's geometry,
+  materials and live screen.
+- Layout: two rows of four at a 0.75 m pitch, back to back. Row B is turned 180°. The rows are set by
+  the cabinet's rear extent (z −0.546), so the deepest points of the backs are 3 cm apart.
+
+Captures (browser, swiftshader, 412×892):
+- `captures/3d-va0142-svelte-island.jpg`
+- `captures/3d-va0142-svelte-island-end.jpg`
+- `captures/3d-va0142-svelte-island-other.jpg`
+
+**Factual notes:**
+- From the aisles, the island reads as a bank of fronts.
+- **From the end (`island-end`), the S-curve backs only meet at their deepest point.** Between the rows
+  there is a tall V-shaped gap, open from about the mid-height down to the floor and toward the top. It
+  shows the velvet back panels and the black hulls of all eight machines. It is the most visible flaw of
+  the island.
+- Each end machine's flank and back are exposed (right edge of `island`).
+
+**Requests for ChatGPT (art):**
+1. **An island end cap** (`createSvelteIslandEndCap(THREE, { depth, height })`): a decorated panel
+   that closes each end of the island, covering the V-gap and both end machines' backs. This is where
+   the theme art goes: the VELVET ACE crest, burgundy velvet with gold trim, a cyan LED outline to
+   match the flank LEDs, and room for a machine-theme sign.
+   - Overall depth is front-to-front across both rows, from the cabinet bounds: about 2.33 m including
+     the screens. Height is that of the cabinet (2.09 m), or a little taller for a sign.
+   - Tag emissive parts with `userData.glow`, and name them.
+2. **A centre spine/divider** (`createSvelteIslandSpine(THREE, { length, height })`) that fills the V
+   between the rows along the island's length, so that no machine back shows from any angle. It could be
+   a low burgundy-and-gold divider with a topper rail.
+   - Length is 4 × 0.75 m pitch, plus the end caps.
+3. **Lower priority:** the screen seating from the side, and the deck joint (VA-0141).
+
+**Engineering next (mine):** once those exist, place them at the island ends and centre, measure
+collision and the triangle budget, and phone-capture them.
+
+**NEEDS JOSHUA:** nothing new. His layout call is recorded here.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
