@@ -99,6 +99,10 @@ function wallSideOf(name: string, worldX: number): Side {
   // with the salon's east and west walls
   if (name === 'ceiling-base' || name.startsWith('coffer-')) return 'roof';
   if (name === 'warm-cove-strip' || name === 'suspended-ring-chandelier' || name === 'chandelier-suspension') return 'fixtures';
+  // the grand hall endcaps (VA-0071): the far wall goes with the salon's north wall; the entrance
+  // wings, piers and lintel are the entrance front, hidden from above like the salon's portal
+  if (name.startsWith('wall-rear-')) return 'north';
+  if (name.startsWith('wall-entrance-') || name.startsWith('entrance-')) return 'entrance';
   if (name.startsWith('wall-')) return worldX < 0 ? 'west' : 'east';
   if (name === 'rear_wall' || name === 'wall_panel' || name === 'art_deco_panel_cap') return 'north';
   if (name === 'wall') return worldX < 0 ? 'west' : 'east';

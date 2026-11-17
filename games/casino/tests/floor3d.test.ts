@@ -766,6 +766,8 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(a.walls.west.length).toBeGreaterThan(0);
     expect(a.ceiling.roof.length).toBeGreaterThan(0);
     expect(a.ceiling.fixtures.length).toBeGreaterThan(0);
+    // the endcaps (VA-0071): its entrance frame is the entrance front, hidden from above
+    expect(a.ceiling.entrance.length).toBeGreaterThan(0);
     let foreign = 0;
     a.root.traverse((o) => {
       if ((o as { isMesh?: boolean }).isMesh && !(o instanceof THREE.Mesh)) foreign++;
@@ -776,6 +778,37 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       if (o.userData.glow) glow++;
     });
     expect(glow).toBeGreaterThan(0);
+  });
+  it('frames both ends with the endcaps, clear of the back row and the walkable room (VA-0071)', async () => {
+    const THREE = await import('three');
+    const { createGrandHallEndcaps } = await import('../../../art/casino/3d/grandHallEndcaps.mjs');
+    const { ENDCAP_RECESS } = await import('../src/floor3d/grandHallArt.ts');
+    const spec = grandHallLayout(GRAND_SPEC).spec;
+    const caps = createGrandHallEndcaps(THREE, {
+      width: spec.width, length: spec.length + ENDCAP_RECESS * 2, height: spec.height, entranceWidth: spec.aisleWidth, rearZ: 'negative',
+    }) as import('three').Group;
+    caps.updateMatrixWorld(true);
+    // the back of the end-wall row (the cabinets' backs are 0.42 m behind their origin)
+    const slotBack = Math.min(...g.slots.map((s) => s.z)) - 0.42;
+    let rearFront = -Infinity;
+    let entranceBack = Infinity;
+    caps.traverse((o) => {
+      if (!(o as import('three').Mesh).isMesh) return;
+      const b = new THREE.Box3().setFromObject(o);
+      if (o.name.startsWith('wall-rear-')) rearFront = Math.max(rearFront, b.max.z);
+      // at body height (the lintel's inlay, 6 m up, reaches 1.5 cm past the walk edge)
+      else if (b.min.y < 2.5) entranceBack = Math.min(entranceBack, b.min.z);
+    });
+    expect(rearFront).toBeLessThan(slotBack);
+    expect(entranceBack).toBeGreaterThan(g.room.z1);
+    // the opening is the promenade, so the spawn walk-in isn't framed by a narrower door
+    expect(caps.userData.entranceOpening.maxX - caps.userData.entranceOpening.minX).toBeCloseTo(spec.aisleWidth);
+    let placeholder = false;
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    buildArtScene(new Map(), { pilot05: true, layout: g }).root.traverse((o) => {
+      if (o.name === 'rear_wall') placeholder = true;
+    });
+    expect(placeholder).toBe(false);
   });
 });
 

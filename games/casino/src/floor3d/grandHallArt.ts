@@ -12,17 +12,20 @@
  *   their geometry, materials and canvas textures, so they batch with them.
  * - ChatGPT's woven carpet over the whole floor (a plain floor in tests, where there is no canvas).
  *
- * The architecture has no end walls (VA-0065: the host frames them). The far end wall is a
- * PLACEHOLDER plain dark box, named like the salon's rear wall so the overview cuts it away; the
- * entrance end stays open, as in the salon.
+ * - ChatGPT's endcaps (VA-0071, `80928f5`): the far end wall behind the back row, and the entrance
+ *   frame with an opening as wide as the promenade.
  */
 import * as THREE from 'three';
 import { createGrandHallArchitecture } from '../../../../art/casino/3d/grandHallArchitecture.mjs';
+import { createGrandHallEndcaps } from '../../../../art/casino/3d/grandHallEndcaps.mjs';
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { BLACKJACK_HERO_ANCHORS, type FloorLayout, type TablePlacement } from './layout.ts';
+
+/** How far each endcap sits outside the hall's ends, in metres. */
+export const ENDCAP_RECESS = 0.15;
 
 export interface GrandHallArt {
   root: THREE.Group;
@@ -77,11 +80,13 @@ export function composeGrandHall(
 
   // ChatGPT's architecture at the layout's size
   root.add(createGrandHallArchitecture(THREE, spec) as THREE.Group);
-  // PLACEHOLDER far end wall (the art leaves both ends open)
-  const endWall = new THREE.Mesh(new THREE.BoxGeometry(w, spec.height, 0.36), new THREE.MeshStandardMaterial({ color: 0x1e1622, roughness: 0.85 }));
-  endWall.name = 'rear_wall';
-  endWall.position.set(0, spec.height / 2, -d / 2 - 0.18);
-  root.add(endWall);
+  // ChatGPT's end wall and entrance frame (VA-0071). The back row is at -Z, so rearZ is negative.
+  // Given 0.3 m more length, both ends sit 0.15 m outside the hall: the rear pilasters clear the
+  // back-row cabinets, and the entrance piers stay just past the walkable room's +Z edge. The
+  // opening matches the promenade.
+  root.add(createGrandHallEndcaps(THREE, {
+    width: w, length: d + ENDCAP_RECESS * 2, height: spec.height, entranceWidth: spec.aisleWidth, rearZ: 'negative',
+  }) as THREE.Group);
 
   // tables: the interactive one's chairs are the seats' (named like the salon's), the rest decor
   root.add(tableWithChairs(layout.table, ['blackjack_1_chair', 'blackjack_2_chair']));
