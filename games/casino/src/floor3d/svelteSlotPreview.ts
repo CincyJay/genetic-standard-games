@@ -35,7 +35,7 @@ const VIEWS: Record<string, { pos: [number, number, number]; look: [number, numb
   three: { pos: [1.9, EYE, 2.4], look: [0, 1.1, 0] },
   side: { pos: [3.0, 1.2, 0.05], look: [0, 1.1, 0.05] },
   top: { pos: [0.6, 3.6, 1.6], look: [0, 1.6, 0] },
-  seated: { pos: [0, 1.22, 1.05], look: [0, 1.35, 0] },
+  seated: { pos: [0, 1.3, 1.3], look: [0, 1.45, 0] },
   back: { pos: [-1.6, 1.5, -2.4], look: [0, 1.0, -0.1] },
   low: { pos: [1.4, 0.25, 1.2], look: [0, 0.2, -0.1] },
 };
@@ -84,14 +84,7 @@ scene.add(cabinet);
 // called unchanged on the built cabinet. Its HDR lights join the Vegas LED pulse below.
 let finishError: string | null = null;
 if (params.get('finish') === 'luxury' && !buildError) {
-  // Workaround for an art bug (VA-0131, ed3c919): the finish still calls `led.push(...)` after its
-  // `led` array was removed, which throws a ReferenceError before the pinstripes, underglow and
-  // medallion are built. A throwaway global `led` sink lets it run unchanged; it is removed right after.
-  const g = globalThis as { led?: unknown };
-  const sink = !('led' in g);
-  if (sink) g.led = [];
   try { applySvelteLuxuryFinish(THREE, cabinet); } catch (e) { finishError = String(e); console.warn('[svelte-slot] luxury finish failed:', e); }
-  finally { if (sink) delete g.led; }
 }
 // Diagnostic only (`?sides=double`): render every cabinet material double-sided in this preview, to
 // tell culled (wrong-winding) faces apart from missing geometry. Never changes the art module.
