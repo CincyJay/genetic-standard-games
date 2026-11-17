@@ -21,6 +21,36 @@ export interface SvelteFloorBatch {
   sourceMeshes: number;
 }
 
+/** Art meshes meant to face the player (+Z) from the front (VA-0136 recess gaskets). */
+const FRONT_FACING = /_recess_shadow_gasket$/;
+
+/**
+ * Engineering workaround for VA-0136 (`553a1ef`): the left/right recess shadow gaskets are wound
+ * so every triangle faces -Z, and with FrontSide they are culled from the player's side. Flips the
+ * index order (and normals) of any FRONT_FACING mesh whose triangles mostly face away. The art
+ * module is untouched; returns the names it flipped so the preview can report them.
+ */
+export function repairSvelteWinding(cabinet: THREE.Object3D): string[] {
+  const flipped: string[] = [];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  cabinet.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || !FRONT_FACING.test(mesh.name) || !mesh.geometry.index) return;
+    const g = mesh.geometry, p = g.attributes.position, idx = g.index!;
+    let away = 0;
+    for (let i = 0; i < idx.count; i += 3) {
+      a.fromBufferAttribute(p, idx.getX(i)); b.fromBufferAttribute(p, idx.getX(i + 1)); c.fromBufferAttribute(p, idx.getX(i + 2));
+      if (b.sub(a).cross(c.sub(a)).z < 0) away++;
+    }
+    if (away * 2 <= idx.count / 3) return;
+    for (let i = 0; i < idx.count; i += 3) { const t = idx.getX(i + 1); idx.setX(i + 1, idx.getX(i + 2)); idx.setX(i + 2, t); }
+    idx.needsUpdate = true;
+    g.computeVertexNormals();
+    flipped.push(mesh.name);
+  });
+  return flipped;
+}
+
 function triangles(g: THREE.BufferGeometry): number {
   return (g.index ? g.index.count : g.attributes.position.count) / 3;
 }
@@ -32,6 +62,7 @@ function triangles(g: THREE.BufferGeometry): number {
  * shows on every copy).
  */
 export function batchSvelteCabinet(cabinet: THREE.Object3D, placements: readonly THREE.Matrix4[]): SvelteFloorBatch {
+  repairSvelteWinding(cabinet);
   cabinet.updateMatrixWorld(true);
   const inverseRoot = cabinet.matrixWorld.clone().invert();
   const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[] }>();

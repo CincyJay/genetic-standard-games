@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createSvelteSlotCabinet } from '../../../art/casino/3d/svelteSlotCabinet.mjs';
 import { applySvelteLuxuryFinish } from '../../../art/casino/3d/svelteLuxuryFinish.mjs';
-import { batchSvelteCabinet } from '../src/floor3d/svelteFloorBatch.ts';
+import { batchSvelteCabinet, repairSvelteWinding } from '../src/floor3d/svelteFloorBatch.ts';
 
 function build(finish: boolean): THREE.Group {
   const c = createSvelteSlotCabinet(THREE) as THREE.Group;
@@ -56,5 +56,23 @@ describe('Svelte cabinet floor batching', () => {
     const got = new THREE.Matrix4();
     b.meshes[0].getMatrixAt(2, got);
     got.elements.forEach((v, i) => expect(v).toBeCloseTo(ps[2].elements[i], 5));
+  });
+});
+
+describe('Svelte winding repair (VA-0136 recess gaskets)', () => {
+  it('leaves every recess gasket facing the player', () => {
+    const c = build(false);
+    const gaskets = ['left_recess_shadow_gasket', 'right_recess_shadow_gasket'].map((n) => c.getObjectByName(n) as THREE.Mesh | undefined).filter(Boolean) as THREE.Mesh[];
+    repairSvelteWinding(c);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), d = new THREE.Vector3();
+    for (const m of gaskets) {
+      const g = m.geometry, p = g.attributes.position, idx = g.index!;
+      for (let i = 0; i < idx.count; i += 3) {
+        a.fromBufferAttribute(p, idx.getX(i)); b.fromBufferAttribute(p, idx.getX(i + 1)); d.fromBufferAttribute(p, idx.getX(i + 2));
+        expect(b.sub(a).cross(d.sub(a)).z).toBeGreaterThan(0);
+      }
+    }
+    // a second call changes nothing
+    expect(repairSvelteWinding(c)).toEqual([]);
   });
 });

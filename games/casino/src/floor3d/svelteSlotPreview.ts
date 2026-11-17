@@ -18,6 +18,7 @@ import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScre
 import { applySvelteLuxuryFinish } from '../../../../art/casino/3d/svelteLuxuryFinish.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
+import { repairSvelteWinding } from './svelteFloorBatch';
 import { ROWS as GAME_ROWS, LINES, MACHINES, strips, spinStops, gridFromStops, evaluate } from '../logic/slots';
 import { reelPoses, stopTime, symbolAt, targetsFromStops, winningCells, type SpinPlan } from './reelSpin';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -79,6 +80,9 @@ if (buildError) {
   note.style.cssText = 'position:fixed;left:8px;top:8px;right:8px;padding:8px;background:#600;color:#fff;font:14px sans-serif;z-index:9';
   document.body.appendChild(note);
 }
+// VA-0136: the recess gaskets in `553a1ef` face -Z and are culled from the front; flip them here
+// (engineering workaround, art untouched) and report which were flipped.
+const windingRepaired = buildError ? [] : repairSvelteWinding(cabinet);
 scene.add(cabinet);
 // `&finish=luxury`: ChatGPT's optional luxury finish (VA-0129, art/casino/3d/svelteLuxuryFinish.mjs),
 // called unchanged on the built cabinet. Its HDR lights join the Vegas LED pulse below.
@@ -444,7 +448,7 @@ const windingFacing = (g: THREE.BufferGeometry) => {
       tris += t;
       parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g), seams: findShadingSeams(g) };
     });
-    return { buildError, finishError, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
+    return { buildError, finishError, windingRepaired, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },
 };
 
