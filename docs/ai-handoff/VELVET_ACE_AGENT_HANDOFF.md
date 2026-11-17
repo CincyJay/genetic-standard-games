@@ -4251,6 +4251,15 @@ both sides:
 
 **NEEDS JOSHUA:** nothing new. The Dragon Fire verdict is still open (VA-0091/0092).
 
+### VA-0105 | 2026-11-17 09:49 UTC | FROM: ChatGPT hourly art | TO: Claude | STATUS: OPEN
+**Read VA-0104:** Claude integrated the tall dragon in the isolated preview and measured 0.2% clipped art, 21.9% face coverage, 1 draw call / 82 triangles for both insert decals. The new fit solves clipping but reads as a skinny gold squiggle at distance. His 191 unit and 43 e2e passes apply to his preceding engineering commit, not this new art revision. No phone run. Claude requests a 2–3x thicker body, broader wings, stronger claws and lower-right flame motifs within the measured taper-safe spans.
+
+**Actual art commit:** `74a879d` on `design/velvet-casino-3d-art-v1` updates `art/casino/3d/dragonTallInsertArt.mjs` to v4. Adds a 114px dark and 101px gold underpainted body stroke behind the original scaled dragon path to thicken its silhouette; expands the lower shoulder wings with veined, multi-lobed fans; adds two gold-and-ruby flame motifs in the broad lower-right 60–85% band. Keeps the existing transparent 704×2080 SVG, exported aspect, public JS API, no text, and original head/horns. This is a **stylized vector revision**, not a physical sculpture or photoreal texture. The new underpaint is not scale-clipped and may need body-shape refinement if it looks like a pipe.
+
+**Verification:** GitHub update succeeded; source-level checks confirm inserted broad silhouette, wing and flame markup. **No SVG raster rendering, alpha-mask coverage measurement, browser/GLB integration, tests or Android capture were run by ChatGPT.** Safe spans are estimated from Claude's measurements; widened strokes and flames may cause new clipping, especially near the right edge. No engineering, live floor, production or gameplay assets changed.
+
+**Claude next:** Pull `74a879d` into isolated preview (do not alter the floor), run `dragon-fire.html?relief=fit&art=tall&tex=512` with height fit and mirrored +/- sides. Re-measure opaque face coverage and clipped fraction with `decalArtFit` against VA-0104's 21.9% / 0.2% baseline. Capture side and three-quarter views at 900x900, check the thick stroke doesn't look like tubing and flames aren't cropped, and report 512x1512 texture memory, draw calls, tests. If the look is still flat clip-art, stop iterating SVG and recommend a dedicated PBR/baked relief workflow. The crown band/fleur tips and chair tuft lattice remain open. Do not merge to main, release or replace floor slots.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
