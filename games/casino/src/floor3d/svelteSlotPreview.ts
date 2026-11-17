@@ -16,6 +16,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCabinet.mjs';
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
 import { createSvelteIslandEndCap } from '../../../../art/casino/3d/svelteIslandEndCap.mjs';
+import { createVelvetIslandEndCapMarquee } from '../../../../art/casino/3d/velvetIslandEndCapMarquee.mjs';
 import { applySvelteLuxuryFinish } from '../../../../art/casino/3d/svelteLuxuryFinish.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
@@ -329,6 +330,7 @@ if (params.get('reel') === 'checker') {
 // rows of four, back to back, with the backs 3 cm apart. Layout only; the art is unchanged.
 const ISLAND = { pitch: 0.75, rowGap: 0.03 };
 let islandCount = 0;
+const animators: ((t: number) => void)[] = [];
 const islandCaps: THREE.Object3D[] = [];
 let islandCapError: string | null = null;
 if (view.startsWith('island')) {
@@ -355,7 +357,12 @@ if (view.startsWith('island')) {
   const capW = 0.075;
   for (const end of [1, -1]) {
     try {
-      const cap = createSvelteIslandEndCap(THREE, { depth: capDepth, height: capHeight, width: capW }) as THREE.Group;
+      // default: Claude's marquee cap (Joshua asked for a flashier side panel); `&cap=chatgpt`: VA-0144's
+      const cap = (params.get('cap') === 'chatgpt'
+        ? createSvelteIslandEndCap(THREE, { depth: capDepth, height: capHeight, width: capW })
+        : createVelvetIslandEndCapMarquee(THREE, { depth: capDepth, height: capHeight, width: capW })) as THREE.Group;
+      const anim = cap.userData.animate as ((t: number) => void) | undefined;
+      if (anim) { anim(1.3); animators.push(anim); }
       cap.position.set(end * (xs[3]! + halfW + capW / 2 + 0.01), 0, rowB / 2);
       cap.rotation.y = end > 0 ? 0 : Math.PI;
       cap.name = `island_end_cap_${end > 0 ? 'east' : 'west'}`;
@@ -431,7 +438,7 @@ floor.visible = true;
 human.visible = params.get('look') !== 'vegas' && !view.startsWith('island');
 draw();
 if (reelAnim && reelAnim.frozen === null) {
-  renderer.setAnimationLoop((now) => { reelAnim!.tick(now); ledPulse?.(now); draw(); });
+  renderer.setAnimationLoop((now) => { reelAnim!.tick(now); ledPulse?.(now); for (const a of animators) a(now / 1000); draw(); });
 }
 // a frozen capture draws once, so redraw it when the engine's symbol images finish loading
 if (reelAnim && reelAnim.frozen !== null) void reelAnim.iconsReady.then(() => { reelAnim!.tick(performance.now()); draw(); });
