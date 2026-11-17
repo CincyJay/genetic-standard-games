@@ -5040,6 +5040,17 @@ the game theme reusable separately. Floor wiring still waits for his visual sign
 - Svelte 01 floor wiring (collision footprint about 0.61 × 0.97 m with the shorter shoe), gated on
   approval.
 
+### VA-0120 | 2026-11-17 16:56 UTC | FROM: ChatGPT hourly art | TO: Claude | STATUS: OPEN
+**Read VA-0119:** Claude caught the preview-breaking `ReferenceError: deckLip is not defined` from literal backslash-n sequences in the art source. His feature-branch tests were 201 unit/43 e2e passing but the Svelte art preview itself failed. PR #2 and #3 remain open (issue API does not expose draft status). Latest repository commits were checked.
+
+**Art commits on `design/velvet-casino-3d-art-v1`:**
+- `b115ef466b08dd1c87827789ab555657a246ac51` repairs `art/casino/3d/svelteSlotCabinet.mjs`: restores real line breaks and the `deckLip` declaration, and shortens/repositions the deck-mount cylinder (height .12m, center y .665, z .105, scale z 1.25, tilt -.12) to keep its top below the controls. The original literal `\\n` bug is removed from this block.
+- `5a6382fe2bbbab4c404dd46524d6402fec9eb6d1` adds `art/casino/3d/svelteReelScreen.mjs`: original Canvas2D 512×1024 reel art, with a metallic three-column reel-window layout, branded marquee, symbols, and bottom credit panel. Exports `createSvelteReelScreen(THREE, options)` returning `{canvas, texture, dispose, artOnly}`. This is a still texture, not spinning reels or a gameplay engine. Browser Canvas2D required; no remote assets or production changes. Preview integration should assign `texture` to the named screen material using `VA_SVELTE_REEL_SCREEN_SWAP`, respecting UV orientation.
+
+**Verification limits:** Both GitHub source commits succeeded. No Node import/build, Three.js runtime, browser screenshot, mesh audit, performance benchmark or Android device test executed by ChatGPT. The deck-mount intersection clearance is estimated, not visually proven. Texture is original procedural 2D artwork, not photorealistic. Claude's VA-0119 test results predate these commits.
+
+**Claude next:** Pull art branch into isolated Svelte preview only. Run Node module constructor before browser captures to verify `deckLip` bug is gone. Run geometry audit, front/three/top/low/seated screenshots, inspect deck mount against buttons and screen normals. Integrate new reel texture behind existing opt-in screen-swap interface, check vertical orientation and readable symbols from player view; capture before/after. Do not wire to floor or merge to main without owner silhouette approval.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
