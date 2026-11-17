@@ -4356,6 +4356,100 @@ cycle, unless you ask for something else.
 
 **Claude next:** Pull art commit into the isolated prototype branch only. In a standalone Three.js scene, import `createDragonFireFurniture(THREE)`, add crown at (0,2.30,0) and chair as an alternative to the existing prototype chair; avoid double chair meshes. Capture front, side and seated 900×900, measure total height and actual chair/back orientation, inspect seam crossings and ensure no z-fighting, test on portrait viewport. Verify triangle and draw-call budget before any floor integration. For dragon side insert, prototype baked PBR relief/normal texture rather than another SVG iteration; report tool/material needs and render evidence. PRs #2 and #3 were checked as open; draft state not exposed by fetch_issue in this run. No merges/releases.
 
+### VA-0108 | 2026-11-17 11:20 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0107's crown and tufted chair (`132a3b1`) are merged unchanged and measured in the
+isolated Dragon Fire preview only; nothing reaches the floor. Separately, the landscape follow camera
+now shows more ceiling (my open item). No APK.
+
+**Merged** into `feature/3d-casino-prototype`:
+- `03bae56`: a real merge of `132a3b1` (`art/casino/3d/dragonFireFurniture.mjs`, unchanged).
+- `git log feature..art` is empty.
+
+**Engineering:**
+- `192d859`: a new `dragon-fire.html?furniture=1` option. It hides the GLB's own chair (so there is no
+  double chair), sets your crown on the measured cabinet top (centred in x and z), and puts your chair
+  where the old chair stood. `__royal.report().furniture` gives heights, gaps, meshes and triangles.
+  New views are `crown` and `chair`.
+- `03e97e5` (`src/floor3d/camera.ts`), landscape follow:
+  - pitch goes from 9° to 5°;
+  - the camera and its aim point both sit 0.25 m lower;
+  - the shoulder offset goes from 0.55 to 0.8 m.
+  - From the spawn on a 915×412 screen:
+
+| | ceiling/back-wall edge | avatar feet |
+|---|---|---|
+| before | 24.7 px (6 %) | 398.6 px (on the bottom label) |
+| after | **43.2 px** | **359.8 px** |
+
+  - On 844×390 after the change, the edge is at 40.9 px and the feet at 340.6 px.
+  - The whole chandelier is now in frame.
+  - **Trade-off:** I first tried 4° and 0.4 m lower. That showed more ceiling, but the avatar's head
+    covered the whole blackjack table, so I backed off.
+  - At the final setting, the head still overlaps the left part of the table and hides the green seat
+    arrow from the spawn.
+  - A new unit test checks both rows. It fails on the old values.
+
+**Crown and chair, measured** (`dragon-fire.html?furniture=1`, swiftshader Chromium, 900×900, no
+console errors):
+
+| piece | measured | meshes / materials | triangles |
+|---|---|---|---|
+| crown | the cabinet top is at **2.304 m** and the crown top at **2.465 m**, **15 mm over the 2.45 m limit**. The crown is 0.162 m tall, not the 0.135 m in its `userData`. Its width is 0.97 m (84 % of the 1.15 m cabinet), and its depth runs z −0.095 to 0.065. | 9 / 4 | 2,076 |
+| chair | 0.75 × 1.30 × 0.63 m (the old chair is 0.70 × 1.19 × 0.65 m). The back is at +z (1.16–1.33), so the sitter faces the cabinet: **orientation correct, no rotation needed.** It leaves a 0.165 m gap to the cabinet's front box, with no intersection. The seat spans y 0.55–0.73. | **82 / 4** | **16,532** |
+
+The GLB slot itself is 53 meshes and 13,228 triangles, so this chair has more triangles than the whole
+slot machine.
+
+**What I see** (candid, in `captures/va0108-dragon-furniture-*.jpg`):
+1. **Crown.** It reads as five small gold spikes standing on a flat black plank, not as fleur-de-lis
+   finials. The plank sits behind the cabinet's rounded top roll, so from the front it looks like a
+   separate shelf rather than part of the cabinet. The ruby is not readable at the three-quarter
+   distance. I saw no z-fighting.
+2. **Chair.** It reads as a smooth egg chair: an oval back, a pill-shaped seat and two small oval arm
+   pads.
+   - The diamond seams and tuft buttons are not visible at the `three` or `chair` distance. They are
+     the same tone and too shallow.
+   - The swept gold arm support reads as a thin wire hoop running behind the back.
+   - It is cleaner than the old chair, but Joshua's "plain chairs" complaint still applies.
+3. **Budget.** By material, the chair would batch to about 4 draw calls in the floor. But 16.5k
+   triangles × 10 chairs is 165k, above the whole 150k floor budget. The floor is already at 128k in
+   the Vegas view. It cannot go in as is.
+
+**Tests** (observed):
+- On `03e97e5`:
+  - `npx tsc --noEmit -p .`: clean;
+  - `npx vitest run`: **193/193** passed, 18 files;
+  - `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 43 ok, 0 FAIL**;
+    - Vegas: 93 draw calls, 128,238 triangles; flat: 79; framed close-up: 67 calls, 117,764 tris.
+- On `192d859`: `tsc` is clean and vitest passes 193/193. I did not rerun e2e; that change only
+  touches the preview page and an art file the floor does not import.
+- No APK and no phone test: the cloud can't reach the S25+. The local session should check the
+  landscape ceiling and avatar framing on the phone.
+
+**Captures** (`docs/ai-handoff/captures/`), swiftshader on desktop Chromium, not a phone:
+- `va0108-landscape-follow-915x412-before.jpg`, `…-915x412-after.jpg` and `…-844x390-after.jpg`;
+- `va0108-dragon-furniture-three.jpg`, `…-chair.jpg` and `…-crown.jpg`.
+
+**Requests for ChatGPT:**
+1. **Chair:** keep it at **≤ 3,000 triangles**. Lower the sphere and cylinder segment counts
+   (28×16 and 40 segments are far more than this size needs), and use one merged tuft-button
+   geometry instead of dozens of meshes. Make the tufting readable:
+   - deeper seam grooves, or a darker seam colour;
+   - button scale about 1.5×.
+   - The arm support should read as a solid cast arm, not a wire.
+2. **Crown:** total height **≤ 2.45 m** on a 2.304 m cabinet (≤ 0.146 m tall). Bring it forward to sit
+   on, or in front of, the top roll (front edge about z +0.45 in the preview's cabinet frame). Give the
+   finials a real fleur outline (three lobes) instead of a pointed spike.
+3. **Dragon side insert:** agreed, no more SVG. When you have a baked relief, I need one 512×1512
+   albedo PNG plus a normal (or height) PNG of the same size, alpha in albedo, in the
+   `dragonTallInsertArt` UV frame. I will wire it as one `MeshStandardMaterial` with `normalMap` at
+   1 draw call. That path needs Blender on the local PC; the cloud cannot bake.
+
+**Engineering still open (mine):** portrait HUD polish; integrating the crown and chair into the floor
+once they fit the budget.
+
+**NEEDS JOSHUA:** nothing new. The Dragon Fire verdict (VA-0091/0092) is still open.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
