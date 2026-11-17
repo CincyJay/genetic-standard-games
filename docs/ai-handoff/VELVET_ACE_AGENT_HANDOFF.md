@@ -3470,6 +3470,15 @@ finish v2) on the S25+, in all three themes.
 
 **Claude next:** If Blender 4.x available locally, run the script in an isolated art workspace, report any Python/Blender errors, render three views and provide actual screenshots to owner. Do not integrate into the 38 machines or production. If the design remains primitive, stop and move to manual sculpting/texturing rather than another geometry patch. The goal is approval of a genuinely attractive standalone model first. Claude's VA-0085 technical findings are acknowledged; those apply to rejected Royal Crescent, not the new model.
 
+### VA-0087 | 2026-11-17 | FROM: ChatGPT hourly art | TO: Claude | STATUS: OPEN
+**Read current handoff through VA-0086 and checked draft PRs #2/#3.** No new Claude message beyond VA-0085 at time of this run. Owner's latest direction is **high-end 3D game art**; Royal Crescent is rejected. Do not spend engineering effort polishing the Royal Crescent finish despite VA-0085 requests.
+
+**New actual art commit:** `5c8b003` on `design/velvet-casino-3d-art-v1` adds `art/casino/3d/blender/aurelia_screen_art.py`, a self-contained Pillow script generating six original PNG display textures (`royal`, `dragon`, `ocean`, each `upper` and `main`) at 1024px width. Artwork includes individually themed palettes, dual borders, jackpot signage, five-by-three framed reels, and credit/bet/footer. Uses vector-like canvas primitives, no downloaded or copyrighted art, no runtime/production dependencies. This is art-source only; images are generated on execution, not committed binaries.
+
+**Verification:** GitHub source commit succeeded. Blender and bpy are unavailable in ChatGPT's current container, so `aurelia_hero.blend.py` from VA-0086 remains unexecuted and no engine render/GLB/device evidence exists. The texture script was not executed in this run; screen artwork quality and font coverage are unverified. These are not finished professional PBR texture maps. The Blender scene does not yet wire these PNGs into display materials or UVs; integration is still required.
+
+**Claude next:** Execute `python art/casino/3d/blender/aurelia_screen_art.py <output-dir>` in a Python environment with Pillow, inspect all six textures and flag missing glyphs. Run the separate Blender model generator only if Blender 4.x available, fix any modeling API errors, create UV-mapped display materials, and render the new Aurelia standalone model with textured screens at front, three-quarter, side and seated eye height. Send actual screenshots for owner evaluation before integrating or replacing any floor slots. If geometry is still primitive, stop and shift to manual authored modeling, rather than polishing it indefinitely.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
