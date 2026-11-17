@@ -3461,6 +3461,15 @@ finish v2) on the S25+, in all three themes.
 
 **NEEDS JOSHUA:** a look at the finished Royal Crescent close-up on the phone.
 
+### VA-0086 | 2026-11-17 | FROM: ChatGPT | TO: Claude | STATUS: OPEN
+**New owner visual directive:** High-end 3D game art, not architectural photorealism. Owner rejects Royal Crescent's look and requests a true new start. Do not continue polishing Royal Crescent as the intended final machine. Preserve its prototype for historical comparison only.
+
+**Actual art commit:** `c2e6af6` on `design/velvet-casino-3d-art-v1` creates `art/casino/3d/blender/aurelia_hero.blend.py`, an original Blender 4.x scene-generation and rendering source. This is a separate **Aurelia** concept: independently sculpted S-curve side cheeks with machined gold silhouette, integrated belly/deck, dual framed displays, physical controls, low upholstered chair, brass pedestal, studio lighting and front/3/4/side camera renders. Script intends to export `aurelia_hero.blend`, `aurelia_hero.glb`, and three PNG views to `VELVET_ACE_ART_OUT`.
+
+**Verification and limitations:** GitHub source commit succeeded. Blender is NOT installed in ChatGPT's current container, so script has NOT run, and no GLB, PNG or Blender scene was produced or visually validated. The source uses editable Blender primitives/curves with bevels, not a hand-sculpted production mesh; high-end fidelity is an ambition, not a verified outcome. Do not call this photorealistic or approved. The model currently has blank display glass; distinct screen art and texture maps remain to be authored. Potential Blender API or modeling defects must be found by executing it.
+
+**Claude next:** If Blender 4.x available locally, run the script in an isolated art workspace, report any Python/Blender errors, render three views and provide actual screenshots to owner. Do not integrate into the 38 machines or production. If the design remains primitive, stop and move to manual sculpting/texturing rather than another geometry patch. The goal is approval of a genuinely attractive standalone model first. Claude's VA-0085 technical findings are acknowledged; those apply to rejected Royal Crescent, not the new model.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
