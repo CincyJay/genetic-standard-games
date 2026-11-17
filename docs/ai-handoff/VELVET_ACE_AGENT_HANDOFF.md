@@ -3598,6 +3598,68 @@ show boxes. Once the font is fixed, two options:
 
 **Claude next:** Run in isolated art workspace, fix any Blender errors, provide front/three-quarter/side renders. Compare to the owner's approved Dragon Fire concept, and report gaps before integrating into a separate preview route. Do not replace existing 38 floor machines, merge to main, release or change gameplay. The goal is a convincing ONE-machine visual benchmark, not another technically valid but unattractive primitive.
 
+### VA-0091 | 2026-11-17 03:28 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** VA-0090's **Dragon Fire** (`d321c32`), executed locally in Blender 4.5.5 and loaded in
+engine. Aurelia is set aside as rejected.
+
+**Run:**
+1. **Screen art:** `aurelia_screen_art.py` still has only Linux font paths (VA-0089). I ran a
+   **scratch copy** with one change: `C:/Windows/Fonts/seguisym.ttf` (Segoe UI Symbol) is first in
+   `candidates`. Not committed.
+   - With it, every glyph renders, including 7 ♠ ♦ ★ ✦ and the bullet, at the intended sizes
+     (`…screenart-06-dragon-main-winfont.jpg`).
+   - **Please commit a real fix:** a bundled OFL font, or Windows paths, and fail loudly instead
+     of `load_default()`.
+2. **`dragon_fire_hero.py` ran unchanged:** exit 0, no errors, with
+   `VELVET_ACE_SCREEN_DIR`/`VELVET_ACE_ART_OUT` set.
+   - It wrote 3 Cycles renders, `.blend` (1.4 MB) and `.glb` (845 KB).
+   - Curve to mesh worked: the gold contours and LED pipes **are in the GLB** this time.
+
+**Committed** (`ad497c1`, `feature/3d-casino-prototype`):
+- `art/casino/3d/models/dragon_fire_hero.glb` as exported (sha256 `68429a4d…5f48`);
+- the isolated `dragon-fire.html` page, in the prototype APK 1.8-3dproto.17 only;
+- the floor, tables and gameplay are untouched.
+
+**Captures** (`captures/3d-va0091-dragon-fire-*`): 01–03 are your Cycles renders; 04–05 are in engine
+(browser, Vegas rig with bloom: three-quarter and seated). **No phone capture yet.** The S25+
+showed the prototype app in use, so I'm asking Joshua first.
+
+**GLB facts (from the loaded file):**
+- 53 meshes, 13,228 triangles, with normals and UVs; 10 materials; 2 embedded screen textures.
+- Size: 1.15 × **2.30** m × 1.89 m with the chair.
+- Both bowed screens face +Z, in front of their bezels (z 0.291–0.327 against 0.255). UVs are
+  right: the text reads correctly in engine.
+- Buttons are on the deck (y 0.87–0.90). The card reader and ticket parts are on the belly.
+- Chair: seat top 0.709, arms 0.81–0.92, back top 1.19.
+
+**Against Joshua's approved concept** (factual gaps, not a verdict):
+1. **Side art:** the "ruby dragon enamel" is a flat red panel with no dragon, no engraving and no
+   relief.
+   - In engine under the Vegas rig it reads almost black; only the violet LED ring shows (04).
+   - The concept's engraved dragon needs a texture (albedo plus normal or emissive) on a UV'd
+     insert, or sculpted relief.
+2. **Crown topper:** `gold crown housing` is a plain rounded gold bar across the top. No crown
+   form.
+3. **Chair:**
+   - the "quilting" is 12 gold chevrons (`^`) on the back's **rear outer face** (y −1.577; the
+     back's rear face is at −1.565), not diamond tufting;
+   - the back, seat and arms are rounded boxes;
+   - in the Cycles renders the leather reads pink (studio lights); in engine it is burgundy (04).
+4. **Screens:** they work, but the art is simple flat symbols in boxes. The concept has richly
+   illustrated displays.
+5. **Height:** 2.30 m, at the tall end. The crown bar adds to it.
+6. **Renders:** the bright grey studio world makes the lacquer read blue-grey and the leather
+   pink. A darker world, or one HDRI-like warm key, would match the concept's mood better.
+
+**What improved over Aurelia:**
+- textured, readable screens;
+- the gold contours exported and hugging the profile;
+- the violet LED outline;
+- the deeper S-profile with the belly forward.
+
+**NEEDS JOSHUA:** his verdict on Dragon Fire against his concept, and OK to capture it on the
+phone.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
