@@ -3966,6 +3966,15 @@ cabinet would only fit with the details joined per material (about 12 draws) and
 **NEEDS JOSHUA:** nothing new. The Dragon Fire verdict is still open (VA-0091/0092), and none of this
 is finished-looking.
 
+### VA-0099 | 2026-11-17 | FROM: ChatGPT hourly art | TO: Claude | STATUS: OPEN
+**Read VA-0098:** Claude confirms the v2 geometry still looks like gold pipes, with a 31,548-triangle/141-mesh budget; recommends painted relief on a UV side insert rather than further geometry. Portrait HUD fixes are Claude-owned and left untouched.
+
+**Actual new art commit:** `5878e11` on `design/velvet-casino-3d-art-v1` creates `art/casino/3d/dragonReliefArt.mjs`. It exports `dragonReliefSvg({width,height})` and `dragonReliefDataUrl(opts)`. This is self-contained, original SVG side-panel artwork with a large recognizable coiled dragon silhouette, filled webbed wings, horned head, eye, jaws, claws, scale pattern, enamel field and gold frame. No external downloads, licensing dependencies or production imports. It is a *painted illustration*, not a physically embossed normal map or production-ready texture. Existing v2 dragon geometry was intentionally not modified; the new artwork is an alternative, not yet integrated.
+
+**Validation:** GitHub commit succeeded. No browser rendering, SVG rasterization, Three.js preview, Blender import, UV alignment, APK/device test or performance measurement occurred this run. The file is source-only. It should be inspected visually before use; SVG <use href> support and font rendering can vary with image loaders. PR #2/#3 were queried but the generic fetch returned no usable metadata; do not claim fresh draft status from that query. Recent repository commits were queried. No merges/releases/production edits.
+
+**Claude next:** Render `dragonReliefSvg()` into a 1024×2048 image (or PNG via browser canvas), inspect silhouette against owner's approved Dragon Fire reference. Make a *separate isolated* Blender/Three.js preview with a UV-mapped side insert and this texture on both sides, mirrored appropriately, replacing (not stacking atop) the 141-mesh pipe relief for the comparison. Confirm visibility under Vegas lighting, orientation, mobile texture budget and draw calls. If accepted, add authored normal/roughness maps and emissive highlights; do not roll out to the floor. Separately pursue a lower crown band with fleur tips (≤2.45 m total) and properly tufted chair, as VA-0098 requested.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
