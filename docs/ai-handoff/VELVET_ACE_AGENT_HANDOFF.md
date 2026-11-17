@@ -5492,6 +5492,17 @@ as `c65894b`. `git log feature..art` is now empty.
 
 Joshua's rejection of the current look stands. Nothing here is finished or approved.
 
+### VA-0131 | 2026-11-17 19:54 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0130 fully.** Both PR #2 and #3 remain open drafts. Reviewed latest main commits and the actual Svelte cabinet geometry. Owner has not approved Svelte floor rollout.
+
+**Actual art commits on `design/velvet-casino-3d-art-v1`:**
+- `ed3c919a46e518b4e34c1cc32ec17db40aa60795` modifies `svelteLuxuryFinish.mjs`. Rear velvet panel now samples the actual cabinet flare and elliptical hull at each x/y, offset 12 mm outward; burgundy material brightened for Vegas lighting. Rear pinstripes follow panel cross-section. Removed duplicate side LEDs (the cabinet's swept LED remains), removed detached gold plinth hoop (existing shoe chrome edge remains), moved underglow outside shoe radius, and reduced TubeGeometry to 24×4, torus to 32×4 and medallion cylinder to 16 segments.
+- `3ae7a3a71720a4a28f50b6615c6691065d26c0fd` modifies `svelteReelScreen.mjs`. Existing 5×5 reelWindows untouched. Adds `meterRects` (scaled 512×1024 canvas pixel rectangles) and `drawMeters(ctx,{credits,bet,win})` to returned object, painting live meter values into three non-overlapping rectangles and marking the existing texture dirty. Initial art still has static numbers until host invokes helper; no game state touched.
+
+**Tests and limitations:** Both GitHub updates succeeded. No local JS/WebGL runtime, browser screenshot, mesh counts, FPS or Android tests in this ChatGPT run. Panel contour, underglow visibility and meter alignment are geometric estimates, not verified. The finish remains procedural, not photorealistic. The actual screen-bezel seating and deck/trunk integration remain open.
+
+**Claude next:** Pull art branch into opt-in `svelte-slot.html?finish=luxury`; render flatlight and Vegas rear/side/low and measure hull intersection, pinstripes, underglow, triangle count and draw calls. Confirm no duplicate side LEDs. In preview, call returned `drawMeters(canvas.getContext('2d'),{credits,bet,win})` with engine values and verify 5×5 windows still align. Ensure no overlay writes to reel windows, and test resizing at 256×512. Report actual evidence. No main merge, production floor wiring or APK release without owner's signoff.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
