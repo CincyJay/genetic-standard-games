@@ -18,7 +18,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import modelUrl from '../../../../art/casino/3d/models/dragon_fire_hero.glb?url';
 import { dragonReliefDataUrl } from '../../../../art/casino/3d/dragonReliefArt.mjs';
 import { LIGHT_RIGS } from './lighting.ts';
-import { reliefInsertQuads } from './dragonRelief.ts';
+import { insertFaceDecal, reliefInsertQuads } from './dragonRelief.ts';
 
 /** Standing eye 1.6 m; seated eye 1.22 m over the chair (set once the chair is found). */
 const VIEWS: Record<string, { pos: [number, number, number]; target: [number, number, number] }> = {
@@ -27,10 +27,13 @@ const VIEWS: Record<string, { pos: [number, number, number]; target: [number, nu
   side: { pos: [3.0, 1.5, 0.3], target: [0, 1.15, 0.3] },
   left: { pos: [-3.0, 1.5, 0.3], target: [0, 1.15, 0.3] },
   panel: { pos: [1.6, 1.2, 0.065], target: [0.56, 1.175, 0.065] },
+  insert: { pos: [2.9, 1.18, 0.14], target: [0.56, 1.18, 0.14] },
+  insertl: { pos: [-2.9, 1.18, 0.14], target: [-0.56, 1.18, 0.14] },
   seat: { pos: [0, 1.22, 1.0], target: [0, 1.25, 0] },
   wide: { pos: [3.4, 2.3, 4.4], target: [0, 1.0, 0.2] },
 };
 
+const insertSideIsPlus = (g: THREE.BufferGeometry) => (g.computeBoundingBox(), g.boundingBox!.min.x + g.boundingBox!.max.x >= 0);
 const r3 = (v: THREE.Vector3) => [v.x, v.y, v.z].map((n) => +n.toFixed(3));
 const boxOf = (objs: THREE.Object3D[]) => {
   const b = new THREE.Box3();
@@ -82,7 +85,9 @@ function start(): void {
   composer.setPixelRatio(pixelRatio);
   composer.setSize(window.innerWidth, window.innerHeight);
 
-  const relief = params.get('relief') === 'svg';
+  const reliefMode = params.get('relief');
+  const relief = reliefMode === 'svg' || reliefMode === 'fit';
+  const fitBy: 'height' | 'width' = params.get('fit') === 'width' ? 'width' : 'height';
   const mirror = params.get('mirror') === '1';
   let current = params.get('view') ?? 'three';
   function view(name: string): void {
@@ -90,7 +95,7 @@ function start(): void {
     current = name;
     camera.position.set(...v.pos);
     camera.lookAt(...v.target);
-    label.textContent = `PROTOTYPE · DRAGON FIRE MODEL (Blender export)${relief ? ' + painted side art' : ''} · ${current}`;
+    label.textContent = `PROTOTYPE · DRAGON FIRE MODEL (Blender export)${relief ? ` + painted side art (${reliefMode === 'fit' ? `insert-shaped, fit ${fitBy}` : '1:2 card'})` : ''} · ${current}`;
   }
   const label = document.createElement('div');
   Object.assign(label.style, { position: 'fixed', left: '12px', bottom: '10px', font: '600 13px system-ui', color: '#e9c86a', letterSpacing: '.06em', pointerEvents: 'none' });
@@ -142,7 +147,35 @@ function start(): void {
 
       // painted side art: one quad per ruby insert, placed in the model's own space
       let reliefInfo: unknown = null;
-      if (relief) {
+      if (relief && reliefMode === 'fit') {
+        // VA-0101: the insert's own outer triangles, UV-mapped, instead of a 1:2 card
+        const inserts = named(/dragon.side.lacquer/i);
+        const toModel = new THREE.Matrix4().copy(model.matrixWorld).invert();
+        const tex = new THREE.TextureLoader().load(dragonReliefDataUrl({ width: 1024, height: 2048 }));
+        tex.colorSpace = THREE.SRGBColorSpace;
+        tex.anisotropy = 4;
+        tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+        const pos: number[] = [], nor: number[] = [], uv: number[] = [], ind: number[] = [];
+        const decals = inserts.map((m) => {
+          const g = m.geometry.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(toModel, m.matrixWorld));
+          const d = insertFaceDecal(g.attributes.position.array, g.index ? g.index.array : null, { aspect: 0.5, fit: fitBy, mirror: mirror && insertSideIsPlus(g) });
+          const base = pos.length / 3;
+          pos.push(...d.positions); nor.push(...d.normals); uv.push(...d.uvs); ind.push(...d.indices.map((k) => k + base));
+          return { insert: m.name, side: d.side, face: d.face, art: d.art };
+        });
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+        geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+        geo.setIndex(ind);
+        const mat = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.42, metalness: 0.15, alphaTest: 0.5, name: 'VA0101 insert-shaped dragon side (preview)' });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.name = 'relief_svg_insert_decal';
+        mesh.receiveShadow = true;
+        model.add(mesh);
+        meshes.push(mesh);
+        reliefInfo = { mode: 'fit', fit: fitBy, mirrorPlusX: mirror, decals, texture: '1024x2048 RGBA', draws: 1, triangles: ind.length / 3 };
+      } else if (relief) {
         const inserts = named(/dragon.side.lacquer/i);
         const boxes = inserts.map((m) => new THREE.Box3().setFromObject(m).applyMatrix4(new THREE.Matrix4().copy(model.matrixWorld).invert()));
         // The insert is a slanted polygon, not a rectangle: its outer face (read from the GLB) runs

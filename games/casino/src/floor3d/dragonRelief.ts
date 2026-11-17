@@ -55,3 +55,80 @@ export function reliefInsertQuads(boxes: Box[], opts: { aspect: number; mirrorPl
   }
   return out;
 }
+
+/**
+ * VA-0101: instead of a 1:2 card, copy the insert's own outward-facing triangles (its real slanted
+ * outline), lift them a hair off the lacquer and give them planar UVs, so the transparent art can
+ * spread over the whole insert and the insert's edge clips it. The texture keeps its aspect: it is
+ * scaled to the face's height (`fit: 'height'`) or to its widest depth (`fit: 'width'`), centred on
+ * the face, and anything outside 0…1 falls on the texture's transparent clamp edge.
+ *
+ * `positions`/`indices` are one insert mesh already in model space (glTF: +Y up, chair toward +Z).
+ */
+export interface FaceDecal {
+  positions: number[];
+  normals: number[];
+  uvs: number[];
+  indices: number[];
+  side: 1 | -1;
+  face: { y: [number, number]; z: [number, number]; area: number; triangles: number };
+  art: { y: [number, number]; z: [number, number] };
+}
+
+export function insertFaceDecal(
+  positions: ArrayLike<number>,
+  indices: ArrayLike<number> | null,
+  opts: { aspect: number; fit?: 'height' | 'width'; mirror?: boolean; lift?: number; minDot?: number },
+): FaceDecal {
+  const lift = opts.lift ?? 0.0015;
+  const minDot = opts.minDot ?? 0.9;
+  const count = indices ? indices.length : positions.length / 3;
+  const idx = (i: number) => (indices ? indices[i] : i);
+  const P = (i: number) => [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]];
+  let cx = 0;
+  for (let i = 0; i < positions.length; i += 3) cx += positions[i];
+  const side: 1 | -1 = cx >= 0 ? 1 : -1;
+  // outward faces: geometric normal along ±X (the side the insert sits on), whatever the file's winding
+  const tris: number[][][] = [];
+  for (let t = 0; t + 2 < count; t += 3) {
+    const a = P(idx(t)), b = P(idx(t + 1)), c = P(idx(t + 2));
+    const u = b.map((v, k) => v - a[k]);
+    const v = c.map((w, k) => w - a[k]);
+    const n = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const len = Math.hypot(n[0], n[1], n[2]);
+    if (len < 1e-12) continue;
+    if (Math.abs(n[0] / len) < minDot) continue;
+    tris.push(Math.sign(n[0]) === side ? [a, b, c] : [a, c, b]);
+  }
+  // a thin slab has two ±X skins; keep the outermost one
+  const outerX = Math.max(...tris.flat().map((p) => p[0] * side));
+  const outer = tris.filter((t) => t.every((p) => Math.abs(p[0] * side - outerX) < 0.004));
+  let area = 0;
+  let y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const t of outer) for (const p of t) {
+    y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]);
+    z0 = Math.min(z0, p[2]); z1 = Math.max(z1, p[2]);
+  }
+  const H = y1 - y0, D = z1 - z0;
+  // world size of the full texture
+  let th = H, tw = H * opts.aspect;
+  if (opts.fit === 'width') { tw = D; th = D / opts.aspect; }
+  const cy = (y0 + y1) / 2, cz = (z0 + z1) / 2;
+  // u = 0 at the viewer's left: +Z on the +X side, −Z on the −X side; `mirror` flips it
+  const dir = (side > 0) !== !!opts.mirror ? -1 : 1;
+  const out: FaceDecal = { positions: [], normals: [], uvs: [], indices: [], side, face: { y: [+y0.toFixed(3), +y1.toFixed(3)], z: [+z0.toFixed(3), +z1.toFixed(3)], area: 0, triangles: outer.length }, art: { y: [+(cy - th / 2).toFixed(3), +(cy + th / 2).toFixed(3)], z: [+(cz - tw / 2).toFixed(3), +(cz + tw / 2).toFixed(3)] } };
+  for (const t of outer) {
+    const base = out.positions.length / 3;
+    for (const p of t) {
+      out.positions.push(p[0] + side * lift, p[1], p[2]);
+      out.normals.push(side, 0, 0);
+      out.uvs.push(0.5 + (dir * (p[2] - cz)) / tw, 0.5 + (p[1] - cy) / th);
+    }
+    out.indices.push(base, base + 1, base + 2);
+    const u = t[1].map((v, k) => v - t[0][k]);
+    const v = t[2].map((w, k) => w - t[0][k]);
+    area += Math.abs(u[1] * v[2] - u[2] * v[1]) / 2;
+  }
+  out.face.area = +area.toFixed(4);
+  return out;
+}
