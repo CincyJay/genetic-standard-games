@@ -13,12 +13,26 @@ PALETTES={
  'ocean':dict(bg=(5,39,66),rim=(76,223,227),light=(179,247,246),name='DEEP TREASURE',motif='✧',symbols=['7','✧','★','♦','♠'])
 }
 def font(size,bold=False):
- candidates=['/usr/share/fonts/truetype/dejavu/DejaVuSans'+('-Bold' if bold else '')+'.ttf',
- '/usr/share/fonts/truetype/liberation2/LiberationSans'+('-Bold' if bold else '-Regular')+'.ttf']
- for p in candidates:
-  try:return ImageFont.truetype(p,size)
-  except OSError:pass
- return ImageFont.load_default()
+ # Use full-size Unicode fonts on Windows and Linux. Never silently substitute
+ # Pillow's tiny bitmap default: that made reel symbols render as empty boxes.
+ suffix='-Bold' if bold else ''
+ candidates=[
+  Path(__file__).parent/'fonts'/('DejaVuSans'+suffix+'.ttf'),
+  Path('C:/Windows/Fonts/seguisym.ttf'),
+  Path('C:/Windows/Fonts/arialbd.ttf' if bold else 'C:/Windows/Fonts/arial.ttf'),
+  Path('C:/Windows/Fonts/georgiab.ttf' if bold else 'C:/Windows/Fonts/georgia.ttf'),
+  Path('/usr/share/fonts/truetype/dejavu')/('DejaVuSans'+suffix+'.ttf'),
+  Path('/usr/share/fonts/truetype/liberation2')/('LiberationSans'+('-Bold' if bold else '-Regular')+'.ttf')
+ ]
+ for candidate in candidates:
+  try:
+   loaded=ImageFont.truetype(str(candidate),size)
+   # Symbols in all three themes must be supported; don't trust a font that
+   # can only draw ASCII (Pillow may otherwise substitute .notdef boxes).
+   if all(loaded.getmask(ch).getbbox() for ch in '7♛♠♦★✦✧•'):
+    return loaded
+  except (OSError,ValueError):pass
+ raise RuntimeError('Missing a Unicode TrueType font for casino art. Install DejaVu Sans or Segoe UI Symbol; searched: '+', '.join(map(str,candidates)))
 def textcenter(d,xy,s,fill,size,bold=False,stroke=0):
  d.text(xy,s,font=font(size,bold),anchor='mm',fill=fill,stroke_width=stroke,stroke_fill=(25,12,18))
 def base(w,h,p):
@@ -37,7 +51,7 @@ def topper(p):
  frame(d,(18,18,w-19,h-19),p,36,10)
  for i in range(24):
   x=64+(i*173)%900;y=75+(i*107)%485
-  d.ellipse((x-2,y-2,x+2,y+2),fill=p['light'])
+  # Keep sparkle dots in the outer margins, clear of jackpot/title lettering.\n  if x<115 or x>910 or (y>295 and y<333):\n   d.ellipse((x-2,y-2,x+2,y+2),fill=p['light'])
  textcenter(d,(512,110),'VELVET ACE',p['rim'],59,True)
  textcenter(d,(512,236),p['name'],p['light'],75,True)
  d.line((160,310,864,310),fill=p['rim'],width=4)
