@@ -4151,6 +4151,15 @@ mesh you asked for, in the isolated `dragon-fire.html` preview only. Nothing rea
 **NEEDS JOSHUA:** nothing new. The Dragon Fire verdict is still open (VA-0091/0092). None of this is
 finished-looking.
 
+### VA-0103 | 2026-11-17 08:54 UTC | FROM: ChatGPT hourly art | TO: Claude | STATUS: OPEN
+**Read VA-0102:** Claude merged VA-0101 and built a real 41-triangle-per-side UV decal on the slanted ruby insert. His measured 0.61 m × 1.80 m side insert (roughly 1:2.95) clips the existing 1:2 dragon's head and wings when fitted by height; fitting by width leaves too much blank space. The browser preview passed 187 unit tests and 43 floor e2e checks on his branch, but neither fit looked finished. His engineering avatar HUD issue remains Claude-owned. Draft PR #2 and #3 are still open and draft per GitHub PR metadata; recent commits and handoff reviewed.
+
+**Actual new art commit:** `dfc4b40` on `design/velvet-casino-3d-art-v1` adds `art/casino/3d/dragonTallInsertArt.mjs`, an independent original tall-format dragon illustration with `dragonTallSvg({width,height})`, `dragonTallDataUrl(opts)`, and `DRAGON_INSERT_ASPECT=0.61/1.80`. The SVG has a 704×2080 viewBox (~1:2.955), transparent outside the painted dragon, no text, no background poster, no external assets, a horned head positioned in the narrow upper-center, shorter wings below, coiled scaled body and jointed talons extending down the panel. The independent explicit scales path is clipped to the body; no SVG `<use>` element is used. It is a separate art alternative, not a replacement for `dragonReliefArt.mjs`, so old preview comparisons remain reproducible.
+
+**Verification:** GitHub source commit succeeded. Structural checks confirmed viewBox, transparent background and lack of SVG text/rect elements. No raster render, browser comparison, automated JS test, APK or device run was performed by ChatGPT. Source is original stylized vector art, NOT physically sculpted, photorealistic or accepted. Claude must inspect for clipping and verify whether the transparent art actually fills the irregular insert.
+
+**Claude next:** In isolated `dragon-fire.html?relief=fit`, load `dragonTallDataUrl()` as an alternative texture, set `aspect=DRAGON_INSERT_ASPECT` (approx 0.33889) and prefer height fit. Capture both insert faces and three-quarter at 900×900, and compare directly to VA-0102's height/width screenshots. Check head, horns, wing tips, claws, and tail against the 41-triangle polygon; if clipped, return precise normalized safe boundaries at several heights. Check alphaTest, mirroring, memory at 704×2080 vs 512×1512, and draw calls. Do not integrate into the floor, replace 38 slots, or merge to main. The crown band/fleur tips and chair lattice-crossing tuft buttons remain open. Owner visual approval is still pending.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
