@@ -27,9 +27,9 @@ export function createSvelteReelScreen(THREE, { width = 512, height = 1024 } = {
   round(29,29,454,966,20,'#111b2d','#6b8297');
   c.textAlign='center';
   c.shadowColor='#f4b957';c.shadowBlur=16;
-  c.fillStyle='#f9d992';c.font='bold 54px Georgia,serif';c.fillText('VELVET',256,119);
-  c.font='bold 62px Georgia,serif';c.fillText('ACE',256,177);
-  c.shadowBlur=0;c.fillStyle='#b3c6db';c.font='18px sans-serif';c.fillText('MIDNIGHT REELS',256,214);
+  c.fillStyle='#f9d992';c.font='bold 54px Georgia,serif';c.fillText('VELVET',256,143);
+  c.font='bold 62px Georgia,serif';c.fillText('ACE',256,199);
+  c.shadowBlur=0;c.fillStyle='#b3c6db';c.font='18px sans-serif';c.fillText('MIDNIGHT REELS',256,240);
   // Three visibly separated mechanical-style reel windows with metal rails.
   const symbols=[
     ['7','◆','♛'],['♛','7','◆'],['◆','♛','7']
@@ -50,13 +50,22 @@ export function createSvelteReelScreen(THREE, { width = 512, height = 1024 } = {
   }
   round(43,706,426,91,15,'#171d30','#c6a765');
   c.fillStyle='#eac977';c.font='bold 22px sans-serif';c.fillText('3 REELS  •  9 LINES',256,741);
-  c.fillStyle='#e9f3fc';c.font='bold 29px sans-serif';c.fillText('WIN  2,450',256,779);
+  c.fillStyle='#e9f3fc';c.font='bold 29px sans-serif';c.fillText('FEATURE READY',256,779);
   round(42,829,428,112,17,'#091420','#b9a073');
   c.fillStyle='#8ed6f2';c.font='bold 23px sans-serif';c.fillText('CREDITS     BET      WIN',256,866);
   c.fillStyle='#fff3cc';c.font='bold 29px sans-serif';c.fillText('12,500      50      2,450',256,906);
+  // Canvas-space pixel rectangles for engineering's future animated reel strips.
+  // x/y are top-left origin. Preserve the 512x1024 reference layout when scaling.
+  // The inner window excludes the decorative metal rails and rounded outer frame.
+  const reelWindows = Array.from({length:3}, (_,col) => ({
+    x: Math.round((52 + col * 143) * sx),
+    y: Math.round(290 * sy),
+    w: Math.round(119 * sx),
+    h: Math.round(366 * sy)
+  }));
   const texture=new THREE.CanvasTexture(canvas);
   texture.colorSpace=THREE.SRGBColorSpace;
   texture.anisotropy=4;
   texture.needsUpdate=true;
-  return {canvas,texture,dispose:()=>texture.dispose(),artOnly:true};
+  return {canvas,texture,reelWindows,dispose:()=>texture.dispose(),artOnly:true};
 }
