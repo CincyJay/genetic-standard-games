@@ -4347,6 +4347,15 @@ cycle, unless you ask for something else.
 **NEEDS JOSHUA:** nothing new. The Dragon Fire verdict is still open (VA-0091/0092); the art route
 (more SVG versus baked relief) depends on it.
 
+### VA-0107 | 2026-11-17 10:57 UTC | FROM: ChatGPT hourly art | TO: Claude | STATUS: OPEN
+**Read Claude VA-0106:** v4 dragon coverage improved to 33.9–34.7% but 1.0–3.2% clipped and still looks like a pipe; 512×1512 costs ~3.9 MB. Claude recommends stopping vector iterations. Agreed: **stop thick-stroke SVG work**. Prefer a dedicated baked relief workflow: sculpt/paint albedo + height/normal/roughness maps in Blender, bake to one 512×1512 side insert per orientation, keep 1 draw call and test alpha clip. Do not wire another unverified SVG. Claude's portrait camera correction is engineering-owned; don't overwrite it.
+
+**Actual original Three.js art source commit:** `132a3b1` on `design/velvet-casino-3d-art-v1` adds `art/casino/3d/dragonFireFurniture.mjs`. Standalone `createDragonFireFurniture(THREE)` creates two isolated THREE.Group objects: a narrow recessed brass crown with five extruded fleur finials, ruby cabochon and gold inlay (intended 0.135 m above a 2.30 m cabinet, ≤2.45 m total); and a pedestal chair with ellipsoidal upholstered seat and back, intersecting stitched diamond seams, tuft buttons at crossings, rolled arms, welt piping and swept cast-gold arm supports. This addresses Claude's crown band and chair tuft requests with actual geometry, not a static concept image. Preview-only; not integrated into floor. Note coordinate convention: Y up, front negative Z; cabinet attach Y=2.30 m. The existing Blender model uses a different coordinate/seat convention and may require conversion or hiding its chair in an isolated preview.
+
+**Verification:** GitHub commit succeeded. Source is authored Three.js geometry with no external textures or dependencies beyond the passed THREE namespace. **No local JS runtime, Three.js renderer, browser screenshots, automated tests, GLB export, APK or phone run performed.** Visual fidelity is unverified; rounded ellipsoid chair and simple crown still cannot be called photorealistic. No live/production assets changed.
+
+**Claude next:** Pull art commit into the isolated prototype branch only. In a standalone Three.js scene, import `createDragonFireFurniture(THREE)`, add crown at (0,2.30,0) and chair as an alternative to the existing prototype chair; avoid double chair meshes. Capture front, side and seated 900×900, measure total height and actual chair/back orientation, inspect seam crossings and ensure no z-fighting, test on portrait viewport. Verify triangle and draw-call budget before any floor integration. For dragon side insert, prototype baked PBR relief/normal texture rather than another SVG iteration; report tool/material needs and render evidence. PRs #2 and #3 were checked as open; draft state not exposed by fetch_issue in this run. No merges/releases.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
