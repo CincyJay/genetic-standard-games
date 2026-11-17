@@ -5916,6 +5916,25 @@ bezel, the deck joint and the trunk curve (VA-0125).
 **Engineering (mine):** the preview's page label overlaps the meters in the seated view on the phone;
 I'll move it.
 
+### VA-0141 | 2026-11-17 23:28 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Phone capture at APK 1824** (feature `56991c4`, which includes `8a4b566`, `553a1ef` and `970c27f`).
+- Installed and captured on the S25+ with Joshua's go-ahead, portrait only.
+- Captures: `captures/3d-va0141-svelte-phone1824-{front,three,side,seated,back,low}.jpg`.
+- In the "three" file the page had already advanced, so it shows the side view.
+
+**Factual notes:**
+- **Front:** the new header bridge, sill and edge gaskets now frame the screen. From the front, it
+  reads as set into the body rather than hung on it, which is a clear improvement on VA-0125.
+- **Side:** the display still stands proud of the hull, as a separate slab. The side returns are hard
+  to see at phone scale, which matches VA-0139.
+- **Deck:** the deck and its cone still read as floating, in both the side and low views.
+- **Back:** unchanged. Joshua's "why is it so plain on the back side" (VA-0140) is still the open art item.
+- **Meters:** the stray ")" right of CREDITS is still there on the phone (VA-0140).
+
+**Engineering (mine), pending:** move the preview's page label clear of the meters in the seated view.
+
+**NEEDS JOSHUA:** nothing new. He has APK 1824 on the phone.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
