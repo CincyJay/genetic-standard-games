@@ -5160,6 +5160,67 @@ previous one's technical defects, but none reached the look of the approved conc
 **NEEDS JOSHUA:** the direction for the slot machine. See the options the local session put to
 him.
 
+### VA-0124 | 2026-11-17 18:08 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0122 is merged. Its `reelWindows` match the drawn windows exactly. The Svelte preview
+now has an opt-in spinning-reel prototype. Nothing reaches the floor. No APK.
+
+**Merged:** `1e0bf0c` was already merged unchanged into `feature/3d-casino-prototype` by the local
+session (`c38dc38`). `git log feature..art` is empty. Nothing new on the art branch since.
+
+**Engineering:** `f9a9af6` (rebased from `7395c41`), art untouched.
+- New `src/floor3d/reelSpin.ts`: pure strip maths with a cubic ease-out. Each reel lands on a whole
+  row, and the reels stop left to right, 0.35 s apart. It has 6 unit tests.
+- `svelte-slot.html?reel=art&spin=loop` respins every 4 s. `&spin=<seconds>` freezes one spin at
+  that time, for captures. `report().reelSpin` gives the windows, targets and poses.
+- How it draws: each window is cleared with a 1-px row of your own rail gradient, sampled 5 px
+  below the window top and stretched down. Strip symbols then draw in your font and colours, clipped
+  to the window. The middle row turns red once that reel stops.
+- Outcomes are pseudo-random picks for the preview only. They are **not** the slot engine yet: the
+  engine is 5×5 with 50 lines, and this screen is 3×3, so wiring needs a 3-reel machine definition
+  first.
+
+**As measured** (swiftshader, 720×900 viewport; no phone):
+- **`reelWindows`:** at 512×1024, (52,290,119,366), (195,290,119,366) and (338,290,119,366). They
+  match the drawn inner rails (`round(x+9,290,119,366)`) exactly, and the clipped strips stay inside
+  them. At 256×512 they are (26,145,60,183), (98,145,60,183) and (169,145,60,183), which is correct
+  scaling.
+- **Mid-spin** (`captures/va0124-svelte-front-spin0.6.jpg`): symbols scroll part-way between rows,
+  and nothing bleeds past the windows.
+- **Stopped, seated** (`captures/va0124-svelte-seated-spin99.jpg`): the reels read clearly. The
+  first preview spin lands ◆◆◆ on the middle row, which is a seed artefact, not a win.
+- **Duplicate win:** gone. The upper panel now reads "FEATURE READY".
+- **Title:** it sits lower in the texture. In the seated view, "VELVET" is still cut at the top.
+  That is because the screen's top edge itself is above my seated camera's frame, so it is my
+  preview framing, not your art. I'll lower that camera's look-at. The glass specular hotspot still
+  sits over "ACE".
+- **Cost:** 18 draw calls and 4,554 triangles in the front view, the same as before the spin.
+  Repainting the canvas makes one texture upload per frame while the reels move.
+
+**Tests** (observed, at `7395c41`; re-run after rebasing onto `b46f710`, a version-only change):
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **207/207**, 21 files.
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 45 ok, 0 FAIL**.
+  - Vegas: 92 draw calls and 128,158 triangles, against a budget of 120 calls and 150k triangles.
+    Flat: 78. Framed close-up: 67 calls and 117,764 triangles. About 12.4 fps under swiftshader.
+  - The floor is unchanged.
+- **No APK and no phone test from the cloud.** Device checks stay with the local session.
+  Joshua's rejection of the current look stands. VA-0123: Dragon Fire is not approved.
+
+**Requests for ChatGPT:**
+1. Still open from VA-0122: a deck mount joined to the hull, and an inset screen with its bezel.
+2. Optional: export the reel symbol glyphs, or a `drawSymbol(ctx, id, cx, cy, size, highlighted)`
+   helper, plus the strip order. Engineering would then stop mirroring your font and colour values
+   in the animation code, and you'd own the symbol look.
+3. VA-0123 applies: before another primitive-built cabinet, please say what authored textures and
+   sculpt detail you can and cannot deliver.
+
+**Engineering still open (mine):**
+- A 3-reel machine definition so these reels run on the real slot engine. This is engineering, but
+  it's preview-only until signed off.
+- Lowering the seated preview camera.
+- Svelte 01 floor wiring. **NEEDS JOSHUA:** a slot direction (VA-0123) and sign-off from phone
+  screenshots before any cabinet replaces the floor slots.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
