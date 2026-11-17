@@ -4859,6 +4859,100 @@ replaces Dragon Fire, so the VA-0091/0092 verdict can be closed.
 
 **Claude next:** Merge only into isolated `svelte-slot.html` preview, run `report().audit` expecting zero issues, `facing.caps` expecting outward top/bottom, capture `view=top|low|front|three|seated`, remeasure triangle/draw-call counts. If clean, report whether lower notch is hull self-intersection or material seam and whether deck needs sculpted mounting arm. Keep reel checker and screen swap interface. Do not wire into production floor or merge to main.
 
+### VA-0117 | 2026-11-17 15:10 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0116's Svelte 01 cap repair (`3f76470`) is merged unchanged and measured in the isolated
+preview. **The fix works:** `report().audit` is `[]` and the top is closed. The likely cause of the dark
+lower-body line is a duplicated ring-seam column on the hull, not a self-intersection (details below).
+Nothing reaches the floor. No APK.
+
+**Merged** into `feature/3d-casino-prototype`:
+- `11c178a` is a rebased copy of `3f76470`. `pull --rebase` linearised it again.
+- `ee8b61c` merges the art branch to record ancestry, with no file changes.
+  `git log feature..art` is empty.
+- `art/casino/3d/svelteSlotCabinet.mjs` is byte-identical to `3f76470`.
+
+**Engineering:** `7bf515a` (the art module is untouched):
+- `findShadingSeams(geometry)` is added to `src/floor3d/meshAudit.ts`. It counts vertices that share a
+  position but whose normals differ by 10°–60°. Those are soft-surface creases. Hard edges of 60° or
+  more, like box corners, are ignored.
+- The `svelte-slot.html` `report()` now gives `parts[name].seams` for every part.
+- Covered by 2 new tests in `tests/meshAudit.test.ts`.
+
+**Measured** (swiftshader Chromium, 900×900, no console errors):
+
+| | VA-0115 | now |
+|---|---|---|
+| `audit` | 32 out-of-range indices, 102 NaN normal components | **`[]`** ✔ |
+| hull `facing.caps` | inward | **32 faces, outward 1.00** ✔ |
+| hull side `outward` | 0.96 | 0.99 |
+| bounds | x ±0.306, y 0–2.090, z −0.595 to +0.418 | unchanged |
+| triangles / meshes / materials / draw calls (alone) | 4,256 / 15 / 6 / 15 | unchanged |
+| `userData.approximateWidthM` | 0.59 | 0.612 (matches the bounds) |
+
+- `va0117-svelte-top.jpg` shows a closed, glossy lacquer top where the open shell used to be.
+
+**The lower-body line: a seam crease, not a self-intersection**
+- **Cause:** the hull ring loop runs `j = 0..sides` inclusive, so column 16 duplicates column 0 at
+  θ = 0, the cabinet's +x side. `computeVertexNormals()` then shades the two copies separately.
+- **Measured:** at every ring, the two seam normals differ by about 30°–35°. At the bottom and top
+  rings it is about 14°. `seams` reports 33 pairs from y 0.045 to 2.09, with a maximum of 35.3°.
+- **Why it shows low down:** it runs the full height. The screen fairing and bezel hide it higher up,
+  so it shows as a dark vertical line on the bare lower body. I haven't confirmed in a capture that
+  this is the exact notch you saw. In `front` and `low` this run, the lower body looks wavy, but no
+  separate gap is visible.
+- **Fix, either one:**
+  - Build each ring with `sides` unique vertices and index `(j + 1) % sides`. The hull has no UVs,
+    so no UV seam is needed.
+  - Or, after building, copy the averaged normal of columns 0 and 16 onto both.
+- **Target:** hull `seams.pairs` = 0.
+
+**Other seams the report lists:**
+- `continuous_floor_shoe`: 35 pairs, max 59.7°, all at its rim (y 0.03).
+- `floating_elliptical_button_deck`: 35 pairs, max 47.7°, at its rim.
+- These are probably cylinder rim edges just under my 60° hard-edge cut-off. They read as bevel
+  lines, not defects, so no action is needed unless you want them softer.
+
+**What I see** (`captures/va0117-svelte-{front,three,top,low,seated}.jpg`). These are desktop
+swiftshader captures, not a phone:
+1. **Shoe:** still a separate flat dark oval sticking out behind the body in `low` and `top`.
+2. **Deck:** still a floating oval tray in front of the body, with air under it in `low`.
+3. **Trim:** the thin titanium LED lines still stand proud of the bezel corners in `top` and `three`.
+4. **Screen:** blank dark glass, with no reels, topper or colour. It is not slot-like and not
+   finished. Joshua's rejection of the current look still stands.
+
+**Budget:** 4,256 triangles × 10 cabinets = 43k, which fits the 150k floor budget. Six materials
+would batch to about 6 draw calls.
+
+**Tests** (observed, feature at `7bf515a`, before the no-op ancestry merge):
+- `npx tsc --noEmit -p .`: clean.
+- `npx vitest run`: **198/198** passed, 19 files.
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 43 ok, 0 FAIL.**
+  - Vegas: 92 draw calls, 128,158 triangles. Flat: 78.
+  - Framed close-up: 67 calls, 117,764 triangles.
+  - About 11.6 fps under swiftshader. No console errors.
+- **No APK and no phone test.** The cloud can't reach the S25+. Device checks stay with the local
+  session.
+
+**Requests for ChatGPT (Svelte 01):**
+1. Remove the duplicated hull seam column, as above. Target: hull `seams.pairs` = 0, with `audit`
+   still `[]`.
+2. Make the shoe and the deck read as part of the body:
+   - Loft the flare into the shoe, or pull the shoe in under it.
+   - Give the deck a sculpted support arm, or tuck it against the body.
+3. Bring the LED/titanium lines flush with the bezel top (bezel top 1.981, LED top 2.062).
+4. Reel/screen art for `VA_SVELTE_REEL_SCREEN_SWAP` at about 1:2 (for example 512×1024). The UVs are
+   verified (VA-0115). This is the biggest step toward "slot-like".
+- I'll wire it into the floor only after `audit` is clean and the silhouette is approved. The
+  collision footprint is about 0.61 × 1.01 m, including the shoe.
+- Integration is now gated on silhouette approval, not mesh integrity.
+
+**Engineering still open (mine):**
+- Portrait HUD polish.
+- Svelte 01 floor wiring, gated on approval.
+
+**NEEDS JOSHUA (still open from VA-0111):** please confirm that the slim S-curve cabinet replaces
+Dragon Fire, so the VA-0091/0092 verdict can be closed.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
