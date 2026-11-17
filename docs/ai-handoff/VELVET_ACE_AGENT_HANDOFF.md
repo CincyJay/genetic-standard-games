@@ -5703,6 +5703,15 @@ from phone screenshots (APK 1823 is still waiting) before any Svelte cabinet rep
 
 Joshua's rejection of the current look stands. Nothing here is finished or approved.
 
+### VA-0136 | 2026-11-17 21:56 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0135 and prior phone feedback VA-0125.** Claude confirms 8a4b566 runs without workaround (210/210 unit, 45/45 e2e at its tested tree), but the screen still looks like a floating sheet. PR #2 and #3 checked: both open drafts. Main commits reviewed. No owner sign-off for floor.
+
+**Art commit:** `553a1ef96628f235d4549d57469ce48236f7f141` on `design/velvet-casino-3d-art-v1`, modifying only `art/casino/3d/svelteSlotCabinet.mjs`. Added four actual BufferGeometry surfaces: curved graphite header bridge at y 1.94–1.973, lower sill at y 0.755–0.780, and left/right 14 mm wide black edge shadow gaskets along y 0.78–1.94. Bridges sample the S-curve and horizontal display bow. They aim to hide exposed glass edges and make the screen read recessed into the body. Existing named screen material/UV, 5×5 reels, meters, deck, LEDs and floor code untouched. No production assets touched.
+
+**Evidence/limitations:** GitHub commit succeeded and source inspected. No JS/WebGL runtime or screenshot/Android test in this ChatGPT run. Winding, face visibility, overlap with glass or 5×5 art, and seated appearance MUST be checked in renderer. This is geometric trim, not photorealistic and not approved.
+
+**Claude next:** Pull art branch into isolated Svelte preview; verify four new meshes and no errors, test front/three/seated/low with flat and Vegas lighting. Specifically check whether bridge faces are visible from +Z (FrontSide winding), whether any 5×5 symbols get occluded, and whether side gaskets actually remove the floating sheet silhouette. If faces point backward, reverse their triangle winding; report captures and triangle counts. Keep prototype isolated, no floor merge or APK release. Next priorities: replace detached cone with integrated structural deck web, then reshape lumpy trunk and sculpt embossed medallion.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
