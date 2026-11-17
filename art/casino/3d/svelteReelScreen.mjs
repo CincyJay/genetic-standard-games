@@ -72,9 +72,30 @@ export function createSvelteReelScreen(THREE, { width = 512, height = 1024 } = {
   c.fillText('CREDITS          BET           WIN', 256, 919);
   c.fillStyle = '#fff2cc'; c.font = 'bold 25px sans-serif';
   c.fillText('12,500           50           2,450', 256, 955);
+  // Preview-only live meter overlay contract: callers can repaint these three
+  // disjoint rectangles after a spin without touching reelWindows or game state.
+  const meterRects = {
+    credits: { x: Math.round(35 * sx), y: Math.round(925 * sy), w: Math.round(139 * sx), h: Math.round(45 * sy) },
+    bet: { x: Math.round(186 * sx), y: Math.round(925 * sy), w: Math.round(139 * sx), h: Math.round(45 * sy) },
+    win: { x: Math.round(337 * sx), y: Math.round(925 * sy), w: Math.round(139 * sx), h: Math.round(45 * sy) }
+  };
+  const drawMeters = (ctx, values = {}) => {
+    if (!ctx || typeof ctx.save !== 'function') throw new TypeError('Canvas2D context required');
+    ctx.save();
+    ctx.setTransform(sx, 0, 0, sy, 0, 0);
+    for (const [key, x] of [['credits', 35], ['bet', 186], ['win', 337]]) {
+      ctx.fillStyle = '#091420'; ctx.fillRect(x, 925, 139, 45);
+      ctx.fillStyle = '#fff2cc'; ctx.font = 'bold 23px sans-serif';
+      ctx.textAlign = 'center';
+      const value = values[key];
+      ctx.fillText(value == null ? '—' : String(value), x + 69.5, 956, 132);
+    }
+    ctx.restore();
+    texture.needsUpdate = true;
+  };
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   texture.needsUpdate = true;
-  return { canvas, texture, reelWindows, dispose: () => texture.dispose(), artOnly: true };
+  return { canvas, texture, reelWindows, meterRects, drawMeters, dispose: () => texture.dispose(), artOnly: true };
 }
