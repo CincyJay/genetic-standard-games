@@ -172,6 +172,25 @@ describe('cameras', () => {
     const landscape = desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 2.17 });
     expect(landscape.pos.y).toBeLessThan(portrait.pos.y);
   });
+  it('portrait follow keeps the avatar\'s feet above the joystick ring on 360×780 and 384×832 (VA-0098)', () => {
+    for (const [w, h] of [[360, 780], [384, 832], [412, 915]]) {
+      const p = desiredPose('follow', { x: 0, z: 0 }, 0, LIMITS.follow.initial, { aspect: w / h });
+      // pinhole projection of the feet (avatar origin on the floor) into screen pixels from the top
+      const f = { x: p.target.x - p.pos.x, y: p.target.y - p.pos.y, z: p.target.z - p.pos.z };
+      const fl = Math.hypot(f.x, f.y, f.z);
+      const fw = { x: f.x / fl, y: f.y / fl, z: f.z / fl };
+      const r0 = { x: -fw.z, y: 0, z: fw.x }; // forward × up
+      const rl = Math.hypot(r0.x, r0.z);
+      const rt = { x: r0.x / rl, y: 0, z: r0.z / rl };
+      const up = { x: rt.y * fw.z - rt.z * fw.y, y: rt.z * fw.x - rt.x * fw.z, z: rt.x * fw.y - rt.y * fw.x };
+      const v = { x: -p.pos.x, y: -p.pos.y, z: -p.pos.z };
+      const depth = v.x * fw.x + v.y * fw.y + v.z * fw.z;
+      const ndcY = (v.x * up.x + v.y * up.y + v.z * up.z) / depth / Math.tan(((p.fov / 2) * Math.PI) / 180);
+      const feetY = ((1 - ndcY) / 2) * h;
+      const joyTop = h - 40 - 136; // .joy: bottom 40 px, 132 px + 2 px border each side
+      expect(feetY).toBeLessThan(joyTop - 8);
+    }
+  });
   it('the follow view sits over the right shoulder, so the avatar is off-centre, wider in landscape', () => {
     const avatar = { x: 0, z: 0 };
     for (const heading of [0, Math.PI / 2, 2.4]) {

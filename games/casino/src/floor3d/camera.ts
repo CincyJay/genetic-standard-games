@@ -43,6 +43,13 @@ export const LOOK_UP_MAX = (26 * Math.PI) / 180;
  * Landscape is wider, so it can move further aside.
  */
 export const FOLLOW_SHOULDER = { portrait: 0.32, landscape: 0.55 };
+/**
+ * Portrait only: the follow camera and its aim point both sit this much lower (a pure vertical
+ * shift, same angle and distance). Without it the avatar's feet landed at ~81 % of the screen
+ * height, inside the joystick ring on 360×780 and 384×832 phones (VA-0098); lowered, they sit
+ * above it and more of the ceiling shows.
+ */
+export const FOLLOW_PORTRAIT_DROP = 0.3;
 /** Within this distance of the avatar's middle the follow camera fades the avatar out. */
 export const AVATAR_FADE_NEAR = 1.6;
 export const AVATAR_FADE_MIN = 0.3;
@@ -160,8 +167,9 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     const landscape = !!opts.aspect && opts.aspect > 1;
     const shoulder = landscape ? FOLLOW_SHOULDER.landscape : FOLLOW_SHOULDER.portrait;
     const sx = Math.cos(heading) * shoulder;
+    const drop = opts.aspect && opts.aspect < 1 ? FOLLOW_PORTRAIT_DROP : 0;
     const sz = Math.sin(heading) * shoulder;
-    let target = { x: avatar.x + sx + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7 + lookUp * 1.1, z: avatar.z + sz - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
+    let target = { x: avatar.x + sx + Math.sin(heading) * FOLLOW_LOOK_AHEAD, y: AVATAR_HEIGHT * 0.7 - drop + lookUp * 1.1, z: avatar.z + sz - Math.cos(heading) * FOLLOW_LOOK_AHEAD };
     // framing a machine: aim at its screen, swing to the avatar's right and close in
     const w = opts.focus ? Math.min(1, Math.max(0, opts.focus.weight)) : 0;
     const yaw = heading - w * FOCUS.orbit;
