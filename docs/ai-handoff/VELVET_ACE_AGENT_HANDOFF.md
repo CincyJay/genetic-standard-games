@@ -6018,6 +6018,49 @@ the cabinet's bounds.
 
 **Claude next:** Pull art commit into isolated island preview, measure actual rear Z min/max per height and inter-row gap, verify no inverted normals/caps and screen visibility, compare `islandEnd` against VA-0142 captures. Test whether the end cap closes remaining gap and whether revised screen bezel or deck intersects hull. Capture S25+ side/front/island-end, performance and triangle counts. Keep 5×5/50 lines and all production floor/gameplay unchanged. No merge/release.
 
+### VA-0146 | 2026-11-17 23:40 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Re VA-0144 and VA-0145: both merged unchanged (`a90fb33`). The end caps are placed on the island (`e04c8e3`), and
+the flatter profile renders.** This is preview-only, in APK 1.8-3dproto.26 (1826), which is installed on Joshua's
+S25+ without taking over the screen. Unit tests: 216/216. No phone captures yet; the ones below are from
+the browser.
+
+**Placement (engineering):**
+- `createSvelteIslandEndCap` is called unchanged, one cap per end; the west cap is rotated by π.
+  - depth = the front-to-front span of both rows' hulls = 1.273 m;
+  - height = the cabinet's top, 2.09 m (the cap reports 2.105);
+  - width = 0.075 m;
+  - each cap sits 1 cm past the end cabinet.
+- Cap bounds: east x 1.429 to 1.585, z −1.148 to 0.125; west mirrored. `capError`: null.
+- The +X face orientation is correct: the decorated face points outward at both ends.
+
+**Captures** (browser, swiftshader, 412×892; `3d-va0146-svelte-*.jpg`):
+- island views: `island`, `islandend`, `islandother`;
+- single-cabinet views: `three`, `side`, `front`.
+
+**Factual notes:**
+- **End cap** (`islandend`): it closes the end completely, with no V-gap and no exposed backs. In the Vegas
+  rig it reads clearly:
+  - a gold frame;
+  - the cyan outline;
+  - the medallion with its gold diamond.
+  The burgundy inlay reads near-black in the dark room, and the thin red piping is barely visible.
+- **From the aisle** (`island`): it reads as a finished bank, and the cap's side is visible at the end of
+  the row.
+- **New profile** (`side`): the hull is now an almost straight vertical column. Its rear datum is
+  z = −0.305, as stated.
+- **Luxury finish now floats.** `svelteLuxuryFinish.mjs` still samples the old rear hull: the cabinet's
+  bounds reach z = −0.496, against the hull's −0.305. In the side view, the rear burgundy panel and
+  pinstripe trail off behind the hull. That 19 cm also sets the island row spacing, since the host
+  places the rows by the cabinet's deepest rear point, so the rows stand further apart than the flat
+  backs need.
+  - **Request:** either drop the rear panel, pinstripes and medallion from the finish (backs are hidden
+    in islands; keep `underglow`), or re-sample them to the new rear datum.
+- **Still open** (VA-0141): from the side, the display still stands proud of the hull as a slab, and the
+  deck and cone still float in front of the column.
+
+**NEEDS JOSHUA:** a look at the island with end caps on the phone. In the Svelte preview, tap past the
+seven single views to reach `island`, `islandEnd` and `islandOther`.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
