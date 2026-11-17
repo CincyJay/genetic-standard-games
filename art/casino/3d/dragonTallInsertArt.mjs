@@ -1,5 +1,5 @@
 /**
- * Dragon Fire tall side-insert art, v3. Original vector illustration.
+ * Dragon Fire tall side-insert art, v4. Original vector illustration.
  * Designed for the measured ~0.61m x 1.80m ruby panel (aspect 1:2.95).
  * All visible strokes stay within the inner safe region of the tapering panel.
  * The head faces left in image coordinates; the engine may mirror the +X side.
@@ -32,10 +32,20 @@ export function dragonTallSvg({width=704,height=2080}={}) {
  <path d="M365 260 Q418 190 399 148 M392 258 Q455 221 445 182" stroke-width="9"/>
  <path d="M414 351 Q480 411 455 483 M315 372 Q252 423 281 478" stroke-width="6"/>
 </g>
+<!-- Expanded, multi-lobed shoulder fans sit inside Claude's measured upper safe spans. -->
+<path d="M320 655 Q220 569 106 598 L142 685 L97 765 Q193 739 205 846 Q264 772 327 814 L373 693Z" fill="url(#wing)" stroke="#d9a64c" stroke-width="12" stroke-linejoin="round"/>
+<path d="M388 664 Q469 574 550 615 L508 697 L563 788 Q478 744 465 853 Q426 786 368 816Z" fill="url(#wing)" stroke="#d9a64c" stroke-width="12" stroke-linejoin="round"/>
+<g stroke="#f6d78e" stroke-width="7" fill="none" opacity=".8"><path d="M342 688 L106 598 M342 688 L97 765 M342 688 L205 846 M385 690 L550 615 M385 690 L563 788 M385 690 L465 853"/></g>
 <!-- Distinct feathered wing membranes in the upper-midsection, not outside the panel. -->
 <path d="M341 548 Q275 456 194 478 Q229 565 182 633 Q265 619 255 713 Q318 669 352 736 L380 601 Z" fill="url(#wing)" stroke="#f2c36a" stroke-width="10" stroke-linejoin="round"/>
 <path d="M373 600 Q449 466 518 510 Q467 567 507 633 Q442 618 459 716 Q402 676 374 734 Z" fill="url(#wing)" stroke="#f2c36a" stroke-width="10" stroke-linejoin="round"/>
 <g stroke="#ffd98c" stroke-width="5" fill="none" opacity=".8"><path d="M350 597 L194 478 M350 600 L182 633 M350 600 L255 713 M379 608 L518 510 M379 608 L507 633 M379 608 L459 716"/></g>
+<!-- Broad underpainting makes the dragon read as a substantial sculpted animal from 3m.
+     Stroke is deliberately behind the detailed body, so scales and glints remain crisp. -->
+<path d="M352 290 C257 389 306 501 350 578 C448 723 401 780 340 860 C222 1005 217 1082 270 1164 C330 1274 450 1301 411 1417 C361 1532 217 1547 225 1655 C227 1747 310 1815 399 1866"
+ fill="none" stroke="#512116" stroke-width="114" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M352 290 C257 389 306 501 350 578 C448 723 401 780 340 860 C222 1005 217 1082 270 1164 C330 1274 450 1301 411 1417 C361 1532 217 1547 225 1655 C227 1747 310 1815 399 1866"
+ fill="none" stroke="url(#body)" stroke-width="101" stroke-linecap="round" stroke-linejoin="round"/>
 <!-- A thick sinuous coiled body occupies the lower two thirds, with an independent scale overlay. -->
 <path d="M352 275 C275 336 267 475 348 573 C438 674 462 759 368 842 C278 926 231 1001 292 1113 C355 1226 487 1287 449 1406 C412 1525 269 1517 257 1653 C249 1737 322 1812 414 1855 C318 1841 212 1794 194 1684 C168 1530 341 1472 352 1390 C361 1320 246 1276 203 1165 C148 1018 232 909 303 822 C371 741 350 687 287 605 C197 488 224 329 352 275 Z" fill="url(#body)" stroke="#3b1a14" stroke-width="12"/>
 <path d="M352 275 C275 336 267 475 348 573 C438 674 462 759 368 842 C278 926 231 1001 292 1113 C355 1226 487 1287 449 1406 C412 1525 269 1517 257 1653 C249 1737 322 1812 414 1855 C318 1841 212 1794 194 1684 C168 1530 341 1472 352 1390 C361 1320 246 1276 203 1165 C148 1018 232 909 303 822 C371 741 350 687 287 605 C197 488 224 329 352 275 Z" fill="url(#scales)" clip-path="url(#bodyclip)" opacity=".75"/>
@@ -53,6 +63,11 @@ export function dragonTallSvg({width=704,height=2080}={}) {
  <path d="M529 1028 l25 18 -10-30 Z M478 1055 l-8 30 -8-28 Z M514 1054 l20 26 -8-32 Z"/>
  <path d="M145 1343 l-22 21 10-30 Z M194 1361 l-6 30 -8-27 Z M165 1372 l-23 22 12-31 Z"/>
  <path d="M526 1604 l27 22 -11-33 Z M463 1626 l-7 30 -9-30 Z M501 1633 l22 26 -9-32 Z"/>
+</g>
+<!-- Lower-right enamel flames exploit the wide 60–85% band; leave ruby negative space. -->
+<g fill="url(#wing)" stroke="#e5b563" stroke-width="7" opacity=".94">
+ <path d="M492 1692 Q572 1634 557 1538 Q628 1591 602 1660 Q645 1630 648 1588 Q680 1748 568 1812 Q599 1744 552 1728 Q549 1790 509 1822 Q528 1732 492 1692Z"/>
+ <path d="M475 1435 Q542 1371 520 1314 Q599 1384 561 1455 Q610 1419 610 1391 Q650 1500 556 1574 Q581 1498 533 1477 Q524 1527 480 1554 Q502 1485 475 1435Z"/>
 </g>
 <!-- Decorative tapered tail tip and sparse fire flecks; no external lettering. -->
 <path d="M414 1855 Q455 1918 427 1970 Q404 1925 375 1930 Q405 1890 414 1855" fill="url(#metal)" stroke="#673418" stroke-width="7"/>
