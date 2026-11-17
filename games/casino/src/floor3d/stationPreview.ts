@@ -42,7 +42,12 @@ function placeScreens(station: THREE.Object3D, on: boolean): void {
     const m = station.getObjectByName(n)!;
     if (!m.userData.authored) m.userData.authored = { z: m.position.z, ry: m.rotation.y };
   }
-  if (on) return seatCurvedScreens(THREE, station);
+  // the art's own placement (VA-0077 on) needs no seating: then both modes are the art as authored
+  if (on) {
+    station.userData.seated = seatCurvedScreens(THREE, station) > 0;
+    return;
+  }
+  station.userData.seated = false;
   for (const n of SCREENS) {
     const m = station.getObjectByName(n)!;
     const a = m.userData.authored as { z: number; ry: number };
@@ -127,7 +132,7 @@ function start(): void {
   const label = document.createElement('div');
   Object.assign(label.style, { position: 'fixed', left: '12px', bottom: '10px', font: '600 13px system-ui', color: '#e9c86a', letterSpacing: '.06em', pointerEvents: 'none' });
   document.body.appendChild(label);
-  const relabel = () => (label.textContent = `PROTOTYPE · SLOT STATION PILOT · ${theme} · screens ${isPlaced ? 'placed on front' : 'as authored'} · ${current}`);
+  const relabel = () => (label.textContent = `PROTOTYPE · SLOT STATION PILOT · ${theme} · screens ${station?.userData.seated ? 'seated by host' : 'as authored'} · ${current}`);
   relabel();
 
   // tap to cycle the views (on the phone, without a script)
@@ -186,7 +191,12 @@ function start(): void {
       theme,
       station: box(station!),
       cabinet: parts(/^(?!.*chair|.*seat|.*cushion|.*arm|.*stitch|.*pedestal|.*leather)/),
-      gaskets: parts(/black-gasket/),
+      frames: parts(/gasket/),
+      deck: parts(/angled-control-deck/),
+      buttons: parts(/physical-illuminated-button/),
+      chairBack: parts(/contoured-upholstered-chair-back|contoured-leather-back/),
+      stitching: parts(/stitch/),
+      arms: parts(/padded-chair-arm/),
       screens,
       chair: box(station!.getObjectByName('matching-padded-casino-chair')!),
       seatTop: parts(/deep-cushioned-seat/).max[1],

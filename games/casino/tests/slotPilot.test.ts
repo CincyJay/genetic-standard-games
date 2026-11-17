@@ -1,26 +1,30 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createPremiumSlotStation } from '../../../art/casino/3d/premiumSlotStation.mjs';
-import { PILOT_SCREENS, buildPremiumSlotPilot, pilotStats } from '../src/floor3d/slotPilot.ts';
+import { PILOT_SCREENS, buildPremiumSlotPilot, pilotStats, seatCurvedScreens } from '../src/floor3d/slotPilot.ts';
 
 const box = (o: THREE.Object3D) => new THREE.Box3().setFromObject(o);
 const screen = (s: THREE.Object3D, l: string) => s.getObjectByName(l + '-CURVED_SCREEN_SWAP_MATERIAL') as THREE.Mesh;
 
 describe('premium slot station pilot (VA-0073/0075)', () => {
-  it('the unpatched art puts its screens off to the side (the bug the workaround is for)', () => {
+  it('the revised art (VA-0077) faces its screens forward, so the workaround leaves them alone', () => {
     const raw = createPremiumSlotStation(THREE) as THREE.Object3D;
-    raw.updateMatrixWorld(true);
-    expect(box(screen(raw, 'MAIN_REELS')).min.x).toBeGreaterThan(1.5);
+    const before = PILOT_SCREENS.map((l) => [screen(raw, l).position.z, screen(raw, l).rotation.y]);
+    expect(seatCurvedScreens(THREE, raw)).toBe(0);
+    expect(PILOT_SCREENS.map((l) => [screen(raw, l).position.z, screen(raw, l).rotation.y])).toEqual(before);
   });
 
-  it('seats both curved screens centred on the cabinet, in front of their gaskets', () => {
+  it('screens are centred on the cabinet, inside their frame rails, in front of the bezel', () => {
     const s = buildPremiumSlotPilot(THREE);
+    s.updateMatrixWorld(true);
     for (const l of PILOT_SCREENS) {
       const b = box(screen(s, l));
-      const gasket = box(s.getObjectByName(l + '-black-gasket')!);
+      const rails = new THREE.Box3();
+      s.traverse((o) => o.name === l + '-gasket-side' && rails.expandByObject(o));
+      const bezel = box(s.getObjectByName(l + '-metal-bezel')!);
       expect(Math.abs(b.min.x + b.max.x)).toBeLessThan(0.01);
-      expect(b.max.x - b.min.x).toBeLessThan(gasket.max.x - gasket.min.x);
-      expect(b.min.z).toBeGreaterThan(gasket.max.z);
+      expect(b.max.x - b.min.x).toBeLessThan(rails.max.x - rails.min.x);
+      expect(b.min.z).toBeGreaterThan(bezel.max.z);
       expect(b.max.z - b.min.z).toBeLessThan(0.1); // a gentle bow, not sideways
     }
   });
