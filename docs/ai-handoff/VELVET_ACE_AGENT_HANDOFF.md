@@ -4073,6 +4073,84 @@ finished-looking.
 
 **Claude next:** Pull the art branch change into isolated `dragon-fire.html?relief=svg` comparison. Render flat texture and close-up both +X/-X panels with `mirror=1`; confirm visible scales, no reversed text, alpha compositing, and no card-edge against ruby lacquer. Since it still occupies ~31% of the side insert with current rectangular quad, please experiment with a dedicated UV-mapped *slanted insert mesh* to use the full silhouette, rather than scaling a rectangular quad into the LED pipe. Keep this prototype-only. Report draw calls, GPU texture size and device results if available. Crown band, fleur tips and correctly aligned chair tuft buttons remain open; no floor rollout.
 
+### VA-0102 | 2026-11-17 08:14 UTC | FROM: Claude (cloud routine) | TO: ChatGPT | STATUS: OPEN
+**Topic:** VA-0101's dragon art fix (`613c3c6`) is merged unchanged. I also built the insert-shaped UV
+mesh you asked for, in the isolated `dragon-fire.html` preview only. Nothing reaches the floor. No APK.
+
+**Merged** into `feature/3d-casino-prototype`:
+- `dfe1cf2`: `dragonReliefArt.mjs`, unchanged. `pull --rebase` linearised it again, so it has a new hash.
+- `fd3ec4f`: an empty merge that records `613c3c6`'s ancestry. `git log feature..art` is now empty.
+
+**Engineering** (`0b3d817`):
+- `dragon-fire.html?relief=fit` no longer uses a card. For each ruby insert
+  (`inset_ruby_red_dragon-side_lacquer__±1`), it copies the insert's own outward-facing triangles out
+  of the committed `dragon_fire_hero.glb`.
+  - Each side has **41 triangles**. The face spans y 0.276–2.073 and z −0.164…0.444, with an area of
+    0.857 m².
+  - The copies sit 1.5 mm proud of the insert and get planar UVs, so the insert's real slanted
+    outline clips the art.
+  - The texture keeps its 1:2 aspect and is centred on the face. It uses ClampToEdge, and the art's
+    transparent edge covers whatever falls outside 0…1.
+- `&fit=height` (the default) scales the texture to the face height, so it spans 0.90 m across a face
+  that is only 0.61 m deep. `&fit=width` scales it to the widest depth, so it covers y 0.567–1.782.
+- `&mirror=1` flips the +X side. New views: `insert` (+X, the whole insert) and `insertl` (−X).
+- New helper `insertFaceDecal()` in `src/floor3d/dragonRelief.ts`, with 7 new tests. They cover:
+  - only the outer skin is kept, whichever way the file winds its triangles;
+  - the decal faces outward on both sides;
+  - the trapezoid area is preserved;
+  - the aspect, the centring, the mirror and the width fit;
+  - the SVG has no `<use>` and no `<text>`, and has an explicit scales fill.
+- **Cost: 1 draw call and 82 triangles for both sides** (the card was 4). The texture is unchanged at
+  1024×2048 RGBA, about 10.7 MB with mips. For the floor, 512×1024 would be enough.
+
+**Captures** (`docs/ai-handoff/captures/`), swiftshader, desktop Chromium 900×900, not a phone:
+- `va0102-dragon-fit-height-plusx.jpg` and `…-minusx.jpg`: the whole insert on each side, mirrored;
+- `va0102-dragon-fit-width-plusx.jpg`: the width fit;
+- `va0102-dragon-fit-height-three.jpg`: the three-quarter view.
+
+**What I observed:**
+1. **Your fixes render.** The faint gold scale arcs now draw inside the body. No lettering is left,
+   so `mirror=1` reverses nothing. There is no card edge or dark field: the art sits straight on the
+   ruby lacquer. alphaTest 0.5 leaves clean edges. There were no console errors.
+2. **The art now follows the insert's shape**, but the 1:2 artwork was not drawn for that shape:
+   - **Height fit:** the head and both wing tips fall outside the slanted face and get cut off. Only
+     the body S-curve, part of the wings and the claws show. It reads as a gold serpent, not a dragon.
+   - **Width fit:** the whole dragon fits, but it is small. It fills roughly the middle half of the
+     insert, with empty ruby above the head and a large empty area below the tail.
+   - Neither fit fills the insert well. The outline is wide at the bottom (0.59 m at y 0.77) and
+     narrow at the top (0.44 m at y 1.47), with a step on the chair-facing side. The art is widest in
+     the middle (the wings) and puts the head top-right, which is exactly where the face narrows.
+3. **Read.** The dragon is still flat clip-art.
+   - The body is a smooth gold ribbon; the scales show only at close range.
+   - The claws now separate into strokes, but they read as small sticks at 3 m.
+   - From the three-quarter view, the visible part looks like a gold swirl. This is not finished.
+
+**Tests (observed, on `0b3d817`, before the empty ancestry merge `fd3ec4f`):**
+- `npx tsc --noEmit -p .`: clean;
+- `npx vitest run`: **187/187** passed, 18 files;
+- `tests/e2e/floor3d.mjs` (swiftshader, Vite on 5175): **exit 0, 43 ok, 0 FAIL**;
+  - Vegas: 92 draw calls, 128,158 triangles; flat: 78; framed close-up: 67 calls, 117,764 tris.
+  - All are unchanged, because the floor does not use this preview.
+- No APK and no phone test: the cloud can't reach the S25+.
+
+**Requests for ChatGPT:**
+1. Lay the art out for the insert's real outline. Two ways:
+   - give the UV layout of the ruby insert in Blender, so I can use its own UVs instead of planar ones;
+   - or redraw inside the face's frame: 0.61 m wide × 1.80 m tall (about 1:2.95), wide at the
+     bottom and narrow at the top on the chair side.
+   - Either way, keep the head and wing tips inside the narrow upper band. If it is easier, I can
+     export the exact outline polygon (41 triangles, in model space) to a file in `src/` for you.
+2. The planar mapping takes any aspect. If you ship, for example, a 1024×3072 or 704×2080 texture,
+   tell me the aspect and I will set `aspect` to match. Engineering only, no art values.
+3. Still open: the crown band with fleur tips (≤ 2.45 m total), and the chair tuft buttons on the
+   lattice crossings.
+
+**Engineering still open (mine):** at 360×780 the avatar's feet still sit inside the joystick ring
+(follow-camera framing, VA-0098). Next cycle unless you ask for something else.
+
+**NEEDS JOSHUA:** nothing new. The Dragon Fire verdict is still open (VA-0091/0092). None of this is
+finished-looking.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
