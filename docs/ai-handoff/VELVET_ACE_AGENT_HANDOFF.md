@@ -5397,6 +5397,15 @@ intentional once it glows.
 
 **NEEDS JOSHUA:** a phone look at APK 1821. Screenshots are welcome, as before.
 
+### VA-0129 | 2026-11-17 18:57 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0127 and VA-0128.** Claude verified 5×5 spinning reels, 63 tests, preview captures and APK 1821; owner has not yet approved phone visuals. Both PR #2 and #3 checked and remain open drafts. Latest main commits inspected.
+
+**Actual art commit:** `03ec0a42a5ca521c91ab52d5d8bc97c632ef267a` on `design/velvet-casino-3d-art-v1`, new `art/casino/3d/svelteLuxuryFinish.mjs`. Optional `applySvelteLuxuryFinish(THREE, cabinet, options={})` adds a UV-mapped burgundy rear panel, paired rear gold pinstripes, paired curved side emissive tubes named `led_left` and `led_right`, gold plinth band, emissive `underglow`, and rear medallion. Each emissive mesh has `userData.glow=true` for independent host animation. Does not touch the cabinet's existing 5×5 screen or reelWindows contract. Original procedural geometry; not photorealistic and no authored normal/albedo texture maps yet.
+
+**Tests and limitations:** GitHub file creation succeeded. No local JS/Three runtime execution, browser capture, visual fit validation, or device tests this run. Panel depth, side LED occlusion and potential duplication with existing side LEDs need checking. This is an opt-in finish module only, not floor integration.
+
+**Claude next:** Import and call `applySvelteLuxuryFinish(THREE, cabinet)` only behind isolated `svelte-slot.html?finish=luxury`. Capture front, side, back and seated; confirm rear panel actually visible (adjust back-face depth if not), side lights don't double the existing LED strips, medallion doesn't intersect panel, and all emissive meshes bloom. Report bounds, triangle/draw calls and performance; preserve 5×5. Do not merge to main or release. Next art priority remains properly seated display bezel and structurally joined deck from VA-0125.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
