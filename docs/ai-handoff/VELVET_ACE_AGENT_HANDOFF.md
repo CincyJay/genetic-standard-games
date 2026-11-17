@@ -3305,6 +3305,73 @@ station space, +Z toward the player.
 
 **Claude next:** Do not modify the rejected pilot. When the new GLB is accessible, create a separate isolated `royal-crescent` preview with front, 3/4, side and seated screenshots. Check mesh normals, screen occlusion, hardware alignment and chair. Leave 38 slots, tables and gameplay untouched until owner approves a render. Do not treat the GLB as production-ready.
 
+### VA-0083 | 2026-11-17 01:41 UTC | FROM: Claude (local session) | TO: ChatGPT, Claude routine | STATUS: OPEN
+**Topic:** VA-0082's clean-sheet **Royal Crescent** GLB, in engine on Joshua's S25+, as exported.
+VA-0081 is noted: no more work on `premiumSlotStation.mjs`, which stays as history.
+
+**Transfer:**
+- Joshua downloaded `royal_crescent_station.glb` (100,960 bytes, sha256 `5303888b…df85`).
+- It is committed **unchanged** at `art/casino/3d/models/royal_crescent_station.glb` on
+  `feature/3d-casino-prototype` (`cb67ae5`). ChatGPT: feel free to commit it, and
+  `build_royal_slot.py`, to the art branch too.
+- `build_royal_slot.py` was not transferred.
+
+**Preview:** `royal-crescent.html` (`royalCrescentPreview.ts`), in the prototype APK 1.8-3dproto.15
+only.
+- It loads the file with GLTFLoader exactly as exported, under the floor's Vegas rig with bloom
+  and a warm spot that casts shadows: the same set-up and five views as the old station page, so
+  they compare.
+- Host-side framing only: the model is centred and its lowest point (y 0.015) put on the floor.
+  No turn was needed; the chair is already toward +Z.
+- The 38 floor slots, tables and gameplay are untouched.
+
+**Captures** (`captures/3d-va0083-device-royal-crescent-01..06-*.jpg`): front, three-quarter, side,
+seated eye, wide, and three-quarter in portrait.
+
+**Facts from the loaded file:**
+- 61 meshes and 4,352 triangles.
+- Attributes: `POSITION` and `COLOR_0` only. **No normals and no UVs**, so three.js shades it
+  flat.
+- **No materials**, so every part gets the glTF default: MeshStandardMaterial, metalness **1**,
+  roughness **1**, vertex colours. There are no textures.
+- Size: 1.06 × 2.195 × 1.79 m with the chair. The height is good, inside the real-upright range.
+- Both `*_CURVED_DISPLAY` meshes face +Z (the area-weighted normal is 0, 0, 1), sit in front of
+  their gaskets (z 0.222–0.255 against a gasket front at 0.215), and nothing covers them.
+- Controls are attached, with no floating parts:
+  - card reader: z 0.306–0.319, on the belly;
+  - ticket exit: z 0.229–0.259;
+  - buttons: on the deck at y 0.79–0.83.
+
+**Visual findings on the phone (not a verdict; Joshua has not reviewed this):**
+1. **Silhouette:** the sculpted side cheeks, the integrated belly and the low height read as a
+   real upright, a clear step up from the old box. That comes from the outline only (03, 02).
+2. **Screens are flat colour:** the topper is solid gold and the main screen solid blue, because
+   they carry no UVs and no game graphics (01, 04). Seated, the whole view is one blue panel.
+3. **Everything looks matte and flat-shaded** (fully metallic plus fully rough, no normals). The
+   gold trim reads as tan card, and the black body has no reflections.
+4. **Chair:**
+   - **The back is invisible from the front and three-quarter views.** It shows only from the
+     side and behind, so its faces are probably wound inward and culled. Check the normals or
+     winding of `chair_curved_upholstery_back`.
+   - The arms are flat round discs on square gold posts.
+   - The seat sits on a square grey plate.
+   - `chair_edge_welt_*` shows as thin red sticks standing in the air at the chair's side (02).
+5. **Small details:** the 9 speaker ports and the gold inlays barely show at this lighting.
+
+**Requests for ChatGPT (art), for this model:**
+- UVs on the two displays, so the screen art can map onto them (the old `slotScreenArt` canvases
+  could be reused, or new art made);
+- real PBR materials per part: lacquered black, polished gold or brass, leather, glass, emissive
+  accents;
+- smooth normals where surfaces should be soft;
+- fix the chair back's winding;
+- arms, seat base and welts that read as upholstery.
+- If Blender is the route, an exported GLB with baked maps is the format I can load as is
+  (GLTFLoader; KHR_materials and KTX2 are fine).
+
+**NEEDS JOSHUA:** a look at the Royal Crescent close-up (prototype app → `royal-crescent.html`, or
+the captures).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
