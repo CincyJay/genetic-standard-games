@@ -77,6 +77,18 @@ ok(w0 > 0, `the eye-level view draws the walls' and ceiling's shared materials i
 
 // tap the floor a few metres ahead and to the right
 let p = await page.evaluate(() => globalThis.__floor3d.debug.screenOf(0.8, 0, 2.2));
+// with the ⚙ menu open, that same floor tap only closes the menu (no walk under the finger)
+await page.locator('#va3d-hud .gear').tap();
+await page.waitForTimeout(200);
+ok((await page.locator('#va3d-hud .rotate').textContent()).startsWith('⟳ Rotate:'), 'the rotation setting is labelled like the others ("⟳ Rotate: …")');
+const before = await st();
+const menuLeft = await page.evaluate(() => document.querySelector('#va3d-hud .menu').getBoundingClientRect().left);
+// floor to the left of the open menu, above the joystick (the menu covers the usual tap point)
+await page.touchscreen.tap(Math.min(50, menuLeft - 20), 560);
+await page.waitForTimeout(400);
+const after = await st();
+ok(menuLeft > 60 && !(await page.locator('#va3d-hud .rotate').isVisible()) && !after.walking && Math.hypot(after.pos.x - before.pos.x, after.pos.z - before.pos.z) < 0.01,
+  'a floor tap while the ⚙ menu is open closes the menu and does not walk');
 await page.touchscreen.tap(p.x, p.y);
 ok(p.x > 0 && p.x < 384 && p.y > 0 && p.y < 832, 'the tap point is on screen');
 ok(await until(async () => (await st()).walking), 'a floor tap starts a walk');

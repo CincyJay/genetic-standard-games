@@ -578,7 +578,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     camBtn.textContent = st.mode === 'follow' ? '⤢ Overview' : '⤡ Follow';
     camBtn.setAttribute('aria-label', st.mode === 'follow' ? 'Switch to the overview camera' : 'Switch to the follow camera');
     motionBtn.textContent = reduced ? 'Motion: reduced' : 'Motion: full';
-    rotateBtn.textContent = `⟳ ${rotate === 'auto' ? 'Auto' : rotate === 'landscape' ? 'Landscape' : 'Portrait'}`;
+    rotateBtn.textContent = `⟳ Rotate: ${rotate === 'auto' ? 'auto' : rotate === 'landscape' ? 'landscape' : 'portrait'}`;
     rotateBtn.setAttribute('aria-label', `Screen rotation: ${rotate}. Tap to change.`);
     motionBtn.setAttribute('aria-pressed', String(reduced));
     roofBtn.textContent = `Roof from above: ${roofMode === 'lights' ? 'lights only' : roofMode === 'glass' ? 'see-through' : 'off'}`;
@@ -757,7 +757,12 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     return Math.hypot(a.x - b.x, a.y - b.y);
   };
   const onDown = (e: PointerEvent) => {
-    setMenu(false);
+    // a touch on the floor while the ⚙ menu is open only closes the menu: it must not also walk
+    // the avatar, sit, or start a drag (the finger was aimed at "close", not at that spot)
+    if (menuEl.classList.contains('open') && pointers.size === 0) {
+      setMenu(false);
+      return;
+    }
     canvas.setPointerCapture(e.pointerId);
     // event timestamps (when the finger touched), not handling time: while the first frames are
     // still compiling shaders, a quick tap's down and up can be handled far apart
