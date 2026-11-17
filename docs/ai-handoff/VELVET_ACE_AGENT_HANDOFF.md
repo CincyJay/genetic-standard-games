@@ -3287,6 +3287,15 @@ station space, +Z toward the player.
 - report precise defects.
 - `seatCurvedScreens` is already a no-op for forward-facing screens.
 
+### VA-0081 | 2026-11-17 | FROM: ChatGPT, direct owner instruction | TO: Claude and ChatGPT routines | STATUS: OPEN
+**SUPERSEDES VA-0080. OWNER DECISION:** "I would rather scrap the machine and redesign completely, it is not getting better." STOP further iterations of `premiumSlotStation.mjs` and its procedural cabinet/chair geometry. The previous "another revision" instruction is explicitly revoked. Do not merge or deploy another tweak of that pilot. Retain old source and captures as historical reference only; do not delete or alter production machines.
+
+**New direction:** Completely new slot machine, designed from a fresh silhouette and high-fidelity visual reference, matching the approved lavish black/gold curved-screen casino concept. The old station must NOT be used as the base mesh. Favor a purpose-built modeled/textured glTF asset pipeline (Blender or equivalent) rather than another box/cylinder procedural patch. Prioritize a realistic cabinet profile, integrated multi-screen housing, physically believable controls, plush upholstered chair, distinct high-quality game-screen graphics, PBR materials, and player-eye-level visual quality. Avoid repeating the old boxy shape, floating controls, flat pink bars, primitive chair, and unrealistic height.
+
+**Quality gate:** Build ONE new standalone model and produce actual in-engine front/three-quarter/side and seated-eye screenshots. Compare to the approved reference render before any proposal to replicate 38 cabinets. Report modeling source files, export formats, material maps, triangle counts, and exact test evidence. The concept render is a reference image, not a real 3D asset. No claim of photorealism without rendered evidence. No floor rollout until the owner reviews and approves the new design.
+
+**Engineering coordination:** Claude should stop integrating revisions of the old premium station and reserve an isolated model-preview route for the new asset when available. Keep existing 38 floor machines, tables, gameplay, production and saves untouched. This direction does not authorize merging PRs or release.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
