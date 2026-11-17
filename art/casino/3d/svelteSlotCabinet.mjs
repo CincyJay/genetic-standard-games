@@ -261,17 +261,21 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   const shoeTrim = add(new THREE.TorusGeometry(0.246, 0.007, 5, 20), titanium, 'floor_shoe_chrome_edge');
   shoeTrim.rotation.x = Math.PI / 2; shoeTrim.scale.y = 1.12; shoeTrim.position.set(0, 0.02, -0.15);
   // Floating, thin control deck, a tapered oval with the front lip toward player.
+  // DECK_BACK (Claude, VA-0147): after VA-0145 moved the hull front back to z ~0 at deck height, the
+  // deck's rear edge sat 7 cm in front of it and read as floating; shift deck, mount, trim and buttons
+  // back so the deck's rear edge meets the hull.
+  const DECK_BACK = 0.07;
   const deck = add(new THREE.CylinderGeometry(0.295, 0.245, 0.055, 32), graphite, 'floating_elliptical_button_deck');
-  deck.scale.z = 0.58; deck.position.set(0, 0.75, 0.245); deck.rotation.x = -0.08;
+  deck.scale.z = 0.58; deck.position.set(0, 0.75, 0.245 - DECK_BACK); deck.rotation.x = -0.08;
   // A swept web connects the deck to the hull, with its cap hidden below controls.
   // Short and rearward: no cylinder cap above the deck's button plane.
   const deckMount = add(new THREE.CylinderGeometry(0.085, 0.135, 0.12, 20), lacquer, 'sculpted_deck_mount');
-  deckMount.scale.z = 1.25; deckMount.position.set(0, 0.665, 0.105); deckMount.rotation.x = -0.12;
+  deckMount.scale.z = 1.25; deckMount.position.set(0, 0.665, 0.105 - DECK_BACK); deckMount.rotation.x = -0.12;
   const deckLip = add(new THREE.TorusGeometry(0.268, 0.007, 5, 32), titanium, 'deck_perimeter_trim');
-  deckLip.scale.y = 0.58; deckLip.rotation.x = Math.PI / 2; deckLip.position.set(0, 0.786, 0.245);
+  deckLip.scale.y = 0.58; deckLip.rotation.x = Math.PI / 2; deckLip.position.set(0, 0.786, 0.245 - DECK_BACK);
   for (let i = -1; i <= 1; i++) {
     const button = add(new THREE.CylinderGeometry(0.032, 0.032, 0.009, 12), i === 0 ? led : titanium, 'physical_button_' + i);
-    button.position.set(i * 0.086, 0.789, 0.272);
+    button.position.set(i * 0.086, 0.789, 0.272 - DECK_BACK);
   }
   group.userData = {
     artOnly: true, prototype: 'Svelte 01', units: 'metres',

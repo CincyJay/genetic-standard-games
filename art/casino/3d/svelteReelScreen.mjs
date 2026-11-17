@@ -83,8 +83,10 @@ export function createSvelteReelScreen(THREE, { width = 512, height = 1024 } = {
     if (!ctx || typeof ctx.save !== 'function') throw new TypeError('Canvas2D context required');
     ctx.save();
     ctx.setTransform(sx, 0, 0, sy, 0, 0);
+    // clear the whole value row of the meter well, gaps included: the static values above are one
+    // spaced string, and with a wider sans-serif (Android) "12,500" ran past the credits box (VA-0140)
+    ctx.fillStyle = '#091420'; ctx.fillRect(35, 925, 441, 45);
     for (const [key, x] of [['credits', 35], ['bet', 186], ['win', 337]]) {
-      ctx.fillStyle = '#091420'; ctx.fillRect(x, 925, 139, 45);
       ctx.fillStyle = '#fff2cc'; ctx.font = 'bold 23px sans-serif';
       ctx.textAlign = 'center';
       const value = values[key];

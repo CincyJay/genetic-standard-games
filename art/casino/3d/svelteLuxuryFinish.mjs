@@ -36,7 +36,24 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
     }
     return profile[profile.length-1][1];
   };
+  // Sample the cabinet's actual rear hull surface (a ray from behind), so the finish stays seated when
+  // the cabinet profile changes (VA-0145 flattened the back to rearZ = -0.305). The formula below is the
+  // pre-VA-0145 profile, kept only as a fallback if the hull mesh is missing or the ray misses.
+  const hullMesh = cabinet.getObjectByName('continuous_sculpted_S_curve_hull');
+  const ray = new THREE.Raycaster();
+  if (hullMesh) cabinet.updateMatrixWorld(true);
+  const toLocal = hullMesh ? new THREE.Matrix4().copy(cabinet.matrixWorld).invert() : null;
+  const hullBackZ = (y, x) => {
+    if (!hullMesh) return null;
+    const o = new THREE.Vector3(x, y, -5).applyMatrix4(cabinet.matrixWorld);
+    const d = new THREE.Vector3(0, 0, 1).transformDirection(cabinet.matrixWorld);
+    ray.set(o, d);
+    const hit = ray.intersectObject(hullMesh, false)[0];
+    return hit ? hit.point.clone().applyMatrix4(toLocal).z : null;
+  };
   const backZ = (y, x = 0) => {
+    const sampled = hullBackZ(y, x);
+    if (sampled !== null) return sampled - .012;
     const flare = Math.max(0, 1 - y / .42);
     const halfWidth = .29 + .015 * flare;
     const depth = .19 + .035 * flare;
