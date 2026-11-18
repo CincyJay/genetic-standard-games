@@ -42,10 +42,21 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
   surface.setIndex(indices); surface.computeVertexNormals();
   const backMaterial=fabric.clone();backMaterial.side=THREE.DoubleSide;
   add('sculpted_upholstered_backrest',surface,backMaterial,0,0,0);
-  // Physical side rails and crown distinguish the chair at mid-distance.
+  // Physical curved side rails and crown distinguish the chair at mid-distance.
   for(const sign of [-1,1]){
-    const rail=add('back_gold_edge',new THREE.CylinderGeometry(.012,.012,.71,6),piping,sign*.265,.975,.315);
-    rail.rotation.x=.15;
+    // Follow the upholstered shell's changing width and backward lean exactly.
+    // The previous straight cylinders floated at the corners and hid at mid-height.
+    const edgePoints=[];
+    for(let j=0;j<=8;j++){
+      const t=j/8;
+      edgePoints.push(new THREE.Vector3(
+        sign*(.265+Math.sin(Math.PI*t)*.025),
+        .64+.67*t,
+        .19+.10*t+.075
+      ));
+    }
+    const edgeCurve=new THREE.CatmullRomCurve3(edgePoints,false,'centripetal');
+    add('back_gold_edge',new THREE.TubeGeometry(edgeCurve,detail==='near'?16:10,.012,5,false),piping,0,0,0);
     const arm=add('padded_armrest',new THREE.BoxGeometry(.09,.095,.32),fabric,sign*.315,.735,-.015);
     arm.rotation.x=-.08;
     add('armrest_support',new THREE.CylinderGeometry(.018,.024,.23,6),frame,sign*.315,.62,.07);
