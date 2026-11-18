@@ -20,6 +20,7 @@ import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScre
 import { createSvelteSlotCabinetFarLOD } from '../../../../art/casino/3d/svelteSlotCabinetFarLOD.mjs';
 import { createSvelteSlotCabinetMidLOD } from '../../../../art/casino/3d/svelteSlotCabinetMidLOD.mjs';
 import { createVelvetIslandEndCapMarquee } from '../../../../art/casino/3d/velvetIslandEndCapMarquee.mjs';
+import { createVelvetIslandSeamTopper } from '../../../../art/casino/3d/velvetIslandSeamTopper.mjs';
 import { createVelvetSlotStool } from '../../../../art/casino/3d/velvetSlotStool.mjs';
 import { MACHINES, strips } from '../logic/slots.ts';
 import type { Obstacle, RoomBounds, SlotPlacement } from './layout.ts';
@@ -434,4 +435,95 @@ export function buildSvelteCaps(caps: readonly CapPlacement[]): { root: THREE.Gr
       copyColours();
     },
   };
+}
+
+/**
+ * ChatGPT's optional island seam topper (96e9670, VA-0201), prototype opt-in `?topper=on`.
+ * One run per back-to-back island: along the shared centre line of an inner row (`…-wi3`) and its
+ * twin outer row (`…-wo3`), from the first cabinet's outer edge to the last's, so it stops 2 cm
+ * short of the double marquee caps. Visual only (no collision; the rows' boxes already meet there).
+ */
+export interface IslandSeam { x: number; z: number; length: number; rotationY: number }
+/** The Svelte cabinet's back stands this high (measured, full and far LOD alike: 2.09 m). */
+export const CABINET_TOP = 2.09;
+/** The topper's `height` is its infill's centre; this sinks the 6.5 cm infill into the seam's top. */
+export const TOPPER_HEIGHT = CABINET_TOP - 0.0325;
+
+export function islandSeams(plan: BankPlan, twinGap = 0.72): IslandSeam[] {
+  // a spot's twin stands twinGap behind it, facing the other way (the floor's ids are themes, so
+  // islands are found by position); each pair is counted once, from the spot facing +X (or +Z)
+  const runs = new Map<string, { t: number; c: { x: number; z: number }; ts: number[]; r: number }[]>();
+  for (const b of plan.slots) {
+    const nx = Math.sin(b.slot.rotationY), nz = Math.cos(b.slot.rotationY);
+    if (!(nx > 1e-6 || (Math.abs(nx) <= 1e-6 && nz > 0))) continue;
+    const twin = plan.slots.find((t) => Math.hypot(t.slot.x - (b.slot.x - nx * twinGap), t.slot.z - (b.slot.z - nz * twinGap)) < 0.02 && Math.cos(t.slot.rotationY - b.slot.rotationY) < -0.999);
+    if (!twin) continue;
+    const c = { x: (b.slot.x + twin.slot.x) / 2, z: (b.slot.z + twin.slot.z) / 2 };
+    const lx = Math.cos(b.slot.rotationY), lz = -Math.sin(b.slot.rotationY); // along the row (local +X)
+    const key = `${Math.round(b.slot.rotationY * 100)}|${Math.round((c.x * nx + c.z * nz) * 10)}`;
+    let row = runs.get(key);
+    if (!row) runs.set(key, (row = []));
+    const ts = [...b.offsets, ...twin.offsets.map((o) => -o)].map((off) => { const p = toWorld(b.slot, off, 0); return p.x * lx + p.z * lz; });
+    row.push({ t: c.x * lx + c.z * lz, c, ts, r: b.slot.rotationY });
+  }
+  const seams: IslandSeam[] = [];
+  for (const row of runs.values()) {
+    row.sort((p, q) => p.t - q.t);
+    let start = 0;
+    for (let i = 1; i <= row.length; i++) {
+      if (i < row.length && row[i].t - row[i - 1].t <= ROW_BREAK) continue;
+      const run = row.slice(start, i);
+      start = i;
+      const r = run[0].r, lx = Math.cos(r), lz = -Math.sin(r), nx = Math.sin(r), nz = Math.cos(r);
+      const ts = run.flatMap((p) => p.ts);
+      const lo = Math.min(...ts) - CABINET_HALF_W, hi = Math.max(...ts) + CABINET_HALF_W;
+      const d = run[0].c.x * nx + run[0].c.z * nz; // the centre line's offset along the normal
+      const tm = (lo + hi) / 2;
+      // the topper's length runs along its local Z: turn local Z onto the row's direction
+      seams.push({ x: nx * d + lx * tm, z: nz * d + lz * tm, length: hi - lo, rotationY: r + Math.PI / 2 });
+    }
+  }
+  return seams;
+}
+
+/** Every island's topper, merged into one mesh per material (2 draw calls for the hall). */
+export function buildIslandToppers(seams: readonly IslandSeam[], height = TOPPER_HEIGHT): { root: THREE.Group; triangles: number } {
+  const root = new THREE.Group();
+  root.name = 'svelte_island_toppers';
+  const byMaterial = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const shared = new Map<string, THREE.Material>();
+  for (const s of seams) {
+    const t = createVelvetIslandSeamTopper(THREE, { length: s.length, height }) as THREE.Group;
+    t.position.set(s.x, 0, s.z);
+    t.rotation.y = s.rotationY;
+    t.updateMatrixWorld(true);
+    t.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const src = m.material as THREE.MeshStandardMaterial;
+      // each call makes its own two materials; key them by look so all islands share one
+      const key = `${src.color.getHex()}|${src.metalness}|${src.roughness}`;
+      let mat = shared.get(key);
+      if (!mat) shared.set(key, (mat = src));
+      else src.dispose();
+      let list = byMaterial.get(mat);
+      if (!list) byMaterial.set(mat, (list = []));
+      const g = (m.geometry.index ? m.geometry.toNonIndexed() : m.geometry.clone()).applyMatrix4(m.matrixWorld);
+      g.clearGroups();
+      list.push(g);
+      m.geometry.dispose();
+    });
+  }
+  let triangles = 0;
+  for (const [mat, geos] of byMaterial) {
+    const merged = mergeGeometries(geos);
+    geos.forEach((g) => g.dispose());
+    if (!merged) continue;
+    triangles += merged.attributes.position.count / 3;
+    const mesh = new THREE.Mesh(merged, mat);
+    mesh.name = `svelte_island_toppers:${(mat as THREE.MeshStandardMaterial).metalness > 0.5 ? 'brass' : 'dark_seam_infill'}`;
+    mesh.castShadow = mesh.receiveShadow = true;
+    root.add(mesh);
+  }
+  return { root, triangles };
 }

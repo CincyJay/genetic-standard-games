@@ -4,7 +4,7 @@ import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
 import { NavGrid } from '../src/floor3d/nav.ts';
 import { buildArtScene } from '../src/floor3d/artScene.ts';
-import { BANK, buildSvelteCaps, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps } from '../src/floor3d/svelteFloor.ts';
+import { BANK, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps } from '../src/floor3d/svelteFloor.ts';
 
 describe('Svelte machines switch (prototype)', () => {
   it('puts one end cap past each end of a row, facing out', () => {
@@ -192,5 +192,32 @@ describe('Svelte machines switch (prototype)', () => {
     } finally {
       useRoom(SALON_ROOM);
     }
+  });
+
+  it('island seam topper (96e9670, VA-0201): one run per island on the shared centre line, inside the caps, 2 draw calls', async () => {
+    const { ISLAND_FROM_EDGE } = await import('../src/floor3d/grandHall.ts');
+    const g = layoutFor('grand', true, true, { islands: true });
+    const plan = planBanks([...g.slots, ...g.decor.slots], g.obstacles, g.room, { ...g.room, z0: -g.hallSpec!.length / 2 + 0.2 });
+    const seams = islandSeams(plan);
+    expect(seams).toHaveLength(4);
+    const lineX = g.hallSpec!.width / 2 - 0.5 - ISLAND_FROM_EDGE;
+    for (const s of seams) {
+      expect(Math.abs(s.x)).toBeCloseTo(lineX, 5);
+      expect(Math.abs(Math.sin(s.rotationY))).toBeCloseTo(0, 5); // runs along the hall (Z)
+      // the island's caps stand past both ends, clear of the topper
+      const caps = plan.caps.filter((c) => Math.abs(c.x - s.x) < 0.5 && Math.abs(c.z - s.z) < s.length / 2 + 0.6);
+      expect(caps).toHaveLength(4);
+      for (const c of caps) expect(Math.abs(c.z - s.z) - CAP.width / 2).toBeGreaterThan(s.length / 2 + 0.015);
+    }
+    // without islands there is nothing to top
+    const walls = layoutFor('grand', true, true);
+    expect(islandSeams(planBanks([...walls.slots, ...walls.decor.slots], walls.obstacles, walls.room))).toHaveLength(0);
+    const t = buildIslandToppers(seams);
+    expect(t.root.children).toHaveLength(2);
+    expect(t.triangles).toBe(4 * 48);
+    const b = new THREE.Box3().setFromObject(t.root);
+    expect(b.max.y).toBeGreaterThan(CABINET_TOP);
+    expect(b.max.y).toBeLessThan(CABINET_TOP + 0.03);
+    expect(b.max.x - b.min.x).toBeGreaterThan(2 * lineX); // both sides of the hall
   });
 });

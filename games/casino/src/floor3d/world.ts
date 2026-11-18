@@ -21,7 +21,7 @@ import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { CEILING_STORAGE_KEY, NEXT_CEILING_STYLE, readCeilingStyle } from './grandHallArt.ts';
-import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildSvelteCaps, planBanks, readMachineStyle } from './svelteFloor.ts';
+import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { perfText, protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
@@ -320,6 +320,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     obstacles.push(...svelteBanks.obstacles);
     scene.add(capScene.root);
   }
+  // ChatGPT's optional island seam topper (VA-0201), dev/proto opt-in until Joshua has seen it
+  const toppers = svelteBanks && (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && new URLSearchParams(location.search).get('topper') === 'on' ? buildIslandToppers(islandSeams(svelteBanks)) : null;
+  if (toppers) scene.add(toppers.root);
   const nav = new NavGrid(ROOM, obstacles);
   scene.add(art.root);
   const walls = art.walls;
