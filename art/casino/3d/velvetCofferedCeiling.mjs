@@ -16,13 +16,17 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
   // Brushed satin finish limits sharp warm-lamp hotspots; host still owns lamps.
   const goldRoughness = options.goldRoughness ?? 0.48;
   const goldMetalness = options.goldMetalness ?? 0.72; // restrained for warm-light bloom
+  const perimeterTrim = options.perimeterTrim ?? true; // attached crown-side picture-frame rail
+  const trimDrop = options.trimDrop ?? 0.085; // below beam underside, not a floating cove
   if (![width,depth,height,cellSize].every(Number.isFinite) ||
       width <= 0 || depth <= 0 || cellSize <= 0 || height < 2.5 ||
       !Number.isInteger(chandeliers) || chandeliers < 0 || chandeliers > 12 ||
       !['x','z'].includes(axis) || !Number.isFinite(diffuserGlow) ||
       diffuserGlow < 0 || diffuserGlow > 1 ||
       !Number.isFinite(goldRoughness) || goldRoughness < .15 || goldRoughness > 1 ||
-      !Number.isFinite(goldMetalness) || goldMetalness < 0 || goldMetalness > 1)
+      !Number.isFinite(goldMetalness) || goldMetalness < 0 || goldMetalness > 1 ||
+      typeof perimeterTrim !== 'boolean' || !Number.isFinite(trimDrop) ||
+      trimDrop < 0.02 || trimDrop > 0.22)
     throw new RangeError('Invalid ceiling dimensions or chandelier count');
   const group = new THREE.Group();
   group.name = 'VA_GOLD_COFFERED_CEILING';
@@ -66,6 +70,30 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
     beamsZ.setMatrixAt(j,dummy.matrix);
   }
   beamsZ.instanceMatrix.needsUpdate=true;group.add(beamsZ);
+  // Continuous crown-side picture-frame molding: four joined edges, directly
+  // below the outside coffer beams. Unlike the old wall coves, this is physically
+  // attached to the ceiling grid and adds only one draw call when enabled.
+  // Slight overlap at corners prevents visible hairline gaps.
+  if (perimeterTrim) {
+    const trim = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),gold,4);
+    trim.name='ceiling_attached_perimeter_gold_rail';
+    const railY=height-beamH/2-trimDrop/2;
+    const railT=.055;
+    const sides=[
+      [-width/2,0,railT,trimDrop,depth+railT],
+      [ width/2,0,railT,trimDrop,depth+railT],
+      [0,-depth/2,width+railT,trimDrop,railT],
+      [0, depth/2,width+railT,trimDrop,railT]
+    ];
+    sides.forEach(([x,z,sx,sy,sz],i)=>{
+      dummy.position.set(x,railY,z);
+      dummy.scale.set(sx,sy,sz);
+      dummy.updateMatrix();trim.setMatrixAt(i,dummy.matrix);
+    });
+    dummy.scale.set(1,1,1);
+    trim.instanceMatrix.needsUpdate=true;
+    group.add(trim);
+  }
   // Subtle raised inner molding, four edges per cell. Instanced across the room.
   const count=nx*nz;
   const innerX=new THREE.InstancedMesh(new THREE.BoxGeometry(cw*.76,.025,.025),gold,count*2);
@@ -110,7 +138,7 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
   if(dropIndex) {drops.count=dropIndex;drops.instanceMatrix.needsUpdate=true;group.add(drops);}
   else drops.dispose();
   group.userData={artOnly:true,units:'metres',up:'+Y',width,depth,height,
-    cofferColumns:nx,cofferRows:nz,chandeliers,axis,diffuserGlow,goldRoughness,goldMetalness,
+    cofferColumns:nx,cofferRows:nz,chandeliers,axis,diffuserGlow,goldRoughness,goldMetalness,perimeterTrim,trimDrop,
     integration:'Add group to room scene; supply room width/depth/height; optional host-owned lighting',
     status:'isolated source geometry, not integrated or visually/device tested'};
   return group;
