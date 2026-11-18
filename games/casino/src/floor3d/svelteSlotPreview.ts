@@ -167,6 +167,15 @@ function makeReelAnim(screen: ArtScreen, mode: string, engineId: string | null) 
     const v = meters();
     const key = JSON.stringify(v);
     if (key === metersShown) return;
+    // The art paints the static meter values as one spaced string, and drawMeters clears only the three boxes,
+    // so with a wider Android sans-serif the static digits leak into the gaps between boxes (VA-0140). Engineering
+    // workaround (kept out of art files): clear the whole value row first, in the well colour sampled from the art.
+    const mr = screen.meterRects;
+    if (mr) {
+      const [r, gr, b] = g.getImageData(mr.credits.x + 1, mr.credits.y + 1, 1, 1).data;
+      g.fillStyle = `rgb(${r},${gr},${b})`;
+      g.fillRect(mr.credits.x, mr.credits.y, mr.win.x + mr.win.w - mr.credits.x, mr.credits.h);
+    }
     try { screen.drawMeters(g, v); metersShown = key; } catch (e) { meterError = String(e); metersShown = key; }
   };
   // rows per reel: the game's 5x5 grid (logic/slots.ts ROWS), which the art draws since VA-0126
