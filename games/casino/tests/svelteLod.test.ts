@@ -97,17 +97,19 @@ describe('Svelte islands distance LOD', () => {
   }));
   const screens = new Map(['sevens', 'lanterns'].map((id) => [id, new THREE.MeshStandardMaterial({ name: `screen_${id}` })]));
 
-  it('draws the nearest 16 in full and the rest at far LOD, within the triangle budget', () => {
-    const lod = buildSvelteLod(spots, near(), far(), (id) => screens.get(id), 16);
+  it('draws the nearest 12 in full and the rest at far LOD, within the triangle budget', () => {
+    const lod = buildSvelteLod(spots, near(), far(), (id) => screens.get(id), 12);
+    // 12, not 16, since ChatGPT's gold/violet bezel (9ad5880) took the full cabinet to ~7.8k triangles;
+    // the floor itself draws 6 in full (SVELTE_NEAR_CABINETS)
     expect(lod.update(new THREE.Vector3(0, 1.6, 0))).toBe(true);
-    expect(lod.near.size).toBe(16);
+    expect(lod.near.size).toBe(12);
     expect(lod.near.has(0)).toBe(true);
     const meshes = lod.root.children as THREE.InstancedMesh[];
     const count = (prefix: string) => meshes.filter((m) => m.name.startsWith(prefix) && m.material === screens.get('sevens')).reduce((n, m) => n + m.count, 0)
       + meshes.filter((m) => m.name.startsWith(prefix) && m.material === screens.get('lanterns')).reduce((n, m) => n + m.count, 0);
-    expect(count('svelte_lod_near')).toBe(16);
-    expect(count('svelte_lod_far')).toBe(62);
-    expect(lod.triangles()).toBe(16 * lod.trianglesNear + 62 * lod.trianglesFar);
+    expect(count('svelte_lod_near')).toBe(12);
+    expect(count('svelte_lod_far')).toBe(66);
+    expect(lod.triangles()).toBe(12 * lod.trianglesNear + 66 * lod.trianglesFar);
     expect(lod.triangles()).toBeLessThan(150_000);
     // all-full would be well over it
     expect(78 * lod.trianglesNear).toBeGreaterThan(300_000);
