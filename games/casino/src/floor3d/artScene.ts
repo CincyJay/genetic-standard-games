@@ -22,6 +22,8 @@ import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { PILOT_CHAIR, PILOT_HERO_SLOT, type FloorLayout } from './layout.ts';
 import { composeGrandHall } from './grandHallArt.ts';
+import { applySvelteMachines } from './svelteFloor.ts';
+import { MACHINES } from '../logic/slots.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
 export type CeilingPart = 'roof' | 'fixtures' | 'entrance';
@@ -70,6 +72,8 @@ export interface ArtScene {
   blackjackHero: boolean;
   /** Whether ChatGPT's opt-in woven carpet (VA-0058) replaced the pass-05 pilot carpet. */
   wovenCarpet: boolean;
+  /** How many Svelte cabinets the prototype machine switch put in (0 when it is off). */
+  svelteCabinets: number;
   /**
    * Batches for the view where nothing is cut away (the eye-level follow camera): each material
    * the walls or ceiling share with the rest of the room is drawn once, wall and ceiling pieces
@@ -276,6 +280,11 @@ export interface ArtOptions {
    * layout instead of the salon's art world; the pass-05, hero-table and carpet swaps don't apply.
    */
   layout?: FloorLayout;
+  /**
+   * Prototype switch (Joshua, 2026-11-17): every machine becomes a pair of ChatGPT's Svelte 01
+   * cabinets (svelteFloor.ts), before batching. The end caps are added by world.ts.
+   */
+  svelteMachines?: boolean;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -390,6 +399,13 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     ({ heroTextures, heroSignLift } = opts.pilot05 ? applyPilot05(art) : { heroTextures: [], heroSignLift: 0 });
     blackjackHero = opts.blackjackHero ? applyBlackjackHero(art) : false;
     wovenCarpet = opts.wovenCarpet ? applyWovenCarpet(art, opts.carpetCanvas) : false;
+  }
+  let svelteCabinets = 0;
+  if (opts.svelteMachines) {
+    const ids = opts.layout?.slots.map((s) => s.id) ?? MACHINES.map((m) => m.id);
+    const svelte = applySvelteMachines(art, ids);
+    heroTextures = [...heroTextures, ...svelte.textures];
+    svelteCabinets = svelte.cabinets;
   }
   for (const [id, c] of chairs) {
     const chair = art.getObjectByName(`${id}_chair`);
@@ -511,5 +527,5 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, wovenCarpet, whole, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, whole, meshesAuthored, batches: buckets.size, colourBatches };
 }

@@ -20,6 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { layoutFor } from './grandHall.ts';
+import { MACHINES_STORAGE_KEY, buildSvelteCaps, fitCaps, readMachineStyle, svelteRowCaps } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { perfText, protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
@@ -77,6 +78,8 @@ export interface FloorStats {
   blackjackHero: boolean;
   /** ChatGPT's opt-in woven carpet (VA-0058, `?carpet`) replaced the pilot carpet. */
   wovenCarpet: boolean;
+  /** The prototype Svelte machine switch: cabinets put in, end caps placed and caps dropped (no room). */
+  svelteMachines: { cabinets: number; caps: number; capsDropped: number };
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
   /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
@@ -280,9 +283,17 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // the hero table brings its own seat and dealer anchors (VA-0056); the round table keeps the art's
   const SEATS = layout.seats;
   const DEALER_SPOT = layout.dealer;
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout });
+  // prototype switch: Svelte 01 pairs in place of every machine, rows closed by marquee end caps
+  const svelteMachines = (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && readMachineStyle() === 'svelte';
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
-  const obstacles = hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero);
+  const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))];
+  const svelteCaps = svelteMachines ? fitCaps(svelteRowCaps([...layout.slots, ...layout.decor.slots]), obstacles, ROOM) : null;
+  const capScene = svelteCaps ? buildSvelteCaps(svelteCaps.caps) : null;
+  if (svelteCaps && capScene) {
+    obstacles.push(...svelteCaps.obstacles);
+    scene.add(capScene.root);
+  }
   const nav = new NavGrid(ROOM, obstacles);
   scene.add(art.root);
   const walls = art.walls;
@@ -524,6 +535,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="carpetart"></button>
     <button type="button" class="hall"></button>
     <button type="button" class="lightmode"></button>
+    <button type="button" class="sveltemachines" hidden></button>
     <button type="button" class="sveltepreview" hidden>Preview: Svelte 01 slot</button>
   </div>
 </div>
@@ -687,6 +699,19 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // prototype builds only: open ChatGPT's Svelte 01 close-up page so Joshua can review it on the phone (VA-0121)
   const svelteBtn = $<HTMLButtonElement>('.sveltepreview');
   svelteBtn.hidden = !(import.meta.env.MODE === 'proto' || import.meta.env.DEV);
+  // prototype builds only: swap the floor's machines for Svelte islands (stored; reloads the floor)
+  const machinesBtn = $<HTMLButtonElement>('.sveltemachines');
+  machinesBtn.hidden = svelteBtn.hidden;
+  machinesBtn.textContent = svelteMachines ? 'Machines: Svelte islands (preview)' : 'Machines: classic';
+  machinesBtn.setAttribute('aria-label', `${machinesBtn.textContent}. Tap to switch (reloads the floor).`);
+  machinesBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem(MACHINES_STORAGE_KEY, svelteMachines ? 'classic' : 'svelte');
+    } catch {
+      return toast('Can’t switch the machines: storage is unavailable');
+    }
+    location.reload();
+  });
   svelteBtn.addEventListener('click', () => {
     if (!sitting && !seated) location.href = 'svelte-slot.html?view=front&reel=art&spin=loop&engine=sevens&finish=luxury&look=vegas&from=floor';
   });
@@ -889,6 +914,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     const t0 = performance.now();
     const dt = dtMs / 1000;
     update(dt, now);
+    capScene?.animate(now / 1000);
     renderer.info.reset();
     if (composer) composer.render(dt);
     else renderer.render(scene, camera);
@@ -1109,6 +1135,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       hall,
       blackjackHero: art.blackjackHero,
       wovenCarpet: art.wovenCarpet,
+      svelteMachines: { cabinets: art.svelteCabinets, caps: svelteCaps?.caps.length ?? 0, capsDropped: svelteCaps?.dropped ?? 0 },
       guestAvatar,
       lightMode,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
