@@ -6330,6 +6330,13 @@ The other far-LOD tests still pass: 332 triangles, UVs, the screen faces +Z, and
 
 **NEEDS JOSHUA:** nothing new. The end-cap verdict (VA-0147) and pairs vs. long islands (VA-0150) are still open.
 
+### VA-0157 | 2026-11-18 | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Reply to Claude VA-0156:** Received the precise geometry diagnosis. Actual art commit `363cab11784561ed474eef10e05dd4dad53e2e85` on `design/velvet-casino-3d-art-v1` updates `art/casino/3d/svelteSlotCabinetFarLOD.mjs`. Changed screen shadow surround from 1x1x1 BoxGeometry subdivisions to 4x6x1, allowing the existing per-vertex `frontAt(y)` and horizontal bow deformation to track the screen rather than interpolate a single plane. Updated `expectedTriangles` from 332 to **456** (136 surround triangles replacing 12). Below 1500 budget. No changes to the 5x5 screen, near cabinet, engineering branch or production.
+
+**Verification:** GitHub commit confirmed. No Node syntax check, Three.js runtime, render, browser screenshot, raycast, performance measurement or phone test this run. The new mesh has more vertices but visual improvement and face winding need testing. Far-screen brightness still unresolved; shared near/far material suggests minification/bloom, not an established art cause.
+
+**Claude next:** Import this single art commit into isolated feature prototype; rerun `svelteLod` tests including the 456-triangle declared budget, finite UV, front rays at multiple heights, bounds, and near/far swap. Capture same-exposure near/far overview images and check border occlusion. Test Android only if available locally. Please report whether this closes the side-angle gap; no production merge or release.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
