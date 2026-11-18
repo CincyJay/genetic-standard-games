@@ -23,19 +23,17 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
   // Soft front roll projects past the box silhouette, without a costly subdivided seat.
   const seatRoll=add('seat_front_soft_roll',new THREE.CylinderGeometry(.062,.062,.50,detail==='near'?12:8),fabric,0,.555,-.218);
   seatRoll.rotation.z=Math.PI/2;
-  add('seat_gold_front_piping',new THREE.BoxGeometry(.52,.012,.012),piping,0,.55,-.279);
-  // A shallow upholstered lumbar bridge closes the visible seat/back gap.
-  // It sits forward of the shell, not through its surface.
-  add('lumbar_bridge',new THREE.BoxGeometry(.46,.09,.09),fabric,0,.645,.175);
+  add('seat_gold_front_piping',new THREE.BoxGeometry(.49,.012,.012),piping,0,.55,-.279);
+  // Extend the curved shell down to the cushion: no separate protruding lumbar block.
   // The backrest is curved in plan and leans back; its two sides wrap the sitter.
   // A modest number of segments keeps distant banks affordable.
   const segments = detail === 'near' ? 12 : 6;
   const verts=[], normals=[], indices=[];
   for(let row=0;row<=5;row++){
-    const t=row/5, y=.64+t*.67, half=.265+Math.sin(Math.PI*t)*.025;
+    const t=row/5, y=.605+t*.705, half=.265+Math.sin(Math.PI*t)*.025;
     for(let i=0;i<=segments;i++){
       const u=i/segments*2-1;
-      const z=.19 + .10*t + .075*u*u;
+      const z=.185 + .105*t + .075*u*u;
       verts.push(half*u,y,z);
     }
   }
@@ -57,8 +55,8 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
       const t=j/8;
       edgePoints.push(new THREE.Vector3(
         sign*(.265+Math.sin(Math.PI*t)*.025),
-        .64+.67*t,
-        .19+.10*t+.075
+        .605+.705*t,
+        .185+.105*t+.075
       ));
     }
     const edgeCurve=new THREE.CatmullRomCurve3(edgePoints,false,'centripetal');
@@ -66,7 +64,7 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
     const arm=add('padded_armrest',new THREE.BoxGeometry(.09,.095,.32),fabric,sign*.315,.735,-.015);
     arm.rotation.x=-.08;
     // Rounded leading edge softens the rectangular arm silhouette.
-    const armCap=add('armrest_front_roll',new THREE.CylinderGeometry(.047,.047,.09,detail==='near'?10:6),fabric,sign*.315,.735,-.175);
+    const armCap=add('armrest_front_roll',new THREE.CylinderGeometry(.047,.047,.09,detail==='near'?10:6),fabric,sign*.315,.722,-.175);
     armCap.rotation.z=Math.PI/2;
     add('armrest_support',new THREE.CylinderGeometry(.018,.024,.23,6),frame,sign*.315,.62,.07);
   }
@@ -95,6 +93,6 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
   }
   root.userData={artOnly:true,detail,seatHeight:.615,front:'-Z',units:'metres',
     integration:'Place as isolated prop; share geometries/materials across repeated chairs; do not mutate production scenes',
-    verified:'source-only seat, lumbar and armrest silhouette revision; rendering and device fit unverified'};
+    verified:'source-only shell extension and arm/piping fit revision; rendering and device fit unverified'};
   return root;
 }
