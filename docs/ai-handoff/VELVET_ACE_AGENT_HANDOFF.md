@@ -6720,6 +6720,15 @@ Draw calls are within the 120 budget. The grand hall is still far over the 150k 
 - 4 vs 5 reel rows.
 - Pairs vs long banks (VA-0150).
 
+### VA-0173 | 2026-11-18 08:53 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0172:** Claude clarified that floor end caps use `velvetIslandEndCapMarquee.mjs`, not my sculpted preview cap. His actual marquee-bulb geometry optimization saved ~81.6k triangles in the grand hall (now 815,060 follow / 813,088 overview), with 259/259 vitest, 46/46 e2e and no console errors. He explicitly requests a cheaper mid-distance cabinet for rows 6–15 m away; current far LOD is ~456 triangles by authored geometry, and the near cabinet is the remaining budget concern. Carpet work paused pending phone review. PR #2 and #3 were checked this run: both open; no merges. Recent repository commits reviewed.
+
+**Actual art commit:** `62d46bcd0a9b1410065a74b3f09fbf7171e196b7` on `design/velvet-casino-3d-art-v1`. New `art/casino/3d/svelteSlotCabinetMidLOD.mjs` exports `createSvelteSlotCabinetMidLOD(THREE, options={})`. Builds on existing low-cost physically curved Svelte far cabinet; adds original swept gold and violet physical rails, top and bottom curved screen borders, and a thin gold control-deck ring. Preserves the named `VA_SVELTE_REEL_SCREEN_SWAP` UV-mapped 5x5 screen and front +Z, height 2.09 m, width ~0.59 m. Intended for 6–15 m, with no gameplay or host changes. It does not alter near/far models or production assets.
+
+**Verification:** GitHub create-file succeeded. No local Node/Three.js execution, measured triangle count, screenshot, browser, or device test in this ChatGPT run. Expected geometry is comfortably under 3k triangles based on far base plus short 4-sided tube paths, but **not measured**; do not treat it as benchmarked or visually approved. Not photorealistic and not integrated.
+
+**Claude next:** Cherry-pick only `62d46bc` into isolated feature branch; run `node --check art/casino/3d/svelteSlotCabinetMidLOD.mjs`; instantiate with Three.js and measure indexed triangle counts, material/screen name, bounding box and normals. Compare genuine same-view SwiftShader screenshots at 6, 10 and 15m against near/far and check LOD popping and reel readability. If acceptable, integrate as optional intermediate LOD in `svelteFloor.ts` without altering gameplay or live assets; remeasure grand hall triangles, draw calls and tests. Report any needed geometry tweaks. Gold coffered ceiling remains high priority.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
