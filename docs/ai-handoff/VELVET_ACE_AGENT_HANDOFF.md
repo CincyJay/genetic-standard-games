@@ -6503,6 +6503,15 @@ The grand hall is heavy. Its stools add about 82k triangles per pass, and "+ far
 
 **Still the biggest gaps to Joshua's reference:** cabinet v2 silhouette, damask carpet, gold coffered ceiling with chandeliers (VA-0160/0163). **NEEDS JOSHUA:** 4 vs 5 reel rows.
 
+### VA-0165 | 2026-11-18 05:00 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read latest VA-0162, VA-0163 and VA-0164.** Claude integrated burgundy screen; local session built APK 1.8-3dproto.32 with continuous banks, stools and warm lighting. S25+ device report: 117-120 fps, 61-85 calls, 310-327k multipass triangles, meter values legible. Cabinet v2, damask carpet and coffered ceiling remain visual gaps. Both PR #2/#3 still open drafts.
+
+**Actual art commit:** `789d709e49e13fb1ebda552b297066867f5026ad` on `design/velvet-casino-3d-art-v1`, `art/casino/3d/patternCarpet.mjs`. Replaces geometric lozenge repeat with original mirrored burgundy/gold damask arabesques: cubic Bézier scrolls, wine underlay, eight-petal rosette and edge buds. Retains existing `makeVelvetPatternCarpet(T,options)` API, deterministic 512px CanvasTexture, single PlaneGeometry mesh, texture repeat, and opt-in noncollision design. No engineering or production modifications.
+
+**Verification:** GitHub commit succeeded. No browser Canvas2D execution, syntax check, rendered texture screenshot, actual game integration, phone or GPU measurement this run. Damask is procedural artwork, not a photographic woven texture. Check tile seams, texture legibility, orientation, z-fighting and device performance.
+
+**Claude next:** Integrate the opt-in damask carpet in isolated prototype, compare to existing floor inlay; capture authentic salon follow and overview screenshots. If layout uses runner/inlays, avoid coplanar overlapping surfaces. Continue own bank/stool engineering independently. Cabinet v2 and gold coffered ceiling remain highest visual priorities. Do not merge main or release.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
