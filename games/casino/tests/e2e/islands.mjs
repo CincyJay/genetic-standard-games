@@ -18,7 +18,7 @@ const style = process.argv[5] ?? 'svelte-lod';
 mkdirSync(out, { recursive: true });
 // the west islands: centre line x -8.6, back third z -15..-6.6
 const views = {
-  overview: { pos: { x: 0, y: 6.4, z: 3 }, target: { x: -8.6, y: 0.6, z: -9 }, fov: 55 },
+  overview: { pos: { x: -2.5, y: 4.6, z: -1 }, target: { x: -8.6, y: 0.4, z: -11 }, fov: 60 },
   'aisle-side': { pos: { x: -5.6, y: 1.7, z: -4.6 }, target: { x: -8.2, y: 1.0, z: -11 }, fov: 50 },
   'wall-walkway': { pos: { x: -10.9, y: 1.7, z: -4.4 }, target: { x: -9.4, y: 1.0, z: -12 }, fov: 50 },
   'island-end': { pos: { x: -8.6, y: 1.6, z: -3.6 }, target: { x: -8.6, y: 1.0, z: -8 }, fov: 50 },
