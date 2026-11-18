@@ -18,6 +18,7 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
   const goldMetalness = options.goldMetalness ?? 0.72; // restrained for warm-light bloom
   const perimeterTrim = options.perimeterTrim ?? true; // attached crown-side picture-frame rail
   const trimDrop = options.trimDrop ?? 0.085; // below beam underside, not a floating cove
+  const sideTrimInset = options.sideTrimInset ?? 0; // optional crown-facing inboard fascia, metres
   if (![width,depth,height,cellSize].every(Number.isFinite) ||
       width <= 0 || depth <= 0 || cellSize <= 0 || height < 2.5 ||
       !Number.isInteger(chandeliers) || chandeliers < 0 || chandeliers > 12 ||
@@ -26,7 +27,9 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
       !Number.isFinite(goldRoughness) || goldRoughness < .15 || goldRoughness > 1 ||
       !Number.isFinite(goldMetalness) || goldMetalness < 0 || goldMetalness > 1 ||
       typeof perimeterTrim !== 'boolean' || !Number.isFinite(trimDrop) ||
-      trimDrop < 0.02 || trimDrop > 0.22)
+      trimDrop < 0.02 || trimDrop > 0.22 ||
+      !Number.isFinite(sideTrimInset) || sideTrimInset < 0 || sideTrimInset > 0.35 ||
+      sideTrimInset > width/4)
     throw new RangeError('Invalid ceiling dimensions or chandelier count');
   const group = new THREE.Group();
   group.name = 'VA_GOLD_COFFERED_CEILING';
@@ -74,14 +77,18 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
   // below the outside coffer beams. Unlike the old wall coves, this is physically
   // attached to the ceiling grid and adds only one draw call when enabled.
   // Slight overlap at corners prevents visible hairline gaps.
+  // Optional sideTrimInset widens the side fascia inward while keeping its outer
+  // edge anchored at the original beam; it never creates a detached floating rail.
+  // At .28m inset on a 24m hall, the inner face reaches x=11.692m,
+  // approximately the measured wall-crown inner face. Preview before enabling.
   if (perimeterTrim) {
     const trim = new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),gold,4);
     trim.name='ceiling_attached_perimeter_gold_rail';
     const railY=height-beamH/2-trimDrop/2;
     const railT=.055;
     const sides=[
-      [-width/2,0,railT,trimDrop,depth+railT],
-      [ width/2,0,railT,trimDrop,depth+railT],
+      [-width/2+sideTrimInset/2,0,railT+sideTrimInset,trimDrop,depth+railT],
+      [ width/2-sideTrimInset/2,0,railT+sideTrimInset,trimDrop,depth+railT],
       [0,-depth/2,width+railT,trimDrop,railT],
       [0, depth/2,width+railT,trimDrop,railT]
     ];
@@ -138,7 +145,7 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
   if(dropIndex) {drops.count=dropIndex;drops.instanceMatrix.needsUpdate=true;group.add(drops);}
   else drops.dispose();
   group.userData={artOnly:true,units:'metres',up:'+Y',width,depth,height,
-    cofferColumns:nx,cofferRows:nz,chandeliers,axis,diffuserGlow,goldRoughness,goldMetalness,perimeterTrim,trimDrop,
+    cofferColumns:nx,cofferRows:nz,chandeliers,axis,diffuserGlow,goldRoughness,goldMetalness,perimeterTrim,trimDrop,sideTrimInset,
     integration:'Add group to room scene; supply room width/depth/height; optional host-owned lighting',
     status:'isolated source geometry, not integrated or visually/device tested'};
   return group;
