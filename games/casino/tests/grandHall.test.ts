@@ -109,3 +109,34 @@ describe('grand hall layout (opt-in preview, VA-0063/VA-0065)', () => {
     expect(box.max.z).toBeCloseTo(18, 5);
   });
 });
+
+describe('lampsForCeiling (gold-coffer lamp glare)', () => {
+  it('keeps the hall ceiling lamps as laid out', async () => {
+    const { grandFloorLayout, lampsForCeiling } = await import('../src/floor3d/grandHall.ts');
+    const { lamps } = grandFloorLayout();
+    const plan = lampsForCeiling(lamps, 'hall');
+    expect(plan.intensityScale).toBe(1);
+    expect(plan.lamps).toEqual(lamps);
+  });
+  it('lowers and dims the lamps under the gold coffers, keeping the floor pools about as bright', async () => {
+    const { grandFloorLayout, lampsForCeiling, GOLD_COFFER_LAMPS } = await import('../src/floor3d/grandHall.ts');
+    const { LIGHT_RIGS } = await import('../src/floor3d/lighting.ts');
+    const { lamps, hallSpec } = grandFloorLayout();
+    const plan = lampsForCeiling(lamps, 'gold-coffers');
+    expect(plan.intensityScale).toBe(GOLD_COFFER_LAMPS.intensityScale);
+    plan.lamps.forEach((p, i) => {
+      expect(p.x).toBe(lamps[i].x);
+      expect(p.z).toBe(lamps[i].z);
+      expect(p.y).toBeCloseTo(lamps[i].y - GOLD_COFFER_LAMPS.drop);
+      // still above head and cabinet height
+      expect(p.y).toBeGreaterThan(3.5);
+    });
+    const decay = LIGHT_RIGS.warm.lamp.decay;
+    const roof = hallSpec!.height - 0.1;
+    const floorGain = Math.pow(lamps[0].y / plan.lamps[0].y, decay) * plan.intensityScale;
+    const ceilingGain = Math.pow((roof - lamps[0].y) / (roof - plan.lamps[0].y), decay) * plan.intensityScale;
+    expect(floorGain).toBeGreaterThan(0.9);
+    expect(floorGain).toBeLessThan(1.2);
+    expect(ceilingGain).toBeLessThan(0.35);
+  });
+});

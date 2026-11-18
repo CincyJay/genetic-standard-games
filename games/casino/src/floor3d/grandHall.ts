@@ -274,6 +274,20 @@ export function grandFloorLayout(): FloorLayout {
   };
 }
 
+/**
+ * The grand hall's two warm lamps under the gold-coffer ceiling (VA-0180 follow-up). At the hall's
+ * own spot (1.6 m under the roof) they sit about 1.5 m below the coffer panels and blow them out.
+ * Lowered 1.2 m and scaled to 0.7, the floor pools stay about as bright (decay 1.6: (5.6 / 4.4)^1.6
+ * x 0.7 is about 1.03) while the panels directly overhead get roughly a quarter of the light.
+ * Pure data: world.ts moves the lamps and scales the rig's intensity.
+ */
+export const GOLD_COFFER_LAMPS = { drop: 1.2, intensityScale: 0.7 } as const;
+
+export function lampsForCeiling(lamps: readonly { x: number; y: number; z: number }[], ceiling: 'hall' | 'gold-coffers'): { lamps: { x: number; y: number; z: number }[]; intensityScale: number } {
+  if (ceiling !== 'gold-coffers') return { lamps: lamps.map((p) => ({ ...p })), intensityScale: 1 };
+  return { lamps: lamps.map((p) => ({ ...p, y: p.y - GOLD_COFFER_LAMPS.drop })), intensityScale: GOLD_COFFER_LAMPS.intensityScale };
+}
+
 export function layoutFor(hall: Hall, pilot05: boolean, blackjackHero: boolean): FloorLayout {
   return hall === 'grand' ? grandFloorLayout() : salonLayout(pilot05, blackjackHero);
 }

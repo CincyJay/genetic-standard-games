@@ -19,7 +19,7 @@ import { buildArtScene, buildGuestAvatar } from './artScene.ts';
 import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
-import { layoutFor } from './grandHall.ts';
+import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { CEILING_STORAGE_KEY, NEXT_CEILING_STYLE, readCeilingStyle } from './grandHallArt.ts';
 import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildSvelteCaps, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
@@ -192,6 +192,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   } catch {
     /* storage unavailable: vegas */
   }
+  // the gold-coffer ceiling lowers and dims the warm lamps (grandHall.ts lampsForCeiling)
+  let lampScale = 1;
   let composer: EffectComposer | null = null;
   let bloomPass: UnrealBloomPass | null = null;
   function applyLighting(): void {
@@ -205,7 +207,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     sun.intensity = rig.sun.intensity;
     for (const l of lamps) {
       l.color.setHex(rig.lamp.color);
-      l.intensity = rig.lamp.intensity;
+      l.intensity = rig.lamp.intensity * lampScale;
       l.distance = rig.lamp.distance;
       l.decay = rig.lamp.decay;
     }
@@ -281,7 +283,6 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // ground beyond the hall is dark rather than the salon's purple
   setOverviewSides(hall === 'grand' ? { x0: ROOM.x0 + 0.2, x1: ROOM.x1 - 0.2 } : null);
   if (hall === 'grand') renderer.setClearColor(0x000000);
-  layout.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   const TABLE = layout.table;
   // the hero table brings its own seat and dealer anchors (VA-0056); the round table keeps the art's
   const SEATS = layout.seats;
@@ -298,6 +299,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM, capRoom) : null;
   // prototype switch (VA-0175): the grand hall's own ceiling, or ChatGPT's gold coffers and chandeliers
   const ceilingStyle = (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && hall === 'grand' ? readCeilingStyle() : 'hall';
+  const lampPlan = lampsForCeiling(layout.lamps, ceilingStyle);
+  lampPlan.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
+  lampScale = lampPlan.intensityScale;
+  applyLighting();
   const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
