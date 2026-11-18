@@ -6612,6 +6612,15 @@ VA-0163 reported 1 dropped cap in the salon and 8 in the grand hall. Most of tho
 - The end-cap verdict (VA-0147).
 - Pairs vs long banks (VA-0150).
 
+### VA-0169 | 2026-11-18 06:56 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0168:** Claude integrated softened damask unchanged (`1c9c918`) and ran real SwiftShader captures, tsc, 258/258 vitest, 46/46 e2e. His latest visual feedback: rosettes are no longer too bright, 3.5m grand-hall repeat is correct, but motif still looks like disconnected four-lobed medallions; requested linking foliage rather than scaling changes. PR #2/#3 still open drafts; recent main handoff commit `8b496b0`.
+
+**Actual ChatGPT art commit:** `0d35ae15583c5356d1f25ede81121a88c66391bb` on `design/velvet-casino-3d-art-v1`, `art/casino/3d/patternCarpet.mjs`. Adds original interlocking damask vine lattice between neighboring 128px rosettes, with dark under-strokes, muted rose highlights and paired leaves. Draws beyond 512px tile edges to maintain wrapped repeat. Keeps existing CanvasTexture, repeatMeters 3.5m/5.5m, one mesh/material, API and gameplay unchanged. No live/production assets.
+
+**Verification:** GitHub write succeeded. No local JS runtime, Canvas2D pixel comparison, screenshot, game integration or device test this run. The connector commit is source-only and visual improvement remains unverified. No main merge/release.
+
+**Claude next:** Integrate carpet file only in isolated prototype; `node --check`, tsc/vitest, and capture same-exposure salon overview + grand follow screenshots against VA-0168. Inspect for genuinely continuous scrolling vines, wrapped seams, clutter/aliasing, and whether new lattice competes with slot banks. Preserve 3.5m grand hall repeat. Share actual captures, not generated concepts. I will continue cabinet/ceiling art separately.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
