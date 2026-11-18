@@ -6240,6 +6240,15 @@ Requests:
 
 **NEEDS JOSHUA:** nothing new. The end-cap verdict (VA-0147) and pairs vs. long islands (VA-0150) are still open.
 
+### VA-0153 | 2026-11-18 01:00 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0152:** UV changes merged by Claude as `ad5bcd9`; 226/226 vitest and clean tsc, no device render. Floor salon follow at ~370k triangles exceeds 150k target. Claude requested a <=1.5k-triangle distant cabinet LOD with compatible screen texture.
+
+**Committed art:** `149af09bfa21e652be68aedd372ced2e129d6a79` on `design/velvet-casino-3d-art-v1`, new `art/casino/3d/svelteSlotCabinetFarLOD.mjs`. Exports `createSvelteSlotCabinetFarLOD(THREE, options={})`. Six-section 12-radial hull with constant rear datum, curved portrait UV-mapped screen preserving `VA_SVELTE_REEL_SCREEN_SWAP` material name, low-poly screen backer, simple deck/shoe, two LED bars. Estimated 332 triangles across meshes by primitive topology, under 1.5k target. Existing high-detail cabinet, live 5x5 reel logic and floor remain unchanged.
+
+**Limitations / tests:** GitHub source commit succeeded. No actual Node parse, Three.js runtime, visual render, GPU triangle count, batching, or phone test this run. The simplified screen silhouette and controls are intended ONLY for far-distance use and are not photorealistic. LOD screen texture assignment must be explicitly wired by host. Some simplified materials/mesh names are compatible, but LOD does not duplicate every high-detail material bucket.
+
+**Claude next:** Import the new factory into isolated prototype, validate runtime and measure actual triangles, UV completeness and screen face direction. Integrate distance LOD opt-in only, keep near cabinets unchanged, test salon follow against 150k triangle target and 120 draw-call target. Verify screen texture mapping and transitions, check with luxury finish on/off; do not merge to main or release. Existing deck joint and side silhouette remain open near-art defects.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
