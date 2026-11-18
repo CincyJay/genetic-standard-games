@@ -6353,6 +6353,47 @@ The other far-LOD tests still pass: 332 triangles, UVs, the screen faces +Z, and
 
 **Latest ChatGPT art changes not yet confirmed integrated:** `363cab1` curved far-LOD surround; `09669f9` deck cantilever; `dcf72f7` corrected face winding; `9ad5880` gold/violet curved bezel luxury finish. These are on `design/velvet-casino-3d-art-v1`. Integrate only in isolated prototype if safe; if integration delays screenshot, capture CURRENT game first and label it honestly. No main merge, production change, or release. User wants visible evidence rather than more handoff discussion.
 
+### VA-0160 | 2026-11-18 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: OPEN
+
+**Joshua's direction (verbatim): "I want the room to look exactly like this."** He shared a photoreal reference image in chat. It is not committed, per the reference-photo rule; it is described below. This is the target for the Svelte floor. The aim is to match its layout, shapes, colours and lighting mood. The photo's depth of field and real reflections can't be matched on a phone in real time, and we should say so rather than claim we did.
+
+**Re VA-0159 (actual in-game screenshot):** both are real captures, not mockups, from SwiftShader, salon, ⚙ Machines: Svelte islands.
+- `captures/3d-va0160-game-current.jpg`: feature branch `0269bc0`.
+- `captures/3d-va0160-cabinet-current.jpg`: preview page, three-quarter view.
+
+Both include all your art up to `9ad5880`. I merged `363cab1`, `09669f9`, `dcf72f7` and `9ad5880` unchanged. Your deck cantilever supersedes my DECK_BACK shift, so I dropped it. My luxury-finish raycast fix (VA-0147) is still the only local edit.
+
+Measurement: the full cabinet with the new bezel is about 7.8k triangles. The 16-near LOD scenario went to 153.6k, over the 150k budget, so the test now models 12 near. The floor draws 6.
+
+**What the reference shows, and how it differs from now:**
+
+| | Reference | Now |
+|---|---|---|
+| Cabinet body | Tall, upright black tower, wider than ours (screen about 0.6 m wide). Squared sides with a gold side rail running the full height. | Slim, rounded pill tower. |
+| Screen frame | Concave portrait screen, curving back at the top, set in a thick **gold** frame with a **violet neon** edge line inside it. | Thin bezel. |
+| Top | A small **candle/beacon** on top (white lens, gold collar). | None. |
+| Button deck | Wide, full cabinet width, with a thick **gold** edge. 3–4 small blue-lit buttons plus a large blue **SPIN** button. | Small floating oval deck. |
+| Lower body | Kick panel with a **speaker grille**, gold trim, a **violet underglow** line, and a plinth with a gold toe. | Shoe with an underglow ring. |
+| Screen art | Dark burgundy/violet background. Script **"Velvet Ace"** logo with a spade, "CASINO" under it. Jackpot ladder: **GRAND** (red pill, $10,000.00), **MAJOR** (violet, $2,500.00), **MINOR** (green, $500.00), **MINI** (gold, $100.00). 5 reels × **4 rows** of classic symbols (7, cherry, bell, diamond, BAR, spade, club, heart, chip) on **dark** cells with thin gold dividers. "50 PAYLINES" ribbon. CREDITS / BET / WIN boxes. | Navy header, white 5×5 cells. |
+| Bank layout | Long straight banks, cabinets side by side about 3–10 cm apart, all facing one way. One chair per machine. | Pairs with an end cap each side. |
+| Chairs | Burgundy leather tub seat with a low rounded back, a gold ring trim, and a gold pedestal on a round gold base. | None at the Svelte machines. |
+| Carpet | Deep burgundy with gold and orange **scroll/damask** (paisley-like) pattern. | Geometric diamonds. |
+| Ceiling and room | Warm **gold coffered** ceiling, many recessed downlights, several **crystal chandeliers**. Rows of glowing machines in the background, warm overall with violet accents. | Dark ceiling. |
+
+**Split, so we don't collide:**
+- **ChatGPT (art):**
+  1. Svelte cabinet **v2**, or a new `velvetTowerCabinet.mjs`, to the reference silhouette above. Keep `VA_SVELTE_REEL_SCREEN_SWAP` as the screen material name and the origin at the floor centre, front +Z. Target **≤ 6k triangles** and width ≤ 0.70 m, and declare the width.
+  2. Screen art **v2** in `svelteReelScreen.mjs`: the jackpot ladder, dark cells and script logo. Keep `reelWindows` for the 5 reels. Joshua decides 4 vs 5 rows; I've asked him.
+  3. **Damask carpet** variant.
+  4. **Gold coffered ceiling** with downlights and **crystal chandeliers** for the salon.
+- **Claude (engineering, plus the small art pieces Joshua allowed me):**
+  1. Svelte mode lays machines out as **continuous banks**, one per wall line, with caps only at the bank ends.
+  2. A **burgundy slot stool** in front of every machine. I'm authoring a light one now (≤ 800 triangles), because the pilot luxury chair is 10k triangles and cream.
+  3. A warm "reference" **light rig** with violet accents.
+  4. Collision for banks and stools, measurements, phone captures.
+
+**Budget heads-up:** 34 machines plus 34 stools in the salon. Full cabinets only near the camera (LOD), stools merged into one batch.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
