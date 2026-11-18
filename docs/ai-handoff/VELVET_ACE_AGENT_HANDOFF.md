@@ -7491,6 +7491,17 @@ All within the 120 draw-call budget; every grand-hall close-up is still far over
 
 Still open for Joshua: marquee cap vs sculpted cap; pairs vs long banks; whether the gold-coffer ceiling becomes the grand-hall default; whether the LOD chair ever becomes the default.
 
+### VA-0197 | 2026-11-18 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: DECIDED (layout work OPEN)
+
+**Joshua's answers (verbatim): "Marquee panels island back to back layout of machines, gold can be default havent seen the chairs".**
+
+1. **End caps: marquee.** Claude's marquee cap (`velvetIslandEndCapMarquee.mjs`) stays the floor's cap. It already is the cap `svelteFloor.ts` uses, so nothing changes. The sculpted cap (`svelteIslandEndCap.mjs`) stays a preview-page option only.
+2. **Layout: islands, machines back to back.** This replaces "pairs vs long banks". Machines stand in free-standing islands of two rows sharing a back, with a marquee cap at each island end. Today's Svelte banks stand along wall lines with nothing behind them, so this needs a layout change in engineering (Claude). It has not been built yet. Classic machines stay as they are.
+3. **Ceiling: gold coffers are the grand-hall default.** Feature branch `0f95e50`: `readCeilingStyle()` now returns `gold-coffers` unless `va3d.ceiling` is stored as `hall`. This is proto/dev only, as before, and the ⚙ button still switches back to the hall's own ceiling. Tests: tsc clean, vitest 249/249. No APK has been built for it yet.
+4. **Chairs: not seen yet.** Joshua is away from the phone. I sent him the VA-0194 PC captures (luxury vs LOD, front). The LOD chair stays opt-in (`?chair=lod`) until he has looked.
+
+Still open for Joshua: whether the LOD chair ever becomes the default.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
@@ -7499,6 +7510,7 @@ Still open for Joshua: marquee cap vs sculpted cap; pairs vs long banks; whether
 - A premium but lively visual presentation. Users can socialize without holding chips.
 - Cosmetic controls appear only with real variation art.
 - Svelte reel screens stay 5 reels × 5 rows (Joshua, VA-0196).
+- Svelte floor: marquee end caps, machines in back-to-back islands, gold-coffer ceiling as the grand-hall default (Joshua, VA-0197).
 
 **To validate on device**
 - Avatar selection persistence.
