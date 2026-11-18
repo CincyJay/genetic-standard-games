@@ -285,7 +285,11 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   }
   // which floor: the salon, or the opt-in grand hall preview (VA-0064); one layout describes it
   const hall = readHall();
-  const layout = layoutFor(hall, pilot05, blackjackHero);
+  // prototype switch: Svelte 01 cabinets in place of every machine, rows closed by marquee end caps;
+  // in the grand hall they stand in back-to-back islands (Joshua, VA-0197)
+  const machineStyle = import.meta.env.MODE === 'proto' || import.meta.env.DEV ? readMachineStyle() : 'classic';
+  const svelteMachines = machineStyle !== 'classic';
+  const layout = layoutFor(hall, pilot05, blackjackHero, { islands: svelteMachines && new URLSearchParams(location.search).get('islands') !== 'off' });
   useRoom(layout.room);
   // the grand hall has no exterior yet: its overview stays between the side walls, and the
   // ground beyond the hall is dark rather than the salon's purple
@@ -295,9 +299,6 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // the hero table brings its own seat and dealer anchors (VA-0056); the round table keeps the art's
   const SEATS = layout.seats;
   const DEALER_SPOT = layout.dealer;
-  // prototype switch: Svelte 01 pairs in place of every machine, rows closed by marquee end caps
-  const machineStyle = import.meta.env.MODE === 'proto' || import.meta.env.DEV ? readMachineStyle() : 'classic';
-  const svelteMachines = machineStyle !== 'classic';
   // Svelte machines stand in continuous banks with a stool at each (Joshua's reference room, VA-0160);
   // the stools replace the pilot's swivel chair
   const baseObstacles = (hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, blackjackHero)).filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));

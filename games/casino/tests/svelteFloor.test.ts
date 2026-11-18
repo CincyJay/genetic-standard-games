@@ -157,4 +157,40 @@ describe('Svelte machines switch (prototype)', () => {
     expect(art.svelteCabinets).toBe(30);
     expect(art.fadeable.size).toBe(0);
   });
+
+  it('islands (VA-0197): the grand hall side banks stand back to back, caps and stools all fit, every machine reachable', async () => {
+    const { grandHallLayout, GRAND_SPEC, ISLAND_HALF, obstacleOverlaps } = await import('../src/floor3d/grandHall.ts');
+    const g = layoutFor('grand', true, true, { islands: true });
+    const l = grandHallLayout({ ...GRAND_SPEC, islands: true });
+    const side = l.slots.filter((s) => !s.id.startsWith('end-'));
+    // every side spot has a twin on the same line facing the other way, backs ISLAND_HALF off a shared centre line
+    for (const s of side) {
+      const twin = side.find((t) => t !== s && Math.abs(t.z - s.z) < 1e-6 && Math.abs(Math.abs(t.x - s.x) - 2 * ISLAND_HALF) < 1e-6);
+      expect(twin, s.id).toBeTruthy();
+      expect(Math.cos(twin!.rotationY - s.rotationY)).toBeCloseTo(-1);
+    }
+    // the classic wall banks are unchanged without the option
+    expect(layoutFor('grand', true, true).decor.slots.every((s) => Math.abs(s.x) > 11)).toBe(true);
+    const wallLine = { ...g.room, z0: -g.hallSpec!.length / 2 + 0.2 };
+    const plan = planBanks([...g.slots, ...g.decor.slots], g.obstacles, g.room, wallLine);
+    expect(plan.capsDropped).toBe(0);
+    expect(plan.caps).toHaveLength(18); // 4 islands × 2 rows × 2 ends, plus the end-wall row's 2
+    expect(plan.stoolsDropped).toBe(0);
+    // the promenade stays clear (past the end-wall row's own stools, which stand in it as before)
+    const lane = { x0: l.aisle.x0, x1: l.aisle.x1, z0: l.bounds.z0 + 1, z1: l.bounds.z1 };
+    for (const o of plan.obstacles) expect(obstacleOverlaps(o, lane), o.id).toBe(false);
+    useRoom(g.room);
+    try {
+      const nav = new NavGrid(ROOM, [...g.obstacles, ...plan.obstacles]);
+      expect(nav.walkableAt(g.spawn)).toBe(true);
+      for (const s of g.seats) expect(nav.walkableAt(s.approach), s.id).toBe(true);
+      // a player can stand behind every stool, on both faces of every island
+      for (const s of side) {
+        const face = Math.sign(Math.sin(s.rotationY));
+        expect(nav.walkableAt({ x: s.x + face * 1.55, z: s.z }), s.id).toBe(true);
+      }
+    } finally {
+      useRoom(SALON_ROOM);
+    }
+  });
 });

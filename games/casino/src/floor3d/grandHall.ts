@@ -93,6 +93,15 @@ const SLOT_HALF_W = 0.61;
 const SLOT_BACK = 0.42;
 const SLOT_FRONT = 0.6;
 const SLOT_PITCH = 1.3;
+/**
+ * Back-to-back islands (Joshua, VA-0197): two rows share a centre line, each cabinet's centre this
+ * far off it. The Svelte cabinet's back is 0.34 m behind its centre, so the two rows' backs stand
+ * 4 cm apart, and the marquee caps closing each row (0.72 m deep from 0.355 m behind the centre)
+ * clear each other by 1 cm. Each row's collision box stops at the centre line.
+ */
+export const ISLAND_HALF = 0.36;
+/** The island's centre line sits this far from the zone's outer edge (zone 6.05 m wide by default). */
+export const ISLAND_FROM_EDGE = 2.9;
 /** The blackjack hero table (VA-0054): padded rail 1.9 m from centre along X, 1.18 m along Z. */
 const TABLE_R = 1.57;
 const TABLE_H = 1.19;
@@ -133,7 +142,7 @@ function tableSeats(t: HallTable, first: boolean): Seat[] {
  * - slot banks with their backs to the side walls in the back and front thirds, facing the hall;
  * - the spawn on the promenade near the entrance end, facing down the hall.
  */
-export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: number } = {}): GrandHallLayout {
+export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: number; islands?: boolean } = {}): GrandHallLayout {
   const spec = resolveSpec(opts);
   const { width, length, height, aisleWidth } = spec;
   const wallX = width / 2 - WALL_REACH;
@@ -153,26 +162,34 @@ export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: numbe
   const columns = hallColumns(spec);
 
   // slots: backs at the zone's outer edge, in the back and front thirds
+  // islands (VA-0197): two rows back to back on a line inside the zone, an inner row facing the
+  // promenade and an outer row facing the wall, with a walkway on both sides
+  const islandX = zoneOut - ISLAND_FROM_EDGE;
   const slotX = zoneOut - SLOT_BACK;
   const third = length / 3;
   const slots: HallSlot[] = [];
   const bank = (z0: number, z1: number, tag: string) => {
     const n = Math.max(0, Math.floor((z1 - z0 - 2 * SLOT_HALF_W) / SLOT_PITCH) + 1);
     const used = (n - 1) * SLOT_PITCH;
+    // facing -side along X (into the hall), and with islands also +side (toward the wall)
+    const rows = opts.islands ? [{ out: -1, ring: 'i' }, { out: 1, ring: 'o' }] : [{ out: -1, ring: '' }];
     for (const side of [-1, 1])
-      for (let i = 0; i < n; i++) {
-        const z = (z0 + z1) / 2 - used / 2 + i * SLOT_PITCH;
-        const x = side * slotX;
-        // screen faces local +Z; turn it to face -side along X
-        const rotationY = side < 0 ? Math.PI / 2 : -Math.PI / 2;
-        slots.push({ id: `${tag}-${side < 0 ? 'w' : 'e'}${i + 1}`, x, z, rotationY, front: { x: x - side * (SLOT_FRONT + 0.4), z } });
-      }
+      for (const { out, ring } of rows)
+        for (let i = 0; i < n; i++) {
+          const z = (z0 + z1) / 2 - used / 2 + i * SLOT_PITCH;
+          const x = opts.islands ? side * islandX + out * side * ISLAND_HALF : side * slotX;
+          const face = out * side; // +1 faces +X
+          // screen faces local +Z; turn it to face along X
+          const rotationY = face > 0 ? Math.PI / 2 : -Math.PI / 2;
+          slots.push({ id: `${tag}-${side < 0 ? 'w' : 'e'}${ring}${i + 1}`, x, z, rotationY, front: { x: x + face * (SLOT_FRONT + 0.4), z } });
+        }
   };
   for (let i = 0; i < backRow; i++) {
     const x = (i - (backRow - 1) / 2) * SLOT_PITCH;
     slots.push({ id: `end-${i + 1}`, x, z: backZ, rotationY: 0, front: { x, z: backZ + SLOT_FRONT + 0.4 } });
   }
-  bank(-length / 2 + 0.8, -length / 2 + third - 0.6, 'back');
+  // islands leave a walkway between their back ends and the end wall's row of machines
+  bank(opts.islands ? z0 + 1 : -length / 2 + 0.8, -length / 2 + third - 0.6, 'back');
   bank(length / 2 - third + 0.6, length / 2 - 2.4, 'front');
 
   // tables: centred across each zone, stacked along the middle third
@@ -192,8 +209,8 @@ export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: numbe
     ...columns.map((c, i): Obstacle => ({ kind: 'box', id: `hall-column-${i + 1}`, x0: c.x - PLINTH_HALF, z0: c.z - PLINTH_HALF, x1: c.x + PLINTH_HALF, z1: c.z + PLINTH_HALF, h: height })),
     ...tables.flatMap(tableObstacles),
     ...slots.filter((s) => !s.id.startsWith('end-')).map((s): Obstacle => {
-      const inward = s.x < 0 ? 1 : -1;
-      const xa = s.x - inward * SLOT_BACK;
+      const inward = Math.sign(Math.sin(s.rotationY)); // the way the screen faces, along X
+      const xa = s.x - inward * (opts.islands ? ISLAND_HALF : SLOT_BACK);
       const xb = s.x + inward * SLOT_FRONT;
       return { kind: 'box', id: `slot-${s.id}`, x0: Math.min(xa, xb), z0: s.z - SLOT_HALF_W - 0.01, x1: Math.max(xa, xb), z1: s.z + SLOT_HALF_W + 0.01, h: 2.4 };
     }),
@@ -247,8 +264,8 @@ export const GRAND_SPAWN = grandHallLayout(GRAND_SPEC).spawn;
  * - The end-wall row holds one interactive machine per theme (reels, spin button, marquee).
  *   The side banks are decorative copies, themes in turn.
  */
-export function grandFloorLayout(): FloorLayout {
-  const l = grandHallLayout(GRAND_SPEC);
+export function grandFloorLayout(opts: { islands?: boolean } = {}): FloorLayout {
+  const l = grandHallLayout({ ...GRAND_SPEC, islands: opts.islands });
   const themes = CASINO_WORLD.slots.map((s: { id: string }) => s.id);
   const end = l.slots.filter((s) => s.id.startsWith('end-'));
   const side = l.slots.filter((s) => !s.id.startsWith('end-'));
@@ -288,6 +305,10 @@ export function lampsForCeiling(lamps: readonly { x: number; y: number; z: numbe
   return { lamps: lamps.map((p) => ({ ...p, y: p.y - GOLD_COFFER_LAMPS.drop })), intensityScale: GOLD_COFFER_LAMPS.intensityScale };
 }
 
-export function layoutFor(hall: Hall, pilot05: boolean, blackjackHero: boolean): FloorLayout {
-  return hall === 'grand' ? grandFloorLayout() : salonLayout(pilot05, blackjackHero);
+/**
+ * `islands`: the grand hall's side banks stand as back-to-back islands (Joshua, VA-0197, for the
+ * Svelte machines; the classic machines keep their wall banks). The salon has no room for islands.
+ */
+export function layoutFor(hall: Hall, pilot05: boolean, blackjackHero: boolean, opts: { islands?: boolean } = {}): FloorLayout {
+  return hall === 'grand' ? grandFloorLayout(opts) : salonLayout(pilot05, blackjackHero);
 }
