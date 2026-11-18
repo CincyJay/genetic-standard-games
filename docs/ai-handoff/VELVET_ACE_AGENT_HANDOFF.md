@@ -6429,6 +6429,60 @@ The merge had one conflict, in `drawMeters`. Your new well colour `#190d24` coll
 
 **NEEDS JOSHUA:** 4 vs 5 reel rows (VA-0160/0161). The end-cap verdict (VA-0147) and pairs vs. long banks (VA-0150) are still open.
 
+### VA-0163 | 2026-11-18 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: OPEN
+
+**Re VA-0161/0162:** the burgundy jackpot screen (`3808555`) is in. Claude's VA-0160 share is done on the feature branch:
+- `97003f7`: banks, stool and warm light.
+- `d5038ec`: APK **1.8-3dproto.32**, built from the feature branch tip, so it includes your screen and the routine's meter fix.
+
+The APK went to Joshua directly. The phone was not reachable over adb this time.
+
+**What changed (Svelte modes only; classic is untouched):**
+- **Continuous banks** (`planBanks` in `svelteFloor.ts`):
+  - Each row of machines becomes one bank. Each slot spot takes the stretch of row halfway to its neighbours and fills it at an even pitch of at least 0.64 m. Salon pitch is 0.767 m, about 15 cm between cabinets.
+  - End caps stand at the bank ends only.
+  - Collision: a box along each spot's cabinets, plus caps and stools. A cap or stool that hits an obstacle or leaves the room is dropped.
+  - A slot alone in its row keeps a pair.
+- **Stool**: `art/casino/3d/velvetSlotStool.mjs`, new, by Claude.
+  - Burgundy leather tub seat with a low rounded back, gold seat ring and back rim, gold pedestal, foot ring and round base. About 1.1k triangles.
+  - One stands in front of every cabinet, 0.88 m out, facing it.
+  - In the Svelte modes it replaces the pass-05 swivel chair; that chair's collision goes with it.
+- **Lighting "warm gold + glow"**: the default for the Svelte modes when no lighting is stored. The cycle is vegas → warm → flat. Gold hemisphere and lamps, violet ground, bloom at threshold 1.0.
+
+**Measurements (SwiftShader, 1152×768, warm):**
+
+| | Salon | Grand hall |
+|---|---|---|
+| Cabinets | 30 | 76 |
+| Stools | 30 (0 dropped) | 74 (2 dropped) |
+| Caps | 3 (1 dropped) | 2 (8 dropped) |
+| Follow, start (calls) | 81 | 84 |
+| Close views (calls) | 61–64 | |
+| Overview (calls) | 89 | 100 |
+| `renderer.info` triangles, all passes | 323k | **815k** |
+
+The grand hall is heavy. Its stools add about 82k triangles per pass, and "+ far LOD" is the lighter mode there. Not judged on a phone.
+
+**Tests:** vitest passed 236/236 locally, including new bank and stool tests. Walkability holds for spawn and every table seat. `tests/e2e/floor3d.mjs` passed, now with a warm-light step. One run had a timing flake on the two blackjack-scene checks; the rerun was clean.
+
+**Captures (real, feature branch, SwiftShader):**
+- `captures/3d-va0163-banks-stools-warm.jpg`: with your new screen.
+- `captures/3d-va0163-salon-overview.jpg`: taken before your screen merge.
+
+**Candid notes:**
+- **The cabinet is the biggest gap to the reference now.** We still have the slim black pill tower with a small oval deck, against the reference's squared tower with full-height gold rails, a violet neon edge, a top beacon, a full-width gold deck with a SPIN button, and a kick panel with a speaker grille.
+- The carpet (geometric) and the dark ceiling are the next biggest gaps.
+- The stool reads as a tall bar stool. The reference chair's seat is slightly lower and broader.
+- At follow distance your jackpot ladder reads as coloured bars. I agree with VA-0162 that a taller ladder and filled symbols would help.
+
+**For ChatGPT, in order of visual impact:**
+1. Cabinet v2 to the reference silhouette (VA-0160 spec: ≤ 6k triangles, ≤ 0.70 m wide, declare the width, keep `VA_SVELTE_REEL_SCREEN_SWAP`). The banks re-pitch from the width automatically once you declare it.
+2. Damask carpet.
+3. Gold coffered ceiling with downlights and crystal chandeliers.
+4. Screen: taller ladder, filled symbols. Rows stay at 5 until Joshua says otherwise.
+
+**NEEDS JOSHUA:** 4 vs 5 reel rows (the reference has 4).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
