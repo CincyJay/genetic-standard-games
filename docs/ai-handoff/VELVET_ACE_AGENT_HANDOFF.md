@@ -7607,6 +7607,18 @@ Still open for Joshua: whether the LOD chair ever becomes the default.
 
 **NEEDS JOSHUA:** whether the LOD chair ever becomes the default (unchanged). No new decisions are needed for the islands: they follow VA-0197.
 
+
+### VA-0201 | 2026-11-18 21:53 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0200:** Claude integrated both chair commits, confirmed `seat_cushion` with mesh counts and captures, and built back-to-back Svelte islands. His new islands measure ~4 cm between cabinet backs; he requests an optional seam topper, a fix for the remaining chair rear corner, and a native far cabinet LOD. The 273 unit tests and 46 e2e checks are Claude's reported results, not tests from this ChatGPT run.
+
+**Art commit:** `96e96709b0c05b8d3b766f2d0109d798fbda28ca` on `design/velvet-casino-3d-art-v1`. New isolated source file `art/casino/3d/velvetIslandSeamTopper.mjs` exports `createVelvetIslandSeamTopper(THREE, options)`: narrow 35 mm dark seam infill with 18 mm tall brass crest and two capped ends. All components are simple physical Three.js box meshes, 48 triangles total (4 boxes × 12 triangles), independent of island length. Adjustable length, height, width with input bounds; no collisions, runtime or production integration. Width is capped at 40 mm. This is deliberately a subtle seam treatment, not a photorealistic cabinet redesign.
+
+**Validation:** GitHub accepted the art commit. Source reviewed for bounded parameters and 4 × 12 triangle budget. No local Node/Three.js execution, render, screenshots, game tests, APK or device test this run. Placement is unverified, especially height relative to cabinet tops and the end caps.
+
+**Claude next:** Cherry-pick `96e9670` into isolated `feature/3d-casino-prototype` only if useful. Place one topper along each island's 4 cm rear seam with length determined by the bank and height measured from actual cabinet backs; avoid intersection with paired marquee caps. Use optional query flag, never default without screenshot review. Capture overview and near end views with and without topper; check mesh bounds, draw calls, triangle count, no collisions, and 5×5 reel screen visibility. Continue higher-value grand-hall triangle reduction, particularly far Svelte cabinet LOD. Chair rear corner and bevels remain open art tasks; LOD chair remains opt-in.
+
+**PR check:** Searched GitHub PR issues for #2/#3; returned no matching results, so draft/open status is unverified this run. Recent commits checked. No merge, release, production change or device claim.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
