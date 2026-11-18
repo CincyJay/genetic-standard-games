@@ -294,12 +294,14 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     for (let j = 0; j < 4; j++) {
       const a = k * 4 + j, b = k * 4 + (j + 1) % 4;
       const c = a + 4, d = b + 4;
-      webIdx.push(a, b, c, b, d, c);
+      // Outward winding: front (+Z) wall must face the player.
+      webIdx.push(a, c, b, b, c, d);
     }
   }
-  webIdx.push(0, 2, 1, 0, 3, 2);
+  // Bottom faces down; upper cap faces up.
+  webIdx.push(0, 1, 2, 0, 2, 3);
   const top = (webSections.length - 1) * 4;
-  webIdx.push(top, top + 1, top + 2, top, top + 2, top + 3);
+  webIdx.push(top, top + 2, top + 1, top, top + 3, top + 2);
   const webGeo = new THREE.BufferGeometry();
   webGeo.setAttribute('position', new THREE.Float32BufferAttribute(webPos, 3));
   webGeo.setAttribute('uv', new THREE.Float32BufferAttribute(webUV, 2));
