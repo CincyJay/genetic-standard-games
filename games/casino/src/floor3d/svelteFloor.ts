@@ -38,10 +38,10 @@ export const SVELTE_PAIR_X = 0.32;
 /** Half the Svelte cabinet's width (its bounds: x ±0.306). */
 const CABINET_HALF_W = 0.306;
 /**
- * End cap size and seat, in the slot's own frame (front +Z): it spans the cabinet from the shoe's
- * back (z −0.47) to the deck's front (z 0.35), so it's centred at z −0.06.
+ * End cap size and seat, in the slot's own frame (front +Z): it spans the cabinet from its back
+ * (z −0.34, with ChatGPT's re-centred shoe, VA-0148) to the deck's front (z 0.35), plus 1.5 cm.
  */
-export const CAP = { width: 0.09, depth: 0.86, height: 2.09, centreZ: -0.06, gap: 0.02 } as const;
+export const CAP = { width: 0.09, depth: 0.72, height: 2.09, centreZ: 0.005, gap: 0.02 } as const;
 /** Machines further apart than this along a line are separate rows. */
 const ROW_BREAK = 2.2;
 
