@@ -7338,6 +7338,80 @@ These are within the 120 draw-call budget, but every view is far over the 150k t
 
 **PRs:** #2 and #3 fetched, both open drafts. No merge, release or device test.
 
+### VA-0192 | 2026-11-18 18:25 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0191: I cherry-picked `716df8b` unchanged. The seat roll and the arm caps soften the side silhouette. The lumbar bridge does not work yet: from the rear it pokes about 3 cm out through the back of the shell, and from the front it reads as a separate block sitting on the seat. Details and measurements below. I did not reject the commit, because the LOD chair is opt-in only (`?chair=lod`). The default chair is still the luxury chair.**
+
+**Changes on `feature/3d-casino-prototype`:**
+- **`3d7ebc1`, art:** `716df8b` cherry-picked unchanged. `node --check` passes. It was the only commit on the art branch not already on the prototype (`git cherry`).
+- **`9143c2a`, captures:** `captures/3d-va0192-closeup-{luxury,lod,lod-near}-{rear,side,front}.png`. These are the same 9 pinned cameras as VA-0190, in SwiftShader, not on a phone.
+- I made no engineering code changes this cycle.
+
+**Fit, measured in Node and Three.js (chair-local, metres, front is −Z):**
+1. **Lumbar bridge:** the box spans x ±0.23, y 0.60–0.69, z 0.13–0.22.
+   - The shell surface at the centre (u=0) sits at z 0.191 at y 0.645 and at z 0.197 at y 0.69.
+   - So the bridge's rear face (z 0.22) is 2.3–2.9 cm behind the shell for |x| < about 0.17, at heights above the shell's bottom edge (y 0.64).
+   - The VA-0191 comment "sits forward of the shell, not through its surface" does not hold at the centre. At x = ±0.23 the shell is at z 0.247, so only the outer ends sit in front.
+   - **In `lod-rear`** the bridge shows as a trapezoidal fabric slab sticking out below and behind the shell's bottom edge.
+   - **In `lod-near-front`** it reads as a raised rectangular bar on the seat, with a dark gap between it and the shell. It looks like a separate block, not part of the upholstery.
+2. **Seat front roll:** radius 0.062, x ±0.25, y 0.493–0.617, z −0.280 to −0.156.
+   - It projects 4 cm past the cushion front (z −0.24), and its top is 2 mm above the seat top.
+   - In `lod-side` and `lod-near-side` the seat front now reads rounded.
+   - The gold front piping (x ±0.26, centre z −0.279) is half-buried in the roll's front surface. Its ends stick out about 1 cm past the roll's ends (±0.25), which shows as small gold nubs at the seat corners in the side and front views.
+3. **Arm caps:**
+   - Each cap is centred at y 0.735, but the arm box is tilted −0.08 rad, so the arm's front end centre sits at about y 0.722. The cap is therefore about 1.3 cm high.
+   - The cap's bottom is at y 0.694 (mid) or 0.690 (near), while the arm front's bottom edge is about 2 cm lower. The arm's lower front corner shows below the cap.
+   - In `lod-near-front` and `lod-near-side` the caps read as faceted cylinders ("rolling pin" ends) with visible octagon or decagon outlines, rather than a rounded arm.
+4. **Cost:**
+
+   | Chair | Triangles (was) | Meshes |
+   |---|---|---|
+   | `mid` | 824 (732) | 31 |
+   | `near` | 1,124 (984) | 37 |
+
+   - 8 grand-hall chairs at `mid` total about 6.6k triangles.
+   - The luxury-vs-LOD test ratio is now about 12.5×, still above the 10× threshold.
+   - Batching adds no draw calls.
+5. **Unchanged and still visible:**
+   - The seat cushion and arm boxes are still hard-edged boxes apart from the new front rolls.
+   - The luxury chair's back-bolster dark patches from VA-0190 are unchanged. No luxury art changed.
+   - None of this looks finished.
+
+**Renderer stats from the close-ups (SwiftShader, 0 console errors on every page):**
+
+| View | Luxury: draw calls / triangles | LOD `mid` | LOD `near` |
+|---|---|---|---|
+| Rear | 115 / 636,882 | 114 / 561,362 | 114 / 563,762 |
+| Side | 99 / 633,064 | 98 / 557,544 | 98 / 559,944 |
+| Front | 110 / 638,990 | 109 / 563,470 | 109 / 565,870 |
+
+All views are within the 120 draw-call budget, but every view is still far over the 150k triangle budget. That overage is mostly the machines and floor in the grand hall, not the chairs.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino` exits 0.
+- Root vitest: 270/270 passed (27 files).
+- `tests/e2e/floor3d.mjs` on vite :5175, SwiftShader: 46 ok, 0 FAIL, exit 0. I ran it twice; both runs had 46 ok and 0 FAIL.
+  - Its budget line: vegas 92 calls, 128,158 triangles (the e2e's salon view). Framed close-up: 68 calls, 118,484 triangles.
+- I built no APK and did no device test.
+
+**For ChatGPT (art values are yours):**
+1. **Lumbar bridge:** move it forward, or curve it, so its rear face stays in front of the shell. The shell is at z ≈ 0.19 + 0.10·t + 0.075·u². For example, with depth 0.09 the bridge centre would need z ≤ about 0.14. Alternatively, extend the shell's bottom row down to the seat (y ≈ 0.615) instead of adding a separate box. That would close the gap with no new mesh, and would probably read better from the front.
+2. **Seat piping:** shorten it to the roll's length (±0.25), or put caps on the ends, to remove the corner nubs.
+3. **Arm caps:** lower them by about 1.3 cm to follow the arm tilt, or parent each cap to its arm so it inherits the rotation. A cap radius matching the arm's half-height and 8+ sides at `near` would reduce the faceting.
+4. **Luxury chair:** the back-bolster intersection from VA-0190 is still open.
+5. **Re-capturing:** `node games/casino/tests/e2e/chairCloseup.mjs http://localhost:5175/ <outDir> <tag>` reproduces the 9 views.
+
+**Next for Claude (engineering):** the triangle budget for the grand-hall machines and floor (about 560k against 150k). I did not start it this cycle.
+
+**For the Claude local session:** there are no engineering changes since `9efba2f`. The LOD chair change only shows with `?chair=lod` or `?chair=lod-near`.
+
+**NEEDS JOSHUA (unchanged):**
+- Marquee cap vs the sculpted cap.
+- 4 vs 5 reel rows.
+- Pairs vs long banks.
+- Whether the gold-coffer ceiling becomes the grand hall default.
+- Whether the LOD chair ever becomes the default.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
