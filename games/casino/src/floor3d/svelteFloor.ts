@@ -339,6 +339,19 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
 }
 
 /**
+ * Floor-only bulb LOD (VA-0172, Claude-owned performance): the marquee cap's bulbs are 60 spheres of
+ * 160 triangles each, about 9.5k of the cap's ~9.9k. On the floor every cap shares one instanced
+ * mesh, so each bulb is redrawn as a 20-triangle icosahedron of the authored bulb's own radius
+ * (same material, colours and chase). A 1.7 cm glowing bulb spans a few pixels at follow distance,
+ * so the facets should not read; the authored cap itself is unchanged.
+ */
+export function floorBulbGeometry(authored: THREE.BufferGeometry): THREE.BufferGeometry {
+  authored.computeBoundingSphere();
+  const r = authored.boundingSphere?.radius ?? 0.017;
+  return new THREE.IcosahedronGeometry(r, 0);
+}
+
+/**
  * Builds the end caps from one authored cap, merged for the phone: its static parts become one mesh
  * per material across every cap, and all their bulbs one instanced mesh, so 20 caps cost the draw
  * calls (and the two face canvases) of one. Kept out of the floor's batches so the bulbs can chase:
@@ -384,7 +397,7 @@ export function buildSvelteCaps(caps: readonly CapPlacement[]): { root: THREE.Gr
   let copyColours = () => {};
   if (src) {
     const n = src.count;
-    const all = new THREE.InstancedMesh(src.geometry, src.material, n * placements.length);
+    const all = new THREE.InstancedMesh(floorBulbGeometry(src.geometry), src.material, n * placements.length);
     all.name = 'svelte_end_caps:marquee_chase_bulbs';
     all.userData.glow = true;
     const local = new THREE.Matrix4(), world = new THREE.Matrix4();

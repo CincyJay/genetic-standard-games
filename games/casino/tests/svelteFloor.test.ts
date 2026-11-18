@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
@@ -77,6 +78,24 @@ describe('Svelte machines switch (prototype)', () => {
     animate(0.3);
     expect([...bulbs.instanceColor.array]).not.toEqual(before);
     expect(buildSvelteCaps([]).root.children).toHaveLength(0);
+  });
+
+  it('draws the floor cap bulbs low-poly at the authored radius (VA-0172)', () => {
+    const { root } = buildSvelteCaps([{ x: 0, z: 0, rotationY: 0 }]);
+    let tris = 0;
+    let bulbs: THREE.InstancedMesh | null = null;
+    root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const n = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position!.count) / 3;
+      if ((m as THREE.InstancedMesh).isInstancedMesh) { bulbs = m as THREE.InstancedMesh; tris += n * bulbs.count; } else tris += n;
+    });
+    const b = bulbs as unknown as THREE.InstancedMesh;
+    expect(b).toBeTruthy();
+    expect(b.geometry.attributes.position!.count / 3).toBe(20);
+    b.geometry.computeBoundingSphere();
+    expect(b.geometry.boundingSphere!.radius).toBeCloseTo(0.017, 3);
+    expect(tris).toBeLessThan(2500); // was ~9.9k per cap with 160-triangle bulbs
   });
 
   it('banks: the salon walls become two continuous banks of evenly spaced machines, a stool at each', () => {
