@@ -6300,6 +6300,36 @@ No APK and no device test, because the cloud can't reach the phone. That is left
 
 **Claude next:** Merge art commit into prototype branch only; run existing 332-triangle, UV, screen-facing, and bounds tests. Inspect overview near/far screen and surround for occlusion/z-fighting at top and bottom, capture screenshots with identical exposure. Verify draw calls remain stable. If dark far screens persist, compare near/far world-space screen normals, tone mapping and screen material settings. Do not merge main/release. Open near cabinet deck support and side silhouette remain.
 
+### VA-0156 | 2026-11-18 03:09 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0155: merged `5f59369` unchanged.** On `feature/3d-casino-prototype` it is now **`2fcfe51`** (the pre-push rebase flattened the merge again). `art/casino/3d/svelteSlotCabinetFarLOD.mjs` there is byte-identical to `5f59369`.
+
+**Engineering (`6ce21bb`), test only:** a new test in `tests/svelteLod.test.ts` casts front rays (−Z, button deck excluded):
+- A ray at the screen centre hits the glass.
+- Rays through the border band just outside the glass hit `distant_screen_shadow_surround` before the hull. I checked six points: both sides at y 0.9, 1.3, 1.66 and 1.9, the top at y 1.947, and the bottom at y 0.772.
+
+The other far-LOD tests still pass: 332 triangles, UVs, the screen faces +Z, and the bounds match the full cabinet.
+
+**Tests (observed):** `tsc --noEmit` is clean. Root `npx vitest run` passed 255/255 (27 files). `tests/e2e/floor3d.mjs` ran against vite on :5175 with SwiftShader but had not finished after 500 s, so I stopped it. I have no e2e result and no new draw-call or triangle capture this cycle. The change adds no meshes or materials, so the call count should not move from VA-0154 (LOD overview 95/120), but I did not measure it. No APK and no device test, because the cloud can't reach the phone.
+
+**Candid notes on `5f59369`:**
+- The fix works: the surround is now in front of the hull all round the glass. For example, at x 0.252, y 1.3 the surround is at z 0.065 and the hull at −0.061.
+- **The surround is still a flat plane.** BoxGeometry(.518, 1.185, .016) has vertices only at its 8 corners:
+  - The `bow` term is evaluated at x = ±0.259, so it is always 0.
+  - `frontAt(y)` is only sampled at y 0.768 and 1.952, so the slab is one tilted plane, front z 0.034 → 0.102.
+- So it does not follow the S-curve. The glass edge at y 1.66 is at z ≈ 0.142, while the surround there is at ≈ 0.085. The gap is about 57 mm, not the 18 mm in the comment. Head-on it reads as a border. From a steep side angle a dark gap behind the glass edge may show. Not judged on a phone.
+- **Far-screen brightness:** the near and far screens use the same material, with colour 121c2b, emissive 102037 at 0.22, roughness 0.11 and metalness 0.3. Their bounds match within 1 cm (x ±0.24, y 0.78–1.94) and their average normals match ((0, −0.07, 1) vs (0, −0.05, 1)). Geometry and material don't explain the darker look. My unverified guess is texture minification (mip averaging of the 5×5 reel texture at overview distance) plus bloom. Next step: a same-exposure side-by-side capture.
+- For the record: the feature branch still carries two Claude engineering edits inside art files that are not on your art branch:
+  - `DECK_BACK` = 0.07 in `svelteSlotCabinet.mjs` (VA-0147). This puts the near deck at z 0.175. The far-LOD deck is at 0.185, so they agree within 1 cm.
+  - The meter-row clear in `svelteReelScreen.mjs` (VA-0140).
+
+**For ChatGPT:**
+1. If you want the surround to really follow the curve, use a subdivided box or a shaped strip, for example `BoxGeometry(.518, 1.185, .016, 4, 6, 1)`. The triangle count goes up, so please declare it in `expectedTriangles`. Our budget test allows up to 1.5k per far cabinet, and the far LOD is at 332 now. Or keep it flat if 57 mm doesn't read at distance. Your call.
+2. Unchanged: the side-view slab and the deck support on the near cabinet, and a lighter `marquee_velvet_slab` (6,640 triangles for 20 end caps).
+
+**For the local session:** please try "Svelte islands + far LOD" on the S25+ and capture follow and overview screenshots plus the HUD fps. Please include one overview near/far screen pair for the brightness question.
+
+**NEEDS JOSHUA:** nothing new. The end-cap verdict (VA-0147) and pairs vs. long islands (VA-0150) are still open.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
