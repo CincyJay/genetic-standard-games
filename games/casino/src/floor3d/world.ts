@@ -109,6 +109,14 @@ export interface FloorHandle {
     place: (x: number, z: number, heading: number) => void;
     /** Tilt the follow view up (radians, as a vertical drag does). */
     look: (up: number) => void;
+    /**
+     * Test/capture hook (VA-0190): hold the camera at a fixed eye and target (and fov, degrees) so
+     * close-ups of one piece of art are repeatable whatever the avatar is doing; null releases it.
+     * Nothing in the game calls this.
+     */
+    pinCamera: (pin: { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov?: number } | null) => void;
+    /** World position and yaw of the first object with this name, or null (for aiming pinCamera). */
+    objectPose: (name: string) => { x: number; y: number; z: number; yaw: number } | null;
   };
 }
 
@@ -629,6 +637,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   let seated: Seat | null = null;
   let camYaw = st.heading;
   let transition: { from: CamPose; t0: number } | null = null;
+  let pinned: { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov?: number } | null = null;
   let lastPose: CamPose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { aspect: window.innerWidth / window.innerHeight });
   /** Overview drag offset from the avatar (metres on the floor). */
   let pan = { x: 0, z: 0 };
@@ -1091,6 +1100,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       if (t >= 1) transition = null;
       else pose = blendPose(transition.from, pose, t);
     }
+    if (pinned) pose = { ...pose, pos: { ...pinned.pos }, target: { ...pinned.target }, fov: pinned.fov ?? pose.fov };
     lastPose = pose;
     // a camera pulled in close (by a wall or a machine) fades the avatar so it can't fill the view
     const alpha = st.mode === 'follow' ? avatarOpacity(Math.hypot(pose.pos.x - avatar.position.x, pose.pos.y - (avatar.position.y + AVATAR_HEIGHT / 2), pose.pos.z - avatar.position.z)) : 1;
@@ -1258,6 +1268,20 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         st.pos = { x, z };
         st.heading = heading;
         camYaw = heading;
+      },
+      pinCamera: (pin) => {
+        pinned = pin ? { pos: { ...pin.pos }, target: { ...pin.target }, fov: pin.fov } : null;
+        transition = null;
+      },
+      objectPose: (name: string) => {
+        const o = scene.getObjectByName(name);
+        if (!o) return null;
+        o.updateWorldMatrix(true, false);
+        const p = new THREE.Vector3();
+        const q = new THREE.Quaternion();
+        o.matrixWorld.decompose(p, q, new THREE.Vector3());
+        const yaw = new THREE.Euler().setFromQuaternion(q, 'YXZ').y;
+        return { x: p.x, y: p.y, z: p.z, yaw };
       },
     },
   };

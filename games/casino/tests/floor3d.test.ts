@@ -977,13 +977,14 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     };
     const lux = tris('luxury');
     const lod = tris('lod-mid');
-    // every chair the same count, so LOD is ~20x cheaper, and its clones share one set of geometry
-    expect(lod.n * 15).toBeLessThan(lux.n);
+    // every chair the same count; LOD is ~14x cheaper after 336a41b's tube rails (8 x 732 vs 82,112 tris),
+    // and its clones share one set of geometry
+    expect(lod.n * 10).toBeLessThan(lux.n);
     let perChair = 0;
     chair.traverse((m) => { if ((m as import('three').Mesh).isMesh) perChair++; });
     expect(lod.geos).toBe(perChair);
   });
-  it('LOD chair rails and crest sit on the curved backrest shell (VA-0187 art fit, read-only check)', async () => {
+  it('LOD chair rails and crest sit on the curved backrest shell (VA-0187/VA-0189 art fit, read-only check)', async () => {
     const THREE = await import('three');
     const { createVelvetGamingChairLod } = await import('../../../art/casino/3d/velvetGamingChairLod.mjs');
     for (const detail of ['mid', 'near'] as const) {
@@ -1009,12 +1010,31 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
           expect(nearest(new THREE.Vector3(sx, 0, 0).applyMatrix4(c.matrixWorld))).toBeLessThan(0.01);
         }
       }
-      // each rail's ends land within 2 cm of the shell's bottom/top side corners (measured ~1.6 cm: rail .71 m vs shell .67 m)
+      // 336a41b: each rail is a tube whose centreline follows the shell's side edge. The rendered edge is the
+      // polyline through each row's outermost vertex; the centreline must stay within 5 mm of it, with exact ends.
       expect(rails.length).toBe(2);
       for (const r of rails) {
-        for (const sy of [-0.355, 0.355]) {
-          expect(nearest(new THREE.Vector3(0, sy, 0).applyMatrix4(r.matrixWorld))).toBeLessThan(0.02);
+        const path = (r.geometry as unknown as { parameters: { path: import('three').Curve<import('three').Vector3> } }).parameters.path;
+        const side = Math.sign(path.getPoint(0.5).x);
+        const rows = new Map<string, import('three').Vector3>();
+        for (const v of shellPts) {
+          const k = v.y.toFixed(3);
+          const cur = rows.get(k);
+          if (!cur || v.x * side > cur.x * side) rows.set(k, v.clone().applyMatrix4(shell.matrixWorld));
         }
+        const edge = [...rows.values()].sort((a, b) => a.y - b.y);
+        const seg = new THREE.Line3();
+        const tmp = new THREE.Vector3();
+        const toEdge = (c: import('three').Vector3) => Math.min(...edge.slice(1).map((b, i) => {
+          seg.set(edge[i], b);
+          return seg.closestPointToPoint(c, true, tmp).distanceTo(c);
+        }));
+        for (let k = 0; k <= 40; k++) {
+          const c = path.getPoint(k / 40).applyMatrix4(r.matrixWorld);
+          expect(toEdge(c)).toBeLessThan(0.005);
+        }
+        expect(nearest(path.getPoint(0).applyMatrix4(r.matrixWorld))).toBeLessThan(0.001);
+        expect(nearest(path.getPoint(1).applyMatrix4(r.matrixWorld))).toBeLessThan(0.001);
       }
       expect(root.userData.seatHeight).toBeCloseTo(0.615, 3);
     }
