@@ -905,6 +905,18 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // the coffers batch: the new ceiling adds a handful of batches, not one per coffer
     expect(gold.a.batches - own.a.batches).toBeLessThanOrEqual(6);
   });
+  it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
+    const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
+    const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {
+      let n = 0;
+      composeGrandHall(g, { liftSign: () => 0, ceiling }).root.traverse((o) => { if (re.test(o.name)) n++; });
+      return n;
+    };
+    expect(count('hall', /^warm-cove-strip$/)).toBeGreaterThan(0);
+    expect(count('gold-coffers', /^warm-cove-strip$/)).toBe(0);
+    // walls, crown and colonnade are not part of the swap
+    expect(count('gold-coffers', /^(?!warm-cove-strip$|ceiling-base$|coffer-)/)).toBeGreaterThan(0);
+  });
 });
 
 describe('prototype badge', () => {

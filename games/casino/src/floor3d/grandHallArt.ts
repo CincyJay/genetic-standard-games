@@ -40,8 +40,12 @@ export function readCeilingStyle(): CeilingStyle {
     return 'hall';
   }
 }
-/** The architecture pieces the gold-coffer ceiling replaces: its slab, coffers, beams and ring chandeliers. */
-export const REPLACED_BY_GOLD_COFFERS = /^(ceiling-base|coffer-.*|suspended-ring-chandelier|chandelier-suspension)$/;
+/**
+ * The architecture pieces the gold-coffer ceiling replaces: its slab, coffers, beams and ring
+ * chandeliers, plus the warm cove strips (VA-0179), which were mounted against that slab and hung
+ * under the gold beams with nothing behind them once it was gone.
+ */
+export const REPLACED_BY_GOLD_COFFERS = /^(ceiling-base|coffer-.*|suspended-ring-chandelier|chandelier-suspension|warm-cove-strip)$/;
 /** Chandeliers down the promenade (the art spaces them at most 5 m apart, centred). */
 export const GOLD_COFFER_CHANDELIERS = 4;
 
@@ -111,7 +115,7 @@ export function composeGrandHall(
   // ChatGPT's architecture at the layout's size
   const architecture = createGrandHallArchitecture(THREE, spec) as THREE.Group;
   if (opts.ceiling === 'gold-coffers') {
-    // the architecture's ceiling gives way to the gold coffers; its walls, crown, coves and colonnade stay
+    // the architecture's ceiling and its cove strips give way to the gold coffers; walls, crown and colonnade stay
     const drop: THREE.Object3D[] = [];
     architecture.traverse((o) => {
       if (o !== architecture && REPLACED_BY_GOLD_COFFERS.test(o.name)) drop.push(o);
