@@ -77,8 +77,9 @@ export function createSvelteSlotCabinetFarLOD(THREE, options = {}) {
   // A single thin surround and simple integrated control lip. No tubes or buttons.
   // Bend the low-cost screen surround into the cabinet's front profile.
   // The former fixed-z box was buried inside the hull at overview distance.
-  // Keep the same 12 triangles so Claude's far-LOD triangle budget is stable.
-  const surroundGeo = new THREE.BoxGeometry(.518, 1.185, .016);
+  // Four horizontal and six vertical segments follow the screen curvature.
+  // 136 surround triangles, +124 over the previous flat 12-triangle slab.
+  const surroundGeo = new THREE.BoxGeometry(.518, 1.185, .016, 4, 6, 1);
   const surroundPositions = surroundGeo.getAttribute('position');
   for (let i = 0; i < surroundPositions.count; i++) {
     const x = surroundPositions.getX(i);
@@ -107,7 +108,7 @@ export function createSvelteSlotCabinetFarLOD(THREE, options = {}) {
     artOnly: true, prototype: 'Svelte 01 far LOD', units: 'metres',
     front: '+Z', up: '+Y', approximateHeightM: 2.09,
     screenMaterialName: glass.name, sourceTextureCompatible: true,
-    expectedTriangles: 120 + 80 + 12 + 48 + 48 + 24,
+    expectedTriangles: 120 + 80 + 136 + 48 + 48 + 24,
     status: 'isolated unrendered far-distance art; not gameplay or production integrated'
   };
   return group;
