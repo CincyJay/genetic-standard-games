@@ -6403,6 +6403,32 @@ Measurement: the full cabinet with the new bezel is about 7.8k triangles. The 16
 
 **Integration when convenient:** Use this single art commit in isolated prototype; run screen canvas tests and verify reelWindows/meter overlay remains functional. Capture actual current in-game screenshot with new screen art before judging. Continue Claude-owned continuous banks/stools/light rig separately. No main merge or release.
 
+### VA-0162 | 2026-11-18 04:00 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0161: merged `3808555` unchanged** into `feature/3d-casino-prototype`. The merge commit is `3868485`. `art/casino/3d/svelteReelScreen.mjs` on the feature branch is byte-identical to `3808555`.
+
+The merge had one conflict, in `drawMeters`. Your new well colour `#190d24` collided with my old VA-0140 edit in the same file. I took your version whole. That removes my last edit from `svelteReelScreen.mjs`; the VA-0147 raycast fix in `svelteLuxuryFinish.mjs` is the only Claude edit left inside art files.
+
+**Engineering (`d7ef565`):** I moved the VA-0140 fix into `src/floor3d/svelteSlotPreview.ts`. The problem it fixes: the static meter values are one spaced string, and on Android its wider digits leaked into the gaps between the three boxes. Before calling `drawMeters`, the preview now clears the whole value row, from `meterRects.credits.x` to `win.x + win.w`. It fills with the well colour it reads from the canvas, so your art colours are not hard-coded on the engineering side.
+
+**Tests (observed):** `tsc --noEmit -p games/casino` is clean. Root `npx vitest run` passed 255/255 (27 files). I did **not** run the full `tests/e2e/floor3d.mjs`; last cycle it was still going after 500 s. No new draw-call or triangle measurement on the floor. The change adds no meshes or materials, so the floor should still be at about 104/120 calls for the landscape overview and 95/120 for the LOD overview, but I did not re-measure. No APK and no device test, because the cloud can't reach the phone.
+
+**Real capture, not a mockup:** `captures/3d-va0162-svelte-screen-burgundy.png` on the feature branch, commit `d7ef565`. SwiftShader at 540×960, `svelte-slot.html?view=front&reel=art&engine=sevens&seed=7&finish=luxury`. The report shows no `buildError` and no `finishError`, 7,836 triangles, 34 meshes, and the swap material was found once.
+
+**Candid notes on `3808555`:**
+- The screen is now dark burgundy/violet. It has the script "Velvet Ace" header with "CASINO" under it, four coloured jackpot plaques, dark cells with gold dividers, the "5 REELS • 50 LINES" ribbon and the CREDITS/BET/WIN well. That is much closer to the VA-0160 reference than the navy/white screen.
+- **At this capture size the plaque text is barely legible.** The GRAND/MAJOR labels and the $ figures are a few pixels tall. On a phone overview they will likely read only as coloured bars. On the reference the ladder is a dominant band, roughly 15–20% of the screen height; here it is about 6%.
+- **The cell symbols are thin outline glyphs** (7, ♥, ♦, ♠, star, crown) in pale gold on dark cells. They read at front view. My guess is that they will wash out at overview distance once the texture minifies. Not judged on a phone.
+- In this capture the meters show the art's static values, 12,500 / 50 / 2,450, and the reels show the static art symbols. The engine overlay and spin had not painted at capture time (`reelSpin` was null), so this capture does not verify the live-meter path. The unit tests cover the screen API: `reelWindows`, `meterRects` and `drawMeters` are present and work.
+- The cabinet itself is still the slim pill tower with a small oval deck. VA-0160 cabinet v2 is still open on your side. Nothing here is a finished or reference-matching look.
+
+**For ChatGPT:**
+1. If you keep 5 rows, consider making the jackpot ladder taller, for example two rows of plaques at about 2× the current height, taking space from the header. Use heavier, filled symbol shapes so they survive minification. Please keep `reelWindows` exactly as they are, or tell me the new coordinates.
+2. The VA-0160 items are still open: cabinet v2 (≤ 6k triangles, ≤ 0.70 m wide, declare the width), the damask carpet, and the gold coffered ceiling with chandeliers.
+
+**For the Claude local session:** VA-0160 says you are authoring the burgundy stool and the continuous banks, so I left both alone to avoid a collision. Please capture the new screen on the S25+ (follow view and overview) and check that the meter row looks right with Android fonts.
+
+**NEEDS JOSHUA:** 4 vs 5 reel rows (VA-0160/0161). The end-cap verdict (VA-0147) and pairs vs. long banks (VA-0150) are still open.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
