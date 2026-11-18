@@ -6249,6 +6249,48 @@ Requests:
 
 **Claude next:** Import the new factory into isolated prototype, validate runtime and measure actual triangles, UV completeness and screen face direction. Integrate distance LOD opt-in only, keep near cabinets unchanged, test salon follow against 150k triangle target and 120 draw-call target. Verify screen texture mapping and transitions, check with luxury finish on/off; do not merge to main or release. Existing deck joint and side silhouette remain open near-art defects.
 
+### VA-0154 | 2026-11-18 02:08 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0153: merged unchanged.** I merged `149af09` (`svelteSlotCabinetFarLOD.mjs`) into `feature/3d-casino-prototype` without changes. My pre-push rebase flattened it again, so on the feature branch it is **`55db3d5`**. A diff against `149af09` shows no differences.
+
+**Engineering (`4f41b36`), prototype only, opt-in:**
+- The ⚙ Machines switch now cycles through three settings: classic → Svelte islands → **Svelte islands + far LOD (preview)**. Classic stays the default.
+- With LOD on, the 6 cabinets nearest the camera use the full cabinet and the rest use your far LOD. The near set follows the camera. A 0.75 m margin stops a cabinet on the boundary from flickering between the two.
+- Both levels are InstancedMeshes, one per material bucket, plus one screen mesh per machine. Both levels share each machine's own 5×5 screen material.
+- New file `src/floor3d/svelteLod.ts`. I moved `cabinetBuckets()` out of `svelteFloorBatch.ts` so both files can use it.
+- New tests in `tests/svelteLod.test.ts`:
+  - The far LOD builds to exactly its declared 332 triangles.
+  - Every mesh has a finite UV for each vertex.
+  - All 80 screen triangles face +Z and sit in front of the hull.
+  - Its width and height match the full cabinet within 5 cm, so pair spacing and collisions are unchanged.
+  - Near/far selection and per-machine screen counts.
+
+**Tests (observed):** `tsc --noEmit` is clean and vitest passed 254/254. `tests/e2e/floor3d.mjs` was not run. I used a short Playwright script instead (SwiftShader, 384×832, `?floor3d`, salon, Vegas lighting), with no console errors:
+
+| Style | Follow: calls / triangles | Overview: calls / triangles |
+|---|---|---|
+| Svelte islands | 72 / 340k | 87 / 357k |
+| Svelte + LOD, 16 near | 85 / 329k | 95 / 339k |
+| **Svelte + LOD, 6 near (committed)** | **87 / 271k** | **95 / 280k** |
+
+No APK and no device test, because the cloud can't reach the phone. That is left to the local session.
+
+**Candid notes (this corrects my VA-0152 diagnosis):**
+- The salon has only **20** Svelte cabinets, not about 77. Without LOD they cost about 123k triangles (6,160 each with the finish).
+- The 340–370k figure is `renderer.info` summed over every pass. The frustum-visible draw list per pass adds up to about 149k triangles with Svelte islands and about 110k with classic machines.
+- So the bloom/composer passes roughly double the cost. Cabinets alone can't bring the floor under 150k.
+- LOD saves about 70k triangles for **+15 draw calls** (overview 95 of 120). It's a trade-off, not a clear win, which is why it stays opt-in.
+- Screen meshes are one per machine per level, about 20 of the 33 LOD calls. Merging those screens into an atlas would win the calls back. That's engineering, and I'll take it next if LOD is kept.
+- In the overview capture the far cabinets read flatter and darker than the near ones, especially the screens. Swapping between levels will show a visible pop. Not judged on a phone.
+- The far LOD's `distant_screen_shadow_surround` box (z −0.025) appears to sit inside the hull, so it may never be seen. Please check.
+
+**For ChatGPT:**
+1. Far LOD screen brightness: at overview distance the far screens look darker than the near ones. If that's because of the art's glass/ribbon values, please match the near screen's look. I already put the machine's own screen material on both levels.
+2. The open items are unchanged: the side-view slab and the deck support. The end caps' `marquee_velvet_slab` is the single largest Svelte-mode draw at 6,640 triangles for 20 caps. A lighter slab would help the budget.
+
+**For the local session:** please try "Svelte islands + far LOD" on the S25+ and capture follow and overview screenshots plus the HUD fps. The bloom passes look like the real triangle multiplier; that's worth a look on device.
+
+**NEEDS JOSHUA:** nothing new. The end-cap verdict (VA-0147) and pairs vs. long islands (VA-0150) are still open.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
