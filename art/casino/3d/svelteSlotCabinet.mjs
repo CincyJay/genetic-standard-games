@@ -269,21 +269,48 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   const shoeTrim = add(new THREE.TorusGeometry(0.246, 0.007, 5, 20), titanium, 'floor_shoe_chrome_edge');
   shoeTrim.rotation.x = Math.PI / 2; shoeTrim.scale.y = 0.74; shoeTrim.position.set(0, 0.02, -0.105);
   // Floating, thin control deck, a tapered oval with the front lip toward player.
-  // DECK_BACK (Claude, VA-0147): after VA-0145 moved the hull front back to z ~0 at deck height, the
-  // deck's rear edge sat 7 cm in front of it and read as floating; shift deck, mount, trim and buttons
-  // back so the deck's rear edge meets the hull.
-  const DECK_BACK = 0.07;
   const deck = add(new THREE.CylinderGeometry(0.295, 0.245, 0.055, 32), graphite, 'floating_elliptical_button_deck');
-  deck.scale.z = 0.58; deck.position.set(0, 0.75, 0.245 - DECK_BACK); deck.rotation.x = -0.08;
-  // A swept web connects the deck to the hull, with its cap hidden below controls.
-  // Short and rearward: no cylinder cap above the deck's button plane.
-  const deckMount = add(new THREE.CylinderGeometry(0.085, 0.135, 0.12, 20), lacquer, 'sculpted_deck_mount');
-  deckMount.scale.z = 1.25; deckMount.position.set(0, 0.665, 0.105 - DECK_BACK); deckMount.rotation.x = -0.12;
+  deck.scale.z = 0.58; deck.position.set(0, 0.75, 0.245); deck.rotation.x = -0.08;
+  // Sculpted, structural control-deck cantilever. Unlike the old cone this
+  // web physically spans from inside the front hull to the deck underside.
+  // It is a closed tapered solid with a broad, flush upper landing.
+  const webSections = [
+    // y, rear z, front z, half width
+    [0.565, -0.060, 0.052, 0.115],
+    [0.635, -0.045, 0.175, 0.155],
+    [0.708, -0.015, 0.307, 0.205],
+    [0.737,  0.018, 0.328, 0.215]
+  ];
+  const webPos = [], webUV = [], webIdx = [];
+  // Each ring is clockwise viewed from above: rear-left, rear-right,
+  // front-right, front-left. Side and front walls remain visible.
+  for (const [y, rear, front, w] of webSections) {
+    for (const [x, z, u] of [[-w, rear, 0], [w, rear, 1],
+                              [w, front, 1], [-w, front, 0]]) {
+      webPos.push(x, y, z); webUV.push(u, y);
+    }
+  }
+  for (let k = 0; k < webSections.length - 1; k++) {
+    for (let j = 0; j < 4; j++) {
+      const a = k * 4 + j, b = k * 4 + (j + 1) % 4;
+      const c = a + 4, d = b + 4;
+      webIdx.push(a, b, c, b, d, c);
+    }
+  }
+  webIdx.push(0, 2, 1, 0, 3, 2);
+  const top = (webSections.length - 1) * 4;
+  webIdx.push(top, top + 1, top + 2, top, top + 2, top + 3);
+  const webGeo = new THREE.BufferGeometry();
+  webGeo.setAttribute('position', new THREE.Float32BufferAttribute(webPos, 3));
+  webGeo.setAttribute('uv', new THREE.Float32BufferAttribute(webUV, 2));
+  webGeo.setIndex(webIdx);
+  webGeo.computeVertexNormals();
+  const deckMount = add(webGeo, lacquer, 'sculpted_deck_mount');
   const deckLip = add(new THREE.TorusGeometry(0.268, 0.007, 5, 32), titanium, 'deck_perimeter_trim');
-  deckLip.scale.y = 0.58; deckLip.rotation.x = Math.PI / 2; deckLip.position.set(0, 0.786, 0.245 - DECK_BACK);
+  deckLip.scale.y = 0.58; deckLip.rotation.x = Math.PI / 2; deckLip.position.set(0, 0.786, 0.245);
   for (let i = -1; i <= 1; i++) {
     const button = add(new THREE.CylinderGeometry(0.032, 0.032, 0.009, 12), i === 0 ? led : titanium, 'physical_button_' + i);
-    button.position.set(i * 0.086, 0.789, 0.272 - DECK_BACK);
+    button.position.set(i * 0.086, 0.789, 0.272);
   }
   group.userData = {
     artOnly: true, prototype: 'Svelte 01', units: 'metres',
