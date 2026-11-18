@@ -991,6 +991,22 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     chair.traverse((m) => { if ((m as import('three').Mesh).isMesh) perChair++; });
     expect(lod.geos).toBe(perChair);
   });
+  it('LOD chair keeps its seat cushion, its back meeting the shell centre (VA-0198/VA-0199, read-only check)', async () => {
+    const THREE = await import('three');
+    const { createVelvetGamingChairLod } = await import('../../../art/casino/3d/velvetGamingChairLod.mjs');
+    for (const [detail, meshes] of [['mid', 30], ['near', 36]] as const) {
+      const root = createVelvetGamingChairLod(THREE, { detail }) as import('three').Group;
+      let n = 0;
+      root.traverse((o) => { if ((o as import('three').Mesh).isMesh) n++; });
+      expect(n, detail).toBe(meshes);
+      const seat = root.getObjectByName('seat_cushion') as import('three').Mesh;
+      expect(seat, detail).toBeTruthy();
+      seat.geometry.computeBoundingBox();
+      const bb = seat.geometry.boundingBox!;
+      expect(seat.position.z + bb.max.z).toBeCloseTo(0.19, 3); // rear face
+      expect(seat.position.z + bb.min.z).toBeCloseTo(-0.24, 3); // front face, under the roll
+    }
+  });
   it('LOD chair rails and crest sit on the curved backrest shell (VA-0187/VA-0189 art fit, read-only check)', async () => {
     const THREE = await import('three');
     const { createVelvetGamingChairLod } = await import('../../../art/casino/3d/velvetGamingChairLod.mjs');
