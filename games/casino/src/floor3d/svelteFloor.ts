@@ -115,9 +115,11 @@ function localBox(s: SlotPlacement, id: string, x0: number, x1: number, z0: numb
  * Lays every row out as one continuous bank: each slot spot takes the stretch of row halfway to its
  * neighbours and fills it with cabinets at even pitch (≥ BANK.pitchMin), so the pitch runs on
  * unbroken across spots. Caps close each bank's two ends; a stool stands at every cabinet. Caps and
- * stools that would hit `existing` obstacles or leave the room are dropped.
+ * stools that would hit `existing` obstacles or leave the room are dropped. `capRoom` (default `room`)
+ * is where caps may stand: the grand hall's back row stands outside the walkable room, against the
+ * end wall, so the caps closing it and the side banks' back ends need the wall line instead.
  */
-export function planBanks(slots: readonly SlotPlacement[], existing: readonly Obstacle[] = [], room?: Readonly<RoomBounds>): BankPlan {
+export function planBanks(slots: readonly SlotPlacement[], existing: readonly Obstacle[] = [], room?: Readonly<RoomBounds>, capRoom: Readonly<RoomBounds> | undefined = room): BankPlan {
   const out: BankSlot[] = [];
   const caps: CapPlacement[] = [];
   const bankBoxes: Obstacle[] = [];
@@ -139,7 +141,7 @@ export function planBanks(slots: readonly SlotPlacement[], existing: readonly Ob
     }
   }
   const blockers = [...existing, ...bankBoxes];
-  const fit = room ? fitCaps(caps, blockers, room) : { caps, obstacles: caps.map((c, i) => capObstacle(c, i)), dropped: 0 };
+  const fit = capRoom ? fitCaps(caps, blockers, capRoom) : { caps, obstacles: caps.map((c, i) => capObstacle(c, i)), dropped: 0 };
   const obstacles: Obstacle[] = [...bankBoxes, ...fit.obstacles];
   let stoolsDropped = 0;
   for (const b of out) {
@@ -180,6 +182,13 @@ export function capObstacle(c: CapPlacement, i: number): Obstacle & { kind: 'box
   return { kind: 'box', id: `svelte-end-cap-${i + 1}`, x0: c.x - ex, z0: c.z - ez, x1: c.x + ex, z1: c.z + ez, h: CAP.height };
 }
 
+/**
+ * A cap sits CAP.gap off its bank's last cabinet and its obstacle is padded by the same 2 cm, so it
+ * exactly touches its own bank's box; without this tolerance float noise made that count as a hit
+ * and dropped 4 of the grand hall's caps.
+ */
+const CAP_FIT_EPS = 0.005;
+
 function overlaps(b: { x0: number; z0: number; x1: number; z1: number }, o: Obstacle): boolean {
   if (o.kind === 'box') return b.x0 < o.x1 && b.x1 > o.x0 && b.z0 < o.z1 && b.z1 > o.z0;
   const cx = Math.min(Math.max(o.x, b.x0), b.x1), cz = Math.min(Math.max(o.z, b.z0), b.z1);
@@ -196,7 +205,8 @@ export function fitCaps(caps: readonly CapPlacement[], existing: readonly Obstac
   for (const c of caps) {
     const box = capObstacle(c, kept.length);
     const inRoom = box.x0 >= room.x0 && box.x1 <= room.x1 && box.z0 >= room.z0 && box.z1 <= room.z1;
-    if (!inRoom || existing.some((o) => overlaps(box, o)) || obstacles.some((o) => overlaps(box, o))) continue;
+    const probe = { x0: box.x0 + CAP_FIT_EPS, z0: box.z0 + CAP_FIT_EPS, x1: box.x1 - CAP_FIT_EPS, z1: box.z1 - CAP_FIT_EPS };
+    if (!inRoom || existing.some((o) => overlaps(probe, o)) || obstacles.some((o) => overlaps(probe, o))) continue;
     kept.push(c);
     obstacles.push(box);
   }

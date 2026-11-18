@@ -291,7 +291,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // Svelte machines stand in continuous banks with a stool at each (Joshua's reference room, VA-0160);
   // the stools replace the pilot's swivel chair
   const baseObstacles = (hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, blackjackHero)).filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
-  const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM) : null;
+  // the grand hall's back row stands outside the walkable room, against the end wall; its caps (and
+  // the side banks' back caps) may stand out to that wall line, 0.2 m off the wall like the room
+  const capRoom = layout.hallSpec ? { ...ROOM, z0: -layout.hallSpec.length / 2 + 0.2 } : ROOM;
+  const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM, capRoom) : null;
   const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines, svelteLod: machineStyle === 'svelte-lod', svelteBanks: svelteBanks ?? undefined });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));

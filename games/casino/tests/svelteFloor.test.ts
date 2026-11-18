@@ -99,6 +99,38 @@ describe('Svelte machines switch (prototype)', () => {
     for (const s of SEATS) expect(nav.walkableAt(s.approach), s.id).toBe(true);
   });
 
+  it('banks: every cap touching its own bank fits (no float-noise drops), in the salon and the grand hall', () => {
+    const salon = layoutFor('salon', true, false);
+    const sp = planBanks(salon.slots, obstaclesFor(true, false).filter((o) => o.id !== 'pilot-luxury-chair'), salon.room);
+    expect(sp.capsDropped).toBe(0);
+    expect(sp.caps).toHaveLength(4);
+    const grand = layoutFor('grand', true, true);
+    const wallLine = { ...grand.room, z0: -grand.hallSpec!.length / 2 + 0.2 };
+    const gp = planBanks([...grand.slots, ...grand.decor.slots], grand.obstacles, grand.room, wallLine);
+    expect(gp.caps.length + gp.capsDropped).toBe(10);
+    expect(gp.capsDropped).toBe(0);
+    // walkable-room only: the back row's caps and the side banks' back caps stand past it, by the wall
+    const walkOnly = planBanks([...grand.slots, ...grand.decor.slots], grand.obstacles, grand.room);
+    expect(walkOnly.capsDropped).toBe(4);
+    for (const c of gp.caps) expect(c.z).toBeGreaterThan(wallLine.z0);
+    // no two caps overlap, and none sits inside another bank's cabinets
+    const boxes = gp.caps.map((c, i) => capObstacle(c, i));
+    const banks = gp.obstacles.filter((o) => o.id.startsWith('svelte-bank-')) as { x0: number; z0: number; x1: number; z1: number }[];
+    const cut = (a: { x0: number; z0: number; x1: number; z1: number }, b: typeof a) => a.x0 + 0.005 < b.x1 && a.x1 - 0.005 > b.x0 && a.z0 + 0.005 < b.z1 && a.z1 - 0.005 > b.z0;
+    for (const [i, a] of boxes.entries()) {
+      for (const b of boxes.slice(i + 1)) expect(cut(a, b)).toBe(false);
+      for (const b of banks) expect(cut(a, b), a.id).toBe(false);
+    }
+    useRoom(grand.room);
+    try {
+      const nav = new NavGrid(ROOM, [...grand.obstacles, ...gp.obstacles]);
+      expect(nav.walkableAt(grand.spawn)).toBe(true);
+      for (const s of grand.seats) expect(nav.walkableAt(s.approach), s.id).toBe(true);
+    } finally {
+      useRoom(SALON_ROOM);
+    }
+  });
+
   it('banks: the art gets the planned cabinets and stools, and loses the pilot chair', () => {
     const layout = layoutFor('salon', true, false);
     const plan = planBanks(layout.slots, obstaclesFor(true, false).filter((o) => o.id !== 'pilot-luxury-chair'), layout.room);
