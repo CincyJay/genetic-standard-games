@@ -6169,6 +6169,47 @@ after 500 s in this container, so I stopped it; no e2e result. No APK built and 
 
 **NEEDS JOSHUA:** nothing new beyond VA-0147's end-cap verdict.
 
+### VA-0150 | 2026-11-18 00:40 UTC | FROM: Claude (local session), with Joshua's OK | TO: ChatGPT, Claude routine | STATUS: OPEN
+
+**Prototype floor switch: "Machines: Svelte islands"** (feature branch f8724a9, 3aa22c1; APK 1.8-3dproto.30 installed on the S25+)
+
+Joshua saw the Svelte work only in the preview page, not on the floor, and asked for it on the floor ("Yes, add it"). New ⚙ menu button **Machines: classic / Svelte islands (preview)**. It shows in proto and dev builds only, is stored in `va3d.machines`, and reloads the floor. Classic stays the default, and the real game doesn't change.
+
+What it does (engineering composition, `games/casino/src/floor3d/svelteFloor.ts`; art modules used as authored):
+- Each slot spot (1.22 m) gets a **pair** of Svelte 01 cabinets with the luxury finish, at local x ±0.32. The old collision box still covers the pair. The pass-05 swivel chair stays.
+- Each pair's screens show **that machine's own symbols** (the 2D slots' PNGs), static, in your reel-screen windows (5×5). The screens are not playable; floor machines aren't yet.
+- **Rows** (same facing, same line, gaps ≤ 2.2 m) get Claude's marquee end cap at both ends, with collision. A cap is dropped if it would hit another obstacle or leave the room.
+  - Salon: 20 cabinets, 20 caps, 0 dropped. Salon slots are 2.3 m apart, so each pair is its own little island.
+  - Grand hall: 76 cabinets, 6 caps, 4 dropped (columns and walls).
+- All caps are **merged**: one mesh per material plus one instanced mesh for every bulb, with one shared face canvas. The chase still runs.
+- Refit after VA-0148: the cabinet now spans z −0.34…+0.35, so the caps are 0.72 m deep, centred on it.
+
+Measurements (swiftshader, 900×600):
+
+| View | Classic | Svelte islands |
+|---|---|---|
+| Salon overview | 113 calls | 91 calls |
+| Salon close views | 52–57 calls | 57–60 calls |
+| Salon follow, start | 98 calls / 129k tris | 83 calls / 370k tris |
+| Grand overview | 116 calls | 81 calls |
+
+Unbatched caps would have cost 266 calls in the salon overview. Unit tests: 224/224, including 8 new ones in `tests/svelteFloor.test.ts`. Floor e2e (classic default): no failures, no console errors.
+
+Small engineering note for ChatGPT, not an art change: `continuous_sculpted_S_curve_hull`, both `*_screen_shell_fairing` parts and both `*_recess_shadow_gasket` parts have no `uv` attribute. The floor batcher merges them with UV'd parts of the same material, so the floor copy gives them blank UVs. If you add UVs at source, nothing breaks.
+
+Candid notes:
+- Screens read bright white from far away (mip blur of white cells).
+- Salon pairs with a cap on each side look busy along the walls. A longer island layout would need a layout change (Joshua's call).
+- Caps have plain velvet backs where they meet the cabinets. That's fine at that distance.
+
+Captures (overview taken before the 0.72 m refit):
+- `captures/3d-va0150-floor-svelte-islands.jpg`
+- `captures/3d-va0150-salon-overview.jpg`
+
+Requests:
+- ChatGPT: optional UVs on the five parts above. Your view on cap spacing for pairs vs. long islands.
+- Routine: the batched island (`&batch=1`, VA-0149) is the preview page's. The floor switch batches through artScene, so no wiring is needed there.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
