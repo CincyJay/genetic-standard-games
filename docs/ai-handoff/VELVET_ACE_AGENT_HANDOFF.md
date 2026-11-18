@@ -7672,6 +7672,58 @@ The hall is still about 2.7x the 150k triangle budget. The topper does not chang
 
 **Claude next:** Cherry-pick `a35a2d8` into the isolated prototype if useful. Test an opt-in far-LOD width 0.11 m against the current 0.035 m in the seam-high and overview cameras, ensuring no intersection or increased collision; preserve the current off-by-default flag. Check Node syntax, unit tests, typecheck, 46 e2e, mesh counts and render budget. Prioritize native low-poly far cabinet (~400 tris), chair rear corner and reducing grand-hall triangles. Do not merge or release. No owner approval needed for isolated tests; default-on still requires owner choice.
 
+### VA-0204 | 2026-11-18 23:25 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0203: I cherry-picked `a35a2d8` → `448bbe0`, unchanged.** I did not edit anything under `art/casino/3d/`.
+- **Floor:** the floor still passes `height` = 2.0575 explicitly and keeps width 0.035, so the result is the same as before. The topper stays opt-in with `?topper=on`.
+- **Why I didn't test width 0.11 on the floor:** with `svelte-lod` the cabinets nearest the camera are full cabinets, and their backs stand only 4 cm apart. One static topper is ~6.5 cm tall and reaches below the 2.09 m back tops. At 0.11 m wide it would sink about 3.5 cm into each full cabinet's back top. Only the far-LOD backs have the ~11 cm gap. A width that follows the LOD level would need a per-level topper. It isn't worth it for a seam that the far cabinets' black backs already hide. Not done; low priority.
+
+**Engineering: stool distance LOD, `6dbff93` (grand-hall triangle reduction, my open item).**
+- **The problem:** the bank stools were the biggest single share of the grand hall's triangles: 124 × 1,118 ≈ 139k.
+- **What changed:** with `svelte-lod` on, the stools leave the static floor batches. They become an instanced two-level LOD that reuses `buildSvelteLod`:
+  - The 10 stools nearest the camera draw the stool as authored (1,118 tris).
+  - The rest draw a "far stool" (626 tris): the same meshes minus the 5 back buttons, the 3 foot spokes, the foot ring, the cushion piping and the base dome. Nothing else is altered.
+  - The art module is unchanged, and so are collision and stool placement. Without LOD (`svelte`), nothing changes.
+- **New unit test:**
+  - The far stool keeps exactly the non-dropped meshes: 1,118 → 626 tris.
+  - With LOD on, every stool lands on its planned collision circle once, at floor height.
+  - The stool triangles equal n×626 + 10×492.
+
+**Renderer stats** (grand hall, `svelte-lod`, islands, SwiftShader 1152x768, 0 console errors). The "before" numbers are from VA-0202.
+
+| View | before calls / tris | after calls / tris |
+|---|---|---|
+| Follow at spawn | 110 / 399,770 | 112 / 343,682 |
+| Overview | 81 / 384,526 | 83 / 328,438 |
+| seam-high | 72 / 391,582 | 74 / 335,494 |
+
+That is −56,088 tris, exactly (124−10)×492, for +2 draw calls. The hall is still ~2.3x the 150k budget.
+
+**Captures `8b512eb`:** `captures/va0203-stool-lod-islands-{follow,overview,aisle-side,wall-walkway,island-end,seam-high}.png`. Next to `3d-va0201-grand-islands-aisle-side.png`, the near rows look the same. The far stools across the aisle lose their foot rings, which is visible if you look for it. Not a phone capture, and not a finished look.
+
+**Correction to VA-0200/0202:** I wrote that the "124 Svelte far-LOD cabinets are ~100k triangles". That was wrong. At follow, the cabinet LOD is ~101k in total, made of:
+- the 118 far cabinets: 118 × 456 ≈ 54k
+- the 6 near full cabinets: ~46k, about 7.7k each with the finish
+
+So the far-LOD share is ~54k. A ~400-tri far LOD would save only ~7k. **The bigger wins now:**
+- a lighter full or near cabinet, ~7.7k each, which is what the closest 6 draw
+- a native mid/far `makeVelvetHeroCabinet` (VA-0198 item 2)
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 275/275 passed in 27 files, after my change and again after the cherry-pick.
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): 46 ok, 0 FAIL, exit 0. Budget line: vegas 92 calls, 128,158 tris. This run was on `6dbff93`, before the cherry-pick; that commit touches only the topper's defaults, which the floor overrides.
+- `islands.mjs`: 0 console errors.
+- No APK was built and there was no device test; the cloud can't reach Joshua's phone. The local session should check the stools on the device: ⚙ → Machines: Svelte LOD, grand hall, walk along a row and watch for stool pop-in at the near/far boundary.
+
+**For ChatGPT (art values are yours):**
+1. **Biggest triangle win:** a cheaper near or full Svelte cabinet finish. The 6 near cabinets cost ~46k between them.
+2. **Optional:** a lighter far stool of your own design. The engineering far stool only drops parts; a purpose-built one of ~300 tris could save another ~37k.
+3. **Chair:** the rear seat corner and the boxy arms are still open (VA-0200 item 1).
+
+**Next engineering:** the 165-call follow view with classic machines, then portrait HUD and ceiling items.
+
+**NEEDS JOSHUA (unchanged):** whether the seam topper should be on by default, and whether the LOD chair ever becomes the default.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
