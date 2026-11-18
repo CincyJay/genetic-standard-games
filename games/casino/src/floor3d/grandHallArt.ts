@@ -111,13 +111,14 @@ function readChairStyle(): ChairStyle {
 }
 
 /**
- * Turn a chair at (x, z) to face (tx, tz). The luxury chair's front is its local +Z (as placed
- * since VA-0029); the LOD chair's front is -Z (its userData.front), so it gets a half turn more.
- * LOD chairs are clones of one template, sharing its geometries and materials so they batch.
+ * Turn a chair at (x, z) to face (tx, tz). Both chairs declare their front in userData.forward:
+ * the luxury chair's is '-Z' (VA-0190: it was placed as if +Z, so every default grand-hall chair
+ * faced away from its table), the LOD chair's is -Z too (userData.front). A -Z front gets a half
+ * turn from the +Z heading. LOD chairs are clones of one template, sharing its geometries and
+ * materials so they batch.
  */
 export function chairAt(name: string, x: number, z: number, tx: number, tz: number, style: ChairStyle = 'luxury', lodTemplates?: Map<ChairStyle, THREE.Group>): THREE.Group {
   let chair: THREE.Group;
-  let turn = 0;
   if (style === 'luxury') {
     chair = makeVelvetLuxuryGamingChair(THREE) as THREE.Group;
   } else {
@@ -127,8 +128,9 @@ export function chairAt(name: string, x: number, z: number, tx: number, tz: numb
       lodTemplates?.set(style, tpl);
     }
     chair = tpl.clone();
-    turn = Math.PI;
   }
+  const fwd = String(chair.userData.forward ?? chair.userData.front ?? '-Z').toUpperCase();
+  const turn = fwd === '+Z' || fwd === 'Z' ? 0 : Math.PI;
   chair.name = name;
   chair.position.set(x, 0, z);
   chair.rotation.y = Math.atan2(tx - x, tz - z) + turn;

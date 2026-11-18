@@ -1275,7 +1275,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       },
       objectPose: (name: string) => {
         const o = scene.getObjectByName(name);
-        if (!o) return null;
+        // batching merges the grand hall's chairs away; their poses were recorded before that
+        if (!o) return art.chairPoses.get(name) ?? null;
         o.updateWorldMatrix(true, false);
         const p = new THREE.Vector3();
         const q = new THREE.Quaternion();

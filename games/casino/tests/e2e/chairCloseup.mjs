@@ -19,7 +19,7 @@ mkdirSync(out, { recursive: true });
 const CHAIR = 'blackjack_1_chair';
 const styles = [['luxury', ''], ['lod', '&chair=lod'], ['lod-near', '&chair=lod-near']];
 // eye offsets in the chair's frame: f = toward the table (its front), r = its right, y = height
-const views = { rear: { f: -1.25, r: 0.55, y: 1.35 }, side: { f: 0.1, r: 1.3, y: 1.15 }, front: { f: 0.75, r: -0.5, y: 1.25 } };
+const views = { rear: { f: -1.25, r: 0.55, y: 1.35 }, side: { f: -0.35, r: 1.7, y: 1.3 }, front: { f: 0.35, r: -1.25, y: 1.35 } };
 
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 let failed = false;
@@ -37,9 +37,8 @@ for (const [style, q] of styles) {
   await page.waitForFunction(() => window.__floor3d?.debug, null, { timeout: 120000 });
   const pose = await page.evaluate((n) => window.__floor3d.debug.objectPose(n), CHAIR);
   if (!pose) throw new Error(`no ${CHAIR}`);
-  // the luxury chair's front is its local +Z, the LOD chair's local -Z (turned a half turn more)
-  const s = style === 'luxury' ? 1 : -1;
-  const fwd = { x: s * Math.sin(pose.yaw), z: s * Math.cos(pose.yaw) };
+  // both chairs' fronts are their local -Z (userData.forward / front), so the front is yaw + pi
+  const fwd = { x: -Math.sin(pose.yaw), z: -Math.cos(pose.yaw) };
   const right = { x: -fwd.z, z: fwd.x };
   for (const [view, o] of Object.entries(views)) {
     const pin = {

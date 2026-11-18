@@ -960,6 +960,13 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     chair.updateMatrixWorld(true);
     const back = new THREE.Box3().setFromObject(chair.getObjectByName('sculpted_upholstered_backrest')!);
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
+    // the default luxury chair too (its userData.forward is -Z; VA-0190 found it facing away)
+    const luxChair = chairAt('l', 0, 0, -3, 0, 'luxury');
+    luxChair.updateMatrixWorld(true);
+    const bolsters = new THREE.Box3();
+    luxChair.traverse((o) => { if (o.name === 'side_back_bolster') bolsters.expandByObject(o); });
+    expect(bolsters.isEmpty()).toBe(false);
+    expect((bolsters.min.x + bolsters.max.x) / 2).toBeGreaterThan(0.15);
     const tris = (style: 'luxury' | 'lod-mid') => {
       const root = composeGrandHall(g, { liftSign: () => 0, chairStyle: style }).root;
       let n = 0;

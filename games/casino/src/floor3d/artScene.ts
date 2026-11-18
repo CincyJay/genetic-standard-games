@@ -65,6 +65,8 @@ export interface ArtScene {
    * none outside a browser. Batching keys on the map, so each should still be drawn after it.
    */
   heroTextures: THREE.Texture[];
+  /** Grand-hall chair poses recorded before batching merges them (debug.objectPose, VA-0190). */
+  chairPoses: Map<string, { x: number; y: number; z: number; yaw: number }>;
   /**
    * How far (m) liftHeroSignClear had to move the BONUS sign forward; 0 once the art puts the
    * sign in front of its glass itself (b7609a7, VA-0050).
@@ -400,11 +402,20 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let art: THREE.Group;
   let heroTextures: THREE.Texture[] = [];
   let heroSignLift = 0;
+  const chairPoses: ArtScene['chairPoses'] = new Map();
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
     const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling });
     art = grand.root;
+    art.updateMatrixWorld(true);
+    art.traverse((o) => {
+      if (!/_chair$/.test(o.name)) return;
+      const p = new THREE.Vector3();
+      const q = new THREE.Quaternion();
+      o.matrixWorld.decompose(p, q, new THREE.Vector3());
+      chairPoses.set(o.name, { x: p.x, y: p.y, z: p.z, yaw: new THREE.Euler().setFromQuaternion(q, 'YXZ').y });
+    });
     heroTextures = grand.heroTextures;
     wovenCarpet = grand.wovenCarpet;
     blackjackHero = true;
@@ -546,5 +557,5 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
   if (svelteLod) root.add(svelteLod.root);
-  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, svelteLod, whole, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, chairPoses, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, svelteLod, whole, meshesAuthored, batches: buckets.size, colourBatches };
 }
