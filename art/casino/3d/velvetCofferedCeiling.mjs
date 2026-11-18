@@ -12,12 +12,17 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
   const cellSize = options.cellSize ?? 2.25;
   const chandeliers = options.chandeliers ?? 2;
   const axis = options.axis ?? 'x'; // chandelier promenade axis, independent of coffer grid
-  const diffuserGlow = options.diffuserGlow ?? 0.075; // restrained for warm-light bloom
+  const diffuserGlow = options.diffuserGlow ?? 0.075;
+  // Brushed satin finish limits sharp warm-lamp hotspots; host still owns lamps.
+  const goldRoughness = options.goldRoughness ?? 0.48;
+  const goldMetalness = options.goldMetalness ?? 0.72; // restrained for warm-light bloom
   if (![width,depth,height,cellSize].every(Number.isFinite) ||
       width <= 0 || depth <= 0 || cellSize <= 0 || height < 2.5 ||
       !Number.isInteger(chandeliers) || chandeliers < 0 || chandeliers > 12 ||
       !['x','z'].includes(axis) || !Number.isFinite(diffuserGlow) ||
-      diffuserGlow < 0 || diffuserGlow > 1)
+      diffuserGlow < 0 || diffuserGlow > 1 ||
+      !Number.isFinite(goldRoughness) || goldRoughness < .15 || goldRoughness > 1 ||
+      !Number.isFinite(goldMetalness) || goldMetalness < 0 || goldMetalness > 1)
     throw new RangeError('Invalid ceiling dimensions or chandelier count');
   const group = new THREE.Group();
   group.name = 'VA_GOLD_COFFERED_CEILING';
@@ -25,7 +30,7 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
   const nz = Math.max(1, Math.ceil(depth/cellSize));
   const cw = width/nx, cd = depth/nz;
   const dark = new THREE.MeshStandardMaterial({color:0x25131b,roughness:.87,side:THREE.DoubleSide});
-  const gold = new THREE.MeshStandardMaterial({color:0xb78a40,metalness:.82,roughness:.27});
+  const gold = new THREE.MeshStandardMaterial({color:0xb78a40,metalness:goldMetalness,roughness:goldRoughness});
   const inset = new THREE.MeshStandardMaterial({color:0x532637,roughness:.75,side:THREE.DoubleSide});
   const pearl = new THREE.MeshStandardMaterial({color:0xffdf9c,metalness:.18,roughness:.24,emissive:0xffa83e,emissiveIntensity:diffuserGlow});
   const crystal = new THREE.MeshStandardMaterial({color:0xf4d8a5,metalness:.16,roughness:.14,transparent:true,opacity:.86,depthWrite:false});
@@ -105,7 +110,7 @@ export function createVelvetCofferedCeiling(THREE, options = {}) {
   if(dropIndex) {drops.count=dropIndex;drops.instanceMatrix.needsUpdate=true;group.add(drops);}
   else drops.dispose();
   group.userData={artOnly:true,units:'metres',up:'+Y',width,depth,height,
-    cofferColumns:nx,cofferRows:nz,chandeliers,axis,diffuserGlow,
+    cofferColumns:nx,cofferRows:nz,chandeliers,axis,diffuserGlow,goldRoughness,goldMetalness,
     integration:'Add group to room scene; supply room width/depth/height; optional host-owned lighting',
     status:'isolated source geometry, not integrated or visually/device tested'};
   return group;
