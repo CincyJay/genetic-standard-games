@@ -19,16 +19,51 @@ export function makeVelvetPatternCarpet(T, options={}) {
   c.fillStyle=i%3===0?'rgba(155,105,125,.12)':'rgba(15,9,27,.18)';
   c.fillRect(x,y,.6+rand()*1.4,.6+rand()*1.4);
  }
- // Repeating interlocking lozenges: restrained hotel-casino motif, not loud checkerboard.
- const stroke=(color,lineWidth)=>{c.strokeStyle=color;c.lineWidth=lineWidth};
+ // Original mirrored damask medallions, not the old geometric diamonds.
+ // Each 128px repeat contains a gold fleur-like arabesque, plum shadow
+ // scrolls and a small centre rosette. Seamless edge motifs are deliberate.
+ const stroke=(color,lineWidth)=>{c.strokeStyle=color;c.lineWidth=lineWidth;c.lineCap='round';c.lineJoin='round'};
+ const petal=(sign)=>{
+  c.save();c.scale(sign,1);
+  c.beginPath();
+  c.moveTo(0,-45);
+  c.bezierCurveTo(9,-35,20,-36,24,-24);
+  c.bezierCurveTo(28,-10,14,-5,13,5);
+  c.bezierCurveTo(12,16,30,22,29,34);
+  c.bezierCurveTo(21,30,13,27,8,18);
+  c.bezierCurveTo(3,11,4,3,0,0);
+  c.stroke();
+  c.beginPath();
+  c.moveTo(0,-31);
+  c.bezierCurveTo(15,-24,17,-14,8,-7);
+  c.bezierCurveTo(2,-3,9,4,15,3);
+  c.stroke();
+  c.restore();
+ };
  for(let x=-128;x<=640;x+=128)for(let y=-128;y<=640;y+=128){
   c.save();c.translate(x,y);
-  stroke(`rgba(194,143,107,${(.38*motifContrast).toFixed(3)})`,3.6);
-  c.beginPath();c.moveTo(0,-48);c.lineTo(48,0);c.lineTo(0,48);c.lineTo(-48,0);c.closePath();c.stroke();
-  stroke(`rgba(133,100,148,${(.55*motifContrast).toFixed(3)})`,2.5);
-  c.beginPath();c.moveTo(0,-35);c.lineTo(35,0);c.lineTo(0,35);c.lineTo(-35,0);c.closePath();c.stroke();
-  c.fillStyle=`rgba(204,157,114,${(.30*motifContrast).toFixed(3)})`;
-  c.beginPath();c.arc(0,0,3,0,Math.PI*2);c.fill();
+  // Soft wine-coloured oval underlay helps the scrollwork survive minification.
+  c.fillStyle='rgba(91,31,59,.29)';
+  c.beginPath();c.ellipse(0,0,42,53,0,0,Math.PI*2);c.fill();
+  stroke(`rgba(207,153,93,${(.58*motifContrast).toFixed(3)})`,2.6);
+  petal(-1);petal(1);
+  c.save();c.rotate(Math.PI);petal(-1);petal(1);c.restore();
+  stroke(`rgba(168,106,132,${(.58*motifContrast).toFixed(3)})`,1.9);
+  for(const sign of [-1,1]){
+   c.beginPath();c.moveTo(sign*8,-18);
+   c.bezierCurveTo(sign*40,-37,sign*43,-7,sign*28,0);
+   c.bezierCurveTo(sign*43,7,sign*40,37,sign*8,18);c.stroke();
+  }
+  c.fillStyle='rgba(224,175,105,.62)';
+  for(let i=0;i<8;i++){
+   const a=i*Math.PI/4;
+   c.beginPath();c.ellipse(Math.cos(a)*8,Math.sin(a)*8,2.5,5,a,0,Math.PI*2);c.fill();
+  }
+  c.beginPath();c.arc(0,0,3.4,0,Math.PI*2);c.fill();
+  // Tiny four-way buds bridge repeat edges without a visible tile seam.
+  for(const [bx,by] of [[64,0],[0,64]]){
+   c.beginPath();c.arc(bx,by,3.5,0,Math.PI*2);c.fill();
+  }
   c.restore();
  }
  // Thin diagonal stitch is embedded in texture, not geometry.
@@ -45,7 +80,7 @@ export function makeVelvetPatternCarpet(T, options={}) {
  mesh.position.set(options.x??0,options.y??.024,options.z??0);
  mesh.receiveShadow=true;mesh.name='VA_opt_in_patterned_carpet';
  mesh.userData={artOnly:true,collision:false,textureOwned:true,
-  motifContrast,
+  motifContrast, pattern:'original-burgundy-gold-damask',
   notes:'One mesh, one texture/material; avoid overlap with central runner and existing floor inlays. Validate mobile GPU and z-fighting.',
   dispose(){mesh.geometry.dispose();mat.dispose();texture.dispose()}};
  return mesh;
