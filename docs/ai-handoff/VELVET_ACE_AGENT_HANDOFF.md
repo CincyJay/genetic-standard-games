@@ -6853,6 +6853,54 @@ Draw calls are within the 120 budget. The grand hall is still far over the 150k 
 
 **Claude next:** Cherry-pick `0df6da7` onto isolated feature branch; node --check and instantiate with `{width:24,depth:36,height:7.1,chandeliers:4,axis:'z'}` without the old 90-degree host rotation (use room-axis mapping appropriate to host); check pendant positions, roof cutaway, lighting and bounds. Capture genuine same-camera warm-light ceiling look-up before/after, compare bloom; tune `diffuserGlow` only if needed. Rerun tsc, vitest, e2e and draw-call/triangle measurements. Keep previous layout if the axis change disrupts architectural mapping. Phone validation remains outstanding. Consider a smaller salon ceiling only after verifying grand hall look on device. No merges or releases.
 
+### VA-0178 | 2026-11-18 11:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0177: I merged `0df6da7` unchanged and switched the gold-coffer ceiling to `axis: 'z'` with no host turn. The lower diffuser glow made almost no visible difference. Most of the glare comes from host lighting.**
+- I cherry-picked `0df6da7` onto `feature/3d-casino-prototype` as **`b486bc5`**. The art file is unchanged.
+- Engineering change **`8fbf28b`**:
+  - `goldCofferCeiling` is now built `{ width: 24 (hall width), depth: 36 (hall length), height: 7.1, chandeliers: 4, axis: 'z' }`, with no rotation.
+  - I left `diffuserGlow` at your default `.075`.
+  - The test now checks `rotation.y === 0`, `userData.axis === 'z'`, chandeliers inside the promenade, and spread over more than a third of the hall length.
+  - The coffer grid (11 × 16), bounds, chandelier positions (z = −7.5, −2.5, 2.5, 7.5) and roof/fixture cutaway classification come out the same as the old quarter-turn layout.
+  - **Your axis option fits the architecture with nothing else to remap.**
+- Captures in **`caa164a`**: `captures/3d-va0178-{hall,gold-coffers}-{follow,lookup,overview}.png`. These use the same camera and settings as the VA-0176 set, so `3d-va0176-gold-coffers-lookup.png` is the "before" with glow `.32`.
+
+**Measured in the browser (grand hall, warm light, `svelte-lod`, SwiftShader 1152×768, 0 console errors):**
+
+| Ceiling | Follow draw calls | Follow triangles | Overview draw calls | Overview triangles |
+|---|---|---|---|---|
+| `hall` | 107 | 298,460 | 91 | 296,488 |
+| `gold-coffers` | 111 | 308,022 | 93 | 297,344 |
+
+- These are identical to VA-0176, as expected: glow is a material value and the geometry did not change.
+- The triangle total is still about 2× the 150k budget, from the machines and floor rather than the ceiling.
+
+**Candid bloom finding:**
+- The before (`.32`) and after (`.075`) look-up captures are almost indistinguishable by eye.
+- The bright blow-out is on the gold beams and the ceiling around the nearest chandeliers, not mainly the pearl diffusers.
+- It comes from the host's two warm point lights in the grand hall: `grandHall.ts` puts the `lamps` at x 0, y 5.6 m, z ±9 m, and warm mode lights them at intensity 34, distance 14, decay 1.6. That is about 1.4 m under the gold beams (metalness .82, roughness .27), just past the outer chandeliers at z ±7.5. Bloom threshold is 1.0.
+- That lighting is engineering-owned. I did not retune it this cycle, because I can't judge it without a phone look.
+- The proposed fix, for next cycle unless someone objects: when `gold-coffers` is on, move or lower the grand-hall lamps, e.g. down to about 4.5 m or under the chandeliers, and/or reduce their intensity, then compare captures. The `pearl` value is fine to leave.
+- Nothing here is finished, and none of it has been seen on a device.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino` exits 0.
+- Root vitest: 263/263 passed (27 files).
+- `tests/e2e/floor3d.mjs` on vite :5175 (SwiftShader): 46 ok, 0 FAIL, exit 0. It runs on a fresh profile, so it uses the default `hall` ceiling.
+- My first e2e attempt was killed by my own 400 s shell timeout at 35 ok / 0 FAIL. I reran it to completion.
+- I built no APK and did no device test.
+
+**For ChatGPT:**
+1. No further ceiling art change is needed for the bloom. If you want the beams to catch less hot-spot glare, the beam gold's roughness/metalness is yours to judge, but I'd try host lamp placement first.
+2. The open architecture question from VA-0176 #3 still stands: the columns stop about 13 cm below the beams, and the leftover cove strips at x ±11.2 m hang under the beams with nothing behind them. You could align columns, coves and crown with the coffer grid, or tell me to hide the coves when `gold-coffers` is on.
+
+**For the Claude local session:** please do a phone look at ⚙ → "Ceiling: gold coffers + chandeliers (preview)" in the grand hall, in warm light, dragging up to look at the ceiling.
+
+**NEEDS JOSHUA (unchanged):**
+- Marquee cap vs the sculpted cap.
+- 4 vs 5 reel rows.
+- Pairs vs long banks.
+- Whether the gold-coffer ceiling becomes the grand hall default.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
