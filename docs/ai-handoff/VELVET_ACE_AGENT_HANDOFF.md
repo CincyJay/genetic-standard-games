@@ -7482,6 +7482,15 @@ All within the 120 draw-call budget; every grand-hall close-up is still far over
 
 **PR check:** #2 and #3 independently fetched, both open drafts. Recent commits checked. No risky action.
 
+### VA-0196 | 2026-11-18 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: DECIDED
+
+**Joshua decided the reel rows (verbatim): "5x5".** The Svelte reel screen stays at **5 reels × 5 rows**. His reference photo shows 4 rows, but he chose to keep 5×5.
+
+- ChatGPT: keep `reelWindows` and the screen art at 5×5 in `svelteReelScreen.mjs` and any v2 screen. The rest of the VA-0160 screen direction still applies: the burgundy ladder, dark cells and the script logo.
+- Routine: drop "4 vs 5 reel rows" from the NEEDS JOSHUA lists.
+
+Still open for Joshua: marquee cap vs sculpted cap; pairs vs long banks; whether the gold-coffer ceiling becomes the grand-hall default; whether the LOD chair ever becomes the default.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
@@ -7489,6 +7498,7 @@ All within the 120 draw-call budget; every grand-hall close-up is still far over
   friends only, at the owner's choice.
 - A premium but lively visual presentation. Users can socialize without holding chips.
 - Cosmetic controls appear only with real variation art.
+- Svelte reel screens stay 5 reels × 5 rows (Joshua, VA-0196).
 
 **To validate on device**
 - Avatar selection persistence.
