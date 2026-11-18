@@ -7424,6 +7424,53 @@ All views are within the 120 draw-call budget, but every view is still far over 
 
 **PR check:** #2 and #3 fetched; both open drafts. Recent repository commits checked. No risky actions.
 
+### VA-0194 | 2026-11-18 19:13 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0193: I cherry-picked `902b174` unchanged. The separate lumbar block is gone and the curved back now runs down into the seat cushion: it no longer pokes out behind the shell in `lod-rear` and no longer reads as a block on the seat in `lod-near-front`. The piping corner nubs and the arm-cap misalignment are fixed in the geometry. The LOD chair is still opt-in only (`?chair=lod`); the default is still the luxury chair. None of this looks finished.**
+
+**Changes on `feature/3d-casino-prototype`:**
+- **`935fa60`, art:** `902b174` cherry-picked unchanged (the only art-branch commit not already on the prototype per `git cherry`). `node --check` passes.
+- **`c7206c4`, captures:** `captures/3d-va0194-closeup-{luxury,lod,lod-near}-{rear,side,front}.png`, the same 9 pinned cameras as VA-0190/0192, SwiftShader 1152x768, not a phone.
+- No engineering code changes this cycle.
+
+**Fit, measured in Node + Three.js bounding boxes (chair-local metres, front is −Z):**
+1. **Back shell bottom:** now y 0.605, z 0.185 + 0.075·u² at the bottom row. The seat cushion spans y 0.485–0.615, z ±0.24, x ±0.265.
+   - For |x| < ~0.227 the bottom row sits 1 cm below the cushion top and inside the cushion (z 0.185–0.24), so the seam is hidden from the front. No clipping visible in `lod-near-front`; the back meets the seat cleanly there.
+   - For |x| > ~0.227 the bottom edge is behind the cushion's rear face (up to z 0.26 at the sides), 1 cm below the cushion top.
+   - **From the rear (`lod-rear`)** the cushion's top/back still shows below and behind the shell as a ~5 cm fabric ledge at the centre (cushion rear z 0.24 vs shell 0.185), with a lighter triangular facet where the shell's lower rows meet it. Much smaller than the VA-0192 slab, but still visible from behind.
+2. **Gold side rails:** bottom at y 0.603, x ±(0.253–0.302), z ≥ 0.249. They clear the cushion's rear corner (z 0.24) by ~1 cm, so no clipping; they stop just above the cushion corner in `lod-rear`.
+3. **Seat piping:** now x ±0.245, inside the roll's ±0.25. The nubs are gone from the side and front views. The piping's front still sticks out ~5 mm past the roll's front (z −0.285 vs −0.280), reading as a thin gold line, which is fine.
+4. **Arm caps:** centre y 0.722 now matches the tilted arm's front-end centre (0.735 − 0.16·sin 0.08 ≈ 0.722). The arm box's bottom front corner no longer shows below the cap in `lod-near-side`. The caps still read as faceted cylinders ("rolling pin" ends) at `near`, and the arm and seat bodies are still hard-edged boxes.
+5. **Cost:** `mid` 812 triangles / 30 meshes (was 824 / 31); `near` 1,112 / 36 (was 1,124 / 37). Batching adds no draw calls.
+
+**Renderer stats from the close-ups (SwiftShader, 0 console errors on every page):**
+
+| View | Luxury: calls / tris | LOD `mid` | LOD `near` |
+|---|---|---|---|
+| Rear | 115 / 636,882 | 114 / 561,266 | 114 / 563,666 |
+| Side | 99 / 633,064 | 98 / 557,448 | 98 / 559,848 |
+| Front | 110 / 638,990 | 109 / 563,374 | 109 / 565,774 |
+
+All within the 120 draw-call budget; every grand-hall close-up is still far over the 150k triangle budget (mostly machines and floor, not chairs).
+
+**Tests (observed this cycle):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 270/270 passed (27 files).
+- `tests/e2e/floor3d.mjs` on vite :5175, SwiftShader: 46 ok, 0 FAIL, exit 0. Budget line: vegas 92 calls, 128,158 tris.
+- No APK built, no device test.
+
+**For ChatGPT (art values are yours):**
+1. **Rear ledge:** if you want the back to read as one upholstered piece from behind, either bring the cushion's rear face forward to the shell (cushion depth ~0.43 centred at z −0.025, so its rear sits ≈ z 0.185–0.19), or add a closing back panel on the shell's rear. Your call; it's only visible from behind.
+2. **Arm/seat bodies:** the remaining "boxy" read is the seat cushion and arm boxes plus the 6/10-sided caps. A bevelled/rounded box (e.g. a few-segment rounded profile extruded) would help more than further cylinder caps.
+3. **Luxury chair:** the back-bolster dark patches from VA-0190 are still open (no luxury art changed).
+4. **Re-capture:** `node games/casino/tests/e2e/chairCloseup.mjs http://localhost:5175/ <outDir> <tag>`.
+
+**Next for Claude (engineering):** the grand-hall triangle budget (~560k vs 150k: machines and floor). Not started this cycle.
+
+**For the Claude local session:** no engineering changes since `9efba2f`; the chair change only shows with `?chair=lod` / `?chair=lod-near`.
+
+**NEEDS JOSHUA (unchanged):** marquee cap vs sculpted cap; 4 vs 5 reel rows; pairs vs long banks; whether the gold-coffer ceiling becomes the grand-hall default; whether the LOD chair ever becomes the default.
+
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
