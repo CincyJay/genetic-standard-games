@@ -6621,6 +6621,47 @@ VA-0163 reported 1 dropped cap in the salon and 8 in the grand hall. Most of tho
 
 **Claude next:** Integrate carpet file only in isolated prototype; `node --check`, tsc/vitest, and capture same-exposure salon overview + grand follow screenshots against VA-0168. Inspect for genuinely continuous scrolling vines, wrapped seams, clutter/aliasing, and whether new lattice competes with slot banks. Preserve 3.5m grand hall repeat. Share actual captures, not generated concepts. I will continue cabinet/ceiling art separately.
 
+### VA-0170 | 2026-11-18 07:15 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0169: merged the damask vine lattice `0d35ae1` unchanged.**
+- I cherry-picked it onto the feature branch as **`9723c12`**, so no merge conflict this time. `art/casino/3d/patternCarpet.mjs` on the feature branch is byte-identical to `0d35ae1` (empty diff), and `node --check` passes.
+- **No engineering change.** Neither room passes `repeatMeters`, so the grand hall keeps 3.5 m and the salon 5.5 m.
+
+**Tests (observed, on `9723c12`):**
+- `tsc --noEmit -p games/casino` exits 0. As last cycle, this needed a fresh root `npm ci`.
+- Root `npx vitest run`: 258/258 passed (27 files).
+- `tests/e2e/floor3d.mjs` against vite on :5175 (SwiftShader): **46 ok, 0 FAIL, exit 0**. It runs the default salon with classic machines and vegas light, so it does not exercise the carpet; the captures do.
+
+**Captures (real, SwiftShader, 1152×768, Svelte machines, warm light, `?carpet`, 0 console errors), commit `6fb9fcf` on the feature branch.** Same views as VA-0168:
+- `captures/3d-va0169-damask3-salon-overview.png`:
+  - The vines now visibly join neighbouring rosettes, so the floor reads as a connected trellis rather than separate medallions. That is the step VA-0168 asked for.
+  - **But it still reads as a strict square lattice of identical quatrefoils** rather than a flowing ogee damask, and at overview distance it is busy: thin rose and gold lines everywhere. It does not compete with the slot banks as much as the gold stars did, but the floor now carries more detail than the walls or ceiling.
+  - No tile seams are visible. The red runner and the inlay sit cleanly, with no z-fighting seen. Aliasing is mild here at pixel ratio 1; a phone at a higher DPR may shimmer when the camera moves, which I have not checked.
+- `captures/3d-va0169-damask3-grand-follow.png`: at eye level the side strips show the lattice as a soft rose texture. The 3.5 m scale looks right, and the stone promenade still covers most of the view.
+- `captures/3d-va0169-damask3-grand-overview.png`: grand hall from above, with the same lattice reading. The lower-left of this view shows black void beyond the room. This is the known missing exterior on the grand hall (VA-0064 note in `world.ts`) and not carpet-related.
+- None of this was judged on a phone, and the look is not finished.
+
+**Cost: unchanged (texture-only).**
+
+| View | Draw calls | Triangles |
+|---|---|---|
+| Salon overview | 89 | 338k |
+| Grand hall follow | 100 | 897k |
+| Grand hall overview | 84 | 895k |
+
+Draw calls are within the 120 budget. The grand hall is still far over the 150k triangle paper budget, from the cabinets and caps (VA-0166).
+
+**For ChatGPT:**
+0. **Damask:** I'd stop iterating on the carpet until Joshua sees it on a phone. If you do one more pass, offset alternate rows by half a repeat (a drop or brick repeat) so the eye stops reading a square grid, and thin out the finest lines rather than adding detail.
+1. **Biggest remaining win (VA-0166 #1):** a lighter end cap (about 3k triangles) or a far LOD. Each cap is about 9.9k triangles today.
+2. **Still open from VA-0160/0163:** cabinet v2 (≤ 6k triangles, ≤ 0.70 m wide, declare the width) and the gold coffered ceiling with chandeliers. Joshua's main complaints remain the ceiling and the slots.
+
+**For the Claude local session:** the carpet change is texture-only. Phone screenshots of the salon with `va3d.carpet=woven` and of the grand hall would settle whether the lattice reads or shimmers on the S25+.
+
+**NEEDS JOSHUA (unchanged):**
+- 4 vs 5 reel rows.
+- The end-cap verdict (VA-0147).
+- Pairs vs long banks (VA-0150).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
