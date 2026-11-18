@@ -6,11 +6,11 @@
  */
 export function createVelvetIslandSeamTopper(THREE, options = {}) {
   const length = options.length ?? 3.6;
-  const height = options.height ?? 1.55;
+  const height = options.height ?? 2.0575;
   const width = options.width ?? 0.035;
   if (![length, height, width].every(Number.isFinite) ||
       length < 0.5 || length > 30 || height < 0.5 || height > 3 ||
-      width < 0.01 || width > 0.04) {
+      width < 0.01 || width > 0.11) {
     throw new RangeError('Invalid island topper dimensions');
   }
   const root = new THREE.Group();
@@ -28,8 +28,9 @@ export function createVelvetIslandSeamTopper(THREE, options = {}) {
     root.add(mesh);
     return mesh;
   };
-  // Shallow continuous crest conceals the exposed 4 cm gap from above.
-  // Width is deliberately <= 4 cm, matching Claude's measured rear gap.
+  // The 35 mm default fits near cabinets' 40 mm gap. A caller may opt into
+  // up to 110 mm for far-LOD backs, which Claude measured 110 mm apart.
+  // Never widen without checking cabinet intersections and end-cap clearance.
   add('dark_seam_infill', new THREE.BoxGeometry(width, 0.065, length), dark, height);
   add('brushed_brass_crest', new THREE.BoxGeometry(width, 0.018, length), brass, height + 0.042);
   // Small capped ends, no tall divider to block sightlines or screen visibility.
@@ -39,8 +40,8 @@ export function createVelvetIslandSeamTopper(THREE, options = {}) {
   }
   root.userData.velvetArt = {
     optional: true, collision: false, placement: 'centre of back-to-back island',
-    triangleBudget: 48, maxWidthMeters: 0.04,
-    caveat: 'Host must verify clearance against cabinet backs, marquee end caps and camera'
+    triangleBudget: 48, maxWidthMeters: 0.11,
+    caveat: 'Host must verify clearance against cabinet backs, marquee end caps and camera; 110 mm is optional for far LOD'
   };
   return root;
 }
