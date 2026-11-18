@@ -6512,6 +6512,49 @@ The grand hall is heavy. Its stools add about 82k triangles per pass, and "+ far
 
 **Claude next:** Integrate the opt-in damask carpet in isolated prototype, compare to existing floor inlay; capture authentic salon follow and overview screenshots. If layout uses runner/inlays, avoid coplanar overlapping surfaces. Continue own bank/stool engineering independently. Cabinet v2 and gold coffered ceiling remain highest visual priorities. Do not merge main or release.
 
+### VA-0166 | 2026-11-18 05:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0165: merged the damask carpet `789d709` unchanged.**
+- My merge commit was flattened by `pull --rebase`, so on the feature branch the art commit is now **`f46dc87`**, a rebased copy of `789d709`.
+- `art/casino/3d/patternCarpet.mjs` on the feature branch is byte-identical to `789d709`, and `node --check` passes.
+- No engineering change was needed. The grand hall always lays `makeVelvetPatternCarpet` (at y 0.012, under the stone promenade). The salon lays it in place of the pilot carpet with `?carpet` or `va3d.carpet=woven`.
+
+**Damask, observed (SwiftShader, 1152×768, Svelte banks, warm light, no console errors):**
+- **Salon overview** (`captures/3d-va0166-damask-salon-overview.png`): gold eight-petal rosettes on burgundy read clearly, and I see no tile seams. The red runner and the inlay border sit cleanly on top, with no visible z-fighting. This is a big step away from the old lozenge grid.
+- **However:** the motif reads as a regular grid of gold stars rather than a flowing damask. The arabesque scrolls between rosettes barely show at overview distance, and the gold is bright enough to compete with the machines. Not judged on a phone.
+- **Grand hall follow** (`captures/3d-va0166-damask-grand-follow.png`): the promenade covers most of the floor. On the side strips the motif is stretched and large at eye level.
+- **Cost:**
+  - Salon: 81 draw calls and 333k triangles at follow, 89 calls and 338k at overview.
+  - Grand hall: 100 / 84 calls and 897k / 895k triangles. That is the same as before the merge, so the carpet adds nothing.
+
+**Engineering this cycle: end caps no longer go missing (`9998a51`).**
+
+VA-0163 reported 1 dropped cap in the salon and 8 in the grand hall. Most of those drops were bugs, not real collisions:
+- **Float noise (salon 1, grand hall 4).** A cap stands `CAP.gap` (2 cm) off its bank's last cabinet, and its obstacle is padded by the same 2 cm. So it exactly touches its own bank's box, and rounding error counted that as a hit. `fitCaps` now tests with a 5 mm tolerance.
+- **Wrong bound (grand hall 4).** The grand hall's back row stands outside the walkable room by design: the room starts at the row's consoles. That put four caps outside the room check, though they are inside the hall: the two caps closing the back row and the side banks' two back caps. `planBanks` now takes an optional `capRoom`, and `world.ts` passes the end wall line (0.2 m off the wall) for the grand hall.
+- **Result:** caps kept in the salon go from 3/4 to 4/4, and in the grand hall from 2/10 to 10/10. No cap overlaps another cap or another bank, and the spawn point and every table seat stay walkable; a new unit test covers all of this.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino` exits 0.
+- Root `npx vitest run`: 258/258 passed (27 files).
+- `tests/e2e/floor3d.mjs` against vite on :5175 (SwiftShader), run on `9998a51` before the carpet merge: **46 ok, 0 FAIL, exit 0**. It runs the default salon with classic machines and vegas light (92 draw calls, 128k triangles), so it does **not** exercise the bank, cap or carpet paths; the captures cover those. After the merge, `tsc` exits 0 and vitest passes 258/258 again; I did not rerun the e2e.
+
+**Measured cost (SwiftShader, 1152×768, grand hall, Svelte without LOD, warm light, the Svelte default):**
+- Follow at start: **100 draw calls, 897k `renderer.info` triangles**, with 76 cabinets, 10 caps and 74 stools (2 dropped).
+- Overview: 84 draw calls, 895k triangles.
+- VA-0163 measured 815k for the same view with 2 caps. The cap batch stays at 5 meshes, so the draw calls don't change. **Each cap is about 9.9k triangles, more than a cabinet (about 7.8k).** The 8 restored caps account for about 79k of the increase.
+- This is far over the 150k paper budget. The S25+ held 120 fps on the salon (VA-0164), but the grand hall has not been tried on a phone.
+
+**Capture (real, SwiftShader, feature branch):** `captures/3d-va0165-grand-side-cap.png`. It shows a restored cap closing the west front bank, flush against the last cabinet, with no visible overlap. I have **not** captured the back-corner caps up close. The look is not judged and not finished: the cap is still the marquee-bulb spade panel, against the reference's cabinet-height end panel.
+
+**For ChatGPT:**
+0. **Damask:** soften the gold, or thicken the scrolls, so it reads as damask rather than a star grid. A smaller repeat in the grand hall would also help; tell me if the repeat should be an option I pass per room.
+1. **Cap LOD or a lighter cap.** At about 9.9k triangles the cap costs more than a cabinet. A cap of about 3k triangles, or a far LOD like `svelteSlotCabinetFarLOD`, would recover about 70k in the grand hall. Keep its footprint (0.09 m wide, 0.72 m deep, 2.09 m tall) or declare the new one, and I'll re-fit.
+2. The VA-0160/0163 items are unchanged: cabinet v2 (≤ 6k triangles, ≤ 0.70 m wide, declare the width) and the gold coffered ceiling with chandeliers. The screen needs a taller ladder and filled symbols.
+
+**For the Claude local session:** after you next pull, the grand hall shows 8 more caps, and the salon 1 more, at each bank end. Worth a look on the S25+ in the grand hall, which hasn't been phone-tested with banks.
+
+**NEEDS JOSHUA:** 4 vs 5 reel rows. Still open from before: the end-cap verdict (VA-0147) and pairs vs long banks (VA-0150).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
