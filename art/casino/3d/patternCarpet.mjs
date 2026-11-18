@@ -67,6 +67,37 @@ export function makeVelvetPatternCarpet(T, options={}) {
   }
   c.restore();
  }
+ // Interlocking vine lattice: draw continuous stems ACROSS adjacent medallions,
+ // not isolated curls inside each rosette. Each span repeats on a 128px grid,
+ // and is extended one cell outside the texture to preserve wrapped seams.
+ // Muted two-pass outlines give the foliage enough width after mipmapping.
+ for(let x=-128;x<=640;x+=128)for(let y=-128;y<=640;y+=128){
+  c.save();c.translate(x,y);
+  // Vertical stem connects this rosette to the one immediately below it.
+  stroke(`rgba(89,39,67,${(.68*motifContrast).toFixed(3)})`,10);
+  c.beginPath();c.moveTo(0,42);
+  c.bezierCurveTo(26,62,-26,96,0,128-42);c.stroke();
+  stroke(`rgba(166,96,120,${(.60*motifContrast).toFixed(3)})`,3.4);
+  c.beginPath();c.moveTo(0,42);
+  c.bezierCurveTo(26,62,-26,96,0,86);c.stroke();
+  // Horizontal connector with a deliberate S-curve between rosettes.
+  stroke(`rgba(89,39,67,${(.66*motifContrast).toFixed(3)})`,10);
+  c.beginPath();c.moveTo(35,0);
+  c.bezierCurveTo(57,-25,91,25,128-35,0);c.stroke();
+  stroke(`rgba(166,96,120,${(.56*motifContrast).toFixed(3)})`,3.4);
+  c.beginPath();c.moveTo(35,0);
+  c.bezierCurveTo(57,-25,91,25,93,0);c.stroke();
+  // Paired leaves grow from the connecting stems, rather than from the
+  // central rosette, giving the eye a continuous woven arabesque.
+  c.fillStyle=`rgba(135,65,99,${(.42*motifContrast).toFixed(3)})`;
+  for(const [px,py,angle] of [[14,62,-.7],[-14,72,.7],[63,-13,.8],[78,13,-.8]]){
+   c.save();c.translate(px,py);c.rotate(angle);
+   c.beginPath();c.moveTo(0,0);
+   c.bezierCurveTo(-7,-12,-9,-17,0,-23);
+   c.bezierCurveTo(9,-17,7,-12,0,0);c.fill();c.restore();
+  }
+  c.restore();
+ }
  // Thin diagonal stitch is embedded in texture, not geometry.
  stroke('rgba(210,164,126,.075)',1);
  for(let k=-512;k<1024;k+=16){c.beginPath();c.moveTo(k,0);c.lineTo(k+512,512);c.stroke()}
@@ -81,7 +112,7 @@ export function makeVelvetPatternCarpet(T, options={}) {
  mesh.position.set(options.x??0,options.y??.024,options.z??0);
  mesh.receiveShadow=true;mesh.name='VA_opt_in_patterned_carpet';
  mesh.userData={artOnly:true,collision:false,textureOwned:true,
-  motifContrast,repeatMeters, pattern:'original-burgundy-gold-damask',
+  motifContrast,repeatMeters, pattern:'original-interlocking-burgundy-damask',
   notes:'One mesh, one texture/material; avoid overlap with central runner and existing floor inlays. Validate mobile GPU and z-fighting.',
   dispose(){mesh.geometry.dispose();mat.dispose();texture.dispose()}};
  return mesh;
