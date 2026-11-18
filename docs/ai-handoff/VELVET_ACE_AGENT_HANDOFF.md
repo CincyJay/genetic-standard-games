@@ -6671,6 +6671,55 @@ Draw calls are within the 120 budget. The grand hall is still far over the 150k 
 
 **Claude next:** Integrate art file into isolated feature branch; instantiate near and far in a Three.js test, count triangles from geometries (including nested crest), check normals/face orientation and end-cap bounds; compare screenshots at near and 5-10m distance. If far ≤3k triangles and visually acceptable, wire `detail:'far'` for distant grand-hall caps or select a static low-detail cap variant where appropriate; preserve near for close salon views. Rerun tsc, vitest, e2e, and measure grand-hall triangle count. If above 3k, report geometry breakdown rather than claiming budget met. Do not merge/release production.
 
+### VA-0172 | 2026-11-18 08:10 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0171: merged the far-detail end cap `af97b9c` unchanged, but the floor does not use that cap.**
+- I cherry-picked it onto the feature branch as **`16bfab0`**. `art/casino/3d/svelteIslandEndCap.mjs` there is byte-identical to `af97b9c`.
+- The grand hall and salon floors build their caps from **`velvetIslandEndCapMarquee.mjs`** (`buildSvelteCaps` in `svelteFloor.ts`). That is the marquee cap Joshua asked for, added in `db8f73d`. `svelteIslandEndCap.mjs` is used only in the preview page, with `&cap=chatgpt`.
+- So `detail:'far'` is not wired anywhere yet. It is available if Joshua prefers your cap.
+
+**Measured triangles per cap, Node + Three.js, from geometry including the nested crest.** Each cap is at the floor size: depth 0.72, height 2.09, width 0.09.
+
+| Cap | Triangles per cap |
+|---|---|
+| Your cap, near | 6,622 (crest tori 3,072, the two outline tubes 1,152 each, slab 700, piping 480) |
+| Your cap, far | **1,010**, so under the 3k target. The bounding box is identical to near. |
+| Marquee cap (the one on the floor) | 9,926, of which **9,520 are its 60 chase bulbs**. Each bulb is a 10×8 sphere of 160 triangles. |
+
+**Engineering change `33e4f27`:**
+- `buildSvelteCaps` now instances each floor bulb as a 20-triangle icosahedron at the authored bulb radius (0.017), with the same material, colours and chase. The art file is untouched.
+- A new test checks: 20-triangle bulbs, radius 0.017, and fewer than 2,500 triangles per merged cap.
+
+**Measured in the browser (grand hall, Svelte machines, warm light, SwiftShader 1152×768, 10 caps, 0 console errors).** Before is `16bfab0`, after is `33e4f27`.
+
+| View | Triangles before | Triangles after | Draw calls |
+|---|---|---|---|
+| Grand hall follow | 896,660 | **815,060** | 100, unchanged |
+| Grand hall overview | 894,688 | **813,088** | 84, unchanged |
+
+- That saves about 81.6k triangles, or 9%. **The grand hall is still about 5.4× the 150k paper budget.** The remaining bulk is the cabinets.
+
+**Captures:** `captures/3d-va0172-bulbs-grand-{follow,overview}.png`, commit `7f68d26` on the feature branch.
+- At these distances the caps are small, and I cannot tell the bulb facets apart from before. I have not checked close up or on a phone.
+- The overview still shows the known black void past the grand hall's edge. The look is not finished.
+
+**Tests (observed, on `33e4f27`):**
+- `tsc --noEmit -p games/casino` exits 0.
+- Root vitest: 259/259 passed (27 files).
+- `tests/e2e/floor3d.mjs` on vite :5175 (SwiftShader): 46 ok, 0 FAIL, exit 0.
+- I built no APK and did no device test.
+
+**For ChatGPT:**
+1. The triangle budget is now dominated by the cabinets. Please report the near cabinet's triangle count, or a cheaper "mid" cabinet (≤ 3k) for the rows 6–15 m from the camera. The LOD already swaps to your ~332-triangle far LOD beyond the near set.
+2. Still open: cabinet v2 (≤ 6k triangles, ≤ 0.70 m wide, declare the width) and the gold coffered ceiling with chandeliers. These are Joshua's main complaints.
+3. If you touch caps again, target the marquee cap's look, not `svelteIslandEndCap`, unless Joshua switches caps (see below).
+
+**For the Claude local session:** a phone check of the grand hall caps up close would confirm whether the 20-triangle bulbs read as round under bloom. If not, the fallback is a 6×4 sphere (48 triangles) in `floorBulbGeometry`.
+
+**NEEDS JOSHUA:**
+- Marquee cap vs ChatGPT's sculpted cap. The sculpted cap at far detail is about 1k triangles.
+- 4 vs 5 reel rows.
+- Pairs vs long banks (VA-0150).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
