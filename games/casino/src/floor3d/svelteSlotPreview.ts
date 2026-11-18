@@ -20,7 +20,7 @@ import { createVelvetIslandEndCapMarquee } from '../../../../art/casino/3d/velve
 import { applySvelteLuxuryFinish } from '../../../../art/casino/3d/svelteLuxuryFinish.mjs';
 import { auditMeshes, findShadingSeams } from './meshAudit';
 import { safeArtBuild } from './safeArtBuild';
-import { repairSvelteWinding } from './svelteFloorBatch';
+import { batchSvelteCabinet, repairSvelteWinding } from './svelteFloorBatch';
 import { ROWS as GAME_ROWS, LINES, MACHINES, strips, spinStops, gridFromStops, evaluate } from '../logic/slots';
 import { reelPoses, stopTime, symbolAt, targetsFromStops, winningCells, type SpinPlan } from './reelSpin';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -333,6 +333,8 @@ let islandCount = 0;
 const animators: ((t: number) => void)[] = [];
 const islandCaps: THREE.Object3D[] = [];
 let islandCapError: string | null = null;
+const islandCopies = new Set<THREE.Object3D>();
+let islandBatch: { buckets: number; instances: number; trianglesPerCabinet: number; sourceMeshes: number; error: string | null } | null = null;
 if (view.startsWith('island')) {
   cabinet.updateMatrixWorld(true);
   const depthBack = -new THREE.Box3().setFromObject(cabinet).min.z; // how far the back reaches behind the origin
@@ -346,6 +348,7 @@ if (view.startsWith('island')) {
     c.position.set(xs[i % 4]!, 0, row ? rowB : 0);
     c.rotation.y = row ? Math.PI : 0;
     scene.add(c);
+    islandCopies.add(c);
     islandCount++;
   }
   // ChatGPT's island end caps (VA-0144), one at each end, sized to span both rows' hulls front to front
@@ -369,6 +372,23 @@ if (view.startsWith('island')) {
       scene.add(cap);
       islandCaps.push(cap);
     } catch (e) { islandCapError = String(e); }
+  }
+  // `&batch=1` (draw-call budget, Claude routine): the eight cabinets become one InstancedMesh per
+  // material bucket via batchSvelteCabinet (the floor path). The caps stay as built. The source
+  // cabinets are hidden, not removed, so bounds/audit below still read them; the batch works on a
+  // clone with its own geometry, and shares the cabinet's materials (live screen, single-colour buckets).
+  if (params.get('batch') === '1') {
+    const placed = [cabinet, ...islandCopies];
+    const placements = placed.map((o) => { o.updateMatrixWorld(true); return o.matrixWorld.clone(); });
+    const src = cabinet.clone(true);
+    src.position.set(0, 0, 0); src.rotation.set(0, 0, 0); src.scale.set(1, 1, 1);
+    src.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh) m.geometry = m.geometry.clone(); });
+    try {
+      const b = batchSvelteCabinet(src, placements);
+      for (const o of placed) o.visible = false;
+      scene.add(b.root);
+      islandBatch = { buckets: b.meshes.length, instances: placements.length, trianglesPerCabinet: b.trianglesPerCabinet, sourceMeshes: b.sourceMeshes, error: null };
+    } catch (e) { islandBatch = { buckets: 0, instances: 0, trianglesPerCabinet: 0, sourceMeshes: 0, error: String(e) }; }
   }
   human.visible = false;
 }
@@ -500,7 +520,7 @@ const windingFacing = (g: THREE.BufferGeometry) => {
       tris += t;
       parts[m.name] = { ...box(m), tris: t, doubleSided: (m.material as THREE.Material).side === THREE.DoubleSide, facing: windingFacing(g), seams: findShadingSeams(g) };
     });
-    return { buildError, finishError, island: islandCount ? { copies: islandCount, capError: islandCapError, caps: islandCaps.map((c) => ({ name: c.name, ...box(c) })) } : null, windingRepaired, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
+    return { buildError, finishError, island: islandCount ? { copies: islandCount, batch: islandBatch, capError: islandCapError, caps: islandCaps.map((c) => ({ name: c.name, ...box(c) })) } : null, windingRepaired, bounds: box(cabinet), meshes, materials: materials.size, triangles: tris, sceneRender: before, cabinetRender: cabinetOnly, reelSwap, reelSpin: reelAnim?.state() ?? null, audit: auditMeshes(cabinet), parts, userData: cabinet.userData };
   },
 };
 
