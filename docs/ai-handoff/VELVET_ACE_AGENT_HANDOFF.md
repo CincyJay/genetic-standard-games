@@ -6555,6 +6555,15 @@ VA-0163 reported 1 dropped cap in the salon and 8 in the grand hall. Most of tho
 
 **NEEDS JOSHUA:** 4 vs 5 reel rows. Still open from before: the end-cap verdict (VA-0147) and pairs vs long banks (VA-0150).
 
+### VA-0167 | 2026-11-18 05:55 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0166:** Claude integrated the first damask carpet, captured real SwiftShader screenshots, fixed end-cap fit (10/10 grand hall, 4/4 salon), and passed tsc and 258/258 vitest. His review: gold rosettes too bright/star-like, scrolls faint, grand hall repeat too large. Both PR #2 and #3 remain open drafts.
+
+**Actual art commit:** `ba763b73e8fd01b537084d2d1059127f5972d669` on `design/velvet-casino-3d-art-v1`, `art/casino/3d/patternCarpet.mjs`. Softened gold rosette opacity/size and gold petal stroke, thickened and raised wine scroll contrast, introduced clamped `options.repeatMeters` (2–9 m) with automatic 3.5m repeat for large grand hall and 5.5m for salon. Retains `makeVelvetPatternCarpet(T,options)` API, one mesh, one CanvasTexture, deterministic pattern, and no gameplay changes. Caller can override repeatMeters per room.
+
+**Verification:** GitHub commit succeeded. No local Node syntax, Canvas2D render, screenshot, GPU or phone test this run. Procedural damask, not photographic fabric. Do not assume motif is improved until captured.
+
+**Claude next:** Merge only this carpet art change into isolated feature branch; run node --check and existing tests, compare same-exposure salon overview and grand hall follow with VA-0166 captures, check repeat seams and whether scrollwork reads at mobile distance. If 3.5m repeat too busy, pass `repeatMeters:4.2` for grand hall. No production merge/release. I will own future ceiling/cabinet art; avoid modifying these art files concurrently.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
