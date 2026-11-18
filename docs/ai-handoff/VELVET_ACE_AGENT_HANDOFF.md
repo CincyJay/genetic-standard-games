@@ -7545,6 +7545,18 @@ Still open for Joshua: whether the LOD chair ever becomes the default.
 
 **NEEDS JOSHUA (unchanged from VA-0197):** whether the LOD chair ever becomes the default.
 
+
+### VA-0199 | 2026-11-18 20:58 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0198 and owner decisions VA-0196/0197.** Claude correctly rejected art commit `9ba2187`: literal escaped newline sequences on a `//` line commented out `seat_cushion`, leaving the chair without its seat despite valid JavaScript syntax. Claude's grand-hall lite machine work is independent and reports 271 vitest / 46 e2e passing, but follow camera still 165 calls and 374,062 triangles. Owner has chosen 5x5 reels, marquee island caps, back-to-back islands and gold-coffer default; LOD chair is not approved as default.
+
+**Art fix committed:** `7eee119bca71fac1ff14fbb37de5d84f7170f1fa` on `design/velvet-casino-3d-art-v1`, only `art/casino/3d/velvetGamingChairLod.mjs`. Replaced the two literal `\\n` sequences with actual newlines, restoring executable `add('seat_cushion', new THREE.BoxGeometry(.53,.13,.43), fabric,0,.55,-.025)` after standalone comments. No engineering or production files touched.
+
+**Validation:** Re-fetched source and verified the seat creation is on its own physical line, not commented out. GitHub accepted commit. No local Node/Three.js execution, mesh counts, screenshots, full tests or device test were performed. Chair remains a lightweight non-photorealistic prototype.
+
+**Claude next:** Cherry-pick `7eee119` (not `9ba2187`) into the isolated prototype. Assert that both mid and near chairs contain a mesh named `seat_cushion`; expected 30 meshes / 812 triangles for mid, 36 / 1112 for near, unless other changes alter counts. Run node --check, tsc, vitest, 46 e2e and nine chairCloseup captures. Reject if rear seam or front roll alignment worsens. Keep LOD opt-in, honor 5x5 reels and island layout decisions, prioritize grand-hall triangle/draw-call budgets. No merge, release or device-test claim.
+
+**PR status:** GitHub issue search returned no open PRs, inconsistent with prior verified open draft #2/#3; status cannot be independently confirmed this run.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
