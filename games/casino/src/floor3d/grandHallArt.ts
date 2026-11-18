@@ -20,6 +20,7 @@ import { createGrandHallArchitecture } from '../../../../art/casino/3d/grandHall
 import { createGrandHallEndcaps } from '../../../../art/casino/3d/grandHallEndcaps.mjs';
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
+import { createVelvetGamingChairLod } from '../../../../art/casino/3d/velvetGamingChairLod.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
@@ -88,27 +89,64 @@ export interface GrandHallArt {
   wovenCarpet: boolean;
 }
 
-/** The swivel chair's front is its local +Z; turn it to face from (x, z) toward (tx, tz). */
-function chairAt(name: string, x: number, z: number, tx: number, tz: number): THREE.Group {
-  const chair = makeVelvetLuxuryGamingChair(THREE) as THREE.Group;
+export type ChairStyle = 'luxury' | 'lod-mid' | 'lod-near';
+
+/**
+ * Which chair the grand hall's tables get. The default stays the luxury study chair (about 10.3k
+ * triangles each). ChatGPT's upholstered LOD chair (3540a74, VA-0185: 520 triangles at 'mid', 580
+ * at 'near') is opt-in for dev and prototype builds with `?chair=lod` (mid) or `?chair=lod-near`,
+ * for comparison before anyone decides on it. Anything else is the default.
+ */
+export function chairStyleFrom(search: string): ChairStyle {
+  const raw = new URLSearchParams(search).get('chair');
+  if (raw === 'lod' || raw === 'lod-mid') return 'lod-mid';
+  if (raw === 'lod-near') return 'lod-near';
+  return 'luxury';
+}
+
+function readChairStyle(): ChairStyle {
+  if (typeof location === 'undefined') return 'luxury';
+  if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return 'luxury';
+  return chairStyleFrom(location.search);
+}
+
+/**
+ * Turn a chair at (x, z) to face (tx, tz). The luxury chair's front is its local +Z (as placed
+ * since VA-0029); the LOD chair's front is -Z (its userData.front), so it gets a half turn more.
+ * LOD chairs are clones of one template, sharing its geometries and materials so they batch.
+ */
+export function chairAt(name: string, x: number, z: number, tx: number, tz: number, style: ChairStyle = 'luxury', lodTemplates?: Map<ChairStyle, THREE.Group>): THREE.Group {
+  let chair: THREE.Group;
+  let turn = 0;
+  if (style === 'luxury') {
+    chair = makeVelvetLuxuryGamingChair(THREE) as THREE.Group;
+  } else {
+    let tpl = lodTemplates?.get(style);
+    if (!tpl) {
+      tpl = createVelvetGamingChairLod(THREE, { detail: style === 'lod-near' ? 'near' : 'mid' }) as THREE.Group;
+      lodTemplates?.set(style, tpl);
+    }
+    chair = tpl.clone();
+    turn = Math.PI;
+  }
   chair.name = name;
   chair.position.set(x, 0, z);
-  chair.rotation.y = Math.atan2(tx - x, tz - z);
+  chair.rotation.y = Math.atan2(tx - x, tz - z) + turn;
   return chair;
 }
 
-function tableWithChairs(t: TablePlacement, chairNames: [string, string]): THREE.Group {
+function tableWithChairs(t: TablePlacement, chairNames: [string, string], style: ChairStyle, lodTemplates: Map<ChairStyle, THREE.Group>): THREE.Group {
   const g = new THREE.Group();
   const table = makeVelvetBlackjackHero(THREE) as THREE.Group;
   table.position.set(t.x, 0, t.z);
   g.add(table);
-  Object.values(BLACKJACK_HERO_ANCHORS.seats).forEach((a, i) => g.add(chairAt(chairNames[i], t.x + a.position[0], t.z + a.position[1], t.x, t.z)));
+  Object.values(BLACKJACK_HERO_ANCHORS.seats).forEach((a, i) => g.add(chairAt(chairNames[i], t.x + a.position[0], t.z + a.position[1], t.x, t.z, style, lodTemplates)));
   return g;
 }
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; ceiling?: CeilingStyle },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; ceiling?: CeilingStyle; chairStyle?: ChairStyle },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -153,8 +191,10 @@ export function composeGrandHall(
   }) as THREE.Group);
 
   // tables: the interactive one's chairs are the seats' (named like the salon's), the rest decor
-  root.add(tableWithChairs(layout.table, ['blackjack_1_chair', 'blackjack_2_chair']));
-  layout.decor.tables.forEach((t, i) => root.add(tableWithChairs(t, [`deco_${i + 1}a_chair`, `deco_${i + 1}b_chair`])));
+  const chairStyle = opts.chairStyle ?? readChairStyle();
+  const lodTemplates = new Map<ChairStyle, THREE.Group>();
+  root.add(tableWithChairs(layout.table, ['blackjack_1_chair', 'blackjack_2_chair'], chairStyle, lodTemplates));
+  layout.decor.tables.forEach((t, i) => root.add(tableWithChairs(t, [`deco_${i + 1}a_chair`, `deco_${i + 1}b_chair`], chairStyle, lodTemplates)));
 
   // machines: one hero per theme, interactive, on the end wall; then copies along the side walls
   const heroes: THREE.Object3D[] = [];

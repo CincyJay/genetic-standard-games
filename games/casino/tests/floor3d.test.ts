@@ -948,6 +948,39 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(innerX(0.28)).toBeGreaterThan(spec.width / 2 - 0.31);
     expect(innerX(0.28)).toBeLessThan(spec.width / 2 - 0.27);
   });
+  it('keeps the luxury chair by default; ?chair=lod swaps in the shared LOD chair, turned to face its table (VA-0185)', async () => {
+    const THREE = await import('three');
+    const { chairStyleFrom, chairAt, composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
+    expect(chairStyleFrom('')).toBe('luxury');
+    expect(chairStyleFrom('?floor3d&chair=lod')).toBe('lod-mid');
+    expect(chairStyleFrom('?chair=lod-near')).toBe('lod-near');
+    expect(chairStyleFrom('?chair=gold')).toBe('luxury');
+    // a chair at the origin facing a table at -X: its backrest must end up on the far side (+X)
+    const chair = chairAt('c', 0, 0, -3, 0, 'lod-mid');
+    chair.updateMatrixWorld(true);
+    const back = new THREE.Box3().setFromObject(chair.getObjectByName('sculpted_upholstered_backrest')!);
+    expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
+    const tris = (style: 'luxury' | 'lod-mid') => {
+      const root = composeGrandHall(g, { liftSign: () => 0, chairStyle: style }).root;
+      let n = 0;
+      const geos = new Set<string>();
+      root.traverse((o) => {
+        if (!/_chair$/.test(o.name)) return;
+        o.traverse((m) => {
+          const mesh = m as import('three').Mesh;
+          if (!mesh.isMesh) return;
+          geos.add(mesh.geometry.uuid);
+          n += (mesh.geometry.index?.count ?? mesh.geometry.attributes.position.count) / 3;
+        });
+      });
+      return { n, geos: geos.size };
+    };
+    const lux = tris('luxury');
+    const lod = tris('lod-mid');
+    // every chair the same count, so LOD is ~20x cheaper, and its clones share one set of geometry
+    expect(lod.n * 15).toBeLessThan(lux.n);
+    expect(lod.geos).toBe(22);
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {
