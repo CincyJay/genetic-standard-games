@@ -19,7 +19,7 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
     mesh.name=name; mesh.position.set(x,y,z); root.add(mesh); return mesh;
   };
   // Cushioned seat with rounded edges; real thickness, not a flat plane.
-  add('seat_cushion',new THREE.BoxGeometry(.53,.13,.48,1,1,1),fabric,0,.55,0);
+  // Move the cushion's rear plane forward to meet the shell centre (z≈.185).\n  // Keep the front at z=-.24 so the existing front roll still covers the seam.\n  add('seat_cushion',new THREE.BoxGeometry(.53,.13,.43,1,1,1),fabric,0,.55,-.025);
   // Soft front roll projects past the box silhouette, without a costly subdivided seat.
   const seatRoll=add('seat_front_soft_roll',new THREE.CylinderGeometry(.062,.062,.50,detail==='near'?12:8),fabric,0,.555,-.218);
   seatRoll.rotation.z=Math.PI/2;
@@ -93,6 +93,6 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
   }
   root.userData={artOnly:true,detail,seatHeight:.615,front:'-Z',units:'metres',
     integration:'Place as isolated prop; share geometries/materials across repeated chairs; do not mutate production scenes',
-    verified:'source-only shell extension and arm/piping fit revision; rendering and device fit unverified'};
+    verified:'source-only rear cushion ledge reduction; rendering and device fit unverified'};
   return root;
 }
