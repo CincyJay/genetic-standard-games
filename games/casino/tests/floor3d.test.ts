@@ -979,7 +979,45 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const lod = tris('lod-mid');
     // every chair the same count, so LOD is ~20x cheaper, and its clones share one set of geometry
     expect(lod.n * 15).toBeLessThan(lux.n);
-    expect(lod.geos).toBe(22);
+    let perChair = 0;
+    chair.traverse((m) => { if ((m as import('three').Mesh).isMesh) perChair++; });
+    expect(lod.geos).toBe(perChair);
+  });
+  it('LOD chair rails and crest sit on the curved backrest shell (VA-0187 art fit, read-only check)', async () => {
+    const THREE = await import('three');
+    const { createVelvetGamingChairLod } = await import('../../../art/casino/3d/velvetGamingChairLod.mjs');
+    for (const detail of ['mid', 'near'] as const) {
+      const root = createVelvetGamingChairLod(THREE, { detail }) as import('three').Group;
+      root.updateMatrixWorld(true);
+      const shell = root.getObjectByName('sculpted_upholstered_backrest') as import('three').Mesh;
+      const pos = shell.geometry.attributes.position;
+      const shellPts: import('three').Vector3[] = [];
+      for (let i = 0; i < pos.count; i++) shellPts.push(new THREE.Vector3().fromBufferAttribute(pos, i));
+      const nearest = (p: import('three').Vector3) => Math.min(...shellPts.map((v) => v.distanceTo(p)));
+      const crest: import('three').Mesh[] = [];
+      const rails: import('three').Mesh[] = [];
+      root.traverse((o) => {
+        if (o.name === 'back_gold_top_crest') crest.push(o as import('three').Mesh);
+        if (o.name === 'back_gold_edge') rails.push(o as import('three').Mesh);
+      });
+      expect(crest.length).toBe(detail === 'near' ? 12 : 6);
+      // each crest piece's two chord ends land within 1 cm of a top-row shell vertex
+      for (const c of crest) {
+        c.geometry.computeBoundingBox();
+        const hx = c.geometry.boundingBox!.max.x;
+        for (const sx of [-hx + 0.001, hx - 0.001]) {
+          expect(nearest(new THREE.Vector3(sx, 0, 0).applyMatrix4(c.matrixWorld))).toBeLessThan(0.01);
+        }
+      }
+      // each rail's ends land within 2 cm of the shell's bottom/top side corners (measured ~1.6 cm: rail .71 m vs shell .67 m)
+      expect(rails.length).toBe(2);
+      for (const r of rails) {
+        for (const sy of [-0.355, 0.355]) {
+          expect(nearest(new THREE.Vector3(0, sy, 0).applyMatrix4(r.matrixWorld))).toBeLessThan(0.02);
+        }
+      }
+      expect(root.userData.seatHeight).toBeCloseTo(0.615, 3);
+    }
   });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');

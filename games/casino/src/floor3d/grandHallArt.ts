@@ -93,8 +93,8 @@ export type ChairStyle = 'luxury' | 'lod-mid' | 'lod-near';
 
 /**
  * Which chair the grand hall's tables get. The default stays the luxury study chair (about 10.3k
- * triangles each). ChatGPT's upholstered LOD chair (3540a74, VA-0185: 520 triangles at 'mid', 580
- * at 'near') is opt-in for dev and prototype builds with `?chair=lod` (mid) or `?chair=lod-near`,
+ * triangles each). ChatGPT's upholstered LOD chair (3540a74, VA-0185; rails and curved crest
+ * revised in 38aba98, VA-0187: 580 triangles at 'mid', 712 at 'near') is opt-in for dev and prototype builds with `?chair=lod` (mid) or `?chair=lod-near`,
  * for comparison before anyone decides on it. Anything else is the default.
  */
 export function chairStyleFrom(search: string): ChairStyle {
