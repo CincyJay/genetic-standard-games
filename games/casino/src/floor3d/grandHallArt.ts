@@ -33,12 +33,12 @@ export const ENDCAP_RECESS = 0.15;
 export type CeilingStyle = 'hall' | 'gold-coffers';
 export const CEILING_STORAGE_KEY = 'va3d.ceiling';
 export const NEXT_CEILING_STYLE: Record<CeilingStyle, CeilingStyle> = { hall: 'gold-coffers', 'gold-coffers': 'hall' };
-/** The stored ceiling style; anything unknown is the hall's own. */
+/** The stored ceiling style. Gold coffers are the default (Joshua, VA-0197); only a stored 'hall' keeps the hall's own. */
 export function readCeilingStyle(): CeilingStyle {
   try {
-    return localStorage.getItem(CEILING_STORAGE_KEY) === 'gold-coffers' ? 'gold-coffers' : 'hall';
+    return localStorage.getItem(CEILING_STORAGE_KEY) === 'hall' ? 'hall' : 'gold-coffers';
   } catch {
-    return 'hall';
+    return 'gold-coffers';
   }
 }
 /**
