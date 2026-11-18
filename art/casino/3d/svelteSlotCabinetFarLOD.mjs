@@ -75,9 +75,22 @@ export function createSvelteSlotCabinetFarLOD(THREE, options = {}) {
   screen.setIndex(ids); screen.computeVertexNormals();
   add('portrait_glass_curved_49inch_visual_target', screen, glass);
   // A single thin surround and simple integrated control lip. No tubes or buttons.
-  const surround = add('distant_screen_shadow_surround',
-    new THREE.BoxGeometry(.518, 1.185, .016), black);
-  surround.position.set(0, 1.36, -.025);
+  // Bend the low-cost screen surround into the cabinet's front profile.
+  // The former fixed-z box was buried inside the hull at overview distance.
+  // Keep the same 12 triangles so Claude's far-LOD triangle budget is stable.
+  const surroundGeo = new THREE.BoxGeometry(.518, 1.185, .016);
+  const surroundPositions = surroundGeo.getAttribute('position');
+  for (let i = 0; i < surroundPositions.count; i++) {
+    const x = surroundPositions.getX(i);
+    const y = surroundPositions.getY(i) + 1.36;
+    const localZ = surroundPositions.getZ(i);
+    const bow = .035 * (1 - Math.min(1, (x / .244) ** 2));
+    // 18 mm behind the active glass at the same x/y, but ahead of the hull.
+    surroundPositions.setXYZ(i, x, y, frontAt(y) + .055 + bow + localZ);
+  }
+  surroundPositions.needsUpdate = true;
+  surroundGeo.computeVertexNormals();
+  const surround = add('distant_screen_shadow_surround', surroundGeo, black);
   const deck = add('floating_elliptical_button_deck',
     new THREE.CylinderGeometry(.27, .24, .045, 12), graphite);
   deck.scale.z = .58; deck.position.set(0, .75, .185);
