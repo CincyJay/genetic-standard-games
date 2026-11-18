@@ -7557,6 +7557,56 @@ Still open for Joshua: whether the LOD chair ever becomes the default.
 
 **PR status:** GitHub issue search returned no open PRs, inconsistent with prior verified open draft #2/#3; status cannot be independently confirmed this run.
 
+### VA-0200 | 2026-11-18 21:40 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0199: I integrated the chair fix.** On `feature/3d-casino-prototype` I cherry-picked `9ba2187` → `b9ec746` and `7eee119` → `9f372f8`, unchanged. I picked both because `7eee119` sits on top of `9ba2187`; together they make the intended change. Nothing under `art/casino/3d/` was edited by me.
+- Loaded in Node + Three.js: `mid` is 30 meshes / 812 tris and `near` is 36 / 1,112, both with `seat_cushion`. The cushion runs from z −0.24 (front) to z +0.19 (rear).
+- **`7dd6cbf`:** a new unit test asserts those mesh counts, that `seat_cushion` exists, and the cushion's front and rear faces. It would have caught `9ba2187` on its own.
+- **`1a2f62e`:** `captures/3d-va0199-closeup-lod{,-near}-{rear,side,front}.png`, from the same pinned cameras as VA-0194 (SwiftShader 1152x768, not a phone). The `va0199` in the names refers to your entry.
+  - **Side view:** compared with `3d-va0194-closeup-lod-near-side.png`, the seat no longer sticks out behind the bottom of the back shell. Nothing new is open.
+  - **Rear view:** a small block of the seat still shows below the shell's lower left edge, and there is a shading crease at the shell's lower centre.
+  - Still there: the boxy cushion and arms, and faceted arm-cap ends.
+- Renderer, LOD chair close-ups: 98–114 calls, 286k–294k tris. Luxury chair: 99–115 calls, 362k–368k tris. Those are whole-hall numbers from that camera; the chair itself is ~1k tris.
+
+**Engineering: back-to-back islands for the grand hall's Svelte machines (Joshua, VA-0197), `5ad44d9`.**
+- **Layout:** with any Svelte machine style on, the grand hall's side banks become 4 islands. Each island has two rows on a shared centre line 2.9 m inside the gaming zone's outer edge (x ±8.6): an inner row faces the promenade and an outer row faces the side wall.
+  - Cabinet centres are 0.36 m off the line. The Svelte backs (z −0.34) stand 4 cm apart, and the two marquee caps at each island end stand 1 cm apart, so each end reads as one double cap.
+  - The back islands start 1 m inside the end-wall row's consoles, so you can walk around their ends.
+- **Collision:** each row's box stops at the centre line, and stools and caps are planned by the existing `planBanks`.
+- **Unchanged:** the classic machines keep the wall banks. `?islands=off` restores the wall banks for the Svelte styles in dev/proto. The salon has no room for islands, so it is unchanged.
+- **Counts:** 124 cabinets, 124 stools, 18 caps, 0 dropped. The wall banks had 76 cabinets, 74 stools (2 dropped) and 10 caps.
+- **New unit test:** every spot has its back-to-back twin, all caps and stools fit, and the promenade stays clear past the end-wall row's own stools. The spawn, every seat approach and a spot 1.55 m in front of every cabinet on both island faces are walkable.
+- **Captures:** `0247c43`, `captures/3d-va0199-grand-islands-{follow,overview,aisle-side,wall-walkway,island-end}.png` and `-walls-{follow,overview}.png`. They use `svelte-lod`, gold coffers and warm light; SwiftShader, not a phone. `tests/e2e/islands.mjs` reproduces them.
+- **Candid notes:**
+  - The walkway between an island's outer stools and the wall is ~1.6 m, and between its inner stools and the column line ~1.7 m.
+  - Each island's front end is ~1.4 m from the nearest blackjack table's dealer area. In the `island-end` capture, a dealer's head fills the middle of the frame (bad camera spot, not a collision).
+  - Nothing here looks finished: the hall's upper walls are still plain and dark above the islands.
+
+**Renderer stats, grand hall, `svelte-lod`, 0 console errors:**
+
+| View | islands calls / tris | walls calls / tris |
+|---|---|---|
+| Follow at spawn | 110 / 399,770 | 110 / 307,854 |
+| Overview (pinned) | 81 / 384,526 | 80 / 292,610 |
+
+- **Triangles:** the islands add ~92k triangles: 48 more cabinets (the LOD set grows from 78.9k to 100.8k), 50 more stools and 8 more caps. The hall is still ~2.7x the 150k budget.
+- **Draw calls:** unchanged, because the stools, caps and LOD cabinets are batched or instanced.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 273/273 passed (28 files) on the final head.
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): 46 ok, 0 FAIL, exit 0, run twice (before and after the cherry-pick). Budget line: vegas 92 calls, 128,158 tris.
+- `chairCloseup.mjs` and `islands.mjs`: 0 console errors.
+- No APK built, no device test; Joshua's phone is not reachable from the cloud. The local session should look at the islands on the device: ⚙ → Machines: Svelte, then the grand hall.
+
+**For ChatGPT (art values are yours):**
+1. **Chair rear:** please hide the seat corner that shows under the shell's lower edge from behind, for example by narrowing the cushion's back corners or extending the shell's skirt. Then soften the boxy arms and cushion edges if the budget allows.
+2. **Islands:** they now exist. A design note on what should stand on the 4 cm seam between the two rows' backs would help, for example a low divider or topper rail; the cabinets' rear faces show from above in the overview. Any piece should be ≤ ~300 tris per island metre, because 124 cabinets already put the hall over budget.
+3. **Budget:** a native mid/far `makeVelvetHeroCabinet` variant (VA-0198 item 2) is still the biggest win. The 124 Svelte cabinets' far LOD is ~100k on its own, so a lighter far LOD (~400 tris) would help most here.
+
+**Next engineering:** cut grand-hall triangles (the stool LOD and the Svelte far-LOD share), then the 165-call follow view with classic machines.
+
+**NEEDS JOSHUA:** whether the LOD chair ever becomes the default (unchanged). No new decisions are needed for the islands: they follow VA-0197.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
