@@ -18,6 +18,7 @@ import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCab
 import { applySvelteLuxuryFinish } from '../../../../art/casino/3d/svelteLuxuryFinish.mjs';
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
 import { createSvelteSlotCabinetFarLOD } from '../../../../art/casino/3d/svelteSlotCabinetFarLOD.mjs';
+import { createSvelteSlotCabinetMidLOD } from '../../../../art/casino/3d/svelteSlotCabinetMidLOD.mjs';
 import { createVelvetIslandEndCapMarquee } from '../../../../art/casino/3d/velvetIslandEndCapMarquee.mjs';
 import { createVelvetSlotStool } from '../../../../art/casino/3d/velvetSlotStool.mjs';
 import { MACHINES, strips } from '../logic/slots.ts';
@@ -25,18 +26,21 @@ import type { Obstacle, RoomBounds, SlotPlacement } from './layout.ts';
 import { buildSvelteLod, type CabinetSpot, type SvelteLod } from './svelteLod.ts';
 
 /** `svelte-lod`: the Svelte islands with distance LOD (svelteLod.ts), only the nearest cabinets in full detail. */
-export type MachineStyle = 'classic' | 'svelte' | 'svelte-lod';
+/** `svelte-lod-mid`: the same with ChatGPT's mid-LOD cabinet in between (VA-0174); about 14 more draw calls, so opt-in. */
+export type MachineStyle = 'classic' | 'svelte' | 'svelte-lod' | 'svelte-lod-mid';
 /** The ⚙ button's cycle. */
-export const NEXT_MACHINE_STYLE: Record<MachineStyle, MachineStyle> = { classic: 'svelte', svelte: 'svelte-lod', 'svelte-lod': 'classic' };
+export const NEXT_MACHINE_STYLE: Record<MachineStyle, MachineStyle> = { classic: 'svelte', svelte: 'svelte-lod', 'svelte-lod': 'svelte-lod-mid', 'svelte-lod-mid': 'classic' };
 /** Cabinets drawn in full detail with distance LOD on (the rest draw ChatGPT's far LOD). */
 export const SVELTE_NEAR_CABINETS = 6;
+/** Cabinets outside the near set but within this many metres draw ChatGPT's mid LOD (62d46bc, hint 6–15 m); the rest draw the far LOD. */
+export const SVELTE_MID_RANGE_M = 15;
 export const MACHINES_STORAGE_KEY = 'va3d.machines';
 
 /** The stored machine style; anything unknown is the classic machines. */
 export function readMachineStyle(): MachineStyle {
   try {
     const v = localStorage.getItem(MACHINES_STORAGE_KEY);
-    return v === 'svelte' || v === 'svelte-lod' ? v : 'classic';
+    return v === 'svelte' || v === 'svelte-lod' || v === 'svelte-lod-mid' ? v : 'classic';
   } catch {
     return 'classic';
   }
@@ -258,7 +262,7 @@ function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: T
  * with a Svelte pair, before batching. The pass-05 pilot's swivel chair stays. Returns the screen
  * textures (for disposal) and how many cabinets went in.
  */
-export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; banks?: BankPlan } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
+export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; midLod?: boolean; banks?: BankPlan } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
   const proto = createSvelteSlotCabinet(THREE) as THREE.Group;
   try {
     applySvelteLuxuryFinish(THREE, proto);
@@ -334,7 +338,10 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
   }
   if (!opts.lod) return { textures, cabinets, stools, lod: null };
   for (const { id } of spots) screenFor(id);
-  const lod = buildSvelteLod(spots, proto, createSvelteSlotCabinetFarLOD(THREE) as THREE.Group, (id) => screens.get(id), SVELTE_NEAR_CABINETS);
+  const lod = buildSvelteLod(spots, proto, createSvelteSlotCabinetFarLOD(THREE) as THREE.Group, (id) => screens.get(id), SVELTE_NEAR_CABINETS, opts.midLod ? {
+    cabinet: createSvelteSlotCabinetMidLOD(THREE) as THREE.Group,
+    range: SVELTE_MID_RANGE_M,
+  } : undefined);
   return { textures, cabinets, stools, lod };
 }
 

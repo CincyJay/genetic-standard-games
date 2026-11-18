@@ -291,6 +291,8 @@ export interface ArtOptions {
   svelteMachines?: boolean;
   /** With svelteMachines: only the nearest cabinets in full detail, the rest ChatGPT's far LOD. */
   svelteLod?: boolean;
+  /** With svelteLod: add ChatGPT's mid-LOD cabinet between near and far (VA-0174). */
+  svelteMidLod?: boolean;
   /** With svelteMachines: continuous banks with a stool at every machine (VA-0160), planned by world.ts. */
   svelteBanks?: BankPlan;
 }
@@ -412,7 +414,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let svelteLod: SvelteLod | null = null;
   if (opts.svelteMachines) {
     const ids = opts.layout?.slots.map((s) => s.id) ?? MACHINES.map((m) => m.id);
-    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, banks: opts.svelteBanks });
+    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, midLod: opts.svelteMidLod, banks: opts.svelteBanks });
     svelteLod = svelte.lod;
     heroTextures = [...heroTextures, ...svelte.textures];
     svelteCabinets = svelte.cabinets;

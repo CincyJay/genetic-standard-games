@@ -79,7 +79,7 @@ export interface FloorStats {
   /** ChatGPT's opt-in woven carpet (VA-0058, `?carpet`) replaced the pilot carpet. */
   wovenCarpet: boolean;
   /** The prototype Svelte machine switch: cabinets put in, end caps placed and caps dropped (no room). */
-  svelteMachines: { cabinets: number; caps: number; capsDropped: number; stools: number; stoolsDropped: number; lod: { near: number; triangles: number; drawCalls: number } | null };
+  svelteMachines: { cabinets: number; caps: number; capsDropped: number; stools: number; stoolsDropped: number; lod: { near: number; mid: number; triangles: number; drawCalls: number } | null };
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
   /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
@@ -295,7 +295,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // the side banks' back caps) may stand out to that wall line, 0.2 m off the wall like the room
   const capRoom = layout.hallSpec ? { ...ROOM, z0: -layout.hallSpec.length / 2 + 0.2 } : ROOM;
   const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM, capRoom) : null;
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines, svelteLod: machineStyle === 'svelte-lod', svelteBanks: svelteBanks ?? undefined });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
   const capScene = svelteBanks ? buildSvelteCaps(svelteBanks.caps) : null;
@@ -712,7 +712,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // prototype builds only: swap the floor's machines for Svelte islands (stored; reloads the floor)
   const machinesBtn = $<HTMLButtonElement>('.sveltemachines');
   machinesBtn.hidden = svelteBtn.hidden;
-  machinesBtn.textContent = { classic: 'Machines: classic', svelte: 'Machines: Svelte islands (preview)', 'svelte-lod': 'Machines: Svelte islands + far LOD (preview)' }[machineStyle];
+  machinesBtn.textContent = { classic: 'Machines: classic', svelte: 'Machines: Svelte islands (preview)', 'svelte-lod': 'Machines: Svelte islands + far LOD (preview)', 'svelte-lod-mid': 'Machines: Svelte islands + mid/far LOD (preview)' }[machineStyle];
   machinesBtn.setAttribute('aria-label', `${machinesBtn.textContent}. Tap to switch (reloads the floor).`);
   machinesBtn.addEventListener('click', () => {
     try {
@@ -1149,7 +1149,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       svelteMachines: {
         cabinets: art.svelteCabinets, caps: svelteBanks?.caps.length ?? 0, capsDropped: svelteBanks?.capsDropped ?? 0,
         stools: svelteBanks?.slots.reduce((n, b) => n + b.stools.length, 0) ?? 0, stoolsDropped: svelteBanks?.stoolsDropped ?? 0,
-        lod: art.svelteLod ? { near: art.svelteLod.near.size, triangles: art.svelteLod.triangles(), drawCalls: art.svelteLod.drawCalls } : null,
+        lod: art.svelteLod ? { near: art.svelteLod.near.size, mid: art.svelteLod.mid.size, triangles: art.svelteLod.triangles(), drawCalls: art.svelteLod.drawCalls } : null,
       },
       guestAvatar,
       lightMode,

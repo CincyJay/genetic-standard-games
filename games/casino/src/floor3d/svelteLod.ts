@@ -3,7 +3,9 @@
  * pair on every slot spot the full cabinet (~4.8k triangles with the finish) put the salon follow
  * view near 370k triangles against a 150k budget. Here only the `nearCount` cabinets closest to
  * the camera draw ChatGPT's full cabinet; the rest draw ChatGPT's far-LOD cabinet
- * (art/casino/3d/svelteSlotCabinetFarLOD.mjs, ~332 triangles). Both levels are InstancedMeshes,
+ * (art/casino/3d/svelteSlotCabinetFarLOD.mjs, ~456 triangles). Optionally (VA-0174) the cabinets
+ * not in the near set but within `mid.range` metres draw ChatGPT's mid-LOD cabinet
+ * (svelteSlotCabinetMidLOD.mjs, ~1.6k triangles) in between. Both levels are InstancedMeshes,
  * one per material bucket (plus one screen mesh per machine), so draw calls stay fixed whatever
  * the cabinet count; `update` only rewrites instance matrices when the near set changes.
  *
@@ -33,6 +35,20 @@ export function pickNear(points: readonly { x: number; z: number }[], x: number,
   return new Set(scored.slice(0, Math.max(0, k)).map((s) => s.i));
 }
 
+/**
+ * Indices (outside `near`) within `range` m of (x, z): the mid-LOD set. A spot already in `current`
+ * stays until it is LOD_HYSTERESIS past the range, so a cabinet on the edge doesn't flicker.
+ * Pure: exported for tests.
+ */
+export function pickMid(points: readonly { x: number; z: number }[], x: number, z: number, range: number, near: ReadonlySet<number>, current: ReadonlySet<number> = new Set()): Set<number> {
+  const out = new Set<number>();
+  points.forEach((p, i) => {
+    if (near.has(i)) return;
+    if (Math.hypot(p.x - x, p.z - z) <= range + (current.has(i) ? LOD_HYSTERESIS : 0)) out.add(i);
+  });
+  return out;
+}
+
 interface LevelMesh { mesh: THREE.InstancedMesh; id: string | null; tris: number }
 
 export interface SvelteLod {
@@ -41,11 +57,15 @@ export interface SvelteLod {
   update(pos: THREE.Vector3): boolean;
   /** The spots drawing the full cabinet. */
   readonly near: ReadonlySet<number>;
+  /** The spots drawing the mid cabinet (empty without a mid level). */
+  readonly mid: ReadonlySet<number>;
   trianglesNear: number;
+  /** 0 without a mid level. */
+  trianglesMid: number;
   trianglesFar: number;
   /** Triangles all cabinets draw now (before frustum culling, which is off for these meshes). */
   triangles(): number;
-  /** Draw calls with both levels in use. */
+  /** Draw calls with every level in use. */
   drawCalls: number;
   dispose(): void;
 }
@@ -61,6 +81,7 @@ export function buildSvelteLod(
   far: THREE.Object3D,
   screenFor: (id: string) => THREE.Material | undefined,
   nearCount: number,
+  mid?: { cabinet: THREE.Object3D; range: number },
 ): SvelteLod {
   const root = new THREE.Group();
   root.name = 'svelte_lod';
@@ -91,21 +112,25 @@ export function buildSvelteLod(
     return { meshes: out, tris };
   };
   const nearLevel = level(near, 'svelte_lod_near', (n) => Math.min(n, k));
+  const midLevel = mid ? level(mid.cabinet, 'svelte_lod_mid', (n) => n) : null;
   const farLevel = level(far, 'svelte_lod_far', (n) => n);
+  const all = [...nearLevel.meshes, ...(midLevel?.meshes ?? []), ...farLevel.meshes];
 
   let nearSet = new Set<number>();
+  let midSet = new Set<number>();
   let last: THREE.Vector3 | null = null;
   let filled = false;
 
   const fill = () => {
-    for (const lm of [...nearLevel.meshes, ...farLevel.meshes]) lm.mesh.count = 0;
+    for (const lm of all) lm.mesh.count = 0;
     spots.forEach((s, i) => {
-      for (const lm of (nearSet.has(i) ? nearLevel : farLevel).meshes) {
+      const lv = nearSet.has(i) ? nearLevel : midLevel && midSet.has(i) ? midLevel : farLevel;
+      for (const lm of lv.meshes) {
         if (lm.id !== null && lm.id !== s.id) continue;
         lm.mesh.setMatrixAt(lm.mesh.count++, s.matrix);
       }
     });
-    for (const lm of [...nearLevel.meshes, ...farLevel.meshes]) {
+    for (const lm of all) {
       lm.mesh.visible = lm.mesh.count > 0;
       lm.mesh.instanceMatrix.needsUpdate = true;
     }
@@ -114,28 +139,33 @@ export function buildSvelteLod(
   const lod: SvelteLod = {
     root,
     get near() { return nearSet; },
+    get mid() { return midSet; },
     trianglesNear: nearLevel.tris,
+    trianglesMid: midLevel?.tris ?? 0,
     trianglesFar: farLevel.tris,
     triangles() {
       let t = 0;
-      for (const lm of [...nearLevel.meshes, ...farLevel.meshes]) if (lm.mesh.visible) t += lm.tris * lm.mesh.count;
+      for (const lm of all) if (lm.mesh.visible) t += lm.tris * lm.mesh.count;
       return t;
     },
-    drawCalls: nearLevel.meshes.length + farLevel.meshes.length,
+    drawCalls: all.length,
     update(p) {
       // re-pick only after the camera has moved a little
       if (last && last.distanceToSquared(p) < 0.04) return false;
       last = (last ?? new THREE.Vector3()).copy(p);
       const next = pickNear(pos, p.x, p.z, k, nearSet);
-      if (filled && next.size === nearSet.size && [...next].every((i) => nearSet.has(i))) return false;
+      const nextMid = mid ? pickMid(pos, p.x, p.z, mid.range, next, midSet) : midSet;
+      const same = (a: Set<number>, b: Set<number>) => a.size === b.size && [...a].every((i) => b.has(i));
+      if (filled && same(next, nearSet) && same(nextMid, midSet)) return false;
       nearSet = next;
+      midSet = nextMid;
       fill();
       filled = true;
       return true;
     },
     dispose() {
       const mats = new Set<THREE.Material>();
-      for (const lm of [...nearLevel.meshes, ...farLevel.meshes]) {
+      for (const lm of all) {
         lm.mesh.geometry.dispose();
         mats.add(lm.mesh.material as THREE.Material);
         lm.mesh.dispose();

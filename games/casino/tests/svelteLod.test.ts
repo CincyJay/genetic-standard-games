@@ -3,7 +3,8 @@ import * as THREE from 'three';
 import { createSvelteSlotCabinet } from '../../../art/casino/3d/svelteSlotCabinet.mjs';
 import { applySvelteLuxuryFinish } from '../../../art/casino/3d/svelteLuxuryFinish.mjs';
 import { createSvelteSlotCabinetFarLOD } from '../../../art/casino/3d/svelteSlotCabinetFarLOD.mjs';
-import { buildSvelteLod, pickNear, type CabinetSpot } from '../src/floor3d/svelteLod.ts';
+import { createSvelteSlotCabinetMidLOD } from '../../../art/casino/3d/svelteSlotCabinetMidLOD.mjs';
+import { buildSvelteLod, pickMid, pickNear, type CabinetSpot } from '../src/floor3d/svelteLod.ts';
 
 const far = () => createSvelteSlotCabinetFarLOD(THREE) as THREE.Group;
 const near = () => {
@@ -11,6 +12,7 @@ const near = () => {
   applySvelteLuxuryFinish(THREE, c);
   return c;
 };
+const mid = () => createSvelteSlotCabinetMidLOD(THREE) as THREE.Group;
 const tris = (g: THREE.BufferGeometry) => (g.index ? g.index.count : g.attributes.position.count) / 3;
 
 describe('ChatGPT far-LOD Svelte cabinet (VA-0153, 149af09)', () => {
@@ -129,5 +131,59 @@ describe('Svelte islands distance LOD', () => {
     const want = { sevens: 0, lanterns: 0 } as Record<string, number>;
     for (const i of lod.near) want[spots[i].id]++;
     for (const m of nearScreens) expect(m.count).toBe(want[m.name.endsWith('sevens') ? 'sevens' : 'lanterns']);
+  });
+});
+
+describe('ChatGPT mid-LOD Svelte cabinet (VA-0173, 62d46bc)', () => {
+  it('sits between far and near in triangles, under the 3k ask, with the same footprint and screen', () => {
+    const count = (c: THREE.Object3D) => { let t = 0; c.traverse((o) => { if ((o as THREE.Mesh).isMesh) t += tris((o as THREE.Mesh).geometry); }); return t; };
+    const m = mid(), f = far(), n = near();
+    expect(count(m)).toBeLessThanOrEqual(3000);
+    expect(count(m)).toBeGreaterThan(count(f));
+    expect(count(m)).toBeLessThan(count(n));
+    let screens = 0;
+    m.traverse((o) => { const mm = o as THREE.Mesh; if (mm.isMesh && (mm.material as THREE.Material).name === 'VA_SVELTE_REEL_SCREEN_SWAP') screens++; });
+    expect(screens).toBe(1);
+    const mb = new THREE.Box3().setFromObject(m, true), fb = new THREE.Box3().setFromObject(f, true);
+    expect(Math.abs((mb.max.x - mb.min.x) - (fb.max.x - fb.min.x))).toBeLessThan(0.05);
+    expect(mb.max.y).toBeCloseTo(fb.max.y, 2);
+    expect(mb.max.z - fb.max.z).toBeLessThan(0.05);
+  });
+});
+
+describe('pickMid', () => {
+  const pts = Array.from({ length: 10 }, (_, i) => ({ x: i * 2, z: 0 }));
+  it('takes the spots within range outside the near set, with hysteresis at the edge', () => {
+    expect([...pickMid(pts, 0, 0, 6, new Set([0, 1]))].sort()).toEqual([2, 3]);
+    // spot 4 is 8 m away: out at range 7.5, held at 7.5 + 0.75 when already mid
+    expect(pickMid(pts, 0, 0, 7.5, new Set()).has(4)).toBe(false);
+    expect(pickMid(pts, 0, 0, 7.5, new Set(), new Set([4])).has(4)).toBe(true);
+  });
+});
+
+describe('Svelte islands three-level LOD (near / mid / far)', () => {
+  const spots: CabinetSpot[] = Array.from({ length: 78 }, (_, i) => ({
+    id: i % 4 < 2 ? 'sevens' : 'lanterns',
+    matrix: new THREE.Matrix4().makeTranslation((i % 13) * 1.2, 0, Math.floor(i / 13) * 2.4),
+  }));
+  const screens = new Map(['sevens', 'lanterns'].map((id) => [id, new THREE.MeshStandardMaterial({ name: `screen_${id}` })]));
+
+  it('splits every cabinet across the three levels and counts their triangles', () => {
+    const lod = buildSvelteLod(spots, near(), far(), (id) => screens.get(id), 6, { cabinet: mid(), range: 6 });
+    lod.update(new THREE.Vector3(0, 1.6, 0));
+    expect(lod.near.size).toBe(6);
+    for (const i of lod.mid) expect(lod.near.has(i)).toBe(false);
+    expect(lod.mid.size).toBeGreaterThan(0);
+    const farN = 78 - 6 - lod.mid.size;
+    expect(farN).toBeGreaterThan(0);
+    expect(lod.trianglesMid).toBeGreaterThan(lod.trianglesFar);
+    expect(lod.triangles()).toBe(6 * lod.trianglesNear + lod.mid.size * lod.trianglesMid + farN * lod.trianglesFar);
+    // every spot drew exactly one screen instance
+    const screenInstances = (lod.root.children as THREE.InstancedMesh[]).filter((m) => [...screens.values()].includes(m.material as THREE.MeshStandardMaterial)).reduce((n, m) => n + m.count, 0);
+    expect(screenInstances).toBe(78);
+    // walking to the far corner moves the mid set with it
+    expect(lod.update(new THREE.Vector3(14.4, 1.6, 12))).toBe(true);
+    expect(lod.mid.has(0)).toBe(false);
+    console.info(`[svelte lod 3] near ${lod.trianglesNear}, mid ${lod.trianglesMid}, far ${lod.trianglesFar} tris; ${lod.drawCalls} calls max`);
   });
 });
