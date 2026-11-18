@@ -7619,6 +7619,49 @@ Still open for Joshua: whether the LOD chair ever becomes the default.
 
 **PR check:** Searched GitHub PR issues for #2/#3; returned no matching results, so draft/open status is unverified this run. Recent commits checked. No merge, release, production change or device claim.
 
+### VA-0202 | 2026-11-18 22:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0201: I integrated the island seam topper, opt-in only.** On `feature/3d-casino-prototype` I cherry-picked `96e9670` → `929c6b5`, unchanged. I did not edit anything under `art/casino/3d/`.
+
+**Engineering, `5db1335`:**
+- **Placement:** `islandSeams()` in `svelteFloor.ts` finds each island by position. It pairs every machine with the twin standing 0.72 m behind it, facing the other way, because the floor's slot ids are theme names. That gives one run per island: 4 in the grand hall, on the centre lines x = ±8.6.
+- **Length:** each topper runs from the first cabinet's outer edge to the last's: 9.06 m for the back islands and 7.76 m for the front ones. Each end stops 2 cm short of the double marquee cap, so they don't intersect; a unit test checks this.
+- **Height:** I measured the Svelte cabinet's back top at 2.09 m, for both the full and the far LOD. With the art's default `height` of 1.55 m, the topper would sit hidden inside the 4 cm seam, about 0.5 m below the tops. I pass `height` = 2.0575 instead. That puts the 6.5 cm infill in the top of the seam, with the brass crest's top at about 2.109 m, roughly 2 cm above the backs.
+- **Batching:** all four toppers merge into one mesh per material, so they cost **+2 draw calls and +192 triangles**. They are visual only, with no collision; the rows' boxes already meet at the centre line.
+- **Flag:** `?topper=on` turns it on, in dev/proto builds only. The default is off until Joshua has seen it.
+- **Unit test:** 4 seams on the centre lines, 4 caps per island, all clear of the topper ends; none in wall-bank mode; 2 meshes, 192 triangles; and the top lies between 2.09 m and 2.12 m.
+- **Script:** `tests/e2e/islands.mjs` now takes a list of variants (`islands,walls,topper`) and has a new `seam-high` view.
+
+**Captures, `29c7b68`:** `captures/3d-va0201-grand-{islands,topper}-{follow,overview,aisle-side,wall-walkway,island-end,seam-high}.png`. They use `svelte-lod`, gold coffers and warm light, under SwiftShader at 1152x768; they are not phone captures.
+- **`seam-high`, looking down the back-west island:** the topper reads as a thin brass line along the shared backs, running into the double cap.
+- **Far LOD backs:** the gap between them is wider. Their backs stand at z −0.305 rather than −0.34, so the gap is about 11 cm, not 4 cm, and the 3.5 cm topper does not cover it there. In the captures, though, the cabinets' black backs hide the seam at that distance anyway.
+- **Not finished:** it is a subtle line, not a finished look. The upper walls above the islands are still plain and dark.
+
+**Renderer stats (SwiftShader, grand hall, `svelte-lod`, 0 console errors in both variants):**
+
+| View | islands calls / tris | + topper calls / tris |
+|---|---|---|
+| Follow at spawn | 110 / 399,770 | 112 / 399,962 |
+| Overview | 81 / 384,526 | 83 / 384,718 |
+| seam-high | 72 / 391,582 | 74 / 391,774 |
+
+The hall is still about 2.7x the 150k triangle budget. The topper does not change that.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 274/274 passed in 27 files. That is 273 before plus the new topper test. VA-0200 said "28 files"; on this run the base before my change was 27 files and 273 tests, so that count was probably my miscount.
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): 46 ok, 0 FAIL, exit 0. Budget line: vegas 92 calls, 128,158 tris.
+- No APK was built and there was no device test; the cloud can't reach Joshua's phone. The local session could show Joshua the islands with `?topper=on`, or show him the PC captures.
+
+**For ChatGPT (art values are yours):**
+1. **Default `height`:** the topper's default of 1.55 m doesn't match the cabinet. Consider defaulting it to about 2.06 m, or measuring it from the cabinet; I pass it explicitly, so nothing is blocked.
+2. **Far LOD gap:** if the seam should also read at far-LOD distance, a width option of up to about 0.11 m would cover it, but your validator caps width at 0.04. Optional; low priority.
+3. **Budget (still the biggest win):** a native mid/far `makeVelvetHeroCabinet` variant, and a lighter Svelte far LOD of about 400 triangles. The 124 far-LOD cabinets are about 100k triangles on their own.
+4. **Chair:** the rear seat corner and the boxy arms are still open (VA-0200 item 1).
+
+**Next engineering:** cutting grand-hall triangles (the stool LOD and the Svelte far-LOD share), then the 165-call follow view with classic machines.
+
+**NEEDS JOSHUA:** whether the seam topper should be on by default (it is opt-in for now), and whether the LOD chair ever becomes the default (unchanged).
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
