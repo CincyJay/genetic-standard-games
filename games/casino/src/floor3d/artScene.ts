@@ -23,6 +23,7 @@ import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet
 import { PILOT_CHAIR, PILOT_HERO_SLOT, type FloorLayout } from './layout.ts';
 import { composeGrandHall } from './grandHallArt.ts';
 import { applySvelteMachines } from './svelteFloor.ts';
+import type { SvelteLod } from './svelteLod.ts';
 import { MACHINES } from '../logic/slots.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
@@ -74,6 +75,8 @@ export interface ArtScene {
   wovenCarpet: boolean;
   /** How many Svelte cabinets the prototype machine switch put in (0 when it is off). */
   svelteCabinets: number;
+  /** The Svelte islands' distance LOD (machine style `svelte-lod`); call `update` with the camera position each frame. */
+  svelteLod: SvelteLod | null;
   /**
    * Batches for the view where nothing is cut away (the eye-level follow camera): each material
    * the walls or ceiling share with the rest of the room is drawn once, wall and ceiling pieces
@@ -285,6 +288,8 @@ export interface ArtOptions {
    * cabinets (svelteFloor.ts), before batching. The end caps are added by world.ts.
    */
   svelteMachines?: boolean;
+  /** With svelteMachines: only the nearest cabinets in full detail, the rest ChatGPT's far LOD. */
+  svelteLod?: boolean;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -401,9 +406,11 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     wovenCarpet = opts.wovenCarpet ? applyWovenCarpet(art, opts.carpetCanvas) : false;
   }
   let svelteCabinets = 0;
+  let svelteLod: SvelteLod | null = null;
   if (opts.svelteMachines) {
     const ids = opts.layout?.slots.map((s) => s.id) ?? MACHINES.map((m) => m.id);
-    const svelte = applySvelteMachines(art, ids);
+    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod });
+    svelteLod = svelte.lod;
     heroTextures = [...heroTextures, ...svelte.textures];
     svelteCabinets = svelte.cabinets;
   }
@@ -527,5 +534,6 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
-  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, whole, meshesAuthored, batches: buckets.size, colourBatches };
+  if (svelteLod) root.add(svelteLod.root);
+  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, svelteLod, whole, meshesAuthored, batches: buckets.size, colourBatches };
 }

@@ -17,17 +17,25 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { createSvelteSlotCabinet } from '../../../../art/casino/3d/svelteSlotCabinet.mjs';
 import { applySvelteLuxuryFinish } from '../../../../art/casino/3d/svelteLuxuryFinish.mjs';
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
+import { createSvelteSlotCabinetFarLOD } from '../../../../art/casino/3d/svelteSlotCabinetFarLOD.mjs';
 import { createVelvetIslandEndCapMarquee } from '../../../../art/casino/3d/velvetIslandEndCapMarquee.mjs';
 import { MACHINES, strips } from '../logic/slots.ts';
 import type { Obstacle, RoomBounds, SlotPlacement } from './layout.ts';
+import { buildSvelteLod, type CabinetSpot, type SvelteLod } from './svelteLod.ts';
 
-export type MachineStyle = 'classic' | 'svelte';
+/** `svelte-lod`: the Svelte islands with distance LOD (svelteLod.ts), only the nearest cabinets in full detail. */
+export type MachineStyle = 'classic' | 'svelte' | 'svelte-lod';
+/** The ⚙ button's cycle. */
+export const NEXT_MACHINE_STYLE: Record<MachineStyle, MachineStyle> = { classic: 'svelte', svelte: 'svelte-lod', 'svelte-lod': 'classic' };
+/** Cabinets drawn in full detail with distance LOD on (the rest draw ChatGPT's far LOD). */
+export const SVELTE_NEAR_CABINETS = 6;
 export const MACHINES_STORAGE_KEY = 'va3d.machines';
 
-/** The stored machine style; anything but "svelte" is the classic machines. */
+/** The stored machine style; anything unknown is the classic machines. */
 export function readMachineStyle(): MachineStyle {
   try {
-    return localStorage.getItem(MACHINES_STORAGE_KEY) === 'svelte' ? 'svelte' : 'classic';
+    const v = localStorage.getItem(MACHINES_STORAGE_KEY);
+    return v === 'svelte' || v === 'svelte-lod' ? v : 'classic';
   } catch {
     return 'classic';
   }
@@ -162,7 +170,7 @@ function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: T
  * with a Svelte pair, before batching. The pass-05 pilot's swivel chair stays. Returns the screen
  * textures (for disposal) and how many cabinets went in.
  */
-export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]): { textures: THREE.Texture[]; cabinets: number } {
+export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean } = {}): { textures: THREE.Texture[]; cabinets: number; lod: SvelteLod | null } {
   const proto = createSvelteSlotCabinet(THREE) as THREE.Group;
   try {
     applySvelteLuxuryFinish(THREE, proto);
@@ -196,12 +204,20 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
     if (copy) groups.push({ g: o, id: copy[1] });
   });
   let cabinets = 0;
+  const spots: CabinetSpot[] = [];
+  if (opts.lod) art.updateMatrixWorld(true);
   for (const { g, id } of groups) {
     for (const c of [...g.children]) {
       if (c.name === 'pilot_luxury_chair') continue;
       c.removeFromParent();
     }
     for (const sx of [-1, 1]) {
+      if (opts.lod) {
+        // instanced outside the floor's static batches, so the near set can follow the camera
+        spots.push({ id, matrix: g.matrixWorld.clone().multiply(new THREE.Matrix4().makeTranslation(sx * SVELTE_PAIR_X, 0, 0)) });
+        cabinets++;
+        continue;
+      }
       const cab = proto.clone(true);
       cab.name = `svelte_cabinet_${sx < 0 ? 'l' : 'r'}`;
       cab.position.x = sx * SVELTE_PAIR_X;
@@ -211,7 +227,10 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
       cabinets++;
     }
   }
-  return { textures, cabinets };
+  if (!opts.lod) return { textures, cabinets, lod: null };
+  for (const { id } of spots) screenFor(id);
+  const lod = buildSvelteLod(spots, proto, createSvelteSlotCabinetFarLOD(THREE) as THREE.Group, (id) => screens.get(id), SVELTE_NEAR_CABINETS);
+  return { textures, cabinets, lod };
 }
 
 /**

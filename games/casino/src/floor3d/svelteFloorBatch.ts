@@ -51,8 +51,57 @@ export function repairSvelteWinding(cabinet: THREE.Object3D): string[] {
   return flipped;
 }
 
-function triangles(g: THREE.BufferGeometry): number {
+export function triangles(g: THREE.BufferGeometry): number {
   return (g.index ? g.index.count : g.attributes.position.count) / 3;
+}
+
+/** One material bucket of a cabinet, merged in the cabinet's own space (front +Z). */
+export interface CabinetBucket {
+  geometry: THREE.BufferGeometry;
+  material: THREE.Material;
+  /** The reel-screen bucket (material `VA_SVELTE_REEL_SCREEN_SWAP`), kept apart so a machine's own screen can go on it. */
+  screen: boolean;
+}
+
+/**
+ * Merges `cabinet` into one geometry per material bucket, in the cabinet root's own space. The
+ * cabinet's geometry is disposed; its materials are reused (colour-merged where values differ only
+ * by colour). Shared by the instanced batch below and the distance LOD (svelteLod.ts).
+ */
+export function cabinetBuckets(cabinet: THREE.Object3D): { buckets: CabinetBucket[]; sourceMeshes: number } {
+  repairSvelteWinding(cabinet);
+  cabinet.updateMatrixWorld(true);
+  const inverseRoot = cabinet.matrixWorld.clone().invert();
+  const raw = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; screen: boolean }>();
+  let sourceMeshes = 0;
+  cabinet.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh || !mesh.visible) return;
+    sourceMeshes++;
+    const material = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as THREE.Material;
+    // the screen keeps its own bucket whatever its values, so a reel texture can be swapped in later
+    const screen = material.name === 'VA_SVELTE_REEL_SCREEN_SWAP';
+    const key = screen ? `screen|${material.uuid}` : materialKey(material);
+    let b = raw.get(key);
+    if (!b) raw.set(key, (b = { material, geos: [], colours: [], screen }));
+    for (const g of bakedPieces(mesh)) {
+      g.applyMatrix4(inverseRoot);
+      if (!g.attributes.normal) g.computeVertexNormals();
+      if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
+      b.geos.push(g);
+      b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
+    }
+  });
+  const buckets: CabinetBucket[] = [];
+  for (const b of raw.values()) {
+    const material = colourMerge(b.material, b.geos, b.colours);
+    const geometry = mergeGeometries(b.geos, false);
+    for (const g of b.geos) g.dispose();
+    if (!geometry) throw new Error(`svelte batch: could not merge bucket ${b.material.name || b.material.type}`);
+    buckets.push({ geometry, material, screen: b.screen });
+  }
+  cabinet.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).geometry.dispose(); });
+  return { buckets, sourceMeshes };
 }
 
 /**
@@ -62,39 +111,14 @@ function triangles(g: THREE.BufferGeometry): number {
  * shows on every copy).
  */
 export function batchSvelteCabinet(cabinet: THREE.Object3D, placements: readonly THREE.Matrix4[]): SvelteFloorBatch {
-  repairSvelteWinding(cabinet);
-  cabinet.updateMatrixWorld(true);
-  const inverseRoot = cabinet.matrixWorld.clone().invert();
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[] }>();
-  let sourceMeshes = 0;
-  cabinet.traverse((o) => {
-    const mesh = o as THREE.Mesh;
-    if (!mesh.isMesh || !mesh.visible) return;
-    sourceMeshes++;
-    const material = (Array.isArray(mesh.material) ? mesh.material[0] : mesh.material) as THREE.Material;
-    // the screen keeps its own bucket whatever its values, so a reel texture can be swapped in later
-    const key = material.name === 'VA_SVELTE_REEL_SCREEN_SWAP' ? `screen|${material.uuid}` : materialKey(material);
-    let b = buckets.get(key);
-    if (!b) buckets.set(key, (b = { material, geos: [], colours: [] }));
-    for (const g of bakedPieces(mesh)) {
-      g.applyMatrix4(inverseRoot);
-      if (!g.attributes.normal) g.computeVertexNormals();
-      if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-      b.geos.push(g);
-      b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
-    }
-  });
+  const { buckets, sourceMeshes } = cabinetBuckets(cabinet);
   const root = new THREE.Group();
   root.name = 'svelte_floor_batch';
   const meshes: THREE.InstancedMesh[] = [];
   let trianglesPerCabinet = 0;
-  for (const b of buckets.values()) {
-    const material = colourMerge(b.material, b.geos, b.colours);
-    const merged = mergeGeometries(b.geos, false);
-    for (const g of b.geos) g.dispose();
-    if (!merged) throw new Error(`svelte batch: could not merge bucket ${b.material.name || b.material.type}`);
-    trianglesPerCabinet += triangles(merged);
-    const inst = new THREE.InstancedMesh(merged, material, placements.length);
+  for (const { geometry, material } of buckets) {
+    trianglesPerCabinet += triangles(geometry);
+    const inst = new THREE.InstancedMesh(geometry, material, placements.length);
     inst.name = `svelte_batch_${meshes.length}`;
     placements.forEach((m, i) => inst.setMatrixAt(i, m));
     inst.instanceMatrix.needsUpdate = true;
@@ -103,6 +127,5 @@ export function batchSvelteCabinet(cabinet: THREE.Object3D, placements: readonly
     root.add(inst);
     meshes.push(inst);
   }
-  cabinet.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).geometry.dispose(); });
   return { root, meshes, trianglesPerCabinet, sourceMeshes };
 }

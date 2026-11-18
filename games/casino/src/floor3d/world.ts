@@ -20,7 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { layoutFor } from './grandHall.ts';
-import { MACHINES_STORAGE_KEY, buildSvelteCaps, fitCaps, readMachineStyle, svelteRowCaps } from './svelteFloor.ts';
+import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildSvelteCaps, fitCaps, readMachineStyle, svelteRowCaps } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { perfText, protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
@@ -79,7 +79,7 @@ export interface FloorStats {
   /** ChatGPT's opt-in woven carpet (VA-0058, `?carpet`) replaced the pilot carpet. */
   wovenCarpet: boolean;
   /** The prototype Svelte machine switch: cabinets put in, end caps placed and caps dropped (no room). */
-  svelteMachines: { cabinets: number; caps: number; capsDropped: number };
+  svelteMachines: { cabinets: number; caps: number; capsDropped: number; lod: { near: number; triangles: number; drawCalls: number } | null };
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
   /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
@@ -284,8 +284,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const SEATS = layout.seats;
   const DEALER_SPOT = layout.dealer;
   // prototype switch: Svelte 01 pairs in place of every machine, rows closed by marquee end caps
-  const svelteMachines = (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && readMachineStyle() === 'svelte';
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines });
+  const machineStyle = import.meta.env.MODE === 'proto' || import.meta.env.DEV ? readMachineStyle() : 'classic';
+  const svelteMachines = machineStyle !== 'classic';
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines, svelteLod: machineStyle === 'svelte-lod' });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))];
   const svelteCaps = svelteMachines ? fitCaps(svelteRowCaps([...layout.slots, ...layout.decor.slots]), obstacles, ROOM) : null;
@@ -702,11 +703,11 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // prototype builds only: swap the floor's machines for Svelte islands (stored; reloads the floor)
   const machinesBtn = $<HTMLButtonElement>('.sveltemachines');
   machinesBtn.hidden = svelteBtn.hidden;
-  machinesBtn.textContent = svelteMachines ? 'Machines: Svelte islands (preview)' : 'Machines: classic';
+  machinesBtn.textContent = { classic: 'Machines: classic', svelte: 'Machines: Svelte islands (preview)', 'svelte-lod': 'Machines: Svelte islands + far LOD (preview)' }[machineStyle];
   machinesBtn.setAttribute('aria-label', `${machinesBtn.textContent}. Tap to switch (reloads the floor).`);
   machinesBtn.addEventListener('click', () => {
     try {
-      localStorage.setItem(MACHINES_STORAGE_KEY, svelteMachines ? 'classic' : 'svelte');
+      localStorage.setItem(MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE[machineStyle]);
     } catch {
       return toast('Can’t switch the machines: storage is unavailable');
     }
@@ -1076,6 +1077,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     }
     camera.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
     camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
+    art.svelteLod?.update(camera.position);
     if (Math.abs(camera.fov - pose.fov) > 0.01) {
       camera.fov = pose.fov;
       camera.updateProjectionMatrix();
@@ -1135,7 +1137,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       hall,
       blackjackHero: art.blackjackHero,
       wovenCarpet: art.wovenCarpet,
-      svelteMachines: { cabinets: art.svelteCabinets, caps: svelteCaps?.caps.length ?? 0, capsDropped: svelteCaps?.dropped ?? 0 },
+      svelteMachines: {
+        cabinets: art.svelteCabinets, caps: svelteCaps?.caps.length ?? 0, capsDropped: svelteCaps?.dropped ?? 0,
+        lod: art.svelteLod ? { near: art.svelteLod.near.size, triangles: art.svelteLod.triangles(), drawCalls: art.svelteLod.drawCalls } : null,
+      },
       guestAvatar,
       lightMode,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
