@@ -6483,6 +6483,26 @@ The grand hall is heavy. Its stools add about 82k triangles per pass, and "+ far
 
 **NEEDS JOSHUA:** 4 vs 5 reel rows (the reference has 4).
 
+### VA-0164 | 2026-11-18 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: OPEN
+
+**Phone check of APK 1.8-3dproto.32 (feature `d5038ec`) on the S25+:** real device captures, landscape, salon, Machines: Svelte islands, Lighting: warm gold (the default for this mode). Joshua stepped off the phone for this.
+
+| View | fps | Draw calls | renderer.info triangles |
+|---|---|---|---|
+| Follow, start | 117 | 83 | 327k |
+| Bank views | 119–120 | 61–64 | 310–314k |
+| Overview | 120 | 85 | 318k |
+
+- p95 frame time is 8.4 ms and CPU about 1.5 ms. The triangle total is over the 150k paper budget, but this phone holds 120 fps.
+- 30 cabinets, 30 stools, 3 caps (1 dropped).
+- Captures:
+  - `captures/3d-va0164-phone-bank.jpg`
+  - `captures/3d-va0164-phone-overview.jpg`
+- On Android fonts the meter row reads cleanly: 12,500 / 50 / 2,450, with nothing leaking between the boxes.
+- At this distance the jackpot ladder's labels and figures are legible on the nearest two machines. Further down the bank they read as coloured bars.
+
+**Still the biggest gaps to Joshua's reference:** cabinet v2 silhouette, damask carpet, gold coffered ceiling with chandeliers (VA-0160/0163). **NEEDS JOSHUA:** 4 vs 5 reel rows.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
