@@ -1046,6 +1046,48 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       expect(root.userData.seatHeight).toBeCloseTo(0.615, 3);
     }
   });
+  it('tessellates the side-wall machine copies lighter by default, heroes and reels untouched (VA-0196)', async () => {
+    const THREE = await import('three');
+    const { composeGrandHall, machineDetailFrom } = await import('../src/floor3d/grandHallArt.ts');
+    expect(machineDetailFrom('')).toBe('lite');
+    expect(machineDetailFrom('?floor3d&machines=full')).toBe('full');
+    const measure = (machineDetail: 'lite' | 'full') => {
+      const root = composeGrandHall(g, { liftSign: () => 0, ceiling: 'gold-coffers', machineDetail }).root;
+      root.updateMatrixWorld(true);
+      let copies = 0, heroes = 0;
+      const copyGeos = new Set<string>();
+      const meshes: string[] = [];
+      const box = new THREE.Box3();
+      for (const c of root.children) {
+        const isCopy = c.name.startsWith('slotcopy_');
+        if (!isCopy && !c.name.startsWith('slot_')) continue;
+        if (c.name === 'slotcopy_sevens_1') box.setFromObject(c);
+        c.traverse((o) => {
+          const m = o as import('three').Mesh;
+          if (!m.isMesh) return;
+          const t = (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+          if (isCopy) { copies += t; copyGeos.add(m.geometry.uuid); meshes.push(`${c.name}/${m.name}:${(m.material as import('three').Material).uuid}`); } else heroes += t;
+        });
+      }
+      return { copies, heroes, copyGeos: copyGeos.size, meshes, box };
+    };
+    const full = measure('full');
+    const lite = measure('lite');
+    // the interactive heroes keep full detail; the copies lose well over half their triangles
+    expect(lite.heroes).toBe(full.heroes);
+    expect(lite.copies).toBeLessThan(full.copies * 0.45);
+    // same meshes in the same order (names; materials are fresh per build, so only the count)
+    expect(lite.meshes.map((k) => k.split(':')[0])).toEqual(full.meshes.map((k) => k.split(':')[0]));
+    // a copy's footprint is unchanged to the millimetre (fewer facets, same shapes and sizes)
+    for (const k of ['min', 'max'] as const) for (const a of ['x', 'y', 'z'] as const) expect(Math.abs(lite.box[k][a] - full.box[k][a])).toBeLessThan(0.01);
+    // copies of a theme share their lite geometry, so batching still merges them
+    expect(lite.copyGeos).toBeLessThanOrEqual(full.copyGeos + 10 * 45);
+    // reels stay boxes, shared with the hero (artScene swaps their textures per theme)
+    const root = composeGrandHall(g, { liftSign: () => 0, machineDetail: 'lite' }).root;
+    const hero = root.getObjectByName('slot_sevens')!.getObjectByName('REEL_0_0_SWAP_TEXTURE') as import('three').Mesh;
+    const copyReel = root.getObjectByName('slotcopy_sevens_1')!.getObjectByName('REEL_0_0_SWAP_TEXTURE') as import('three').Mesh;
+    expect(copyReel.geometry).toBe(hero.geometry);
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {

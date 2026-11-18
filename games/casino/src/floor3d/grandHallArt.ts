@@ -104,6 +104,69 @@ export function chairStyleFrom(search: string): ChairStyle {
   return 'luxury';
 }
 
+export type MachineDetail = 'lite' | 'full';
+
+/**
+ * How finely the grand hall's side-wall machine copies are tessellated (engineering LOD, not an art
+ * change). ChatGPT's hero cabinet is about 13.6k triangles, mostly rounded-rect extrusions
+ * (curveSegments 7, 2 bevel segments: 380 tris each), tubes and spheres; 28 copies of it were
+ * ~380k of the hall's ~640k triangles (VA-0196). 'lite' (the default) rebuilds the copies'
+ * extrusions, tubes and spheres from their own parameters with fewer segments: the same shapes,
+ * sizes, positions and materials, rounder corners drawn with fewer facets. The ten interactive
+ * heroes on the end wall and every box (reels included) are untouched. `?machines=full` keeps the
+ * copies at full detail for comparison in dev and prototype builds.
+ */
+export function machineDetailFrom(search: string): MachineDetail {
+  return new URLSearchParams(search).get('machines') === 'full' ? 'full' : 'lite';
+}
+
+function readMachineDetail(): MachineDetail {
+  if (typeof location === 'undefined') return 'lite';
+  if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return 'lite';
+  return machineDetailFrom(location.search);
+}
+
+/** A lower-tessellation rebuild of one art geometry, or null to share the original (boxes, planes, reels). */
+export function liteGeometry(g: THREE.BufferGeometry): THREE.BufferGeometry | null {
+  const p = (g as THREE.BufferGeometry & { parameters?: Record<string, unknown> }).parameters;
+  if (!p) return null;
+  if (g.type === 'ExtrudeGeometry') {
+    const o = (p.options ?? {}) as THREE.ExtrudeGeometryOptions;
+    if ((o.curveSegments ?? 12) <= 2 && (o.bevelSegments ?? 3) <= 1) return null;
+    return new THREE.ExtrudeGeometry(p.shapes as THREE.Shape | THREE.Shape[], { ...o, curveSegments: Math.min(o.curveSegments ?? 12, 2), bevelSegments: Math.min(o.bevelSegments ?? 3, 1) });
+  }
+  if (g.type === 'TubeGeometry') {
+    const t = p as { path: THREE.Curve<THREE.Vector3>; tubularSegments: number; radius: number; radialSegments: number; closed: boolean };
+    return new THREE.TubeGeometry(t.path, Math.max(4, Math.ceil(t.tubularSegments / 2)), t.radius, Math.max(3, Math.min(t.radialSegments, 4)), t.closed);
+  }
+  if (g.type === 'SphereGeometry') {
+    const s = p as { radius: number; widthSegments: number; heightSegments: number; phiStart: number; phiLength: number; thetaStart: number; thetaLength: number };
+    if (s.widthSegments <= 6 && s.heightSegments <= 4) return null;
+    return new THREE.SphereGeometry(s.radius, Math.min(s.widthSegments, 6), Math.min(s.heightSegments, 4), s.phiStart, s.phiLength, s.thetaStart, s.thetaLength);
+  }
+  return null;
+}
+
+/**
+ * A clone of a hero cabinet for a far side-wall copy, its curved geometry rebuilt with fewer
+ * segments. `cache` (by source geometry uuid) makes every copy of a theme share one set of lite
+ * geometry, so they still batch together. Materials, textures and boxes are shared as in clone().
+ */
+export function liteCabinet(src: THREE.Object3D, cache: Map<string, THREE.BufferGeometry>): THREE.Object3D {
+  const copy = src.clone();
+  copy.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || (m as THREE.InstancedMesh).isInstancedMesh) return;
+    let lite = cache.get(m.geometry.uuid);
+    if (!lite) {
+      lite = liteGeometry(m.geometry) ?? m.geometry;
+      cache.set(m.geometry.uuid, lite);
+    }
+    m.geometry = lite;
+  });
+  return copy;
+}
+
 function readChairStyle(): ChairStyle {
   if (typeof location === 'undefined') return 'luxury';
   if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return 'luxury';
@@ -148,7 +211,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; ceiling?: CeilingStyle; chairStyle?: ChairStyle },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -199,6 +262,8 @@ export function composeGrandHall(
   layout.decor.tables.forEach((t, i) => root.add(tableWithChairs(t, [`deco_${i + 1}a_chair`, `deco_${i + 1}b_chair`], chairStyle, lodTemplates)));
 
   // machines: one hero per theme, interactive, on the end wall; then copies along the side walls
+  const machineDetail = opts.machineDetail ?? readMachineDetail();
+  const liteGeos = new Map<string, THREE.BufferGeometry>();
   const heroes: THREE.Object3D[] = [];
   const heroTextures: THREE.Texture[] = [];
   const byTheme = new Map<string, THREE.Group>();
@@ -224,7 +289,7 @@ export function composeGrandHall(
     copy.name = `slotcopy_${s.id}_${i + 1}`;
     copy.position.set(s.x, 0, s.z);
     copy.rotation.y = s.rotationY;
-    copy.add(src.clone());
+    copy.add(machineDetail === 'lite' ? liteCabinet(src, liteGeos) : src.clone());
     root.add(copy);
   });
   return { root, heroes, heroTextures, wovenCarpet };
