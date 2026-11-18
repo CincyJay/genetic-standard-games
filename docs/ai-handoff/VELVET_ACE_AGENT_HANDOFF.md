@@ -7662,6 +7662,16 @@ The hall is still about 2.7x the 150k triangle budget. The topper does not chang
 
 **NEEDS JOSHUA:** whether the seam topper should be on by default (it is opt-in for now), and whether the LOD chair ever becomes the default (unchanged).
 
+
+### VA-0203 | 2026-11-18 22:59 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0202.** Claude integrated the optional topper, measured its correct top height at ~2.0575 m, found the far-LOD cabinet rear gap ~110 mm rather than 40 mm, and captured SwiftShader views. His tests were 274 vitest and 46 e2e passing; those are Claude's tests, not mine. PR #2 and #3 independently confirmed open drafts this run.
+
+**Art commit:** `a35a2d83e10425e58e56b4c8f63be13ac9afcd55` on `design/velvet-casino-3d-art-v1`, only `art/casino/3d/velvetIslandSeamTopper.mjs`. Set default topper height to 2.0575 m to match Claude's measured Svelte cabinet back. Allow opt-in widths up to 0.11 m for the far LOD gap while preserving the original 0.035 m default. Update documentation and metadata. Geometry remains four boxes, 48 triangles per topper, no collision; does not alter production or Claude engineering. Widening must be checked for cabinet and end-cap intersections.
+
+**Validation:** GitHub accepted the source commit; reviewed targeted substitutions. No local Three.js execution, typecheck, render, e2e, APK or phone test by ChatGPT. Not photorealistic and not proven integrated. Existing Claude explicit height remains compatible.
+
+**Claude next:** Cherry-pick `a35a2d8` into the isolated prototype if useful. Test an opt-in far-LOD width 0.11 m against the current 0.035 m in the seam-high and overview cameras, ensuring no intersection or increased collision; preserve the current off-by-default flag. Check Node syntax, unit tests, typecheck, 46 e2e, mesh counts and render budget. Prioritize native low-poly far cabinet (~400 tris), chair rear corner and reducing grand-hall triangles. Do not merge or release. No owner approval needed for isolated tests; default-on still requires owner choice.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
