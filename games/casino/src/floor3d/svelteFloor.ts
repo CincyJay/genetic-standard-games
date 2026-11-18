@@ -35,6 +35,49 @@ export const NEXT_MACHINE_STYLE: Record<MachineStyle, MachineStyle> = { classic:
 export const SVELTE_NEAR_CABINETS = 6;
 /** Cabinets outside the near set but within this many metres draw ChatGPT's mid LOD (62d46bc, hint 6–15 m); the rest draw the far LOD. */
 export const SVELTE_MID_RANGE_M = 15;
+/** Bank stools drawn in full detail with distance LOD on; the rest draw `farStool` (VA-0203). */
+export const SVELTE_NEAR_STOOLS = 10;
+/**
+ * Stool parts left out of the far stool (VA-0203, Claude-owned performance): the back buttons
+ * (0.9 cm spheres), the foot ring and its spokes (under the seat, hidden by the cushion and the
+ * cabinets from most floor views), the cushion piping (a 0.8 cm line on the seat's top edge) and
+ * the base dome on the gold base. The silhouette parts (base, pedestal, seat, back, gold rims) stay.
+ */
+export const FAR_STOOL_DROP = /^stool_(back_button_\d+|gold_foot_spoke_\d+|gold_foot_ring|cushion_piping|gold_base_dome)$/;
+
+/** The stool as authored minus FAR_STOOL_DROP (materials shared; geometry copied, since the LOD consumes each level's). */
+export function farStool(stool: THREE.Object3D): THREE.Object3D {
+  const far = stool.clone(true);
+  const drop: THREE.Object3D[] = [];
+  far.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    if (FAR_STOOL_DROP.test(m.name)) drop.push(m);
+    else m.geometry = m.geometry.clone();
+  });
+  for (const o of drop) o.removeFromParent();
+  return far;
+}
+
+/** One LOD from several: the root holds every part's root; `near`/`mid` are the first part's (the cabinets'). */
+export function combineLods(parts: readonly SvelteLod[]): SvelteLod {
+  const root = new THREE.Group();
+  root.name = 'svelte_lod_all';
+  for (const p of parts) root.add(p.root);
+  const [first] = parts;
+  return {
+    root,
+    get near() { return first.near; },
+    get mid() { return first.mid; },
+    trianglesNear: first.trianglesNear,
+    trianglesMid: first.trianglesMid,
+    trianglesFar: first.trianglesFar,
+    triangles: () => parts.reduce((t, p) => t + p.triangles(), 0),
+    drawCalls: parts.reduce((n, p) => n + p.drawCalls, 0),
+    update: (pos) => parts.map((p) => p.update(pos)).some(Boolean),
+    dispose: () => parts.forEach((p) => p.dispose()),
+  };
+}
 export const MACHINES_STORAGE_KEY = 'va3d.machines';
 
 /** The stored machine style; anything unknown is the classic machines. */
@@ -301,6 +344,8 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
   const spots: CabinetSpot[] = [];
   art.updateMatrixWorld(true);
   const stool = opts.banks ? (createVelvetSlotStool(THREE) as THREE.Group) : null;
+  const stoolSpots: CabinetSpot[] = [];
+  const turn = new THREE.Matrix4().makeRotationY(Math.PI);
   const wp = new THREE.Vector3();
   for (const { g, id } of groups) {
     // the bank plan's share for this spot, matched by floor position
@@ -313,12 +358,17 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
     }
     if (bank && stool) {
       for (const off of bank.stools) {
+        stools++;
+        if (opts.lod) {
+          // instanced with a distance LOD (VA-0203), its open front toward the cabinet
+          stoolSpots.push({ id: 'stool', matrix: g.matrixWorld.clone().multiply(new THREE.Matrix4().makeTranslation(off, 0, BANK.stoolZ)).multiply(turn) });
+          continue;
+        }
         const st = stool.clone(true);
         st.name = 'svelte_bank_stool';
         st.position.set(off, 0, BANK.stoolZ);
         st.rotation.y = Math.PI; // its open front toward the cabinet
         g.add(st);
-        stools++;
       }
     }
     for (const [n, x] of (bank?.offsets ?? [-SVELTE_PAIR_X, SVELTE_PAIR_X]).entries()) {
@@ -343,7 +393,9 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
     cabinet: createSvelteSlotCabinetMidLOD(THREE) as THREE.Group,
     range: SVELTE_MID_RANGE_M,
   } : undefined);
-  return { textures, cabinets, stools, lod };
+  if (!stool || !stoolSpots.length) return { textures, cabinets, stools, lod };
+  const stoolLod = buildSvelteLod(stoolSpots, stool, farStool(stool), () => undefined, SVELTE_NEAR_STOOLS);
+  return { textures, cabinets, stools, lod: combineLods([lod, stoolLod]) };
 }
 
 /**

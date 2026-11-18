@@ -4,7 +4,7 @@ import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
 import { NavGrid } from '../src/floor3d/nav.ts';
 import { buildArtScene } from '../src/floor3d/artScene.ts';
-import { BANK, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps } from '../src/floor3d/svelteFloor.ts';
+import { BANK, FAR_STOOL_DROP, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps } from '../src/floor3d/svelteFloor.ts';
 
 describe('Svelte machines switch (prototype)', () => {
   it('puts one end cap past each end of a row, facing out', () => {
@@ -156,6 +156,44 @@ describe('Svelte machines switch (prototype)', () => {
     const art = buildArtScene(new Map(), { pilot05: true, layout, svelteMachines: true, svelteBanks: plan });
     expect(art.svelteCabinets).toBe(30);
     expect(art.fadeable.size).toBe(0);
+  });
+
+  it('stool LOD (VA-0203): with distance LOD the bank stools are instanced, the nearest in full, the rest without the small parts', async () => {
+    const { createVelvetSlotStool } = await import('../../../art/casino/3d/velvetSlotStool.mjs');
+    const tris = (o: THREE.Object3D) => { let t = 0; o.traverse((m) => { const g = (m as THREE.Mesh).geometry; if ((m as THREE.Mesh).isMesh) t += (g.index ? g.index.count : g.attributes.position!.count) / 3; }); return t; };
+    const stool = createVelvetSlotStool(THREE) as THREE.Group;
+    const far = farStool(stool);
+    const names = (o: THREE.Object3D) => { const n: string[] = []; o.traverse((m) => { if ((m as THREE.Mesh).isMesh) n.push(m.name); }); return n; };
+    expect(names(far)).toEqual(names(stool).filter((n) => !FAR_STOOL_DROP.test(n)));
+    expect(names(stool).filter((n) => FAR_STOOL_DROP.test(n))).toHaveLength(11); // 5 buttons, 3 spokes, foot ring, piping, base dome
+    expect(tris(stool)).toBe(1118);
+    expect(tris(far)).toBe(626);
+
+    const layout = layoutFor('salon', true, false);
+    const plan = planBanks(layout.slots, obstaclesFor(true, false).filter((o) => o.id !== 'pilot-luxury-chair'), layout.room);
+    const n = plan.slots.reduce((k, b) => k + b.stools.length, 0);
+    const key = (x: number, z: number) => `${x.toFixed(3)},${z.toFixed(3)}`;
+    // the stools' collision circles are where the plan seats them
+    const authored = plan.obstacles.filter((o) => o.id.startsWith('svelte-stool-')).map((o) => key((o as { x: number }).x, (o as { z: number }).z)).sort();
+    expect(authored).toHaveLength(n);
+    const art = buildArtScene(new Map(), { pilot05: true, layout, svelteMachines: true, svelteLod: true, svelteBanks: plan });
+    const lod = art.svelteLod!;
+    lod.update(new THREE.Vector3(0, 1.6, 0));
+    // every stool lands where the static build put it, once
+    const placed: string[] = [];
+    const stoolRoot = lod.root.children[1];
+    const m = new THREE.Matrix4(), v = new THREE.Vector3();
+    for (const c of stoolRoot.children) {
+      const im = c as THREE.InstancedMesh;
+      if (!im.name.endsWith('_0')) continue; // the first bucket of each level: one instance per stool
+      for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, m); v.setFromMatrixPosition(m); expect(v.y).toBeCloseTo(0, 5); placed.push(key(v.x, v.z)); }
+    }
+    expect(placed.sort()).toEqual(authored);
+    // stools add 626 triangles each, plus 492 more for each of the nearest
+    const cabinetsOnly = lod.root.children[0];
+    let cabTris = 0;
+    cabinetsOnly.traverse((o) => { const im = o as THREE.InstancedMesh; if (im.isInstancedMesh && im.visible) cabTris += (im.geometry.index ? im.geometry.index.count : im.geometry.attributes.position!.count) / 3 * im.count; });
+    expect(lod.triangles() - cabTris).toBe(n * 626 + Math.min(n, SVELTE_NEAR_STOOLS) * 492);
   });
 
   it('islands (VA-0197): the grand hall side banks stand back to back, caps and stools all fit, every machine reachable', async () => {
