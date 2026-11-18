@@ -8,9 +8,9 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
   const finish = new THREE.Group();
   finish.name = 'VA_SVELTE_LUXURY_FINISH';
   cabinet.add(finish);
-  const gold = new THREE.MeshStandardMaterial({ color: 0xc4a46b, metalness: .8, roughness: .32 });
-  const velvet = new THREE.MeshStandardMaterial({ color: 0x663047, metalness: .08, roughness: .79 });
-  const glowColor = options.ledColor ?? 0x6bdcf5;
+  const gold = new THREE.MeshStandardMaterial({ color: 0xe0ac4e, metalness: .88, roughness: .21 });
+  const velvet = new THREE.MeshStandardMaterial({ color: 0x451325, metalness: .08, roughness: .73 });
+  const glowColor = options.ledColor ?? 0x9a43ff;
   const light = new THREE.MeshStandardMaterial({
     color: glowColor, emissive: glowColor, emissiveIntensity: 2.1,
     metalness: .04, roughness: .42
@@ -23,6 +23,53 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
     finish.add(mesh);
     return mesh;
   };
+  // Reference-inspired gold-and-violet front display bezel. A pair of thin
+  // physical ribbons follows the actual front S-profile and portrait glass
+  // bow; neither covers the active 5x5 reel area (|x| <= .244).
+  const faceProfile = [
+    [.13,-.105],[.27,-.095],[.43,-.075],[.64,-.045],
+    [.85,-.020],[1.12,.015],[1.42,.055],[1.72,.070],
+    [1.95,.055],[2.09,.025]
+  ];
+  const faceZ = y => {
+    for (let i = 1; i < faceProfile.length; i++) {
+      if (y <= faceProfile[i][0]) {
+        const a = faceProfile[i-1], b = faceProfile[i];
+        const t = Math.max(0, Math.min(1,(y-a[0])/(b[0]-a[0])));
+        const q = t*t*(3-2*t);
+        return a[1] + (b[1]-a[1])*q;
+      }
+    }
+    return faceProfile.at(-1)[1];
+  };
+  for (const sign of [-1, 1]) {
+    const goldPath = [], violetPath = [];
+    for (let i = 0; i <= 36; i++) {
+      const y = .76 + i * 1.20 / 36;
+      goldPath.push([sign*.275,y,faceZ(y)+.082]);
+      violetPath.push([sign*.266,y,faceZ(y)+.092]);
+    }
+    makeTube(sign < 0 ? 'photo_bezel_left_gold' : 'photo_bezel_right_gold',goldPath,.0055,gold);
+    makeTube(sign < 0 ? 'photo_bezel_left_violet' : 'photo_bezel_right_violet',violetPath,.003,light,true);
+  }
+  // Curved header and sill close the continuous portrait frame.
+  for (const [name,y] of [['photo_bezel_header',1.963],['photo_bezel_sill',.755]]) {
+    const path=[];
+    for (let j=0;j<=20;j++) {
+      const x=-.275+j*.55/20, u=x/.275;
+      path.push([x,y,faceZ(y)+.082+.018*(1-u*u)]);
+    }
+    makeTube(name,path,.0055,gold);
+  }
+  // Brushed-gold perimeter to the player-facing control shelf.
+  // Preserve the existing buttons and deck for gameplay hit targets.
+  const controlRim = new THREE.Mesh(
+    new THREE.TorusGeometry(.287,.006,6,48),gold);
+  controlRim.name='photo_control_deck_gold_perimeter';
+  controlRim.rotation.x=Math.PI/2;
+  controlRim.scale.y=.58;
+  controlRim.position.set(0,.765,.245);
+  finish.add(controlRim);
   // Rear shell centre follows the actual S-curve. Surface sits just behind hull,
   // without relying on external textures or obscuring the 5x5 screen.
   const profile = [
@@ -107,7 +154,7 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
   medallion.rotation.x=Math.PI/2;
   medallion.position.set(0,1.44,backZ(1.44)-.018);
   finish.add(medallion);
-  finish.userData={artOnly:true,optional:true,finish:'burgundy-gold-cyan',
+  finish.userData={artOnly:true,optional:true,finish:'burgundy-polished-gold-violet',
     note:'Procedural material pass, not photorealistic or device verified'};
   return finish;
 }
