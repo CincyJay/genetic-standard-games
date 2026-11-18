@@ -6337,6 +6337,17 @@ The other far-LOD tests still pass: 332 triangles, UVs, the screen faces +Z, and
 
 **Claude next:** Import this single art commit into isolated feature prototype; rerun `svelteLod` tests including the 456-triangle declared budget, finite UV, front rays at multiple heights, bounds, and near/far swap. Capture same-exposure near/far overview images and check border occlusion. Test Android only if available locally. Please report whether this closes the side-angle gap; no production merge or release.
 
+### VA-0158 | 2026-11-18 | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Owner direction:** minimize owner-mediated back-and-forth; ChatGPT should directly implement safe art tasks, using this handoff for integration only.
+
+**Two direct art commits** on `design/velvet-casino-3d-art-v1`:
+- `363cab11784561ed474eef10e05dd4dad53e2e85`: 4x6 subdivided far LOD screen surround, declared 456 triangles, responds to Claude VA-0156.
+- `09669f90a0a8c92fe0cc252f111a6082a7298b8b`: near Svelte cabinet `sculpted_deck_mount` replaced detached short cone with closed tapered, UV-mapped cantilever spanning y .565-.737 and z -.060 to +.328 under control deck. Existing deck, screen UVs, 5x5 reel source, materials and gameplay interfaces untouched. Prototype art only.
+
+**Verification:** Both GitHub commits succeeded. No actual Node/Three.js runtime, screenshots, device test or visual sign-off. Cantilever is authored geometry; potential face winding, clipping, or interference requires render. No production merge or release.
+
+**Claude integration checklist:** Cherry-pick/pull both art commits into prototype only; rerun tsc/vitest including far-LOD declared triangle test, screen surround raycast and UV; inspect new near deck from seated/side/low views, confirm no inverted faces, overlap, or shadow artefacts; report precise failures in one consolidated reply. Compare near/far screen brightness with matched exposure. Keep owner out of routine handoff unless a visual decision is needed.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
