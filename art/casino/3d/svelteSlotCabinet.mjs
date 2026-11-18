@@ -74,7 +74,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     return add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points.map(p => new THREE.Vector3(...p))), segments, radius, 7, false), material, name);
   }
   // Shell: a continuous tapered hull, not stacked boxes.
-  const vertices = [], indices = [];
+  const vertices = [], indices = [], hullUvs = [];
   const rings = 32, sides = 16;
   for (let i = 0; i <= rings; i++) {
     const y = 0.045 + (2.09 - 0.045) * i / rings;
@@ -90,6 +90,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
       const radius = (front - rearZ) / 2;
       const z = centre + radius * Math.sin(theta);
       vertices.push(x, y, z);
+      hullUvs.push(j / sides, (y - 0.045) / (2.09 - 0.045));
     }
   }
   for (let i = 0; i < rings; i++) for (let j = 0; j < sides; j++) {
@@ -100,14 +101,17 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   // Add cap centres before copying vertices into the GPU position attribute.
   const bottomCentre = vertices.length / 3;
   vertices.push(0, 0.045, (frontZ(0.045) + 0.05 + rearZ) / 2);
+  hullUvs.push(0.5, 0);
   const topCentre = vertices.length / 3;
   vertices.push(0, 2.09, (frontZ(2.09) + 0.04 + rearZ) / 2);
+  hullUvs.push(0.5, 1);
   for (let j = 0; j < sides; j++) {
     indices.push(bottomCentre, j, j + 1);
     const a = rings * (sides + 1) + j;
     indices.push(topCentre, a + 1, a);
   }
   hull.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  hull.setAttribute('uv', new THREE.Float32BufferAttribute(hullUvs, 2));
   hull.setIndex(indices); hull.computeVertexNormals();
   // The first and last vertex of each ring occupy the same point.
   // Average their normals to remove the dark 30-degree seam without
@@ -149,13 +153,14 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   // Fairings trace the display edges and taper back into the shell, rather than
   // looking like a second rectangular cabinet bolted to the first.
   function screenFairing(sign) {
-    const positions = [], indices = [], rows = 28;
+    const positions = [], indices = [], uvs = [], rows = 28;
     for (let i = 0; i <= rows; i++) {
       const y = 0.77 + 1.18 * i / rows;
       const zFront = frontZ(y) + 0.075;
       const zHull = frontZ(y) + 0.035;
       const w = 0.252 + 0.004 * Math.sin(Math.PI * i / rows);
       positions.push(sign * w, y, zFront, sign * (widthAt(y) - 0.017), y, zHull);
+      uvs.push(0, i / rows, 1, i / rows);
       if (i < rows) {
         const a = i * 2;
         if (sign < 0) indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3);
@@ -164,6 +169,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geo.setIndex(indices); geo.computeVertexNormals();
     add(geo, graphite, sign < 0 ? 'left_screen_shell_fairing' : 'right_screen_shell_fairing');
   }
@@ -200,12 +206,13 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   // covering the middle of the 5x5 game. Unlike a floating wire, these
   // ribbon strips have visible width and follow the curved display.
   for (const sign of [-1, 1]) {
-    const positions = [], indices = [], rows = 32;
+    const positions = [], indices = [], uvs = [], rows = 32;
     for (let i = 0; i <= rows; i++) {
       const y = 0.78 + 1.16 * i / rows;
       for (const x of [0.244, 0.258]) {
         const u = x / 0.244;
         positions.push(sign * x, y, frontZ(y) + 0.083 + 0.035 * (1 - u * u));
+        uvs.push((x - 0.244) / 0.014, i / rows);
       }
       if (i < rows) {
         const a = i * 2;
@@ -215,6 +222,7 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geometry.setIndex(indices); geometry.computeVertexNormals();
     add(geometry, black, sign < 0 ? 'left_recess_shadow_gasket' : 'right_recess_shadow_gasket');
   }
