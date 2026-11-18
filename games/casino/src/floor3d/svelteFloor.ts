@@ -169,8 +169,8 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
   } catch (e) {
     console.warn('[floor3d] svelte luxury finish', e);
   }
-  // the hull, fairings and gaskets have no UVs; the floor batches them with UV'd pieces of the
-  // same material, which needs the same attributes, so they get blank ones (untextured anyway)
+  // the floor batches meshes of one material together, which needs the same attributes; since
+  // fd81685 (VA-0151) every art mesh ships UVs, so this only guards against a future part without
   proto.traverse((o) => {
     const g = (o as THREE.Mesh).geometry;
     if ((o as THREE.Mesh).isMesh && g && !g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));

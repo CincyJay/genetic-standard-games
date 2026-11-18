@@ -95,3 +95,29 @@ describe('Svelte art as authored (VA-0138, `970c27f`)', () => {
     }
   });
 });
+
+describe('Svelte art UVs (VA-0151, `fd81685`)', () => {
+  const named = ['continuous_sculpted_S_curve_hull', 'left_screen_shell_fairing', 'right_screen_shell_fairing', 'left_recess_shadow_gasket', 'right_recess_shadow_gasket'];
+  for (const finish of [false, true]) {
+    it(`every mesh ships its own finite 0..1 UVs, one per vertex (finish=${finish})`, () => {
+      const c = build(finish);
+      const seen = new Set<string>();
+      c.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const g = m.geometry;
+        const uv = g.attributes.uv;
+        expect(uv, `${m.name} has no uv`).toBeTruthy();
+        expect(uv.count, m.name).toBe(g.attributes.position.count);
+        if (named.includes(m.name)) {
+          seen.add(m.name);
+          for (let i = 0; i < uv.array.length; i++) {
+            const v = uv.array[i];
+            expect(Number.isFinite(v) && v >= 0 && v <= 1, `${m.name} uv[${i}]=${v}`).toBe(true);
+          }
+        }
+      });
+      expect([...seen].sort()).toEqual([...named].sort());
+    });
+  }
+});
