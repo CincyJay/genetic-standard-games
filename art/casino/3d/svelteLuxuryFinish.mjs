@@ -96,8 +96,9 @@ export function applySvelteLuxuryFinish(THREE, cabinet, options = {}) {
   const lip = new THREE.Mesh(new THREE.TorusGeometry(.278, .004, 4, 32), light);
   lip.name = 'underglow';
   lip.rotation.x = Math.PI / 2;
-  lip.scale.y = 1.12;
-  lip.position.set(0, .018, -.15);
+  // Match the island shoe's compressed Z footprint.
+  lip.scale.y = 0.72;
+  lip.position.set(0, .018, -.105);
   lip.userData.glow = true;
   finish.add(lip);
   // Small gold medallion on rear velvet, visibly separate from reel-screen glass.

@@ -256,10 +256,10 @@ export function createSvelteSlotCabinet(THREE, options = {}) {
   // Lower hull flares into shoe; no separate exposed keel puck.
   // A long, tapered oval floor shoe replaces the detached central puck.
   const shoe = add(new THREE.CylinderGeometry(0.235, 0.27, 0.060, 32), black, 'continuous_floor_shoe');
-  shoe.scale.z = 1.12; shoe.position.set(0, 0.03, -0.15);
+  shoe.scale.z = 0.74; shoe.position.set(0, 0.03, -0.105);
   // Physical shadow seam where shoe and lower shell overlap.
   const shoeTrim = add(new THREE.TorusGeometry(0.246, 0.007, 5, 20), titanium, 'floor_shoe_chrome_edge');
-  shoeTrim.rotation.x = Math.PI / 2; shoeTrim.scale.y = 1.12; shoeTrim.position.set(0, 0.02, -0.15);
+  shoeTrim.rotation.x = Math.PI / 2; shoeTrim.scale.y = 0.74; shoeTrim.position.set(0, 0.02, -0.105);
   // Floating, thin control deck, a tapered oval with the front lip toward player.
   // DECK_BACK (Claude, VA-0147): after VA-0145 moved the hull front back to z ~0 at deck height, the
   // deck's rear edge sat 7 cm in front of it and read as floating; shift deck, mount, trim and buttons
