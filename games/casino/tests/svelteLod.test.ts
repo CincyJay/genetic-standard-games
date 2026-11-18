@@ -54,6 +54,23 @@ describe('ChatGPT far-LOD Svelte cabinet (VA-0153, 149af09)', () => {
     expect(Math.abs((lo.max.x - lo.min.x) - (full.max.x - full.min.x))).toBeLessThan(0.05);
     expect(lo.max.y).toBeCloseTo(full.max.y, 1);
   });
+
+  it('shows the shadow surround as a border ring in front of the hull (VA-0155, 5f59369)', () => {
+    const c = far();
+    c.updateMatrixWorld(true);
+    const meshes: THREE.Object3D[] = [];
+    c.traverse((o) => { if ((o as THREE.Mesh).isMesh && o.name !== 'floating_elliptical_button_deck') meshes.push(o); });
+    const rc = new THREE.Raycaster();
+    const first = (x: number, y: number) => {
+      rc.set(new THREE.Vector3(x, y, 2), new THREE.Vector3(0, 0, -1));
+      return rc.intersectObjects(meshes, false)[0]?.object.name;
+    };
+    // screen centre: the glass, not the surround
+    expect(first(0, 1.3)).toBe('portrait_glass_curved_49inch_visual_target');
+    // side, top and bottom border, just outside the glass: the surround, not the hull
+    for (const [x, y] of [[0.252, 0.9], [0.252, 1.3], [0.252, 1.66], [-0.252, 1.9], [0, 1.947], [0.15, 0.772]])
+      expect(first(x, y), `${x},${y}`).toBe('distant_screen_shadow_surround');
+  });
 });
 
 describe('pickNear', () => {
