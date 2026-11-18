@@ -3,7 +3,7 @@ import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
 import { NavGrid } from '../src/floor3d/nav.ts';
 import { buildArtScene } from '../src/floor3d/artScene.ts';
-import { buildSvelteCaps, CAP, capObstacle, fitCaps, SVELTE_PAIR_X, svelteRowCaps } from '../src/floor3d/svelteFloor.ts';
+import { BANK, buildSvelteCaps, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps } from '../src/floor3d/svelteFloor.ts';
 
 describe('Svelte machines switch (prototype)', () => {
   it('puts one end cap past each end of a row, facing out', () => {
@@ -77,5 +77,33 @@ describe('Svelte machines switch (prototype)', () => {
     animate(0.3);
     expect([...bulbs.instanceColor.array]).not.toEqual(before);
     expect(buildSvelteCaps([]).root.children).toHaveLength(0);
+  });
+
+  it('banks: the salon walls become two continuous banks of evenly spaced machines, a stool at each', () => {
+    const layout = layoutFor('salon', true, false);
+    const base = obstaclesFor(true, false).filter((o) => o.id !== 'pilot-luxury-chair');
+    const plan = planBanks(layout.slots, base, layout.room);
+    const cabs = plan.slots.reduce((n, b) => n + b.offsets.length, 0);
+    expect(cabs).toBe(30); // 5 spots × 3 per wall
+    expect(plan.caps.length + plan.capsDropped).toBe(4); // one bank per wall, capped both ends where it fits
+    // the pitch runs on unbroken across spots
+    const west = plan.slots.filter((b) => b.slot.x < 0).flatMap((b) => b.offsets.map((o) => b.slot.z - o)).sort((a, b) => a - b);
+    const gaps = west.slice(1).map((z, i) => z - west[i]);
+    for (const g of gaps) expect(g).toBeCloseTo(gaps[0], 5);
+    expect(gaps[0]).toBeGreaterThanOrEqual(BANK.pitchMin);
+    expect(plan.slots.reduce((n, b) => n + b.stools.length, 0) + plan.stoolsDropped).toBe(cabs);
+    expect(plan.stoolsDropped).toBe(0);
+    // walkable: spawn, the table seats, and a spot in front of every stool
+    const nav = new NavGrid(ROOM, [...base, ...plan.obstacles]);
+    expect(nav.walkableAt(SPAWN)).toBe(true);
+    for (const s of SEATS) expect(nav.walkableAt(s.approach), s.id).toBe(true);
+  });
+
+  it('banks: the art gets the planned cabinets and stools, and loses the pilot chair', () => {
+    const layout = layoutFor('salon', true, false);
+    const plan = planBanks(layout.slots, obstaclesFor(true, false).filter((o) => o.id !== 'pilot-luxury-chair'), layout.room);
+    const art = buildArtScene(new Map(), { pilot05: true, layout, svelteMachines: true, svelteBanks: plan });
+    expect(art.svelteCabinets).toBe(30);
+    expect(art.fadeable.size).toBe(0);
   });
 });

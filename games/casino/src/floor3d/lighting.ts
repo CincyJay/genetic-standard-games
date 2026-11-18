@@ -7,8 +7,8 @@
  *
  * Pure data and a parser here so the numbers are testable without WebGL; world.ts applies them.
  */
-export type LightMode = 'vegas' | 'flat';
-export const LIGHT_MODES: readonly LightMode[] = ['vegas', 'flat'];
+export type LightMode = 'vegas' | 'warm' | 'flat';
+export const LIGHT_MODES: readonly LightMode[] = ['vegas', 'warm', 'flat'];
 export const LIGHT_STORAGE_KEY = 'va3d.light';
 
 export interface LightRig {
@@ -41,11 +41,21 @@ export const LIGHT_RIGS: Record<LightMode, LightRig> = {
     lamp: { color: 0xffc27a, intensity: 26, distance: 11, decay: 1.7 },
     bloom: { strength: 0.55, radius: 0.2, threshold: 1.0 },
   },
+  // Joshua's reference room (VA-0160): a warm, gold-lit hall rather than a dark one, with violet in
+  // the shadows; the machines' neon and the end caps' bulbs still bloom
+  warm: {
+    exposure: 1.12,
+    envIntensity: 0.45,
+    hemi: { sky: 0xffd49a, ground: 0x2a1236, intensity: 0.6 },
+    sun: { color: 0xffd6a0, intensity: 0.45 },
+    lamp: { color: 0xffbf6a, intensity: 34, distance: 14, decay: 1.6 },
+    bloom: { strength: 0.5, radius: 0.28, threshold: 1.0 },
+  },
 };
 
-/** The stored choice, defaulting to vegas; anything unknown also means vegas. */
-export function parseLightMode(stored: string | null | undefined): LightMode {
-  return stored === 'flat' ? 'flat' : 'vegas';
+/** The stored choice; nothing stored or anything unknown means the fallback (vegas). */
+export function parseLightMode(stored: string | null | undefined, fallback: LightMode = 'vegas'): LightMode {
+  return stored === 'flat' || stored === 'warm' || stored === 'vegas' ? stored : fallback;
 }
 
 export function nextLightMode(m: LightMode): LightMode {

@@ -719,7 +719,10 @@ describe('floor lighting modes (VA-0043)', async () => {
     expect(parseLightMode(null)).toBe('vegas');
     expect(parseLightMode('junk')).toBe('vegas');
     expect(parseLightMode('flat')).toBe('flat');
-    expect(nextLightMode(nextLightMode('vegas'))).toBe('vegas');
+    expect(parseLightMode('warm')).toBe('warm');
+    expect(parseLightMode(null, 'warm')).toBe('warm');
+    expect(nextLightMode('vegas')).toBe('warm');
+    expect(nextLightMode(nextLightMode(nextLightMode('vegas')))).toBe('vegas');
   });
   it('flat keeps the original rig and has no post-processing', () => {
     const f = LIGHT_RIGS.flat;

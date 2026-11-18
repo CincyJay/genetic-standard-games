@@ -24,6 +24,7 @@ import { PILOT_CHAIR, PILOT_HERO_SLOT, type FloorLayout } from './layout.ts';
 import { composeGrandHall } from './grandHallArt.ts';
 import { applySvelteMachines } from './svelteFloor.ts';
 import type { SvelteLod } from './svelteLod.ts';
+import type { BankPlan } from './svelteFloor.ts';
 import { MACHINES } from '../logic/slots.ts';
 
 export type WallSide = 'north' | 'east' | 'west';
@@ -290,6 +291,8 @@ export interface ArtOptions {
   svelteMachines?: boolean;
   /** With svelteMachines: only the nearest cabinets in full detail, the rest ChatGPT's far LOD. */
   svelteLod?: boolean;
+  /** With svelteMachines: continuous banks with a stool at every machine (VA-0160), planned by world.ts. */
+  svelteBanks?: BankPlan;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -409,7 +412,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let svelteLod: SvelteLod | null = null;
   if (opts.svelteMachines) {
     const ids = opts.layout?.slots.map((s) => s.id) ?? MACHINES.map((m) => m.id);
-    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod });
+    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, banks: opts.svelteBanks });
     svelteLod = svelte.lod;
     heroTextures = [...heroTextures, ...svelte.textures];
     svelteCabinets = svelte.cabinets;

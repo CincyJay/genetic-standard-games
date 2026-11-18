@@ -220,6 +220,8 @@ ok(stats.lightMode === 'vegas', 'the floor opens in the Vegas lighting (dim room
 await page.locator('#va3d-hud .gear').tap();
 await page.waitForTimeout(200);
 await page.locator('#va3d-hud .lightmode').tap();
+ok(await until(async () => (await page.evaluate(() => globalThis.__floor3d.stats())).lightMode === 'warm', 3000), 'the lighting button goes to warm gold (VA-0160) first');
+await page.locator('#va3d-hud .lightmode').tap();
 await page.locator('#va3d-hud .gear').tap();
 await page.waitForTimeout(800);
 const flat = await page.evaluate(() => globalThis.__floor3d.stats());

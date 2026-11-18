@@ -19,6 +19,7 @@ import { applySvelteLuxuryFinish } from '../../../../art/casino/3d/svelteLuxuryF
 import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScreen.mjs';
 import { createSvelteSlotCabinetFarLOD } from '../../../../art/casino/3d/svelteSlotCabinetFarLOD.mjs';
 import { createVelvetIslandEndCapMarquee } from '../../../../art/casino/3d/velvetIslandEndCapMarquee.mjs';
+import { createVelvetSlotStool } from '../../../../art/casino/3d/velvetSlotStool.mjs';
 import { MACHINES, strips } from '../logic/slots.ts';
 import type { Obstacle, RoomBounds, SlotPlacement } from './layout.ts';
 import { buildSvelteLod, type CabinetSpot, type SvelteLod } from './svelteLod.ts';
@@ -50,18 +51,38 @@ const CABINET_HALF_W = 0.306;
  * (z −0.34, with ChatGPT's re-centred shoe, VA-0148) to the deck's front (z 0.35), plus 1.5 cm.
  */
 export const CAP = { width: 0.09, depth: 0.72, height: 2.09, centreZ: 0.005, gap: 0.02 } as const;
-/** Machines further apart than this along a line are separate rows. */
-const ROW_BREAK = 2.2;
+/** Machines further apart than this along a line are separate rows (salon slots are 2.3 m apart). */
+const ROW_BREAK = 2.6;
+/**
+ * Continuous banks (Joshua's reference room, VA-0160): cabinets side by side along each row at no
+ * less than this pitch, a stool in front of each. A slot alone in its row keeps a pair.
+ */
+export const BANK = { pitchMin: 0.64, soloHalf: 0.65, stoolZ: 0.88, stoolR: 0.27, backZ: -0.42, frontZ: 0.6 } as const;
 
-export interface CapPlacement {
-  x: number;
-  z: number;
-  /** The cap's decorated face is its local +X, turned by this. */
-  rotationY: number;
+interface Placed { x: number; z: number; rotationY: number }
+/** One slot spot's share of its bank: cabinet offsets along its local X, and its stools. */
+export interface BankSlot {
+  slot: SlotPlacement;
+  offsets: number[];
+  /** Stools that fit, as local X offsets (each at local z BANK.stoolZ, facing the cabinet). */
+  stools: number[];
+}
+export interface BankPlan {
+  slots: BankSlot[];
+  caps: CapPlacement[];
+  /** Collision: a box along each spot's cabinets, the stools, and the caps that fit. */
+  obstacles: Obstacle[];
+  stoolsDropped: number;
+  capsDropped: number;
 }
 
-/** One end cap past each end of every row of machines. */
-export function svelteRowCaps(slots: readonly SlotPlacement[]): CapPlacement[] {
+const toWorld = (s: SlotPlacement, lx: number, lz: number): { x: number; z: number } => ({
+  x: s.x + Math.cos(s.rotationY) * lx + Math.sin(s.rotationY) * lz,
+  z: s.z - Math.sin(s.rotationY) * lx + Math.cos(s.rotationY) * lz,
+});
+
+/** Machines that face the same way on one line, split where they are further apart than ROW_BREAK. */
+function rowRuns(slots: readonly SlotPlacement[]): { s: SlotPlacement; t: number }[][] {
   const rows = new Map<string, { s: SlotPlacement; t: number }[]>();
   for (const s of slots) {
     const nx = Math.sin(s.rotationY), nz = Math.cos(s.rotationY); // facing (local +Z)
@@ -71,27 +92,84 @@ export function svelteRowCaps(slots: readonly SlotPlacement[]): CapPlacement[] {
     if (!row) rows.set(key, (row = []));
     row.push({ s, t: s.x * lx + s.z * lz });
   }
-  const caps: CapPlacement[] = [];
-  const off = SVELTE_PAIR_X + CABINET_HALF_W + CAP.gap + CAP.width / 2;
-  const capAt = (s: SlotPlacement, sign: number): CapPlacement => {
-    const nx = Math.sin(s.rotationY), nz = Math.cos(s.rotationY);
-    const lx = Math.cos(s.rotationY), lz = -Math.sin(s.rotationY);
-    return {
-      x: s.x + lx * sign * off + nx * CAP.centreZ,
-      z: s.z + lz * sign * off + nz * CAP.centreZ,
-      rotationY: s.rotationY + (sign > 0 ? 0 : Math.PI),
-    };
-  };
+  const runs: { s: SlotPlacement; t: number }[][] = [];
   for (const row of rows.values()) {
     row.sort((a, b) => a.t - b.t);
     let start = 0;
     for (let i = 1; i <= row.length; i++) {
       if (i < row.length && row[i].t - row[i - 1].t <= ROW_BREAK) continue;
-      caps.push(capAt(row[start].s, -1), capAt(row[i - 1].s, 1));
+      runs.push(row.slice(start, i));
       start = i;
     }
   }
-  return caps;
+  return runs;
+}
+
+/** A local box (slot frame) as a world axis-aligned box. */
+function localBox(s: SlotPlacement, id: string, x0: number, x1: number, z0: number, z1: number, h: number): Obstacle & { kind: 'box' } {
+  const pts = [toWorld(s, x0, z0), toWorld(s, x1, z0), toWorld(s, x0, z1), toWorld(s, x1, z1)];
+  return { kind: 'box', id, x0: Math.min(...pts.map((p) => p.x)), z0: Math.min(...pts.map((p) => p.z)), x1: Math.max(...pts.map((p) => p.x)), z1: Math.max(...pts.map((p) => p.z)), h };
+}
+
+/**
+ * Lays every row out as one continuous bank: each slot spot takes the stretch of row halfway to its
+ * neighbours and fills it with cabinets at even pitch (≥ BANK.pitchMin), so the pitch runs on
+ * unbroken across spots. Caps close each bank's two ends; a stool stands at every cabinet. Caps and
+ * stools that would hit `existing` obstacles or leave the room are dropped.
+ */
+export function planBanks(slots: readonly SlotPlacement[], existing: readonly Obstacle[] = [], room?: Readonly<RoomBounds>): BankPlan {
+  const out: BankSlot[] = [];
+  const caps: CapPlacement[] = [];
+  const bankBoxes: Obstacle[] = [];
+  for (const run of rowRuns(slots)) {
+    run.forEach(({ s, t }, i) => {
+      const lo = i > 0 ? (run[i - 1].t - t) / 2 : -(i < run.length - 1 ? (run[i + 1].t - t) / 2 : BANK.soloHalf);
+      const hi = i < run.length - 1 ? (run[i + 1].t - t) / 2 : i > 0 ? (t - run[i - 1].t) / 2 : BANK.soloHalf;
+      const k = Math.max(1, Math.floor((hi - lo) / BANK.pitchMin + 1e-6));
+      const offsets = Array.from({ length: k }, (_, j) => lo + ((j + 0.5) * (hi - lo)) / k);
+      out.push({ slot: s, offsets, stools: [] });
+      bankBoxes.push(localBox(s, `svelte-bank-${s.id}-${out.length}`, offsets[0] - CABINET_HALF_W, offsets[k - 1] + CABINET_HALF_W, BANK.backZ, BANK.frontZ, CAP.height));
+    });
+    const first = out[out.length - run.length], last = out[out.length - 1];
+    const capOff = CABINET_HALF_W + CAP.gap + CAP.width / 2;
+    for (const [b, sign] of [[first, -1], [last, 1]] as const) {
+      const lx = sign < 0 ? b.offsets[0] - capOff : b.offsets[b.offsets.length - 1] + capOff;
+      const p = toWorld(b.slot, lx, CAP.centreZ);
+      caps.push({ x: p.x, z: p.z, rotationY: b.slot.rotationY + (sign > 0 ? 0 : Math.PI) });
+    }
+  }
+  const blockers = [...existing, ...bankBoxes];
+  const fit = room ? fitCaps(caps, blockers, room) : { caps, obstacles: caps.map((c, i) => capObstacle(c, i)), dropped: 0 };
+  const obstacles: Obstacle[] = [...bankBoxes, ...fit.obstacles];
+  let stoolsDropped = 0;
+  for (const b of out) {
+    for (const off of b.offsets) {
+      const p = toWorld(b.slot, off, BANK.stoolZ);
+      const c: Obstacle = { kind: 'circle', id: `svelte-stool-${b.slot.id}-${obstacles.length}`, x: p.x, z: p.z, r: BANK.stoolR, h: 0.95 };
+      const box = { x0: p.x - c.r, z0: p.z - c.r, x1: p.x + c.r, z1: p.z + c.r };
+      const inRoom = !room || (box.x0 >= room.x0 && box.x1 <= room.x1 && box.z0 >= room.z0 && box.z1 <= room.z1);
+      const hit = [...existing, ...obstacles].some((o) => o.kind === 'circle' ? Math.hypot(o.x - p.x, o.z - p.z) < o.r + c.r - 0.02 : overlaps(box, o) && !(o.id.startsWith('svelte-bank-') || /^slot[-_]/.test(o.id)));
+      if (!inRoom || hit) {
+        stoolsDropped++;
+        continue;
+      }
+      b.stools.push(off);
+      obstacles.push(c);
+    }
+  }
+  return { slots: out, caps: fit.caps, obstacles, stoolsDropped, capsDropped: fit.dropped };
+}
+
+export interface CapPlacement {
+  x: number;
+  z: number;
+  /** The cap's decorated face is its local +X, turned by this. */
+  rotationY: number;
+}
+
+/** One end cap past each end of every row of machines (as continuous banks). */
+export function svelteRowCaps(slots: readonly SlotPlacement[]): CapPlacement[] {
+  return planBanks(slots).caps;
 }
 
 /** The cap's floor footprint as an axis-aligned box obstacle. */
@@ -170,7 +248,7 @@ function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: T
  * with a Svelte pair, before batching. The pass-05 pilot's swivel chair stays. Returns the screen
  * textures (for disposal) and how many cabinets went in.
  */
-export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean } = {}): { textures: THREE.Texture[]; cabinets: number; lod: SvelteLod | null } {
+export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; banks?: BankPlan } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
   const proto = createSvelteSlotCabinet(THREE) as THREE.Group;
   try {
     applySvelteLuxuryFinish(THREE, proto);
@@ -204,33 +282,50 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
     if (copy) groups.push({ g: o, id: copy[1] });
   });
   let cabinets = 0;
+  let stools = 0;
   const spots: CabinetSpot[] = [];
-  if (opts.lod) art.updateMatrixWorld(true);
+  art.updateMatrixWorld(true);
+  const stool = opts.banks ? (createVelvetSlotStool(THREE) as THREE.Group) : null;
+  const wp = new THREE.Vector3();
   for (const { g, id } of groups) {
+    // the bank plan's share for this spot, matched by floor position
+    g.getWorldPosition(wp);
+    const bank = opts.banks?.slots.find((b) => Math.hypot(b.slot.x - wp.x, b.slot.z - wp.z) < 0.05);
     for (const c of [...g.children]) {
-      if (c.name === 'pilot_luxury_chair') continue;
+      // banks bring a stool to every machine, so the pilot's swivel chair goes too
+      if (c.name === 'pilot_luxury_chair' && !bank) continue;
       c.removeFromParent();
     }
-    for (const sx of [-1, 1]) {
+    if (bank && stool) {
+      for (const off of bank.stools) {
+        const st = stool.clone(true);
+        st.name = 'svelte_bank_stool';
+        st.position.set(off, 0, BANK.stoolZ);
+        st.rotation.y = Math.PI; // its open front toward the cabinet
+        g.add(st);
+        stools++;
+      }
+    }
+    for (const [n, x] of (bank?.offsets ?? [-SVELTE_PAIR_X, SVELTE_PAIR_X]).entries()) {
       if (opts.lod) {
         // instanced outside the floor's static batches, so the near set can follow the camera
-        spots.push({ id, matrix: g.matrixWorld.clone().multiply(new THREE.Matrix4().makeTranslation(sx * SVELTE_PAIR_X, 0, 0)) });
+        spots.push({ id, matrix: g.matrixWorld.clone().multiply(new THREE.Matrix4().makeTranslation(x, 0, 0)) });
         cabinets++;
         continue;
       }
       const cab = proto.clone(true);
-      cab.name = `svelte_cabinet_${sx < 0 ? 'l' : 'r'}`;
-      cab.position.x = sx * SVELTE_PAIR_X;
+      cab.name = `svelte_cabinet_${n}`;
+      cab.position.x = x;
       const screen = screenFor(id);
       if (screen) cab.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && (m.material as THREE.Material).name === screenName) m.material = screen; });
       g.add(cab);
       cabinets++;
     }
   }
-  if (!opts.lod) return { textures, cabinets, lod: null };
+  if (!opts.lod) return { textures, cabinets, stools, lod: null };
   for (const { id } of spots) screenFor(id);
   const lod = buildSvelteLod(spots, proto, createSvelteSlotCabinetFarLOD(THREE) as THREE.Group, (id) => screens.get(id), SVELTE_NEAR_CABINETS);
-  return { textures, cabinets, lod };
+  return { textures, cabinets, stools, lod };
 }
 
 /**

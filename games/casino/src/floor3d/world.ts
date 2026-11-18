@@ -20,7 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { layoutFor } from './grandHall.ts';
-import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildSvelteCaps, fitCaps, readMachineStyle, svelteRowCaps } from './svelteFloor.ts';
+import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildSvelteCaps, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { perfText, protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
@@ -79,7 +79,7 @@ export interface FloorStats {
   /** ChatGPT's opt-in woven carpet (VA-0058, `?carpet`) replaced the pilot carpet. */
   wovenCarpet: boolean;
   /** The prototype Svelte machine switch: cabinets put in, end caps placed and caps dropped (no room). */
-  svelteMachines: { cabinets: number; caps: number; capsDropped: number; lod: { near: number; triangles: number; drawCalls: number } | null };
+  svelteMachines: { cabinets: number; caps: number; capsDropped: number; stools: number; stoolsDropped: number; lod: { near: number; triangles: number; drawCalls: number } | null };
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
   /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
@@ -185,7 +185,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // lighting mode (lighting.ts): "vegas" (dim room, neon bloom) by default, "flat" as before
   let lightMode: LightMode = 'vegas';
   try {
-    lightMode = parseLightMode(localStorage.getItem(LIGHT_STORAGE_KEY));
+    // the Svelte machines (prototype) default to the warm reference-room light (VA-0160)
+    const svelteStyle = (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && readMachineStyle() !== 'classic';
+    lightMode = parseLightMode(localStorage.getItem(LIGHT_STORAGE_KEY), svelteStyle ? 'warm' : 'vegas');
   } catch {
     /* storage unavailable: vegas */
   }
@@ -286,13 +288,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // prototype switch: Svelte 01 pairs in place of every machine, rows closed by marquee end caps
   const machineStyle = import.meta.env.MODE === 'proto' || import.meta.env.DEV ? readMachineStyle() : 'classic';
   const svelteMachines = machineStyle !== 'classic';
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines, svelteLod: machineStyle === 'svelte-lod' });
+  // Svelte machines stand in continuous banks with a stool at each (Joshua's reference room, VA-0160);
+  // the stools replace the pilot's swivel chair
+  const baseObstacles = (hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, blackjackHero)).filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
+  const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM) : null;
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines, svelteLod: machineStyle === 'svelte-lod', svelteBanks: svelteBanks ?? undefined });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
-  const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))];
-  const svelteCaps = svelteMachines ? fitCaps(svelteRowCaps([...layout.slots, ...layout.decor.slots]), obstacles, ROOM) : null;
-  const capScene = svelteCaps ? buildSvelteCaps(svelteCaps.caps) : null;
-  if (svelteCaps && capScene) {
-    obstacles.push(...svelteCaps.obstacles);
+  const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
+  const capScene = svelteBanks ? buildSvelteCaps(svelteBanks.caps) : null;
+  if (svelteBanks && capScene) {
+    obstacles.push(...svelteBanks.obstacles);
     scene.add(capScene.root);
   }
   const nav = new NavGrid(ROOM, obstacles);
@@ -597,8 +602,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     motionBtn.setAttribute('aria-pressed', String(reduced));
     roofBtn.textContent = `Roof from above: ${roofMode === 'lights' ? 'lights only' : roofMode === 'glass' ? 'see-through' : 'off'}`;
     roofBtn.setAttribute('aria-label', `Overview roof: ${roofMode}. Tap to change.`);
-    lightBtn.textContent = `Lighting: ${lightMode === 'vegas' ? 'Vegas + glow' : 'flat'}`;
-    lightBtn.setAttribute('aria-label', `Lighting: ${lightMode === 'vegas' ? 'Vegas with neon glow' : 'flat'}. Tap to switch.`);
+    const lightName = { vegas: 'Vegas + glow', warm: 'warm gold + glow', flat: 'flat' }[lightMode];
+    lightBtn.textContent = `Lighting: ${lightName}`;
+    lightBtn.setAttribute('aria-label', `Lighting: ${lightName}. Tap to switch.`);
     joy.style.display = st.mode === 'follow' ? 'block' : 'none';
   };
   syncHud();
@@ -1138,7 +1144,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       blackjackHero: art.blackjackHero,
       wovenCarpet: art.wovenCarpet,
       svelteMachines: {
-        cabinets: art.svelteCabinets, caps: svelteCaps?.caps.length ?? 0, capsDropped: svelteCaps?.dropped ?? 0,
+        cabinets: art.svelteCabinets, caps: svelteBanks?.caps.length ?? 0, capsDropped: svelteBanks?.capsDropped ?? 0,
+        stools: svelteBanks?.slots.reduce((n, b) => n + b.stools.length, 0) ?? 0, stoolsDropped: svelteBanks?.stoolsDropped ?? 0,
         lod: art.svelteLod ? { near: art.svelteLod.near.size, triangles: art.svelteLod.triangles(), drawCalls: art.svelteLod.drawCalls } : null,
       },
       guestAvatar,
