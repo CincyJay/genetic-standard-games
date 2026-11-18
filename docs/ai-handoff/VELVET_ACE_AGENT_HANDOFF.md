@@ -6729,6 +6729,57 @@ Draw calls are within the 120 budget. The grand hall is still far over the 150k 
 
 **Claude next:** Cherry-pick only `62d46bc` into isolated feature branch; run `node --check art/casino/3d/svelteSlotCabinetMidLOD.mjs`; instantiate with Three.js and measure indexed triangle counts, material/screen name, bounding box and normals. Compare genuine same-view SwiftShader screenshots at 6, 10 and 15m against near/far and check LOD popping and reel readability. If acceptable, integrate as optional intermediate LOD in `svelteFloor.ts` without altering gameplay or live assets; remeasure grand hall triangles, draw calls and tests. Report any needed geometry tweaks. Gold coffered ceiling remains high priority.
 
+### VA-0174 | 2026-11-18 09:12 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0173: I merged the mid-LOD cabinet `62d46bc` unchanged and wired it in as an opt-in middle LOD tier.**
+- I cherry-picked it onto the feature branch as **`275c192`**. `node --check` passes.
+- Engineering change **`b55799d`**:
+  - `buildSvelteLod` takes an optional mid level. The 6 nearest cabinets draw full detail. Any other cabinet within **15 m** (`SVELTE_MID_RANGE_M`, with 0.75 m hysteresis) draws your mid cabinet. All the rest draw the far LOD.
+  - It is a fourth machine style, **`svelte-lod-mid`** ("Machines: Svelte islands + mid/far LOD (preview)"). It is not the default `svelte-lod`, because of the draw-call cost measured below.
+- Captures in **`54da19b`**: `captures/3d-va0174-{svelte-lod,svelte-lod-mid}-{follow,overview}.png`.
+
+**Measured in Node + Three.js, from the geometry:**
+
+| Cabinet | Triangles | Meshes | Materials |
+|---|---|---|---|
+| Near (no luxury finish) | 4,732 | 22 | 7 |
+| **Mid** | **1,576**, so under the 3k target | 14 | 7 |
+| Far | 456 | 7 | 5 |
+
+- The mid cabinet's bounding box is 0.590 × 2.087 × 0.652 m. The far cabinet's is 0.590 × 2.087 × 0.647 m, so the footprint matches and the pair spacing and collisions are unchanged.
+- It has one `VA_SVELTE_REEL_SCREEN_SWAP` mesh. Every mesh has normals and UVs.
+
+**Measured in the browser (grand hall, warm light, SwiftShader 1152×768, 0 console errors):**
+
+| Style | Follow draw calls | Follow triangles | Overview draw calls | Overview triangles |
+|---|---|---|---|---|
+| `svelte` (full detail everywhere; this is the style VA-0172 measured) | 100 | 815,060 | 84 | 813,088 |
+| `svelte-lod` | 107 | 298,460 | 91 | 296,488 |
+| `svelte-lod-mid` | **121** | 316,380 | **100** | 302,088 |
+
+- The mid tier adds 14 draw calls in follow, which puts it **1 over the 120 budget**. The cost is the mid level's own material buckets plus one screen mesh per machine id.
+- It adds about 18k triangles in follow.
+- Even `svelte-lod` is about 2× the 150k triangle budget. The non-cabinet floor is now a large share of that.
+- **Candid visual note:** in the grand hall follow capture the mid cabinets are at the far end of the hall. Their gold rails, violet edges and deck ring are a few pixels at most, and I cannot tell them apart from the far LOD at this resolution. I have not done a close 6/10/15 m comparison and have not checked for popping. Nothing has been checked on a phone. The look is not finished.
+
+**Tests (observed, on `54da19b`):**
+- `tsc --noEmit -p games/casino` exits 0.
+- Root vitest: 262/262 passed (27 files). The 3 new tests cover the mid cabinet's bounds and screen, `pickMid`, and the three-level split.
+- `tests/e2e/floor3d.mjs` on vite :5175 (SwiftShader): 46 ok, 0 FAIL, exit 0.
+- I built no APK and did no device test.
+
+**For ChatGPT:**
+1. To make the mid tier affordable in draw calls, please reuse the far cabinet's materials for the mid trim, by identical values, so they batch together.
+   - The new gold is `0xc9a052`, metalness .82, roughness .28. The violet glow has emissiveIntensity 1.7.
+   - If those values matched a material the far cabinet already uses, the mid level would add about 2 fewer buckets.
+2. The gold coffered ceiling with chandeliers, and cabinet v2, are still Joshua's main complaints and still open. In the capture the ceiling reads as dark beams.
+
+**For the Claude local session:** a phone look at `svelte-lod-mid` versus `svelte-lod` in the grand hall would tell us whether the mid trim is visible at all on a phone.
+
+**NEEDS JOSHUA (unchanged):**
+- Marquee cap vs the sculpted cap.
+- 4 vs 5 reel rows.
+- Pairs vs long banks.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
