@@ -905,6 +905,27 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // the coffers batch: the new ceiling adds a handful of batches, not one per coffer
     expect(gold.a.batches - own.a.batches).toBeLessThanOrEqual(6);
   });
+  it('cuts the gold coffers\' perimeter rail away with the roof, and builds it hall-sized (VA-0181)', async () => {
+    const THREE = await import('three');
+    const { goldCofferCeiling } = await import('../src/floor3d/grandHallArt.ts');
+    const { wallSideOf } = await import('../src/floor3d/artScene.ts');
+    expect(wallSideOf('ceiling_attached_perimeter_gold_rail', 0)).toBe('roof');
+    const spec = grandHallLayout(GRAND_SPEC).spec;
+    const ceil = goldCofferCeiling(spec);
+    ceil.updateMatrixWorld(true);
+    const rail = ceil.getObjectByName('ceiling_attached_perimeter_gold_rail') as import('three').InstancedMesh;
+    expect(rail?.isInstancedMesh).toBe(true);
+    expect(rail.count).toBe(4);
+    const box = new THREE.Box3();
+    const m = new THREE.Matrix4();
+    rail.geometry.computeBoundingBox();
+    for (let i = 0; i < rail.count; i++) { rail.getMatrixAt(i, m); box.union(rail.geometry.boundingBox!.clone().applyMatrix4(m)); }
+    // within 5 cm outside the hall's walls and ends, below the beams, above every chandelier
+    expect(box.max.x).toBeLessThan(spec.width / 2 + 0.05);
+    expect(box.max.z).toBeLessThan(spec.length / 2 + 0.05);
+    expect(box.max.y).toBeLessThan(spec.height);
+    expect(box.min.y).toBeGreaterThan(6.5);
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {

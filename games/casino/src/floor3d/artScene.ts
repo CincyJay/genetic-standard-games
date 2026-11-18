@@ -93,7 +93,7 @@ export interface ArtScene {
 }
 
 /** The art names its walls; panels and caps on the back wall go with it. */
-function wallSideOf(name: string, worldX: number): Side {
+export function wallSideOf(name: string, worldX: number): Side {
   if (name.startsWith('chandelier_')) {
     if (name === 'chandelier_ceiling' || name.startsWith('chandelier_coffer')) return 'roof';
     // pass-05 pilot ceiling: the coffer field, grid, lit panels and the ceiling-mounted red light
@@ -107,8 +107,9 @@ function wallSideOf(name: string, worldX: number): Side {
   // with the salon's east and west walls
   if (name === 'ceiling-base' || name.startsWith('coffer-')) return 'roof';
   // the gold-coffer ceiling (VA-0175): its plane, panels, beams and moldings are roof; its
-  // chandeliers are named chandelier_* and so are fixtures above
-  if (/^(burgundy_overhead|recessed_burgundy_coffer_panels|(longitudinal|transverse)_brushed_gold_coffer_beams|coffer_inner_gold_molding_[xz])$/.test(name)) return 'roof';
+  // chandeliers are named chandelier_* and so are fixtures above. Its perimeter rail (080197b) hangs
+  // flush under the outer beams and goes with them (VA-0181)
+  if (/^(burgundy_overhead|recessed_burgundy_coffer_panels|(longitudinal|transverse)_brushed_gold_coffer_beams|coffer_inner_gold_molding_[xz]|ceiling_attached_perimeter_gold_rail)$/.test(name)) return 'roof';
   if (name === 'warm-cove-strip' || name === 'suspended-ring-chandelier' || name === 'chandelier-suspension') return 'fixtures';
   // the grand hall endcaps (VA-0071): the far wall goes with the salon's north wall; the entrance
   // wings, piers and lintel are the entrance front, hidden from above like the salon's portal
