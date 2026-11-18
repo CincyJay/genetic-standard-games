@@ -55,10 +55,30 @@ export const GOLD_COFFER_CHANDELIERS = 4;
  * promenade without the old host quarter-turn. Built 0.1 m under the hall height, its overhead
  * plane sits where the architecture's slab was centred. The diffuser glow is the art's default.
  */
-export function goldCofferCeiling(spec: { width: number; length: number; height: number }): THREE.Group {
+export function goldCofferCeiling(spec: { width: number; length: number; height: number }, sideTrimInset = readCofferSideInset()): THREE.Group {
   return createVelvetCofferedCeiling(THREE, {
-    width: spec.width, depth: spec.length, height: spec.height - 0.1, chandeliers: GOLD_COFFER_CHANDELIERS, axis: 'z',
+    width: spec.width, depth: spec.length, height: spec.height - 0.1, chandeliers: GOLD_COFFER_CHANDELIERS, axis: 'z', sideTrimInset,
   }) as THREE.Group;
+}
+
+/**
+ * The art's `sideTrimInset` (c98da18, VA-0183): how far the side rails of the perimeter frame
+ * widen inboard from the coffer beam, in metres. ChatGPT asked not to enable it by default
+ * without visual evidence, so it is 0 (the art's default) unless a dev or prototype build is
+ * opened with `?coffertrim=<metres>` for a side-by-side comparison. Out-of-range values (the
+ * art accepts 0 to 0.35) fall back to 0 rather than throwing.
+ */
+export function cofferSideInsetFrom(search: string): number {
+  const raw = new URLSearchParams(search).get('coffertrim');
+  if (raw === null || raw.trim() === '') return 0;
+  const v = Number(raw);
+  return Number.isFinite(v) && v >= 0 && v <= 0.35 ? v : 0;
+}
+
+function readCofferSideInset(): number {
+  if (typeof location === 'undefined') return 0;
+  if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return 0;
+  return cofferSideInsetFrom(location.search);
 }
 
 export interface GrandHallArt {

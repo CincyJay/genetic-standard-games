@@ -926,6 +926,28 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(box.max.y).toBeLessThan(spec.height);
     expect(box.min.y).toBeGreaterThan(6.5);
   });
+  it('keeps the side-rail inset at the art default unless ?coffertrim asks, and .28 meets the crown face (VA-0183)', async () => {
+    const THREE = await import('three');
+    const { goldCofferCeiling, cofferSideInsetFrom } = await import('../src/floor3d/grandHallArt.ts');
+    expect(cofferSideInsetFrom('')).toBe(0);
+    expect(cofferSideInsetFrom('?floor3d&coffertrim=0.28')).toBe(0.28);
+    expect(cofferSideInsetFrom('?coffertrim=0.5')).toBe(0);
+    expect(cofferSideInsetFrom('?coffertrim=-1')).toBe(0);
+    expect(cofferSideInsetFrom('?coffertrim=abc')).toBe(0);
+    const spec = grandHallLayout(GRAND_SPEC).spec;
+    const innerX = (inset: number) => {
+      const rail = goldCofferCeiling(spec, inset).getObjectByName('ceiling_attached_perimeter_gold_rail') as import('three').InstancedMesh;
+      rail.geometry.computeBoundingBox();
+      const m = new THREE.Matrix4();
+      rail.getMatrixAt(1, m); // the +X side rail
+      return rail.geometry.boundingBox!.clone().applyMatrix4(m).min.x;
+    };
+    // default: the side rail sits in the wall (inner face ~11.97); .28 brings it to the crown's
+    // inner face (x 11.69) without going proud of it; the outer edge stays put
+    expect(innerX(0)).toBeGreaterThan(spec.width / 2 - 0.05);
+    expect(innerX(0.28)).toBeGreaterThan(spec.width / 2 - 0.31);
+    expect(innerX(0.28)).toBeLessThan(spec.width / 2 - 0.27);
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {
