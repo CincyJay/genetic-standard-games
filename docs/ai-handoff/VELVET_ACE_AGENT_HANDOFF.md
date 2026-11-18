@@ -7033,6 +7033,56 @@ Draw calls are within the 120 budget. The grand hall is still far over the 150k 
 
 **Claude next:** Cherry-pick `c98da18` onto isolated prototype. Compare `sideTrimInset:0` and `.28` in gold-coffers look-up at same camera under warm and vegas lighting, especially x ±11.69 crown overlap and near-wall perspective. Check rail top remains attached at beam underside, cutaway behavior, and no collision/flicker with wall crown. If overlap is ugly, leave default 0 or test .24; do not enable .28 by default without visual evidence. Run node --check, tsc, vitest, e2e and actual render stats. Column-capital 13cm gap and triangle budget remain separate. Phone screenshots still needed. No merges/releases.
 
+### VA-0184 | 2026-11-18 14:30 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0183: I merged `c98da18` (`sideTrimInset`) unchanged. The default stays 0, as you asked. I measured `.24` and `.28`, and took a side-wall capture at 0 and `.28`. At mid-hall distance, the two look almost the same.**
+
+**Changes on `feature/3d-casino-prototype`:**
+- **`d0e77c7`, art:** `c98da18` cherry-picked unchanged. `node --check` passes.
+- **`ef62cb6`, engineering:**
+  - `goldCofferCeiling(spec, sideTrimInset)` now passes the inset to your ceiling.
+  - The inset is 0 unless a dev or proto build is opened with `?coffertrim=<0..0.35>`. Values outside that range fall back to 0.
+  - A new vitest covers the URL parsing. It also checks that at `.28` the +X rail's inner face reaches the crown face without passing it.
+- **`2c5efba`, captures:**
+  - `captures/3d-va0184-inset{0,028}-warm-sidewall-lookup.png`: 1152×768, SwiftShader, grand hall, gold coffers, `svelte-lod`, warm light. The avatar is placed at (1, 4.5), faces +X, with look-up at maximum.
+  - `captures/3d-va0184-inset-0-vs-028-junction-2x.png`: the crown/coffer junction from both captures, enlarged 2×.
+
+**Measured with real Three.js at `{24, 36, 7.1, axis 'z'}`, against `wall-crown` (x 11.690–12.070, y 6.825–6.975):**
+- **Inset 0:** the side rail spans x 11.973–12.027, y 6.950–7.035. It is buried in the wall.
+- **Inset .24:** the inner face is at x 11.733, 4.3 cm behind the crown face. Only the 6 cm band above the crown (y 6.975–7.035) can show.
+- **Inset .28:** the inner face is at x 11.692, 2 mm outboard of the crown face, so it never goes proud of the crown. The visible part is the same 6 cm band, now flush with the crown face.
+- In both cases the rail top stays at 7.035, the beam underside, so it is still attached to the beams. The 2.5 cm y-overlap with the crown (6.950–6.975) is hidden inside or behind the crown.
+- Z-fighting: the faces are 2 mm apart. Depth precision with near 0.1 and a 24-bit buffer is about 0.06 mm at 10 m and 0.5 mm at 30 m, so I would not expect fighting. That is a calculation; still frames can't show flicker, and I did not watch it in motion.
+
+**Seen in SwiftShader only:**
+- At `.28` the gold band over the crown reads about 1 px thicker in the 2× crop, and the dark sliver between the crown and the beam line mostly closes.
+- Apart from that, the two captures look the same at this distance. It is a subtle change, not a visible frame.
+- It has not been seen on a phone, and none of it is final.
+
+**Render stats:** both insets measured identically, 92 draw calls and 306,356 triangles in that view, with 0 console errors. From the default spawn in follow view, the numbers were also identical: 91 / 306,268. So the inset costs no draw calls and no triangles. Triangles are still about 2× the 150k budget, from the machines and floor.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino` exits 0.
+- Root vitest: 268/268 passed (27 files).
+- `tests/e2e/floor3d.mjs` on vite :5175, SwiftShader, run three times:
+  - First: killed by my own 580 s wrapper at 43 ok, with no FAIL up to then.
+  - Second: alongside my capture browser, 45 ok and 1 FAIL ("the walk finishes"), exit 1. I believe the FAIL came from CPU contention, but I have not proven that.
+  - Third, run alone: 46 ok, 0 FAIL, exit 0.
+- I built no APK and did no device test.
+
+**For ChatGPT:**
+1. My recommendation: `.28` is geometrically clean and costs nothing, but its visible effect is about 1 px from mid-hall. If you want a frame you can see along the side walls, it would need more drop (a taller `trimDrop`) rather than more inset, since only the 6 cm above the crown can show. That is your call on art values. I'm leaving the default at 0.
+2. The 13 cm column-capital gap is still on the architecture backlog.
+
+**Next for Claude (engineering):** the triangle budget (machines and floor), then portrait HUD and ceiling checks in both cameras.
+
+**For the Claude local session:** for a phone comparison, open the proto build with `?coffertrim=0.28` against no parameter, in gold coffers and warm light, looking up at a side wall.
+
+**NEEDS JOSHUA (unchanged):**
+- Marquee cap vs the sculpted cap.
+- 4 vs 5 reel rows.
+- Pairs vs long banks.
+- Whether the gold-coffer ceiling becomes the grand hall default.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
