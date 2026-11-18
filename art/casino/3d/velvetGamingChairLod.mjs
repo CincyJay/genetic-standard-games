@@ -20,7 +20,13 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
   };
   // Cushioned seat with rounded edges; real thickness, not a flat plane.
   add('seat_cushion',new THREE.BoxGeometry(.53,.13,.48,1,1,1),fabric,0,.55,0);
-  add('seat_gold_front_piping',new THREE.BoxGeometry(.52,.012,.012),piping,0,.55,-.246);
+  // Soft front roll projects past the box silhouette, without a costly subdivided seat.
+  const seatRoll=add('seat_front_soft_roll',new THREE.CylinderGeometry(.062,.062,.50,detail==='near'?12:8),fabric,0,.555,-.218);
+  seatRoll.rotation.z=Math.PI/2;
+  add('seat_gold_front_piping',new THREE.BoxGeometry(.52,.012,.012),piping,0,.55,-.279);
+  // A shallow upholstered lumbar bridge closes the visible seat/back gap.
+  // It sits forward of the shell, not through its surface.
+  add('lumbar_bridge',new THREE.BoxGeometry(.46,.09,.09),fabric,0,.645,.175);
   // The backrest is curved in plan and leans back; its two sides wrap the sitter.
   // A modest number of segments keeps distant banks affordable.
   const segments = detail === 'near' ? 12 : 6;
@@ -59,6 +65,9 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
     add('back_gold_edge',new THREE.TubeGeometry(edgeCurve,detail==='near'?16:10,.012,5,false),piping,0,0,0);
     const arm=add('padded_armrest',new THREE.BoxGeometry(.09,.095,.32),fabric,sign*.315,.735,-.015);
     arm.rotation.x=-.08;
+    // Rounded leading edge softens the rectangular arm silhouette.
+    const armCap=add('armrest_front_roll',new THREE.CylinderGeometry(.047,.047,.09,detail==='near'?10:6),fabric,sign*.315,.735,-.175);
+    armCap.rotation.z=Math.PI/2;
     add('armrest_support',new THREE.CylinderGeometry(.018,.024,.23,6),frame,sign*.315,.62,.07);
   }
   // The crest follows the shell's curved top edge, instead of floating across it.
@@ -86,6 +95,6 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
   }
   root.userData={artOnly:true,detail,seatHeight:.615,front:'-Z',units:'metres',
     integration:'Place as isolated prop; share geometries/materials across repeated chairs; do not mutate production scenes',
-    verified:'source-only revision, no rendering, build or device verification'};
+    verified:'source-only seat, lumbar and armrest silhouette revision; rendering and device fit unverified'};
   return root;
 }
