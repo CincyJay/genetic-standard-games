@@ -868,7 +868,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const ceil = goldCofferCeiling(spec);
     ceil.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(ceil);
-    // turned a quarter: hall-width across X, hall-length along Z, within 6 cm of the walls and ends
+    // hall-width across X, hall-length along Z (art axis 'z', no host turn), within 6 cm of the walls and ends
+    expect(ceil.rotation.y).toBe(0);
+    expect(ceil.userData.axis).toBe('z');
     expect(box.max.x - box.min.x).toBeGreaterThan(spec.width - 0.01);
     expect(box.max.x - box.min.x).toBeLessThan(spec.width + 0.12);
     expect(box.max.z - box.min.z).toBeGreaterThan(spec.length - 0.01);
@@ -876,14 +878,17 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(box.max.y).toBeCloseTo(spec.height, 1);
     // the chandeliers hang over the promenade, well above head height and clear of the avatar
     const rings: number[] = [];
+    const along: number[] = [];
     let lowest = Infinity;
     ceil.traverse((o) => {
       if (!(o as import('three').Mesh).isMesh) return;
       if (o.name.startsWith('chandelier_')) lowest = Math.min(lowest, new THREE.Box3().setFromObject(o).min.y);
-      if (/^chandelier_\d+_suspension$/.test(o.name)) rings.push(o.getWorldPosition(new THREE.Vector3()).x);
+      if (/^chandelier_\d+_suspension$/.test(o.name)) { const p = o.getWorldPosition(new THREE.Vector3()); rings.push(p.x); along.push(p.z); }
     });
     expect(rings).toHaveLength(GOLD_COFFER_CHANDELIERS);
     for (const x of rings) expect(Math.abs(x)).toBeLessThan(spec.aisleWidth / 2);
+    // spread down the promenade, not stacked
+    expect(Math.max(...along) - Math.min(...along)).toBeGreaterThan(spec.length / 3);
     expect(lowest).toBeGreaterThan(5);
     // in the scene: the hall's own slab, coffers and rings are gone, the new pieces are roof / fixtures
     const names = (style?: 'hall' | 'gold-coffers') => {

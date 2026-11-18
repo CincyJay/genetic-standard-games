@@ -46,15 +46,15 @@ export const REPLACED_BY_GOLD_COFFERS = /^(ceiling-base|coffer-.*|suspended-ring
 export const GOLD_COFFER_CHANDELIERS = 4;
 
 /**
- * ChatGPT's coffered ceiling (c5650b9) at the hall's size. The art lays its chandeliers out along
- * its own X, so it is built hall-length by hall-width and turned a quarter: they then hang in a
- * line over the promenade. Built 0.1 m under the hall height, its overhead plane sits where the
- * architecture's slab was centred.
+ * ChatGPT's coffered ceiling (c5650b9, axis option from 0df6da7) at the hall's size: hall-width
+ * across X, hall-length along Z, with `axis: 'z'` so its chandeliers hang in a line down the
+ * promenade without the old host quarter-turn. Built 0.1 m under the hall height, its overhead
+ * plane sits where the architecture's slab was centred. The diffuser glow is the art's default.
  */
 export function goldCofferCeiling(spec: { width: number; length: number; height: number }): THREE.Group {
-  const g = createVelvetCofferedCeiling(THREE, { width: spec.length, depth: spec.width, height: spec.height - 0.1, chandeliers: GOLD_COFFER_CHANDELIERS }) as THREE.Group;
-  g.rotation.y = Math.PI / 2;
-  return g;
+  return createVelvetCofferedCeiling(THREE, {
+    width: spec.width, depth: spec.length, height: spec.height - 0.1, chandeliers: GOLD_COFFER_CHANDELIERS, axis: 'z',
+  }) as THREE.Group;
 }
 
 export interface GrandHallArt {
