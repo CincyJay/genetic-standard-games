@@ -7090,6 +7090,74 @@ Draw calls are within the 120 budget. The grand hall is still far over the 150k 
 **Claude next:** Cherry-pick the art commit to isolated prototype. Render close-up and seated-camera screenshots with the real reference chairs, confirm back orientation (-Z), silhouette and scale at seatHeight .55m; measure triangles/draw calls before placing many chairs. Prefer shared geometries/materials or instancing for banks. Test both mid/near and verify no collisions, z-fighting, or seat/character intersections. Run node --check, tsc/vitest/e2e and real device look when available. Keep defaults and production unchanged.
 **PR status:** GitHub connector does not expose a PR read/list action in this run; #2/#3 state not independently verified. No PR modification or merge.
 
+### VA-0186 | 2026-11-18 15:11 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0185: I cherry-picked `3540a74` (`velvetGamingChairLod.mjs`) unchanged and added it to the grand hall's table chairs. It is opt-in and the default is unchanged. It costs about 1/20 the triangles of the current chair. Orientation is correct. The gold back rails and crest float in front of the curved backrest.**
+
+**Changes on `feature/3d-casino-prototype`:**
+- **`0fca3a0`, art:** `3540a74` cherry-picked unchanged. `node --check` passes.
+- **`51cc325`, engineering:**
+  - `grandHallArt.ts` now has `chairStyleFrom(search)` and an exported `chairAt(..., style)`.
+  - In dev or proto builds, `?chair=lod` uses `detail:'mid'` and `?chair=lod-near` uses `'near'`. Anything else, and every production build, keeps the luxury study chair.
+  - LOD chairs are `.clone()`s of one template per detail, so all 8 share 22 geometries and 4 materials.
+  - The chair faces -Z, so the host adds a half turn on top of the `atan2` toward the table.
+  - I did not change collisions. The existing r 0.38 seat circles already cover the LOD chair's 0.72 × 0.64 m footprint.
+  - A new vitest covers URL parsing, that the backrest ends up on the side away from the table, and that the 8 chairs share 22 geometries with more than 15× fewer triangles.
+- **`aeac31d`, captures:** `captures/3d-va0186-chair-{luxury,lod,lodnear}-bj-west-follow.png` and `captures/3d-va0186-chair-{luxury,lod}-bj-west-side.png`.
+  - All are 1152×768, SwiftShader, grand hall, gold coffers and warm light, at the west table at (-8.475, -2.9).
+  - The machine style was left at its default. I did not set svelte-lod, so whole-view numbers are not comparable with VA-0184's 306k.
+
+**Measured (Node and Three.js, per chair):**
+| Chair | Triangles | Meshes | Materials | Size (m) |
+|---|---|---|---|---|
+| Luxury study | 10,264 | 32 | 5 | 0.89 × 0.86, 1.45 tall |
+| LOD `mid` | 520 | 22 | 4 | 0.72 × 0.64, 1.33 tall |
+| LOD `near` | 580 | 22 | 4 | 0.72 × 0.64, 1.33 tall |
+
+The grand hall has 8 table chairs, so chair triangles drop from about 82k to about 4.2k.
+
+**Renderer stats, observed in SwiftShader with 0 console errors:**
+| View | Luxury: draw calls / triangles | LOD `mid`: draw calls / triangles |
+|---|---|---|
+| Spawn, follow view | 165 / 645,326 | 164 / 567,374 |
+| Near the west table | 122 / 640,220 | 121 / 562,268 |
+
+- The saving is about 78k triangles in both views.
+- Draw calls drop by only 1, because the batching already merged the luxury chairs by material.
+- `lod-near` adds 480 triangles over `mid`, the expected 8 × 60.
+
+**Seen in SwiftShader, and checked numerically:**
+1. **Orientation is correct.** The backrest ends up on the side away from the table, and the seat faces the table.
+2. **The gold back rails float.** Measured in the chair's local frame, the `back_gold_edge` cylinders run z 0.18–0.31, tilted 0.15 rad. That tilt matches the backrest's lean (0.10/0.67), but the backrest's side edges run z 0.265 (bottom) to 0.365 (top). So each rail sits about 5–8 cm in front of the shell edge, on the seat side. In `bj-west-side` it reads as a separate gold stick beside the backrest. To sit on the edge, the rail centre would need to be at about z 0.315.
+3. **The top crest is straight but the shell is curved.** `back_gold_top_crest` (z 0.286–0.314) meets the backrest centre, which is at z about 0.29 at the top. Toward the sides the shell curves back to about z 0.36, so the crest ends sit about 5 cm in front of the shell.
+4. **There is a small seat gap.** The cushion top is at 0.615 and the backrest starts at y 0.64, which leaves a 2.5 cm gap.
+5. **The seat height doesn't match the engine.** Engineering's `SEAT_HEIGHT` is 0.65 (the luxury chair's cushion top), but the LOD cushion top is 0.615. A seated avatar would float 3.5 cm above it. If the LOD chair becomes the default, I would read the height from `userData.seatHeight` plus the cushion, rather than ask you to change art.
+6. **The backrest reads flat and dark under warm light.** It is a single-sided-looking panel with no visible padding. That is my observation from SwiftShader only.
+7. **The seated-NPC capsule passes through the seat**, as it already does with the luxury chair. That is an engineering placeholder, not your art.
+
+None of this is final, and none of it has been seen on a phone.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino` exits 0.
+- Root vitest: 269/269 passed (27 files).
+- `tests/e2e/floor3d.mjs` on vite :5175, SwiftShader, run alone: 46 ok, 0 FAIL, exit 0.
+- I built no APK and did no device test.
+
+**For ChatGPT (art values are yours):**
+1. Move the `back_gold_edge` rails back onto the shell's side edges, at about z 0.315 at mid-height with the same tilt.
+2. Either curve the top crest to follow the shell's top row (z = 0.29 + 0.075u²), or shorten it.
+3. Optionally, close the 2.5 cm cushion-to-backrest gap and give the backrest some visible padding or thickness.
+4. Tell me if you want the LOD chair as the grand-hall default once fixed. That would also need Joshua's look on a phone.
+
+**Next for Claude (engineering):** more triangle-budget work on the machines and floor, then portrait HUD and ceiling checks in both cameras.
+
+**For the Claude local session:** for a phone comparison, open the proto build with `?chair=lod` against no parameter at a grand-hall blackjack table.
+
+**NEEDS JOSHUA (unchanged):**
+- Marquee cap vs the sculpted cap.
+- 4 vs 5 reel rows.
+- Pairs vs long banks.
+- Whether the gold-coffer ceiling becomes the grand hall default.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
