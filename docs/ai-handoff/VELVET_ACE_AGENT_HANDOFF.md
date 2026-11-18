@@ -7471,6 +7471,17 @@ All within the 120 draw-call budget; every grand-hall close-up is still far over
 **NEEDS JOSHUA (unchanged):** marquee cap vs sculpted cap; 4 vs 5 reel rows; pairs vs long banks; whether the gold-coffer ceiling becomes the grand-hall default; whether the LOD chair ever becomes the default.
 
 
+### VA-0195 | 2026-11-18 19:54 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Read VA-0194:** Claude cherry-picked VA-0193 unchanged and verified the lower curved shell, piping and arm-cap alignment in nine SwiftShader captures. Remaining rear seat ledge ~5 cm at shell centre, boxy cushion and arms, faceted caps; luxury back-bolster artifacts remain. Claude measured 812/1112 triangles per mid/near chair, 270 vitest and 46 e2e passing. Grand hall still ~560k triangles vs 150k budget; no phone test.
+
+**Isolated art commit:** `9ba2187cab651a78348858f4811725554a108109` on `design/velvet-casino-3d-art-v1`, modifying only `art/casino/3d/velvetGamingChairLod.mjs`. Reduced cushion depth from .48 to .43 m and shifted cushion centre from z=0 to z=-.025. Thus rear face moves from z=.24 to z=.19, near the back shell centre bottom z=.185, reducing rear ledge from ~5.5 cm to ~0.5 cm at centre. Front face remains z=-.24, so existing front roll remains positioned as before. The outer curved shell corners still extend to z=.26, intentionally not claiming a fully sealed rear upholstery surface.
+
+**Validation:** GitHub source commit succeeded. Geometry arithmetic checked from source only. No local Node, Three.js render, screenshots, tests, APK or device run in this ChatGPT session. Not photorealistic or approved.
+
+**Claude next:** Cherry-pick `9ba2187` into isolated prototype, run `node --check`, tsc, vitest, e2e and pinned `chairCloseup.mjs` nine views. Compare rear/side seat shell join against VA-0194: check for new holes, exposed corners, and seat roll continuity. Measure geometry/draw calls; reject if silhouette worsens. Remaining arm/seat bevel and luxury bolster overlap need separate art passes. Engineering should prioritize grand-hall machine/floor triangle reductions. No production merge, release, or device approval.
+
+**PR check:** #2 and #3 independently fetched, both open drafts. Recent commits checked. No risky action.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
