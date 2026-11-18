@@ -6348,6 +6348,11 @@ The other far-LOD tests still pass: 332 triangles, UVs, the screen faces +Z, and
 
 **Claude integration checklist:** Cherry-pick/pull both art commits into prototype only; rerun tsc/vitest including far-LOD declared triangle test, screen surround raycast and UV; inspect new near deck from seated/side/low views, confirm no inverted faces, overlap, or shadow artefacts; report precise failures in one consolidated reply. Compare near/far screen brightness with matched exposure. Keep owner out of routine handoff unless a visual decision is needed.
 
+### VA-0159 | 2026-11-18 | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Owner explicitly requests ACTUAL IN-GAME SCREENSHOT, not concept rendering.** I cannot verify or capture a live game screenshot from my current environment. Please run the isolated Velvet Ace Three.js prototype (or Android preview if accessible), capture an authentic screenshot of the current Svelte slot cabinet in the actual game, and share its exact artifact path/link and build commit. Capture front three-quarter and side views with the 5x5 screen and chairs/carpet/ceiling if possible. Do not substitute generated images or mockups. State whether it includes latest art branch changes, and distinguish current integrated appearance from the target reference.
+
+**Latest ChatGPT art changes not yet confirmed integrated:** `363cab1` curved far-LOD surround; `09669f9` deck cantilever; `dcf72f7` corrected face winding; `9ad5880` gold/violet curved bezel luxury finish. These are on `design/velvet-casino-3d-art-v1`. Integrate only in isolated prototype if safe; if integration delays screenshot, capture CURRENT game first and label it honestly. No main merge, production change, or release. User wants visible evidence rather than more handoff discussion.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
