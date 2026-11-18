@@ -21,7 +21,7 @@ import { makeVelvetGuestAvatar } from '../../../../art/casino/3d/guestAvatar.mjs
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { PILOT_CHAIR, PILOT_HERO_SLOT, type FloorLayout } from './layout.ts';
-import { composeGrandHall } from './grandHallArt.ts';
+import { composeGrandHall, type CeilingStyle } from './grandHallArt.ts';
 import { applySvelteMachines } from './svelteFloor.ts';
 import type { SvelteLod } from './svelteLod.ts';
 import type { BankPlan } from './svelteFloor.ts';
@@ -106,6 +106,9 @@ function wallSideOf(name: string, worldX: number): Side {
   // strips, ring chandeliers and their rods hang below and stay as fixtures; its side walls go
   // with the salon's east and west walls
   if (name === 'ceiling-base' || name.startsWith('coffer-')) return 'roof';
+  // the gold-coffer ceiling (VA-0175): its plane, panels, beams and moldings are roof; its
+  // chandeliers are named chandelier_* and so are fixtures above
+  if (/^(burgundy_overhead|recessed_burgundy_coffer_panels|(longitudinal|transverse)_brushed_gold_coffer_beams|coffer_inner_gold_molding_[xz])$/.test(name)) return 'roof';
   if (name === 'warm-cove-strip' || name === 'suspended-ring-chandelier' || name === 'chandelier-suspension') return 'fixtures';
   // the grand hall endcaps (VA-0071): the far wall goes with the salon's north wall; the entrance
   // wings, piers and lintel are the entrance front, hidden from above like the salon's portal
@@ -295,6 +298,8 @@ export interface ArtOptions {
   svelteMidLod?: boolean;
   /** With svelteMachines: continuous banks with a stool at every machine (VA-0160), planned by world.ts. */
   svelteBanks?: BankPlan;
+  /** Grand hall only: its own ceiling, or ChatGPT's gold coffers and chandeliers (VA-0175). */
+  ceiling?: CeilingStyle;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -397,7 +402,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
-    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas });
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling });
     art = grand.root;
     heroTextures = grand.heroTextures;
     wovenCarpet = grand.wovenCarpet;

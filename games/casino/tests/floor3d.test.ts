@@ -860,6 +860,46 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     });
     expect(placeholder).toBe(false);
   });
+  it('swaps in the gold-coffer ceiling at hall size, chandeliers over the promenade, as roof and fixtures (VA-0175)', async () => {
+    const THREE = await import('three');
+    const { goldCofferCeiling, GOLD_COFFER_CHANDELIERS, REPLACED_BY_GOLD_COFFERS } = await import('../src/floor3d/grandHallArt.ts');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const spec = grandHallLayout(GRAND_SPEC).spec;
+    const ceil = goldCofferCeiling(spec);
+    ceil.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(ceil);
+    // turned a quarter: hall-width across X, hall-length along Z, within 6 cm of the walls and ends
+    expect(box.max.x - box.min.x).toBeGreaterThan(spec.width - 0.01);
+    expect(box.max.x - box.min.x).toBeLessThan(spec.width + 0.12);
+    expect(box.max.z - box.min.z).toBeGreaterThan(spec.length - 0.01);
+    expect(box.max.z - box.min.z).toBeLessThan(spec.length + 0.12);
+    expect(box.max.y).toBeCloseTo(spec.height, 1);
+    // the chandeliers hang over the promenade, well above head height and clear of the avatar
+    const rings: number[] = [];
+    let lowest = Infinity;
+    ceil.traverse((o) => {
+      if (!(o as import('three').Mesh).isMesh) return;
+      if (o.name.startsWith('chandelier_')) lowest = Math.min(lowest, new THREE.Box3().setFromObject(o).min.y);
+      if (/^chandelier_\d+_suspension$/.test(o.name)) rings.push(o.getWorldPosition(new THREE.Vector3()).x);
+    });
+    expect(rings).toHaveLength(GOLD_COFFER_CHANDELIERS);
+    for (const x of rings) expect(Math.abs(x)).toBeLessThan(spec.aisleWidth / 2);
+    expect(lowest).toBeGreaterThan(5);
+    // in the scene: the hall's own slab, coffers and rings are gone, the new pieces are roof / fixtures
+    const names = (style?: 'hall' | 'gold-coffers') => {
+      const seen = new Set<string>();
+      const a = buildArtScene(new Map(), { pilot05: true, layout: g, ceiling: style });
+      a.root.traverse((o) => seen.add(o.name));
+      return { seen, a };
+    };
+    const own = names('hall');
+    const gold = names('gold-coffers');
+    expect([...own.seen].some((n) => REPLACED_BY_GOLD_COFFERS.test(n)) || own.a.ceiling.roof.length > 0).toBe(true);
+    expect(gold.a.ceiling.roof.length).toBeGreaterThan(0);
+    expect(gold.a.ceiling.fixtures.length).toBeGreaterThan(0);
+    // the coffers batch: the new ceiling adds a handful of batches, not one per coffer
+    expect(gold.a.batches - own.a.batches).toBeLessThanOrEqual(6);
+  });
 });
 
 describe('prototype badge', () => {

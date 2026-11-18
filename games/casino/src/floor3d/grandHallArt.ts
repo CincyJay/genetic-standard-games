@@ -22,10 +22,40 @@ import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
+import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
 import { BLACKJACK_HERO_ANCHORS, type FloorLayout, type TablePlacement } from './layout.ts';
 
 /** How far each endcap sits outside the hall's ends, in metres. */
 export const ENDCAP_RECESS = 0.15;
+
+/** The grand hall's ceiling: the architecture's own (VA-0065), or ChatGPT's gold coffers and chandeliers (VA-0175). */
+export type CeilingStyle = 'hall' | 'gold-coffers';
+export const CEILING_STORAGE_KEY = 'va3d.ceiling';
+export const NEXT_CEILING_STYLE: Record<CeilingStyle, CeilingStyle> = { hall: 'gold-coffers', 'gold-coffers': 'hall' };
+/** The stored ceiling style; anything unknown is the hall's own. */
+export function readCeilingStyle(): CeilingStyle {
+  try {
+    return localStorage.getItem(CEILING_STORAGE_KEY) === 'gold-coffers' ? 'gold-coffers' : 'hall';
+  } catch {
+    return 'hall';
+  }
+}
+/** The architecture pieces the gold-coffer ceiling replaces: its slab, coffers, beams and ring chandeliers. */
+export const REPLACED_BY_GOLD_COFFERS = /^(ceiling-base|coffer-.*|suspended-ring-chandelier|chandelier-suspension)$/;
+/** Chandeliers down the promenade (the art spaces them at most 5 m apart, centred). */
+export const GOLD_COFFER_CHANDELIERS = 4;
+
+/**
+ * ChatGPT's coffered ceiling (c5650b9) at the hall's size. The art lays its chandeliers out along
+ * its own X, so it is built hall-length by hall-width and turned a quarter: they then hang in a
+ * line over the promenade. Built 0.1 m under the hall height, its overhead plane sits where the
+ * architecture's slab was centred.
+ */
+export function goldCofferCeiling(spec: { width: number; length: number; height: number }): THREE.Group {
+  const g = createVelvetCofferedCeiling(THREE, { width: spec.length, depth: spec.width, height: spec.height - 0.1, chandeliers: GOLD_COFFER_CHANDELIERS }) as THREE.Group;
+  g.rotation.y = Math.PI / 2;
+  return g;
+}
 
 export interface GrandHallArt {
   root: THREE.Group;
@@ -54,7 +84,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string]): THREE
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; ceiling?: CeilingStyle },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -79,7 +109,17 @@ export function composeGrandHall(
   }
 
   // ChatGPT's architecture at the layout's size
-  root.add(createGrandHallArchitecture(THREE, spec) as THREE.Group);
+  const architecture = createGrandHallArchitecture(THREE, spec) as THREE.Group;
+  if (opts.ceiling === 'gold-coffers') {
+    // the architecture's ceiling gives way to the gold coffers; its walls, crown, coves and colonnade stay
+    const drop: THREE.Object3D[] = [];
+    architecture.traverse((o) => {
+      if (o !== architecture && REPLACED_BY_GOLD_COFFERS.test(o.name)) drop.push(o);
+    });
+    for (const o of drop) o.removeFromParent();
+    root.add(goldCofferCeiling(spec));
+  }
+  root.add(architecture);
   // ChatGPT's end wall and entrance frame (VA-0071). The back row is at -Z, so rearZ is negative.
   // Given 0.3 m more length, both ends sit 0.15 m outside the hall: the rear pilasters clear the
   // back-row cabinets, and the entrance piers stay just past the walkable room's +Z edge. The

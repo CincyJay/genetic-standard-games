@@ -20,6 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { layoutFor } from './grandHall.ts';
+import { CEILING_STORAGE_KEY, NEXT_CEILING_STYLE, readCeilingStyle } from './grandHallArt.ts';
 import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildSvelteCaps, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { perfText, protoBadge } from './badge.ts';
@@ -295,7 +296,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // the side banks' back caps) may stand out to that wall line, 0.2 m off the wall like the room
   const capRoom = layout.hallSpec ? { ...ROOM, z0: -layout.hallSpec.length / 2 + 0.2 } : ROOM;
   const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM, capRoom) : null;
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined });
+  // prototype switch (VA-0175): the grand hall's own ceiling, or ChatGPT's gold coffers and chandeliers
+  const ceilingStyle = (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && hall === 'grand' ? readCeilingStyle() : 'hall';
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
   const capScene = svelteBanks ? buildSvelteCaps(svelteBanks.caps) : null;
@@ -545,6 +548,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="hall"></button>
     <button type="button" class="lightmode"></button>
     <button type="button" class="sveltemachines" hidden></button>
+    <button type="button" class="ceilingstyle" hidden></button>
     <button type="button" class="sveltepreview" hidden>Preview: Svelte 01 slot</button>
   </div>
 </div>
@@ -719,6 +723,19 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       localStorage.setItem(MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE[machineStyle]);
     } catch {
       return toast('Can’t switch the machines: storage is unavailable');
+    }
+    location.reload();
+  });
+  // prototype builds, grand hall only: swap its ceiling for the gold coffers (stored; reloads the floor)
+  const ceilingBtn = $<HTMLButtonElement>('.ceilingstyle');
+  ceilingBtn.hidden = svelteBtn.hidden || hall !== 'grand';
+  ceilingBtn.textContent = { hall: 'Ceiling: hall', 'gold-coffers': 'Ceiling: gold coffers + chandeliers (preview)' }[ceilingStyle];
+  ceilingBtn.setAttribute('aria-label', `${ceilingBtn.textContent}. Tap to switch (reloads the floor).`);
+  ceilingBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem(CEILING_STORAGE_KEY, NEXT_CEILING_STYLE[ceilingStyle]);
+    } catch {
+      return toast('Can’t switch the ceiling: storage is unavailable');
     }
     location.reload();
   });
