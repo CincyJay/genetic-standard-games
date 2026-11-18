@@ -44,13 +44,24 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
   add('sculpted_upholstered_backrest',surface,backMaterial,0,0,0);
   // Physical side rails and crown distinguish the chair at mid-distance.
   for(const sign of [-1,1]){
-    const rail=add('back_gold_edge',new THREE.CylinderGeometry(.012,.012,.71,6),piping,sign*.265,.975,.245);
+    const rail=add('back_gold_edge',new THREE.CylinderGeometry(.012,.012,.71,6),piping,sign*.265,.975,.315);
     rail.rotation.x=.15;
     const arm=add('padded_armrest',new THREE.BoxGeometry(.09,.095,.32),fabric,sign*.315,.735,-.015);
     arm.rotation.x=-.08;
     add('armrest_support',new THREE.CylinderGeometry(.018,.024,.23,6),frame,sign*.315,.62,.07);
   }
-  add('back_gold_top_crest',new THREE.BoxGeometry(.51,.025,.027),piping,0,1.315,.30);
+  // The crest follows the shell's curved top edge, instead of floating across it.
+  // Reuse the same quadratic z profile as the upholstered backrest.
+  const crestPieces = detail === 'near' ? 12 : 6;
+  for(let i=0;i<crestPieces;i++){
+    const u0=-1+2*i/crestPieces, u1=-1+2*(i+1)/crestPieces;
+    const um=(u0+u1)/2, x0=.265*u0, x1=.265*u1;
+    const z0=.29+.075*u0*u0, z1=.29+.075*u1*u1;
+    const piece=add('back_gold_top_crest',new THREE.BoxGeometry(
+      Math.hypot(x1-x0,z1-z0)+.002,.025,.018),piping,
+      (x0+x1)/2,1.315,(z0+z1)/2);
+    piece.rotation.y=-Math.atan2(z1-z0,x1-x0);
+  }
   // Five-point swivel base reads as casino furniture rather than dining chair.
   add('pedestal',new THREE.CylinderGeometry(.035,.045,.40,8),frame,0,.30,0);
   add('hub',new THREE.CylinderGeometry(.085,.085,.07,8),frame,0,.105,0);
@@ -62,8 +73,8 @@ export function createVelvetGamingChairLod(THREE, options = {}) {
     add('caster',new THREE.SphereGeometry(.036,6,4),frame,
       Math.sin(a)*.30,.055,Math.cos(a)*.30);
   }
-  root.userData={artOnly:true,detail,seatHeight:.55,front:'-Z',units:'metres',
+  root.userData={artOnly:true,detail,seatHeight:.615,front:'-Z',units:'metres',
     integration:'Place as isolated prop; share geometries/materials across repeated chairs; do not mutate production scenes',
-    verified:'source-only, no rendering, build or device verification'};
+    verified:'source-only revision, no rendering, build or device verification'};
   return root;
 }
