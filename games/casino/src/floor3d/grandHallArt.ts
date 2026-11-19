@@ -90,7 +90,22 @@ function readCofferSideInset(): number {
  * material, so collisions and batching don't change. The default stays the damask carpet.
  */
 export function carpetArtFrom(search: string): boolean {
-  return new URLSearchParams(search).get('carpetart') === 'on';
+  const v = new URLSearchParams(search).get('carpetart');
+  return v === 'on' || v === 'vine';
+}
+
+/**
+ * Which motif `?carpetart` asks for. `on` keeps the original medallion texture (436ef01);
+ * `vine` asks for the continuous woven-vine overlay (ca3a8ec, VA-0236) for side-by-side comparison.
+ */
+export type CarpetMotif = 'medallion' | 'woven-vine';
+export function carpetMotifFrom(search: string): CarpetMotif {
+  return new URLSearchParams(search).get('carpetart') === 'vine' ? 'woven-vine' : 'medallion';
+}
+
+function readCarpetMotif(): CarpetMotif {
+  if (typeof location === 'undefined') return 'medallion';
+  return carpetMotifFrom(location.search);
 }
 
 function readCarpetArt(): boolean {
@@ -107,12 +122,12 @@ export const CARPET_ART_SIZE = 512;
  * the tile is kept square and the same size in metres as the damask's repeat (`userData.repeatMeters`),
  * so a medallion is a quarter of that. `makeCanvas` supplies a sized canvas (a browser's, or a test stub).
  */
-export function applyCarpetArt(carpet: THREE.Mesh, width: number, depth: number, makeCanvas: (n: number) => unknown): boolean {
+export function applyCarpetArt(carpet: THREE.Mesh, width: number, depth: number, makeCanvas: (n: number) => unknown, motif: CarpetMotif = 'medallion'): boolean {
   const mat = carpet.material as THREE.MeshStandardMaterial;
   const repeatMeters = Number((carpet.userData as { repeatMeters?: number }).repeatMeters) || 3.5;
   let tex: THREE.Texture;
   try {
-    tex = createVelvetCarpetTexture(THREE, { size: CARPET_ART_SIZE, createCanvas: makeCanvas }) as THREE.Texture;
+    tex = createVelvetCarpetTexture(THREE, { size: CARPET_ART_SIZE, createCanvas: makeCanvas, motif }) as THREE.Texture;
   } catch {
     return false;
   }
@@ -120,7 +135,8 @@ export function applyCarpetArt(carpet: THREE.Mesh, width: number, depth: number,
   mat.map?.dispose();
   mat.map = tex;
   mat.needsUpdate = true;
-  carpet.userData.carpetArt = '436ef01';
+  carpet.userData.carpetArt = motif === 'woven-vine' ? 'ca3a8ec' : '436ef01';
+  carpet.userData.carpetMotif = motif;
   return true;
 }
 
@@ -131,6 +147,8 @@ export interface GrandHallArt {
   wovenCarpet: boolean;
   /** Whether `?carpetart=on` put ChatGPT's woven medallion texture (436ef01) on the hall carpet. */
   carpetArt: boolean;
+  /** Which motif the opt-in texture used, when `carpetArt` is true. */
+  carpetMotif: CarpetMotif | null;
 }
 
 export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near';
@@ -269,7 +287,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -283,6 +301,7 @@ export function composeGrandHall(
   // floor: ChatGPT's woven carpet, sized to the hall
   let wovenCarpet = false;
   let carpetArt = false;
+  let carpetMotif: CarpetMotif | null = null;
   if (opts.carpetCanvas || typeof document !== 'undefined') {
     // below the architecture's stone promenade (top at 0.0225), so the walkway shows through
     const carpet = makeVelvetPatternCarpet(THREE, { width: w, depth: d, x: cx, y: 0.012, z: cz, canvas: opts.carpetCanvas }) as THREE.Mesh;
@@ -296,7 +315,9 @@ export function composeGrandHall(
         c.height = n;
         return c;
       };
-      carpetArt = applyCarpetArt(carpet, w, d, make);
+      const motif = opts.carpetMotif ?? readCarpetMotif();
+      carpetArt = applyCarpetArt(carpet, w, d, make, motif);
+      if (carpetArt) carpetMotif = motif;
     }
   } else {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2b1b2c, roughness: 0.9 }));
@@ -362,5 +383,5 @@ export function composeGrandHall(
     copy.add(machineDetail === 'lite' ? liteCabinet(src, liteGeos) : src.clone());
     root.add(copy);
   });
-  return { root, heroes, heroTextures, wovenCarpet, carpetArt };
+  return { root, heroes, heroTextures, wovenCarpet, carpetArt, carpetMotif };
 }

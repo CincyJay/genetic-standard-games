@@ -7,6 +7,7 @@
  * `slimlod` draws the slim family at every distance (`?slimlod=on`: near shell + 4530e71 mid/far, VA-0226).
  * `slimbulbs` / `bulbs` add ChatGPT's 8-tri far chase bulb on caps >= 15 m away (`?capbulbs=lod`, f61fe6e, VA-0232).
  * `carpetart` puts ChatGPT's woven medallion carpet texture on the hall floor (`?carpetart=on`, 436ef01, VA-0234).
+ * `carpetvine` puts the woven-vine overlay version on it instead (`?carpetart=vine`, ca3a8ec, VA-0236).
  * `topper` adds ChatGPT's island seam topper (`?topper=on`, VA-0201).
  * Usage: node tests/e2e/islands.mjs [url] [outDir] [tag] [machineStyle] [variants, default islands,walls]
  */
@@ -20,7 +21,7 @@ const base = process.argv[2] ?? 'http://localhost:5175/';
 const out = process.argv[3] ?? fileURLToPath(new URL('../../screenshots/', import.meta.url));
 const tag = process.argv[4] ?? 'islands';
 const style = process.argv[5] ?? 'svelte-lod';
-const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art', slimcab: '&nearcab=slim', slimlod: '&slimlod=on', slimbulbs: '&slimlod=on&capbulbs=lod', bulbs: '&capbulbs=lod', carpetart: '&carpetart=on' };
+const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art', slimcab: '&nearcab=slim', slimlod: '&slimlod=on', slimbulbs: '&slimlod=on&capbulbs=lod', bulbs: '&capbulbs=lod', carpetart: '&carpetart=on', carpetvine: '&carpetart=vine' };
 const variants = (process.argv[6] ?? 'islands,walls').split(',').map((v) => [v, VARIANTS[v]]);
 mkdirSync(out, { recursive: true });
 // the west islands: centre line x -8.6, back third z -15..-6.6

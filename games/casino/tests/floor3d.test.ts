@@ -1207,4 +1207,30 @@ describe('woven medallion carpet texture (436ef01, VA-0234, ?carpetart=on)', () 
     // no canvas, no texture: the placeholder floor stays and nothing throws
     expect(composeGrandHall(g, { liftSign: () => 0, carpetArt: true }).carpetArt).toBe(false);
   });
+  it('?carpetart=vine selects the woven-vine overlay (ca3a8ec, VA-0236) on the same mesh and square repeat', async () => {
+    const THREE = await import('three');
+    const { carpetArtFrom, carpetMotifFrom, composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
+    const { grandFloorLayout } = await import('../src/floor3d/grandHall.ts');
+    expect(carpetArtFrom('?carpetart=vine')).toBe(true);
+    expect(carpetMotifFrom('?carpetart=vine')).toBe('woven-vine');
+    expect(carpetMotifFrom('?carpetart=on')).toBe('medallion');
+    expect(carpetMotifFrom('')).toBe('medallion');
+    const g = grandFloorLayout();
+    type Plane = InstanceType<typeof THREE.Mesh<InstanceType<typeof THREE.PlaneGeometry>>>;
+    const med = composeGrandHall(g, { liftSign: () => 0, carpetCanvas: stubCanvas(), carpetArt: true, carpetMotif: 'medallion' });
+    const vine = composeGrandHall(g, { liftSign: () => 0, carpetCanvas: stubCanvas(), carpetArt: true, carpetMotif: 'woven-vine' });
+    expect(med.carpetMotif).toBe('medallion');
+    expect(vine.carpetMotif).toBe('woven-vine');
+    const a = med.root.getObjectByName('VA_opt_in_patterned_carpet') as Plane;
+    const b = vine.root.getObjectByName('VA_opt_in_patterned_carpet') as Plane;
+    expect(a.userData.carpetArt).toBe('436ef01');
+    expect(b.userData.carpetArt).toBe('ca3a8ec');
+    const ma = (a.material as InstanceType<typeof THREE.MeshStandardMaterial>).map!;
+    const mb = (b.material as InstanceType<typeof THREE.MeshStandardMaterial>).map!;
+    expect(mb.userData.velvetArt.motif).toBe('woven-vine');
+    expect(ma.userData.velvetArt.motif).toBe('medallion');
+    expect(mb.repeat.toArray()).toEqual(ma.repeat.toArray());
+    expect(b.position.toArray()).toEqual(a.position.toArray());
+    expect(b.geometry.parameters).toEqual(a.geometry.parameters);
+  });
 });
