@@ -37,13 +37,15 @@ export function createVelvetSlimCabinetLOD(THREE, options = {}) {
   marquee.userData.uvRange = [0,0,1,1];
   add('crown', .60, .032, .21, 0, 2.06, .10, gold);
   add('jackpot_band', .56, .09, .025, 0, 2.015, -.025, accent);
-  // Match near-level deck geometry exactly to avoid a silhouette pop at 15 m.\n  add('angled_deck', .58, .13, .28, 0, .86, -.23, shell, -.28);\n  add('deck_lip', .58, .018, .055, 0, .78, -.365, gold);
+  // Match near-level deck geometry exactly to avoid a silhouette pop at 15 m.
+  add('angled_deck', .58, .13, .28, 0, .86, -.23, shell, -.28);
+  add('deck_lip', .58, .018, .055, 0, .78, -.365, gold);
   if (level === 'mid') {
-    add('deck_lip', .58, .018, .055, 0, .78, -.365, gold);
     add('left_spine', .018, 1.10, .035, -.300, 1.36, .09, gold);
     add('right_spine', .018, 1.10, .035, .300, 1.36, .09, gold);
     // At medium distance five separate buttons retain the physical controls.
-    // Same finish and button geometry as near shell, allowing shared material buckets.\n    const button = new THREE.MeshStandardMaterial({color: 0xe4c77e, metalness: .72, roughness: .22});
+    // Same finish and button geometry as near shell; material sharing is host-owned.
+    const button = new THREE.MeshStandardMaterial({color: 0xe4c77e, metalness: .72, roughness: .22});
     for (let i=0; i<5; i++) {
       const key = new THREE.Mesh(new THREE.CylinderGeometry(.022,.022,.012,10), button);
       key.name = 'deck_button_' + (i+1);
