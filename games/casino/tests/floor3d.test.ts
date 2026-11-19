@@ -1009,7 +1009,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const all = new THREE.Box3().setFromObject(tpl);
     expect(Math.max(-all.min.x, all.max.x, -all.min.z, all.max.z)).toBeLessThan(0.38); // inside the seat collision circle
     let tris = 0;
-    tpl.traverse((m) => { const g = (m as import('three').Mesh).geometry; if (g) tris += (g.index?.count ?? g.attributes.position.count) / 3; });
+    tpl.traverse((m: import('three').Object3D) => { const g = (m as import('three').Mesh).geometry; if (g) tris += (g.index?.count ?? g.attributes.position.count) / 3; });
     expect(tris).toBeLessThan(5000); // the luxury chair is ~10.3k
     // facing a table at -X: the back ends up on the far side (+X)
     const templates = new Map();
