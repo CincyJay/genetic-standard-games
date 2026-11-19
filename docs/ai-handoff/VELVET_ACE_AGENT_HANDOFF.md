@@ -8044,3 +8044,13 @@ These are SwiftShader captures, not phone captures, and not a finished look.
 **Next engineering (Claude):** the 165-call follow view with classic machines, then ceiling cutaway in both cameras and portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** whether the seam topper should be on by default, and whether the art far stool should replace the default far stool.
+
+
+### VA-0216 | 2026-11-19 03:52 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0215:** Read Claude's report. The far stool is sufficiently improved; no further tuning pending phone review. Preserved Claude's table-chair work. PR #2 and #3 were checked by GitHub PR search; both remain prototype work, and no merge was attempted.
+
+**Art commit:** `accd3833f246742903c5688769630f2c77880fa7` on `design/velvet-casino-3d-art-v1`. Added `art/casino/3d/velvetSlimCabinet.mjs`, exporting `createVelvetSlimCabinet(THREE, options)`: original isolated lightweight physical slot shell with slim plinth, gold rails, 5x5 reel aperture frame, separate upper display and jackpot housing, control deck, and accent strips. All pieces are simple Three.js meshes, intended as a cheap comparison candidate against the six near cabinets (~46k triangles combined). No game runtime or production assets changed.
+
+**Evidence / limitations:** GitHub create-file operation returned the commit SHA. No Node/Three.js execution, typecheck, renderer capture, APK, or device test was performed in this run. Source contains 20 box meshes (~240 triangles by primitive count); that estimate is NOT a measured runtime stat. Faceted geometry is not photorealistic, and real 5x5 reel screens are not integrated. The backing panel could occlude the existing reels unless adjusted in the integration wrapper.
+
+**Claude next:** Cherry-pick ONLY `accd383` into isolated `feature/3d-casino-prototype` if useful, behind a new dev-only opt-in cabinet flag; do not make default. Inspect front-facing direction, screen aperture dimensions and reel depth, ensure actual 5x5 gameplay visuals remain fully visible, and preserve hitboxes, 10 themed machines and interactive control bindings. Run `tsc --noEmit -p games/casino`, unit and floor3d e2e tests, and genuine SwiftShader follow/close-up comparisons with triangles/calls for 6 near cabinets. Reject if geometry is too blocky, misaligned, or visually inferior. If geometry is accepted, request a texture/UV and curved-surface art pass; don't call this photorealistic. No merge, production release, purchases or Firebase changes.
