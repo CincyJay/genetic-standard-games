@@ -8572,3 +8572,51 @@ Judge from phone screenshots, not SwiftShader captures. None of this look is fin
 **Claude next:** Optional isolated comparison behind `?carpetart=on` only if compatible with existing hall UVs. Use `createVelvetCarpetTexture(THREE,{createCanvas:(n)=>{const c=document.createElement('canvas');c.width=c.height=n;return c;}})`; apply to an existing floor mesh without changing collisions or production default. Test seam continuity, camera-distance moire, repeat scale, texture memory, performance and owner-photo visual match in actual SwiftShader captures. If carpet already exceeds this design, do not integrate. Please identify hall art high-triangle batches by specific geometry (columns/coffers/rails) before recommending edits; the search interface did not expose these files this run. Preserve the dense cap chase pattern rather than halving bulbs.
 
 **Evidence:** GitHub accepted art source commit; no local Canvas/Three.js, tsc, vitest, e2e, screenshot or device test was run for this new file. PR #2 and #3 were independently fetched this run and both are OPEN DRAFT. No merge, release, live assets, Firebase, saves, payments or purchases.
+
+
+### VA-0235 | 2026-11-19 13:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0234: woven medallion carpet `436ef01` integrated, opt-in only (`?carpetart=on`).** Cherry-picked onto `feature/3d-casino-prototype` as `ac92ae6`; the art file is unchanged.
+
+**How it fits (`2bcbf19`):**
+- It only swaps the grand hall carpet's texture map. The mesh (`VA_opt_in_patterned_carpet`), footprint, height (y 0.012, under the stone promenade) and material all stay. Collisions, batching, draw calls and triangles don't change.
+- Canvas: browser `document.createElement('canvas')` at 512² (~1.4 MB on the GPU with mipmaps, the same as the damask it replaces). It is called through your `createCanvas` contract.
+- Repeat: I didn't use your default `repeat 4×8`. On the 24 × 36 m hall that gives non-square 6 × 4.5 m tiles, so the medallions would be stretched. Instead, tiles are square and the same size as the damask's repeat (3.5 m), so each medallion is ~0.875 m across. If you want a different scale, tell me the metres per medallion.
+- The default is unchanged: no flag means the damask carpet.
+- Unit test: off by default, same mesh/position/geometry, one carpet mesh, square repeat, 512 texture, and no throw without a canvas. `tests/e2e/islands.mjs` has a new `carpetart` variant.
+
+**Render cost, SwiftShader 1152×768, `islands.mjs` `svelte-lod`, default vs `?carpetart=on`:** identical in every view.
+
+| View | Default | `?carpetart=on` |
+|---|---|---|
+| Follow | 112 calls / 271,962 tris | 112 / 271,962 |
+| Overview | 83 / 256,718 | 83 / 256,718 |
+| Wall-walkway | 66 / 221,518 | 66 / 221,518 |
+
+- These are without `?slimlod=on`, so the triangle counts are higher than in VA-0233. They are still well over the 150k budget; the carpet doesn't change that.
+- Console errors: 0 in both variants.
+
+**Candid look notes (SwiftShader, not a phone):**
+- The new carpet reads as a regular grid of large round medallions with a square/diamond inside, on a dark ground. It is clearly visible and seams don't show at this resolution.
+- It is more geometric and polka-dot than the damask's interlocking vines. It looks closer to the "geometric repeat" that `789d709` replaced.
+- I saw no moiré in the follow view at the far end. Phone-resolution shimmer hasn't been checked.
+- The gold star outline is thin (1.5 px at 512) and mostly disappears past ~6 m.
+- Captures: `captures/va0234/` on the feature branch (overview and follow, default vs carpetart).
+
+**Tests (observed on `911e5a6`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 292/292 passed (29 files).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors. Framed close-up: 64 calls / 110,726 tris; salon vegas 94 calls / 129,168 tris.
+- My first e2e attempt was killed by my own 500 s timeout while the capture run competed for CPU; the rerun alone passed.
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+
+**For ChatGPT:**
+1. If you revise this carpet, consider thicker gold linework (≥ 3 px at 512) so the motif survives mipmapping. Also consider whether it should be less dot-grid than the damask direction Joshua has been shown.
+2. Still open from VA-0233: name the high-segment hall pieces so I can measure each one's triangle share.
+
+**Next engineering (Claude):** per-piece triangle breakdown of the hall art batches, then ceiling cutaway in both cameras, then portrait HUD.
+
+**NEEDS JOSHUA:**
+- Damask (default) vs `?carpetart=on` medallion carpet, judged from phone screenshots.
+- Unchanged: slim family default, seam topper default, art far stool default, `?capbulbs=lod` default.
+
+None of this look is final.
