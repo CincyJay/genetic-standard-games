@@ -9168,3 +9168,61 @@ None of this look is final.
 **Claude next:** Cherry-pick ONLY `26a2f01` onto isolated feature branch. Check new shell mouth symmetry, front arm reach z≥+.10, low-back centre ~1.015m, shell winding/normals, brass rim contact, collision radius and seat clearance. Run tsc/vitest/floor3d e2e, record triangles/calls and rear/side/front SwiftShader captures; keep `?chair=tub` opt-in. Reject if it still resembles a stool or the trim floats. Continue ceiling cutaway/portrait HUD/hero-slot LOD independently; owner prioritizes realistic physical slot cabinets, floor and ceiling over more chair iterations.
 
 **Repository review:** Read latest main handoff through VA-0249, checked recent commits and independently fetched PR #2 and #3, both open drafts. No merges, releases, production assets, Firebase, saves or payments touched. This run does not execute Claude Code.
+
+### VA-0251 | 2026-11-19 21:09 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0250: `26a2f01` cherry-picked unchanged onto `feature/3d-casino-prototype` as `952123f`.** Still opt-in (`?chair=tub`); defaults unchanged.
+
+**BUG in `26a2f01`: the brass rim is never built.**
+- Line 63 of `art/casino/3d/velvetTubChairPrototype.mjs` contains literal `\n` text (backslash-n), not real newlines. The whole rim block (`rimPoints`, `CatmullRomCurve3`, `TubeGeometry`, `mesh('VA_tub_shell_brass_rim', …)`) therefore sits inside the single `// A continuous, fine brass rim…` comment line.
+- Result: no `VA_tub_shell_brass_rim` mesh; chair tris unchanged at 1,080; no runtime error (the `inner` back cushion is on a real following line, so it still builds).
+- This is the same kind of bug as the one fixed by `71678c2`. I did not touch the art file. It is tracked as an `it.fails` test that flips to passing once real newlines are restored.
+
+**Commits:**
+- `33e98e9`: replaces the VA-0248 shell test with a measured v2 test, plus the `it.fails` rim test.
+- `e738596`: captures in `games/casino/captures/va0250/va0250-tub-{rear,side,front}.png`, same cameras, SwiftShader.
+
+**Measured (unit harness, 18 segments):**
+- **Arm reach:** tips at z +0.104 (ring 0), +0.137 (ring 2), +0.116 (ring 4, top). Meets your ≥ +0.10 target.
+- **Back:** shell top 1.015 m at z −0.343. Back cushion y 0.670..0.990, z −0.346..−0.198.
+- **Shell box:** x ±0.342 (symmetric), y 0.525..1.015, z −0.365..+0.137.
+- **Footprint:** max plan radius 0.378, inside the 0.38 m seat collision circle, so no `layout.ts` change. It has only 2 mm to spare: any further growth needs a new radius from you.
+- **Mouth (new concern):** the arm tips curve inward to |x| 0.113..0.126, so the front opening between the arms is only ~0.23 m wide, while the seat cushion is ±0.334 wide.
+  - In the front capture the right arm visibly wraps across the front of the seat.
+  - A seated guest would not fit between the arms.
+
+**Candid look, from the captures:**
+- It now reads more like a tub/barrel chair than v1 did: a low wrap-around back on a pedestal.
+- But it is still all one burgundy, with no trim (the rim is missing).
+- The shell shows hard facets and creases where the arms fold inward. `flatShading=false` has not hidden them at 18 segments.
+- From the side, the back cushion shows as a separate oval lump inside the shell.
+- Not finished and not a candidate to promote yet.
+
+**Render cost, SwiftShader 1152×768 close-ups:** identical to va0248 (expected, since the rim isn't built).
+
+| View | Calls | Tris |
+|---|---|---|
+| rear | 78 | 292,446 |
+| side | 71 | 291,328 |
+| front | 82 | 297,254 |
+
+- Console errors: 0. The close-ups are over 150k because of the hall, not the chair.
+
+**Tests (observed on `33e98e9`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 29/29 files, 299 passed plus 1 expected fail (the rim).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors.
+  - Salon vegas: 93 calls / 129,088 tris (within the 120 / 150k budget). Flat: 79 calls.
+  - Framed close-up: 64 calls / 110,726 tris.
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+
+**For ChatGPT:**
+1. Restore real newlines in the rim block on line 63. The `it.fails` test will flip. Use the shared brass material, as you said.
+2. Open the mouth: the arm tips should end at about |x| ≥ 0.25 (straighten the sweep ends rather than curling inward). Keep the plan radius ≤ 0.38, or give me a new radius.
+3. Optionally use a contrasting shell material (darker leather outside, velvet inside) so the shell separates from the cushion. Make the back cushion read as part of the shell rather than a floating oval.
+4. Your own note agrees: Joshua's priorities are physical slot cabinets, the floor and the ceiling, more than chair iterations.
+
+**Next engineering (Claude):** unchanged: ceiling cutaway in both cameras, portrait HUD, then hero-cabinet LOD. No progress on these this cycle; the hour went into tub integration.
+
+**NEEDS JOSHUA:** chair choice (luxury / velvet / lod / lod-near / swivel / tub), from phone screenshots. Tub is still not ready.
+
+None of this look is final.
