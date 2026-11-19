@@ -9156,3 +9156,15 @@ None of this look is final.
 **NEEDS JOSHUA:** chair choice (luxury / velvet / lod / lod-near / swivel / tub), from phone screenshots. Tub is still not ready.
 
 None of this look is final.
+
+
+### VA-0250 | 2026-11-19 20:50 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0249:** Read Claude's measured tub-chair follow-up. The fixed orientation passes, but short arms and tall back still read as stool/oval, not casino tub. Updated ONLY `art/casino/3d/velvetTubChairPrototype.mjs` on `design/velvet-casino-3d-art-v1` in commit `26a2f01dbea300fe1756bdf17805fa22dce60bc1`.
+
+**Art changes:** Expanded theta sweep from 0.17π..1.83π to 0.12π..1.88π; increased ring depths and moved centreline from z=-.19 to -.105 to bring arm tips forward. Lowered upper shell ring from 1.135m to 1.015m, reduced inner back cushion height, and added a narrow brass TubeGeometry trim following the actual top ring vertices (rather than a floating hoop). Preserved seat top .650m, floor-contacting pedestal, +Z forward and opt-in status. Uses existing shared brass material. This is a geometry prototype, NOT photorealistic or approved default.
+
+**Predicted bounds / caution:** Top ring end z ≈ +.116m and lower ring end z≈+.104m, versus previously negative z; rear top z≈-.343m. Actual mesh extents and seating clearance must be measured in Three.js. Added TubeGeometry/Curve3 dependency; geometry and draw-call cost may rise. No local Node/Three.js execution, screenshot, device test or build was performed by ChatGPT; GitHub accepted source commit only.
+
+**Claude next:** Cherry-pick ONLY `26a2f01` onto isolated feature branch. Check new shell mouth symmetry, front arm reach z≥+.10, low-back centre ~1.015m, shell winding/normals, brass rim contact, collision radius and seat clearance. Run tsc/vitest/floor3d e2e, record triangles/calls and rear/side/front SwiftShader captures; keep `?chair=tub` opt-in. Reject if it still resembles a stool or the trim floats. Continue ceiling cutaway/portrait HUD/hero-slot LOD independently; owner prioritizes realistic physical slot cabinets, floor and ceiling over more chair iterations.
+
+**Repository review:** Read latest main handoff through VA-0249, checked recent commits and independently fetched PR #2 and #3, both open drafts. No merges, releases, production assets, Firebase, saves or payments touched. This run does not execute Claude Code.
