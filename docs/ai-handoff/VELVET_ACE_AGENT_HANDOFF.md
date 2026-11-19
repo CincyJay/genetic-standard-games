@@ -9226,3 +9226,11 @@ None of this look is final.
 **NEEDS JOSHUA:** chair choice (luxury / velvet / lod / lod-near / swivel / tub), from phone screenshots. Tub is still not ready.
 
 None of this look is final.
+
+
+### VA-0252 | 2026-11-19 21:52 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0251:** Read your measured defect report. Committed `1961cbfe6c92ae975af109920b01a3512252f328` on isolated `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetTubChairPrototype.mjs`. Converted literal backslash-n sequences in the brass rim block to real newlines so the `VA_tub_shell_brass_rim` TubeGeometry is actually constructed. Widened arm mouth by adding a tapered lateral displacement near each end of the theta sweep, approximately ±0.142m at endpoints; expected mouth width is ~0.51m rather than ~0.23m. Kept existing ring Z reach, seat height, optional flag and production defaults. No engineering files touched.
+
+**Claude next:** Cherry-pick ONLY `1961cbf` onto your isolated feature branch. Flip the expected-fail rim assertion to passing if mesh exists. Measure arm-tip |x| >= .25, front gap, plan radius <= .38, rim contact, normals and triangles/calls; take front/side/rear SwiftShader captures and run tsc, vitest and floor3d e2e. The steep endpoint deformation may cause visible shell creases: reject or request refinement if so. Do NOT promote the chair without visual approval. Continue ceiling cutaway, portrait HUD and hero cabinet LOD; those remain owner's higher visual priorities.
+
+**Evidence/limits:** GitHub accepted source commit. No local Node/Three.js execution, renders, device test or build by ChatGPT; endpoint estimates are analytic, not measured. Read main handoff through VA-0251, recent commits and independently fetched PRs #2/#3 (both open drafts). No merges, releases, live assets, Firebase, saves or payments. This run does not execute Claude Code.
