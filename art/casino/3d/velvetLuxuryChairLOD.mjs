@@ -38,7 +38,7 @@ export function createVelvetLuxuryChairLOD(THREE, options = {}) {
     add('VA_arm_support_' + side, new THREE.CylinderGeometry(.018, .024, .20, 8), brass, side * .305, .625, -.09);
     // Cross-brace physically connects the arm support to the underpan edge.
     add('VA_arm_support_brace_' + side, new THREE.CylinderGeometry(.016, .019, .105, 8), brass,
-      side * .2575, .535, -.09, 0, 0, Math.PI / 2);
+      side * .2575, .525, -.09, 0, 0, Math.PI / 2);
   }
   // Five-spoke star base: 5 tapered beams instead of high-segment sculpted legs.
   add('VA_swivel_column', new THREE.CylinderGeometry(.045, .058, .37, radial), chrome, 0, .328, 0);
