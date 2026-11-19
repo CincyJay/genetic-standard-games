@@ -7778,6 +7778,65 @@ Claude tried wrapping the back round the sitter. The extruded back has no inner 
 
 For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He likes it as is.
 
+### VA-0211 | 2026-11-19 01:45 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0209: I cherry-picked `40d51af` → `8d047ff` on `feature/3d-casino-prototype`, unchanged.** I did not edit anything under `art/casino/3d/`. The tub-back far stool is still opt-in only (`?farstool=art`, dev/proto, Machines: Svelte LOD). The default far stool is unchanged.
+
+**Measured facts about the new far stool** (Three.js in Node and the unit test, with the wrapper's `seatHeight 0.62`, `seatWidth 0.48`):
+- **Triangles: 176**, in 7 meshes: cushion 32, underpan 32, stem 16, foot 32, gold rim 32, tub 16, crest 16.
+- **Tub back top:** 0.92 m, level with the near stool's rim.
+- **Foot:** now sits exactly on the floor (min y = 0).
+- **Footprint:** the tub and crest radius (~0.252 m) is inside the 0.27 m stool collision circle on every side.
+- **Facing:** after the wrapper's π turn, the tub is behind the seat, away from the cabinet, the same as the near stool.
+- **Test change:** the unit test referenced the old `backrest` mesh, so it failed after the cherry-pick. I updated it in `081fef5` to check `curved_tub_back` (top 0.92), `tub_gold_crest`, the foot on the floor and the circle.
+
+**Renderer stats** (grand hall, `svelte-lod`, islands, SwiftShader 1152x768, 0 console errors in both variants):
+
+| View | default far stool, calls / tris | `?farstool=art` (40d51af), calls / tris |
+|---|---|---|
+| Follow | 112 / 343,682 | 115 / 292,382 |
+| Overview | 83 / 328,438 | 86 / 277,138 |
+| Aisle side | 76 / 337,014 | 79 / 285,714 |
+| Island end | 76 / 335,870 | 79 / 284,570 |
+| Wall walkway | 66 / 246,598 | 69 / 195,298 |
+
+- **Saving:** −51,300 tris, which is exactly 114 × (626 − 176).
+- **Draw-call cost:** +3 calls. The old slab version cost +1.
+- **Why:** the stool LOD already instances one mesh per material. The art now clones two extra materials, the DoubleSide `tubFabric` and `trimMetal`, so it has 5 material buckets. I tried merging the parts that share a material, but the LOD buckets per material already, so it saved nothing; I dropped that change.
+- **Budget:** the hall is still ~1.95x the 150k triangle budget at follow.
+
+**What the captures show** (`c555980`, `captures/va0209-{islands,artstool}-{follow,overview,aisle-side,wall-walkway,island-end,seam-high}.png`):
+- **Better than the slab version.** In the aisle-side view, stool 11 onward now reads as a row of round tubs on gold pedestals. That continues the near row; it is no longer a fence of high backs.
+- **Remaining pop:** the far tubs are a darker, browner burgundy (`0x531b32`) than the near stool's red velvet. They also lack the near stool's gold rim along the top of the tub, which is too thin to read. So the boundary at stool 10/11 is still visible as a colour step.
+- These are SwiftShader captures, not phone captures, and not a finished look.
+
+**Engineering fix `d53d765`: the ⚙ menu was covering the floor.**
+- **The problem:** after the local session's velvet chair (VA-0210, `544ca69`), `tests/e2e/floor3d.mjs` failed **deterministically** here, not flakily. Four FAILs: the menu-open floor tap, tap-walk, arrive, and taken-seat toast. A fifth showed after the first fix: in landscape, the 11 settings buttons didn't all fit.
+- **Cause:** the label "Table chairs: burgundy + gold, Velvet Ace back (preview)" widened the portrait menu to ~10 px from the screen's left edge. A floor tap could then never close the menu, and later taps landed on menu buttons. In landscape, 11 buttons in 2 columns were taller than 384 px.
+- **Fix:** the portrait menu is capped at `min(300px, 78vw)` and wraps long labels; that label now takes two lines. The landscape menu uses 3 columns. No label text changed.
+- I don't know whether the local session's failures on Joshua's PC (different steps on each run) have the same cause. Worth re-running there.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0, on the final tip.
+- Root vitest: 277/277 passed, on the rebased tip after the cherry-pick and test fix. That includes the local session's chair test. The menu fix is CSS only and doesn't affect unit tests.
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader):
+  - before the rebase: 46 ok, 0 FAIL
+  - after the rebase, without the menu fix: 13 ok, 4 FAIL, exit 1, twice
+  - with the menu fix: **46 ok, 0 FAIL, exit 0**
+  - Budget line: vegas 92 calls, 122,328 tris. That is down from 128,158, with the velvet chair as the default.
+- No APK was built and there was no device test; the cloud can't reach Joshua's phone. For the local session:
+  - on the S25+, open ⚙ in portrait and check that the table-chair button wraps and the menu closes on a floor tap
+  - in landscape, check the 3-column menu
+
+**For ChatGPT (art values are yours):**
+1. **Far stool colour match:** set the far stool's fabric closer to the near stool's velvet red, or take it as an option so I can pass the near stool's material colour. Optionally make the top gold crest a little taller (≈2–3 cm) so it reads at distance.
+2. **Draw calls (optional):** reuse one `fabric` material and one `metal` material, without the DoubleSide clones. For example, give the tub a closed inner face, or set `side` on the shared material if the cushion tolerates it. That would bring the stool back to +1 call.
+3. **Still the biggest triangle win:** a cheaper near or full Svelte cabinet finish. The 6 near cabinets cost ~46k.
+4. **Velvet chair back:** per VA-0210, please don't restyle it without Joshua's say-so.
+
+**Next engineering:** the 165-call follow view with classic machines, then the ceiling cutaway and portrait HUD items.
+
+**NEEDS JOSHUA (unchanged):** whether the seam topper should be on by default, and whether the art far stool should replace the default far stool once the colour step is fixed.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
