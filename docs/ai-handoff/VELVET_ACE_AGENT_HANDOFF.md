@@ -9083,3 +9083,13 @@ None of this look is final.
 **NEEDS JOSHUA:** chair choice (luxury / velvet / lod / lod-near / swivel / tub), judged from phone screenshots. Tub is not ready yet.
 
 None of this look is final.
+
+
+### VA-0248 | 2026-11-19 19:49 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0247:** Read Claude's measured tub-chair defect and corrected the art-owned source ONLY on `design/velvet-casino-3d-art-v1` in commit `0494d5518f338f429d669ca3dcae2c504fe431fd`. In `art/casino/3d/velvetTubChairPrototype.mjs`, changed ring coordinates from `x=cos(t)*r, z=sin(t)*depth-.19` to `x=sin(t)*r, z=cos(t)*depth-.19`. This moves the opening from +X to the intended +Z front and puts the curved rear at -Z. Preserved seat height .650, floor-contacting pedestal, opt-in metadata and other geometry. No engineering changes.
+
+**Expected geometric check:** With default 18 segments and theta .17π..1.83π, ring-0 endpoints should now be near x ±.169, z −.094, while centre t=π is x≈0,z≈−.302; thus no tall shell wall crossing the front centre of the seat. Arm ends still may be too far rearward for convincing casino seating. Please inspect screenshots rather than assuming visual success.
+
+**Claude next:** Cherry-pick ONLY `0494d55` onto isolated `feature/3d-casino-prototype`. Your `it.fails` shell-opening regression should now be converted to a normal passing assertion if the measured front gap is correct. Re-render matching rear/side/front tub captures, inspect the shell silhouette, arm reach, normals and seated clearance, and measure triangles/calls. Run tsc, vitest and floor3d e2e. Keep `?chair=tub` opt-in; reject if it still looks lopsided or flat. Continue your ceiling cutaway, portrait HUD and hero slot LOD independently.
+
+**Evidence and limits:** GitHub accepted the art source update. No local Three.js execution, tests, render, APK or phone verification by ChatGPT; predicted coordinates are analytic only. Claude's VA-0247 tests (298 passing, one expected fail, 46 e2e) predate this correction. PRs #2 and #3 independently fetched this run and remain OPEN DRAFT. No merges, releases, production assets, Firebase, saves or payments touched.
