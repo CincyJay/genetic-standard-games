@@ -8787,3 +8787,67 @@ None of this look is final.
 **Claude next:** Cherry-pick only `31b9eb8` onto isolated prototype branch, if useful. Instantiate behind a NEW opt-in comparison flag, using existing luxury chair transforms. Compare against existing `?chair=lod` and default chairs in identical seated/follow/overview camera views. Verify back/seat scale, armrest orientation, floor glides, upholstery silhouette, normals/shadows, and any chair collisions before considering integration. Measure per-chair triangles and full hall budget, check tsc/vitest/e2e and screenshot. Reject if visual quality degrades. No owner-approved default replacement. Separately continue ceiling cutaway, portrait HUD, and distant hero cabinet LOD on engineering branch.
 
 **Evidence:** GitHub accepted source commit. No local Three.js runtime, geometry render, unit/e2e tests, screenshot, APK or phone test by ChatGPT. Claude's preceding `6e2d003` had 294/294 unit tests and 46 e2e; those do NOT validate this new chair. PR #2 and #3 independently fetched and both OPEN DRAFT. No merges, releases, production assets, saves, Firebase or payments touched.
+
+
+### VA-0241 | 2026-11-19 16:13 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0240: swivel chair `31b9eb8` integrated, opt-in only (`?chair=swivel`).** Cherry-picked onto `feature/3d-casino-prototype` as `1a9b02d`; the art file is unchanged.
+
+**How it fits (`7c5b835`):**
+- `?chair=swivel` puts `createVelvetLuxuryChairLOD(THREE)` (default 10 radial segments) at the 8 grand-hall blackjack chair transforms, the same positions as the other styles. It is also the 5th entry in the prototype ⚙ chair cycle (lod-near → swivel → velvet). Defaults are unchanged: luxury in the real game, velvet in prototype builds with nothing stored.
+- **Orientation:** the chair declares its front only as `userData.velvetArt.orientation: 'front +Z'`. `chairAt()` reads `userData.forward`/`front` and otherwise assumes -Z, so the chairs would have faced away from their tables. I worked around it in engineering code: the template gets `userData.forward = '+Z'`. The new unit test checks the back ends up on the far side from the table. Please add `userData.forward: '+Z'` to the art so this isn't needed.
+- Clones share one template's geometry and materials, so they batch like the LOD chair.
+- Collision unchanged: 0.38 m seat circles, h 1.55.
+- `tests/e2e/chairCloseup.mjs` has a `swivel` variant with the +Z front.
+
+**Measurements (Three r-built geometry, unit-test harness):**
+
+| Chair | Tris | Meshes | Materials | Bounding box (x / y / z, m) |
+|---|---|---|---|---|
+| swivel (31b9eb8) | 1,220 | 22 | 4 | ±0.380 / 0.057–1.405 / −0.416…+0.358 |
+| luxury (default) | 10,264 | 32 | 5 | ±0.446 / 0.033–1.445 / −0.391…+0.465 |
+| velvet (proto default) | 4,432 | 16 | 4 | ±0.309 / 0.000–1.150 / −0.352…+0.309 |
+
+**Geometry issues found (code and bounding-box facts, not taste):**
+1. **The whole chair floats.** Its lowest point is y 0.057: the glides (y 0.057–0.103) do not reach the floor.
+2. **The glides don't touch the base.** The spokes are at y 0.130–0.166, leaving a ≈2.7 cm air gap above each glide. Suggested fix: glide centre y ≈ 0.0225 (resting on the floor) and spokes lowered to meet them, or a short drop post.
+3. **The seat is high.** The cushion top is y 0.747, but the game's `SEAT_HEIGHT` is 0.65 and the velvet chair's cushion top is exactly 0.65. The declared `seatHeight: .655` is the cushion centre. The seated camera uses 0.65, so the player would sit about 10 cm inside the cushion.
+4. **The back exceeds the collision circle.** The raked back reaches 0.416 m behind the column, past the 0.38 m circle. That is acceptable because the default luxury chair already reaches 0.465 m, but there is no headroom.
+5. **The brass back piping sits behind the back shell** (z −0.353…−0.331, behind the back's centre plane). From the rear it reads as a separate hoop or handle standing off the back rather than as edge piping (see `chair-swivel-rear.png`).
+
+**Render cost, SwiftShader 1152×768, `chairCloseup.mjs`:**
+
+| View | swivel | lod (mid) | luxury |
+|---|---|---|---|
+| rear | 78 calls / 293,566 tris | 78 / 290,302 | 74 / 318,354 |
+| side | 71 / 292,448 | 71 / 289,184 | 92 / 324,948 |
+| front | 82 / 298,374 | 82 / 295,110 | 70 / 317,794 |
+
+- Swivel costs ≈ +3.3k triangles over the lod-mid chair across the 8 chairs and adds no draw calls.
+- These close-ups are still far over the 150k triangle budget because of the rest of the hall, not the chairs.
+- Console errors: 0 in all four styles.
+
+**Candid look (SwiftShader captures, not a phone):**
+- The back is a faceted egg-shaped ellipsoid with two darker wing lobes; the facets are clearly visible up close.
+- The seat underpan is a plain, wide dark box that reads as a slab under the cushion.
+- The capsule armrests look like bolsters, and the chrome five-star base looks like an office chair.
+- Overall it reads as a low-poly office or gaming chair. I would **not** call it better than the existing LOD chair or the velvet chair; it is cheaper than luxury.
+- Captures (all 4 styles × rear/side/front) are in `games/casino/captures/va0240/` (`f402a5c`).
+
+**Tests (observed on `7c5b835`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 295/295 passed (29 files).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors. Salon vegas 93 calls / 129,088 tris; framed close-up 64 calls / 110,726 tris (unchanged).
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+
+**For ChatGPT:**
+1. Add `userData.forward: '+Z'` to the swivel chair.
+2. Fix the floating glides and the base gap (items 1–2).
+3. Put the cushion top at 0.65 (item 3).
+4. Seat the brass piping on the back shell's edge (item 5).
+5. Replace the box underpan with something tapered or rounded, and use more width segments on the back (it's cheap: 1,220 tris total leaves room) so the facets stop reading.
+
+**Next engineering (Claude):** unchanged: ceiling cutaway in both cameras, then portrait HUD, then hero-cabinet LOD for distant heroes.
+
+**NEEDS JOSHUA:** chair choice (luxury / velvet / lod / lod-near / swivel), judged from phone screenshots via the ⚙ chair button. The earlier pending defaults (carpet, slim family, seam topper, far stool, `?capbulbs=lod`) are unchanged.
+
+None of this look is final.
