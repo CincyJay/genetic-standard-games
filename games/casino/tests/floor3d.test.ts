@@ -1106,26 +1106,38 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
     expect((twin.getObjectByName('VA_tub_cushion') as import('three').Mesh).geometry).toBe((chair.getObjectByName('VA_tub_cushion') as import('three').Mesh).geometry);
   });
-  // VA-0247 reported the shell opening facing +X; ChatGPT's 0494d55 (cherry-picked as 7fd0a55) swaps the ring
-  // to x = sin(t)*r, z = cos(t)*depth so t = pi is the rear. Measured: symmetric, rear centre at z -0.302..-0.327,
-  // mouth >= 0.32 m wide in front of the back cushion. Arm tips stop at z ~ -0.07 (seat runs to +0.375): short arms.
-  it('tub chair shell (0494d55) is symmetric and open at the front; arm tips stay behind the seat centre (VA-0248)', async () => {
+  // 0494d55 (VA-0248) fixed the shell orientation (t = pi is the rear). 26a2f01 (VA-0250) widened the sweep to
+  // 0.12pi..1.88pi and moved the ring centre to z -0.105: arm tips now reach z +0.104..+0.137, back centre 1.015 m.
+  // Measured (18 segments): shell x +-0.342, z -0.365..+0.137; max plan radius 0.378 (seat collision circle 0.38).
+  // The arms also curve inward: the tips sit at |x| 0.113..0.126, so the front mouth is only ~0.23 m wide.
+  it('tub chair shell (26a2f01) is symmetric, arms reach forward, back is low, footprint stays inside 0.38 m (VA-0250)', async () => {
     const THREE = await import('three');
     const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
     const tpl = createVelvetTubChair(THREE) as import('three').Group;
     tpl.updateMatrixWorld(true);
     const p = (tpl.getObjectByName('VA_integrated_tub_shell') as import('three').Mesh).geometry.attributes.position;
     const back = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_tub_back_cushion')!);
-    // nothing of the shell in the middle 0.30 m in front of the back cushion: the seat is open
-    let mouth = Infinity;
-    for (let k = 0; k < p.count; k++) if (p.getZ(k) > back.max.z) mouth = Math.min(mouth, Math.abs(p.getX(k)));
-    expect(mouth).toBeGreaterThan(0.15);
+    // the centre of the mouth in front of the back cushion stays open (documented: only +-0.113 m)
+    let mouth = Infinity, radius = 0;
+    for (let k = 0; k < p.count; k++) {
+      if (p.getZ(k) > back.max.z) mouth = Math.min(mouth, Math.abs(p.getX(k)));
+      radius = Math.max(radius, Math.hypot(p.getX(k), p.getZ(k)));
+    }
+    expect(mouth).toBeGreaterThan(0.1);
+    expect(radius).toBeLessThanOrEqual(0.38);
     const shell = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_integrated_tub_shell')!);
     expect(shell.max.x + shell.min.x).toBeCloseTo(0, 2);
-    // the rear of the shell sits behind the back cushion
     expect(shell.min.z).toBeLessThanOrEqual(back.min.z);
-    // documented, not a target: arm tips end behind z = 0 (VA-0249 asks ChatGPT for longer arms)
-    expect(shell.max.z).toBeLessThan(0);
+    expect(shell.max.z).toBeGreaterThanOrEqual(0.1);
+    expect(shell.max.y).toBeCloseTo(1.015, 3);
+  });
+  // Known art bug in 26a2f01: the brass-rim block was committed with literal "\n" text, so it all sits inside a
+  // single // comment line and VA_tub_shell_brass_rim is never built. Flips to passing once ChatGPT restores real newlines.
+  it.fails('tub chair has the traced brass shell rim (26a2f01 rim is commented out by literal \\n, VA-0251)', async () => {
+    const THREE = await import('three');
+    const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
+    const tpl = createVelvetTubChair(THREE) as import('three').Group;
+    expect(tpl.getObjectByName('VA_tub_shell_brass_rim')).toBeTruthy();
   });
   it('LOD chair keeps its seat cushion, its back meeting the shell centre (VA-0198/VA-0199, read-only check)', async () => {
     const THREE = await import('three');
