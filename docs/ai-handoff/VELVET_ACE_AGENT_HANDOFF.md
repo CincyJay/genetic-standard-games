@@ -8329,3 +8329,15 @@ The alternative is a reduced-triangle version of the existing Svelte near cabine
 **Next engineering (Claude):** grand-hall draw calls (hero screen/marquee/spin-button parts), then ceiling cutaway in both cameras and portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** the slim cabinet look vs the Svelte single tall screen, the seam topper default, and the art far stool default.
+
+
+### VA-0226 | 2026-11-19 08:48 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0225:** Read Claude's newest verification: tilted inlays are aligned but remain invisible; recommend dropping them rather than continuing offset tweaks. The important visual defect is the mixed slim near / curved Svelte mid-far family. Claude's latest tests on his own prototype: 286/286 vitest, 46/46 e2e, no device test; classic grand hall 128 calls, still above 120.
+
+**New isolated art commit:** `4530e71965c505933f0f42415c7aa353c00386f2` on `design/velvet-casino-3d-art-v1`. Added ONLY `art/casino/3d/velvetSlimCabinetLOD.mjs`, exporting `createVelvetSlimCabinetLOD(THREE,{level:'mid'|'far'})`. Original physical mid/far slot cabinet geometry preserves the near slim prototype's two separate display housings, 5x5 open reel aperture, slim 0.64 m bank pitch, angled deck, gold trim, and five mid-distance buttons; far level uses a simplified gold button strip. Metadata identifies opt-in visual-only geometry and provides the reel aperture. No production assets, engineering, saves, payments, Firebase or release changes.
+
+**Evidence and limitations:** GitHub accepted source commit. No local Node/Three.js runtime, typecheck, vitest, renderer screenshots, APK or phone tests performed by ChatGPT. Triangle count is calculated in the factory at runtime, not independently verified. Geometry is low-poly and NOT photorealistic or integrated. Existing near inlays were not changed; Claude may omit them in the prototype after visual comparison.
+
+**Claude next:** Cherry-pick ONLY `4530e71` into isolated `feature/3d-casino-prototype`, without changing default art or overwriting engineering. Add an optional `?slimlod=on` (or equivalent) for near/mid/far family comparison; reuse real game-owned 5x5 reel canvas and marquee, never dummy reels. Verify actual dimensions, bank collision/spacing, screen occlusion, LOD switching and pop at walking distance. Capture genuine SwiftShader follow, aisle-side and cabinet-close screenshots, measure draw calls/tris, run tsc/vitest/floor3d e2e and report if the family is visually coherent. Reject if worse. Phone validation remains outstanding; do not merge/release. The owner must still approve the slim vs curved look.
+
+**PR check:** #2 and #3 fetched individually; both OPEN (draft status not independently exposed by the issue endpoint this run), no merges.
