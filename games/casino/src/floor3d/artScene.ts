@@ -169,7 +169,37 @@ function cabinetOf(o: THREE.Object3D): string | null {
 export function materialKey(m: THREE.Material): string {
   const s = m as THREE.MeshStandardMaterial;
   const colour = s.map || !s.color ? (s.color?.getHexString() ?? '') : '*';
-  return [m.type, s.map?.uuid ?? '', colour, s.metalness, s.roughness, s.emissive?.getHexString(), s.emissiveIntensity, m.transparent, m.opacity, m.side, m.depthWrite, m.toneMapped].join('|');
+  return [m.type, s.map?.uuid ?? '', colour, s.metalness, s.roughness, emissiveKey(m), s.emissiveIntensity, m.transparent, m.opacity, m.side, m.depthWrite, m.toneMapped].join('|');
+}
+
+/**
+ * A lit, unmapped material's non-black emissive colour can move into the vertices too (VA-0220):
+ * the ten hero slots' theme-coloured neon and trims (two materials per theme) then share two
+ * batches instead of twenty. Black stays its own key, so unlit materials never take the shader patch.
+ */
+function emissiveKey(m: THREE.Material): string | undefined {
+  const s = m as THREE.MeshStandardMaterial;
+  if (!s.emissive) return undefined;
+  const hex = s.emissive.getHexString();
+  return hex === '000000' || s.emissiveMap || !EMISSIVE_PATCHABLE.has(m.type) ? hex : '*';
+}
+const EMISSIVE_PATCHABLE = new Set(['MeshStandardMaterial', 'MeshPhysicalMaterial', 'MeshLambertMaterial', 'MeshPhongMaterial']);
+
+/** Multiplies the material's emissive by a per-vertex `emissiveColor` (survives clone()). */
+function patchVertexEmissive<M extends THREE.Material>(m: M): M {
+  m.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec3 emissiveColor;\nvarying vec3 vEmissiveColor;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvEmissiveColor = emissiveColor;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vEmissiveColor;')
+      .replace('vec3 totalEmissiveRadiance = emissive;', 'vec3 totalEmissiveRadiance = emissive * vEmissiveColor;');
+  };
+  m.customProgramCacheKey = () => 'va-vertex-emissive';
+  m.userData.vertexEmissive = true;
+  const clone = m.clone.bind(m);
+  m.clone = () => patchVertexEmissive(clone() as M);
+  return m;
 }
 
 /**
@@ -177,19 +207,35 @@ export function materialKey(m: THREE.Material): string {
  * and the shared material's own colour is white, so the product is unchanged. Returns the
  * material to draw with (the original when every piece has the same colour).
  */
-export function colourMerge(material: THREE.Material, geos: THREE.BufferGeometry[], colours: THREE.Color[]): THREE.Material {
-  if (colours.every((c) => c.equals(colours[0]))) return material;
-  geos.forEach((g, i) => {
-    const c = colours[i];
-    const n = g.attributes.position.count;
-    const rgb = new Float32Array(n * 3);
-    for (let v = 0; v < n; v++) rgb.set([c.r, c.g, c.b], v * 3);
-    g.setAttribute('color', new THREE.BufferAttribute(rgb, 3));
-  });
+export function colourMerge(material: THREE.Material, geos: THREE.BufferGeometry[], colours: THREE.Color[], emissives?: THREE.Color[]): THREE.Material {
+  const sameColour = colours.every((c) => c.equals(colours[0]));
+  const sameEmissive = !emissives || emissives.every((c) => c.equals(emissives[0]));
+  if (sameColour && sameEmissive) return material;
+  const perVertex = (name: string, cs: THREE.Color[]) =>
+    geos.forEach((g, i) => {
+      const c = cs[i];
+      const n = g.attributes.position.count;
+      const rgb = new Float32Array(n * 3);
+      for (let v = 0; v < n; v++) rgb.set([c.r, c.g, c.b], v * 3);
+      g.setAttribute(name, new THREE.BufferAttribute(rgb, 3));
+    });
   const merged = material.clone();
-  (merged as THREE.MeshStandardMaterial).color.setRGB(1, 1, 1);
-  merged.vertexColors = true;
+  if (!sameColour) {
+    perVertex('color', colours);
+    (merged as THREE.MeshStandardMaterial).color.setRGB(1, 1, 1);
+    merged.vertexColors = true;
+  }
+  if (!sameEmissive) {
+    perVertex('emissiveColor', emissives!);
+    (merged as THREE.MeshStandardMaterial).emissive.setRGB(1, 1, 1);
+    patchVertexEmissive(merged);
+  }
   return merged;
+}
+
+/** A material's emissive colour for colourMerge (black when it has none). */
+export function emissiveOf(m: THREE.Material): THREE.Color {
+  return (m as THREE.MeshStandardMaterial).emissive ?? new THREE.Color(0, 0, 0);
 }
 
 /** One mesh's geometry in its art root's space, in the one layout merging needs. */
@@ -229,7 +275,7 @@ export function bakedPieces(mesh: THREE.Mesh): THREE.BufferGeometry[] {
 export function buildGuestAvatar(height: number): THREE.Group {
   const art = makeVelvetGuestAvatar(THREE) as THREE.Group;
   art.updateMatrixWorld(true);
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[] }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[] }>();
   const all = new Set<THREE.Material>();
   art.traverse((o) => {
     const mesh = o as THREE.Mesh;
@@ -238,9 +284,10 @@ export function buildGuestAvatar(height: number): THREE.Group {
     all.add(material);
     const key = materialKey(material);
     let b = buckets.get(key);
-    if (!b) buckets.set(key, (b = { material, geos: [], colours: [] }));
+    if (!b) buckets.set(key, (b = { material, geos: [], colours: [], emissives: [] }));
     b.geos.push(bakedGeometry(mesh));
     b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
+    b.emissives.push(emissiveOf(material));
     mesh.geometry.dispose();
   });
   const box = new THREE.Box3().setFromObject(art);
@@ -248,7 +295,7 @@ export function buildGuestAvatar(height: number): THREE.Group {
   body.name = 'guest_avatar_pilot';
   const used = new Set<THREE.Material>();
   for (const b of buckets.values()) {
-    const material = colourMerge(b.material, b.geos, b.colours);
+    const material = colourMerge(b.material, b.geos, b.colours, b.emissives);
     const merged = mergeGeometries(b.geos, false)!;
     for (const g of b.geos) g.dispose();
     body.add(new THREE.Mesh(merged, material));
@@ -472,7 +519,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   }
   art.updateMatrixWorld(true);
 
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number; glow: boolean; fade: string | null }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number; glow: boolean; fade: string | null }>();
   const allMaterials = new Set<THREE.Material>();
   const wp = new THREE.Vector3();
   let meshesAuthored = 0;
@@ -493,7 +540,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     const key = part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
     let b = buckets.get(key);
     if (!b) {
-      b = { material, geos: [], colours: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false, fade };
+      b = { material, geos: [], colours: [], emissives: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false, fade };
       buckets.set(key, b);
     }
     // merging needs one layout: unindexed, with position / normal / uv only
@@ -502,6 +549,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     for (const g of bakedPieces(mesh)) {
       b.geos.push(g);
       b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
+      b.emissives.push(emissiveOf(material));
       b.names.push(mesh.name);
     }
     if (glow) b.glow = true;
@@ -534,7 +582,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     if (keys.length < 2 || !keys.some((k) => buckets.get(k)!.side)) continue;
     const parts = keys.map((k) => buckets.get(k)!);
     const geos = parts.flatMap((b) => b.geos.map((g) => g.clone()));
-    const material = colourMerge(parts[0].material, geos, parts.flatMap((b) => b.colours));
+    const material = colourMerge(parts[0].material, geos, parts.flatMap((b) => b.colours), parts.flatMap((b) => b.emissives));
     const merged = mergeGeometries(geos, false);
     for (const g of geos) g.dispose();
     if (!merged) throw new Error(`could not batch art group ${mkey}`);
@@ -548,7 +596,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     for (const k of keys) replacedKeys.add(k);
   }
   for (const [key, b] of buckets) {
-    let material = b.part ? b.material : colourMerge(b.material, b.geos, b.colours);
+    let material = b.part ? b.material : colourMerge(b.material, b.geos, b.colours, b.emissives);
     if (material !== b.material) colourBatches++;
     // a fading batch gets its own copy of the material (the same values), so its opacity is its own
     else if (b.fade) material = b.material.clone();

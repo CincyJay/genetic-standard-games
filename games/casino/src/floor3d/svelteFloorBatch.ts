@@ -9,7 +9,7 @@
  */
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { bakedPieces, colourMerge, materialKey } from './artScene';
+import { bakedPieces, colourMerge, emissiveOf, materialKey } from './artScene';
 
 export interface SvelteFloorBatch {
   root: THREE.Group;
@@ -72,7 +72,7 @@ export function cabinetBuckets(cabinet: THREE.Object3D): { buckets: CabinetBucke
   repairSvelteWinding(cabinet);
   cabinet.updateMatrixWorld(true);
   const inverseRoot = cabinet.matrixWorld.clone().invert();
-  const raw = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; screen: boolean }>();
+  const raw = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; screen: boolean }>();
   let sourceMeshes = 0;
   cabinet.traverse((o) => {
     const mesh = o as THREE.Mesh;
@@ -83,18 +83,19 @@ export function cabinetBuckets(cabinet: THREE.Object3D): { buckets: CabinetBucke
     const screen = material.name === 'VA_SVELTE_REEL_SCREEN_SWAP';
     const key = screen ? `screen|${material.uuid}` : materialKey(material);
     let b = raw.get(key);
-    if (!b) raw.set(key, (b = { material, geos: [], colours: [], screen }));
+    if (!b) raw.set(key, (b = { material, geos: [], colours: [], emissives: [], screen }));
     for (const g of bakedPieces(mesh)) {
       g.applyMatrix4(inverseRoot);
       if (!g.attributes.normal) g.computeVertexNormals();
       if (!g.attributes.uv) g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
       b.geos.push(g);
       b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
+      b.emissives.push(emissiveOf(material));
     }
   });
   const buckets: CabinetBucket[] = [];
   for (const b of raw.values()) {
-    const material = colourMerge(b.material, b.geos, b.colours);
+    const material = colourMerge(b.material, b.geos, b.colours, b.emissives);
     const geometry = mergeGeometries(b.geos, false);
     for (const g of b.geos) g.dispose();
     if (!geometry) throw new Error(`svelte batch: could not merge bucket ${b.material.name || b.material.type}`);
