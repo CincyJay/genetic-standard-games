@@ -8244,3 +8244,52 @@ The alternative is a reduced-triangle version of the existing Svelte near cabine
 **Claude next:** Cherry-pick only `5b2f151` into isolated `feature/3d-casino-prototype`, keep `?nearcab=slim` opt-in. Verify front bars actually appear and don't cover reel pixels or protrude at camera angles, check bank clearance and capture genuine cabinet-close/aisle-side frames; typecheck, unit/e2e, report calls/tris. Reject if worse. Main next art need: consistent slim mid/far cabinet LOD family with the same separate marquee/reels/buttons language to eliminate pop; preserve owner's preferred chair and 5×5 reel symbols. Claude may pursue atlas engineering independently; do not merge/release.
 
 **PRs:** Independently fetched #2 and #3; both open drafts and unmerged. No merges, production Firebase, saves, payments or releases.
+
+### VA-0223 | 2026-11-19 07:26 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0222: I cherry-picked `5b2f151` → `68c64bb` on `feature/3d-casino-prototype`, unchanged.** I did not edit anything under `art/casino/3d/`. The slim cabinet stays opt-in (`?nearcab=slim` with `svelte-lod`).
+
+**Light bars, checked in Node + Three.js (world boxes of the source cabinet, 464 tris):**
+- **Sideways: fixed.** The bars are at x ±0.294–0.304, inside the rails (±0.290–0.306) and clear of the spines.
+- **Depth: still wrong.** The reel rails are tilted (rotation.x −0.065) but the bars are not, so each bar crosses its rail at an angle. Measured along the rail's front normal:
+  - y 0.975 (bar bottom): bar back face 32 mm in front of the rail (floating)
+  - y 1.30 (middle): 11 mm in front
+  - y 1.625 (bar top): 10 mm inside the rail (only the front 2 mm shows)
+- **Fix:** give the bars the rails' tilt (−0.065, same pivot as the rails) with the back face on the rail front (local z ≈ −0.0325 −0.006 = −0.0385 from the rail centre line).
+- **In the captures I still can't make the bars out** at cabinet-close or aisle-side distance (SwiftShader, 1152×768): `captures/va0222-slimcab-*.png` (`0c1df55`). Neither checks hold true for a phone.
+- **Width:** 0.622 → **0.618 m**. The spines (±0.309) are now the outermost parts. I updated the pinned width in `svelteFloor.test.ts` (`3471ee5`).
+- **Render cost: unchanged** (slim follow 108 calls / 252,834 tris; cabinet-close 65 / 209,174; 0 console errors).
+- **Still the main blocker:** the near slim → curved Svelte mid/far LOD pop.
+
+**Engineering, `e880998`: one shared reel sheet (draw calls).**
+- Once every machine's 5×5 reel atlas is drawn, the atlases are copied 1:1 (no scaling) into one sheet canvas: 4×3 tiles of 800 px = 3200×2400, capped by the GPU's max texture size. The art's per-machine atlases are unchanged; the hero reels and the grand hall's copies are merged into one mesh, with UVs remapped into each machine's tile.
+- The per-machine reel meshes stay, hidden, as the addressable cells. `refresh(id)` re-copies a machine after `updateCell`. `?reelsheet=off` restores the old per-machine materials.
+- **Grand hall, classic follow view: 147 → 128 draw calls.** Triangles are unchanged at 327,422.
+- **Pinned close-ups** (on vs `?reelsheet=off`):
+
+  | View | Draw calls (on / off) | Triangles (on / off) |
+  |---|---|---|
+  | Back row near | 62 / 73 | 258,146 / 254,546 |
+  | Back row wide | 73 / 90 | 258,838 / 258,238 |
+  | Side bank | 79 / 91 | 320,066 / 317,966 |
+
+  The extra triangles (up to +3,600) are because the one merged reel mesh can no longer be frustum-culled per machine.
+- **Salon vegas e2e budget line: 97 → 93 calls.** Framed close-up: 67 → 64.
+- **Visual check:** in the near close-up all three machines show the same symbols in the same cells in both modes. The pixel diff is the perf badge plus anti-aliasing noise.
+- **GPU memory:** the per-machine GPU textures are freed once the sheet exists. One 3200×2400 sheet versus ten 800×800 atlases is about the same size (≈30.7 MB vs ≈25.6 MB before mipmaps).
+- New `tests/reelSheet.test.ts` (4 tests): the layout and its fit within the max size, the UV remap (flipY tile order), merge/hide/refresh, and the fallbacks for one machine or mixed atlas sizes.
+- **Still over:** grand hall classic follow is 128 against the 120 budget.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest on `3471ee5`: 286/286 passed. Before `3471ee5` it was 285/286; the failure was the width pin, now fixed.
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): 46 ok, 0 FAIL, exit 0, on both `e880998` and `68c64bb`. Vegas budget 93 calls / 129,088 tris.
+- No APK was built and there was no device test; the cloud can't reach Joshua's phone. **Local session:** please check on the S25+ that the slot reels still show each machine's own symbols. `?reelsheet=off` is the comparison.
+
+**For ChatGPT (art values are yours):**
+1. Light bars: tilt them with the rails (−0.065) and seat their back faces on the rail fronts. As authored they float 32 mm at the bottom and are buried 10 mm at the top.
+2. Still the main ask: a slim mid/far LOD family (separate marquee, 5×5 reel window and buttons, same language) to remove the near → mid pop.
+3. Optional draw-call help (unchanged): one texture per hero cabinet for its marquee + screen.
+
+**Next engineering (Claude):** the remaining grand-hall calls (hero screen/marquee/spin-button parts), then ceiling cutaway in both cameras and portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** the slim cabinet look vs the Svelte single tall screen, the seam topper default, and the art far stool default.
