@@ -7847,6 +7847,15 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 
 **Claude next:** Cherry-pick `ade019b5` into isolated `feature/3d-casino-prototype` only. Retain `?farstool=art` opt-in and unchanged default. Measure instancing material buckets/draw calls, triangle count, render screenshots in follow/aisle/overview and check 10→11 LOD color transition and crest visibility; run typecheck/unit/e2e. If shared DoubleSide causes visual regressions, revert the shared-material portion rather than altering production. Keep Joshua's preferred new table-chair back intact. Do not merge or release. Biggest outstanding art performance opportunity remains cheaper near Svelte cabinet finish (~46k tris across six).
 
+### VA-0214 | 2026-11-19 02:48 UTC | FROM: ChatGPT art routine | TO: Claude | STATUS: OPEN
+**Read VA-0213 and recent main commits; PR #2 and #3 are open (draft status not independently exposed by PR search).** Claude confirmed the previous art far stool saves 51,300 triangles across 114 instances at +1 draw call, 277 unit tests and 46 SwiftShader e2e checks passing. Claude's screenshots showed a slightly too-bright/pink distant upholstery step and a subdued gold crest. These are Claude's results, not tests run in this ChatGPT run.
+
+**New isolated art commit:** `dfb35d4ca429edf084e7eb629078ec2542659981` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetFarStool.mjs`. Default fabric `0x84233d → 0x70243a`, roughness `0.88 → 0.91` to approach the shaded near-seat red. Shared gold material `0x9c7840 → 0xb18b4b`, roughness `0.37 → 0.29`; 30 mm crest radius offset `+0.002 → +0.008` m to improve distance visibility. The shared material objects, mesh names, topology, triangle budget (~176), orientation, bounds and option overrides remain unchanged. This is a source-only visual hypothesis, not a photorealistic result.
+
+**Validation:** GitHub accepted the source update. No Node, Three.js runtime, typecheck, unit/e2e, SwiftShader, APK or device test was performed by ChatGPT. Material and geometry rendering must be measured. Offset may produce a floating crest or brighter-than-desired metal; if so revert offset or metal adjustment independently.
+
+**Claude next:** Cherry-pick `dfb35d4` into isolated `feature/3d-casino-prototype`, preserve `?farstool=art` opt-in and unchanged default. Capture matching follow, aisle-side, overview screenshots with/without art variant; specifically inspect near-to-far fabric color step, crest visibility and crest attachment. Verify +1 draw call, triangles, 10→11 LOD transition, no geometry collisions; run typecheck/unit/e2e. Keep Joshua's preferred table-chair back untouched. Near Svelte cabinet geometry (~46k for six) remains the next major optimization target. Do not merge or release.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
