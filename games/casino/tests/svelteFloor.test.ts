@@ -196,7 +196,7 @@ describe('Svelte machines switch (prototype)', () => {
     expect(lod.triangles() - cabTris).toBe(n * 626 + Math.min(n, SVELTE_NEAR_STOOLS) * 492);
   });
 
-  it('art far stool (VA-0205, opt-in): faces the cabinet like the near stool, cushion level with it, inside the stool circle, fewer triangles', async () => {
+  it('art far stool (VA-0205/0209, opt-in): faces the cabinet like the near stool, cushion level with it, inside the stool circle, fewer triangles', async () => {
     const { createVelvetSlotStool } = await import('../../../art/casino/3d/velvetSlotStool.mjs');
     const tris = (o: THREE.Object3D) => { let t = 0; o.traverse((m) => { const g = (m as THREE.Mesh).geometry; if ((m as THREE.Mesh).isMesh) t += (g.index ? g.index.count : g.attributes.position!.count) / 3; }); return t; };
     const near = createVelvetSlotStool(THREE) as THREE.Group;
@@ -208,18 +208,20 @@ describe('Svelte machines switch (prototype)', () => {
     expect(tris(far)).toBeLessThan(200);
     // the backrest sits behind the seat: at -Z in the host's frame, like the near stool's back shell
     const backZ = (o: THREE.Object3D, name: RegExp) => { const b = new THREE.Box3(); o.updateMatrixWorld(true); o.traverse((m) => { if ((m as THREE.Mesh).isMesh && name.test(m.name)) b.expandByObject(m); }); return b; };
-    expect(backZ(far, /^backrest$/).getCenter(new THREE.Vector3()).z).toBeLessThan(-0.1);
+    // 40d51af (VA-0209): the slab backrest became a curved open-front tub back, top 0.92 m like the near stool's rim
+    const tub = backZ(far, /^curved_tub_back$/);
+    expect(tub.getCenter(new THREE.Vector3()).z).toBeLessThan(-0.1);
+    expect(tub.max.y).toBeCloseTo(0.92, 3);
+    expect(backZ(far, /^tub_gold_crest$/).max.y).toBeLessThan(0.925);
     expect(backZ(near, /back|shell/).getCenter(new THREE.Vector3()).z).toBeLessThan(-0.05);
     // cushion tops level within 1 cm; the whole stool on the floor and inside its collision circle
     const cushion = backZ(far, /^seat_cushion$/);
     expect(Math.abs(cushion.max.y - 0.675)).toBeLessThan(0.01);
     const all = new THREE.Box3().setFromObject(far);
-    // the art's foot is centred at 0.028 m and 0.055 m tall, so it floats 0.5 mm: invisible, reported on the board
-    expect(all.min.y).toBeGreaterThanOrEqual(0);
-    expect(all.min.y).toBeLessThan(0.002);
-    // the tilted backrest reaches ~0.276 m behind the pedestal, 6 mm past the 0.27 m circle: reported, not a walk-through
-    expect(Math.max(all.max.z, -all.min.x, all.max.x)).toBeLessThanOrEqual(BANK.stoolR);
-    expect(-all.min.z).toBeLessThan(BANK.stoolR + 0.01);
+    // 40d51af puts the foot on the floor (centre 0.0275, 0.055 tall)
+    expect(all.min.y).toBeCloseTo(0, 6);
+    // the tub (r 0.2496) and crest (+2 mm) stay inside the 0.27 m stool circle on every side
+    expect(Math.max(all.max.z, -all.min.z, -all.min.x, all.max.x)).toBeLessThanOrEqual(BANK.stoolR);
   });
 
   it('islands (VA-0197): the grand hall side banks stand back to back, caps and stools all fit, every machine reachable', async () => {
