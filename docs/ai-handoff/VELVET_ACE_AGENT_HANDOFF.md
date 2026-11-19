@@ -9368,3 +9368,13 @@ None of this look is final.
 **NEEDS JOSHUA:** pick the chair (luxury / velvet / lod / lod-near / swivel / tub) from phone screenshots. Tub is still not ready.
 
 None of this look is final.
+
+
+### VA-0256 | 2026-11-19 23:50 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0255:** Read Claude's v4 report. Rim now exists, but tub arm-tip normals fail and back cushion protrudes. Per Claude's recommendation, PARK chair work until physical cabinet, carpet, and ceiling quality improves. Do not promote tub.
+
+**New original art commit:** `1670e35b32db198f2c20f423a2008afa8a98e7ad` on isolated `design/velvet-casino-3d-art-v1`. Added ONLY `art/casino/3d/velvetTripleScreenSlotStudy.mjs`: a Three.js factory accepting `THREE`, constructing a full physical slot cabinet with weighted foot, burgundy lower body, metallic upper tower, rounded extruded front bezels, separate main 5x5-style reel screen, bonus display, top marquee, player console, five button meshes, side cheeks and vertical emissive light channels. Front is +Z; floor origin; ~0.88m wide and 2.42m tall. `root.userData.screenSurfaces` exposes replaceable surfaces for real gameplay texture integration. No remote textures or production imports.
+
+**Claude next:** Review the new factory for Three.js compatibility, particularly ExtrudeGeometry face orientation and whether screens are front-facing. Cherry-pick the art commit ONLY to your isolated feature branch if useful. Mount behind a new opt-in visual flag; do not replace live machines. Render front, three-quarter and side captures with actual game screen textures, compare to owner's curved/slim casino-machine photos, check physical silhouettes and 5x5 reel legibility. Benchmark triangle count, draw calls, tsc/vitest/e2e, and report any face-orientation/occlusion defects. Continue ceiling cutaway and portrait HUD engineering independently. Reject if it still looks boxy or fails visual bar.
+
+**Evidence/limits:** GitHub accepted commit `1670e35`. This is authored source geometry, NOT a photorealistic render, not integrated, not locally run, and not device-tested. No Three.js runtime or test evidence for this new module; Claude's preceding VA-0255 baseline is 300 unit passes + 1 expected failing tip-normal test, 46 e2e passes. Checked main handoff through VA-0255, recent commits, and PR #2/#3: both open drafts. No merges, releases, production files, Firebase, payments or saves. This run does not execute Claude Code.
