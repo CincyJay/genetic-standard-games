@@ -48,7 +48,44 @@ export const SVELTE_NEAR_STOOLS = 10;
  */
 export const FAR_STOOL_DROP = /^stool_(back_button_\d+|gold_foot_spoke_\d+|gold_foot_ring|cushion_piping|gold_base_dome)$/;
 
-/** The stool as authored minus FAR_STOOL_DROP (materials shared; geometry copied, since the LOD consumes each level's). */
+/**
+ * Segment counts for the far stool's round parts (VA-0230, Claude-owned performance). The far stool is
+ * drawn ~100 times in a grand-hall view (every stool outside the nearest SVELTE_NEAR_STOOLS), so its
+ * 626 triangles were ~71k of the follow view's ~227k. The two gold tori (1.2–1.6 cm tubes) go to a
+ * 3-sided tube and the discs/cylinders to 14 sides (pedestal 8); every other parameter (radii, heights,
+ * arcs, open ends) is copied from the authored geometry, and the mesh placement is untouched. The two
+ * back shells keep the authored geometry (the inner one has its winding flipped by the art). The near
+ * stool is unchanged.
+ */
+export const FAR_STOOL_SEGMENTS: Readonly<Record<string, { radial?: number; tubular?: number; width?: number }>> = {
+  stool_gold_base: { radial: 14 },
+  stool_gold_pedestal: { radial: 8 },
+  stool_gold_seat_pan: { radial: 14 },
+  stool_gold_seat_ring: { radial: 3, tubular: 14 },
+  stool_leather_cushion: { radial: 14 },
+  stool_leather_cushion_top: { width: 14 },
+  stool_gold_back_rim: { radial: 3, tubular: 12 },
+};
+
+/** `g` rebuilt from its own parameters with `seg`'s segment counts, or a plain copy when it can't be. */
+function fewerSegments(g: THREE.BufferGeometry, seg: { radial?: number; tubular?: number; width?: number } | undefined): THREE.BufferGeometry {
+  if (!seg) return g.clone();
+  if (g instanceof THREE.CylinderGeometry) {
+    const p = g.parameters;
+    return new THREE.CylinderGeometry(p.radiusTop, p.radiusBottom, p.height, seg.radial ?? p.radialSegments, p.heightSegments, p.openEnded, p.thetaStart, p.thetaLength);
+  }
+  if (g instanceof THREE.TorusGeometry) {
+    const p = g.parameters;
+    return new THREE.TorusGeometry(p.radius, p.tube, seg.radial ?? p.radialSegments, seg.tubular ?? p.tubularSegments, p.arc);
+  }
+  if (g instanceof THREE.SphereGeometry) {
+    const p = g.parameters;
+    return new THREE.SphereGeometry(p.radius, seg.width ?? p.widthSegments, p.heightSegments, p.phiStart, p.phiLength, p.thetaStart, p.thetaLength);
+  }
+  return g.clone();
+}
+
+/** The stool as authored minus FAR_STOOL_DROP, its round parts at FAR_STOOL_SEGMENTS (materials shared; geometry copied, since the LOD consumes each level's). */
 export function farStool(stool: THREE.Object3D): THREE.Object3D {
   const far = stool.clone(true);
   const drop: THREE.Object3D[] = [];
@@ -56,7 +93,7 @@ export function farStool(stool: THREE.Object3D): THREE.Object3D {
     const m = o as THREE.Mesh;
     if (!m.isMesh) return;
     if (FAR_STOOL_DROP.test(m.name)) drop.push(m);
-    else m.geometry = m.geometry.clone();
+    else m.geometry = fewerSegments(m.geometry, FAR_STOOL_SEGMENTS[m.name]);
   });
   for (const o of drop) o.removeFromParent();
   return far;

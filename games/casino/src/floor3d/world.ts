@@ -103,7 +103,7 @@ export interface FloorHandle {
     screenOf: (x: number, y: number, z: number) => { x: number; y: number };
     seatScreen: (id: string) => { x: number; y: number };
     /** What the camera draws this frame, mesh by mesh (VA-0052). */
-    drawList: () => { name: string; tris: number; glow: boolean }[];
+    drawList: () => { name: string; tris: number; glow: boolean; instances: number }[];
     tap: (sx: number, sy: number) => void;
     /** The visible meshes under a screen point (CSS pixels), nearest first. */
     pick: (sx: number, sy: number) => { name: string; dist: number; material: string }[];
@@ -1288,13 +1288,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       /** Meshes the camera can see this frame, by name: about one draw call each (a two-sided transparent one draws twice), for trimming the budget. */
       drawList: () => {
         const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-        const out: { name: string; tris: number; glow: boolean }[] = [];
+        const out: { name: string; tris: number; glow: boolean; instances: number }[] = [];
         scene.traverseVisible((o) => {
           const m = o as THREE.Mesh;
           if (!(m.isMesh || (o as THREE.Sprite).isSprite) || (m.material as THREE.Material).visible === false || (m.frustumCulled && !frustum.intersectsObject(m))) return;
           const g = m.geometry;
           const tris = g ? (g.index ? g.index.count : g.attributes.position.count) / 3 : 0;
-          out.push({ name: m.name || (m.parent?.name ? `${m.parent.name}>` : '') + `${m.type}:${(m.material as THREE.Material)?.type ?? ''}:${o.position.x.toFixed(1)},${o.position.y.toFixed(1)},${o.position.z.toFixed(1)}`, tris: Math.round(tris), glow: m.userData.glow === true });
+          out.push({ name: m.name || (m.parent?.name ? `${m.parent.name}>` : '') + `${m.type}:${(m.material as THREE.Material)?.type ?? ''}:${o.position.x.toFixed(1)},${o.position.y.toFixed(1)},${o.position.z.toFixed(1)}`, tris: Math.round(tris), glow: m.userData.glow === true, instances: (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1 });
         });
         return out;
       },

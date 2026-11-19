@@ -4,7 +4,7 @@ import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
 import { NavGrid } from '../src/floor3d/nav.ts';
 import { buildArtScene } from '../src/floor3d/artScene.ts';
-import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps, slimNearCabinet, slimLodCabinet, SLIM_SCREEN, SLIM_MARQUEE } from '../src/floor3d/svelteFloor.ts';
+import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, FAR_STOOL_SEGMENTS, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps, slimNearCabinet, slimLodCabinet, SLIM_SCREEN, SLIM_MARQUEE } from '../src/floor3d/svelteFloor.ts';
 
 describe('Svelte machines switch (prototype)', () => {
   it('puts one end cap past each end of a row, facing out', () => {
@@ -167,7 +167,27 @@ describe('Svelte machines switch (prototype)', () => {
     expect(names(far)).toEqual(names(stool).filter((n) => !FAR_STOOL_DROP.test(n)));
     expect(names(stool).filter((n) => FAR_STOOL_DROP.test(n))).toHaveLength(11); // 5 buttons, 3 spokes, foot ring, piping, base dome
     expect(tris(stool)).toBe(1118);
-    expect(tris(far)).toBe(626);
+    // VA-0230: fewer segments on the round parts (was 626 with the authored counts)
+    expect(tris(far)).toBe(406);
+    // same parts, same radii/heights/arcs, same placement: only the segment counts change
+    const geo = (o: THREE.Object3D) => { const r = new Map<string, THREE.Mesh>(); o.traverse((m) => { if ((m as THREE.Mesh).isMesh) r.set(m.name, m as THREE.Mesh); }); return r; };
+    const a = geo(stool), b = geo(far);
+    const SEG = new Set(['radialSegments', 'tubularSegments', 'widthSegments']);
+    for (const [name, mf] of b) {
+      const ma = a.get(name)!;
+      expect(mf.position.toArray()).toEqual(ma.position.toArray());
+      expect(mf.quaternion.toArray()).toEqual(ma.quaternion.toArray());
+      expect(mf.material).toBe(ma.material);
+      const pa = (ma.geometry as unknown as { parameters: Record<string, unknown> }).parameters;
+      const pf = (mf.geometry as unknown as { parameters: Record<string, unknown> }).parameters;
+      for (const k of Object.keys(pa)) if (!SEG.has(k)) expect(pf[k], `${name}.${k}`).toBe(pa[k]);
+      if (FAR_STOOL_SEGMENTS[name]) expect(mf.geometry.type).toBe(ma.geometry.type);
+    }
+    const boxA = new THREE.Box3().setFromObject(stool), boxB = new THREE.Box3().setFromObject(far);
+    // within 1.5 cm of the authored stool's bounds (fewer sides cut the circles' extremes slightly)
+    for (const k of ['min', 'max'] as const) for (const ax of ['x', 'y', 'z'] as const) expect(Math.abs(boxB[k][ax] - boxA[k][ax])).toBeLessThan(0.015);
+    // the near stool is untouched
+    expect(tris(createVelvetSlotStool(THREE) as THREE.Group)).toBe(1118);
 
     const layout = layoutFor('salon', true, false);
     const plan = planBanks(layout.slots, obstaclesFor(true, false).filter((o) => o.id !== 'pilot-luxury-chair'), layout.room);
@@ -189,11 +209,11 @@ describe('Svelte machines switch (prototype)', () => {
       for (let i = 0; i < im.count; i++) { im.getMatrixAt(i, m); v.setFromMatrixPosition(m); expect(v.y).toBeCloseTo(0, 5); placed.push(key(v.x, v.z)); }
     }
     expect(placed.sort()).toEqual(authored);
-    // stools add 626 triangles each, plus 492 more for each of the nearest
+    // stools add 406 triangles each, plus 712 more for each of the nearest
     const cabinetsOnly = lod.root.children[0];
     let cabTris = 0;
     cabinetsOnly.traverse((o) => { const im = o as THREE.InstancedMesh; if (im.isInstancedMesh && im.visible) cabTris += (im.geometry.index ? im.geometry.index.count : im.geometry.attributes.position!.count) / 3 * im.count; });
-    expect(lod.triangles() - cabTris).toBe(n * 626 + Math.min(n, SVELTE_NEAR_STOOLS) * 492);
+    expect(lod.triangles() - cabTris).toBe(n * 406 + Math.min(n, SVELTE_NEAR_STOOLS) * 712);
   });
 
   it('art far stool (VA-0205/0209, opt-in): faces the cabinet like the near stool, cushion level with it, inside the stool circle, fewer triangles', async () => {
