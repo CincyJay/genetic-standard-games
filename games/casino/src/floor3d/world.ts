@@ -23,6 +23,7 @@ import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, readCeilingStyle, readChairStyle } from './grandHallArt.ts';
 import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
+import { buildReelSheet, type ReelSheet, type ReelSource } from './reelSheet.ts';
 import { perfText, protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
 
@@ -71,6 +72,8 @@ export interface FloorStats {
   reelCells: number;
   /** Machines whose reels show their symbol atlas (loads after the floor opens). */
   reelTextures: number;
+  /** The shared reel sheet (VA-0222), once built: machines tiled, sheet px, reel meshes merged, triangles. */
+  reelSheet: { machines: number; size: [number, number]; meshes: number; triangles: number } | null;
   /** Showing the art pass 05 pilot (carpet, ceiling, hero cabinet, chair). */
   pilot05: boolean;
   /** Which floor was built: the salon or the grand hall preview (VA-0064). */
@@ -364,12 +367,18 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // Each cabinet's 25 reel cells show its machine's real symbols (the same PNGs the 2D slots use),
   // as one 5x5 canvas atlas per machine. Static idle boards only: no spins, wins or balances.
   let reelTextures = 0;
+  // once every machine's atlas is drawn, all reels share one sheet texture and one draw call
+  // (VA-0222); `?reelsheet=off` keeps one material per machine for comparison
+  const reelSources: ReelSource[] = [];
+  const reelLoads: Promise<unknown>[] = [];
+  let reelSheet: ReelSheet | null = null;
   for (const m of MACHINES) {
     const mesh = art.interactive.get(`slot_${m.id}/reels`);
     if (!mesh) continue;
-    createVelvetReelArt(THREE, m.id, m.symbols, { base: './art' })
-      .then((reel: { texture: THREE.Texture; dispose: () => void }) => {
+    const load = createVelvetReelArt(THREE, m.id, m.symbols, { base: './art' })
+      .then((reel: { texture: THREE.Texture; canvas: HTMLCanvasElement; dispose: () => void }) => {
         if (disposed) return reel.dispose();
+        reelSources.push({ id: m.id, canvas: reel.canvas, meshes: [mesh] });
         applyVelvetReelAtlas(THREE, mesh, reel);
         // the grand hall's copies of this machine: the same atlas, mapped 25 cells at a time
         const copies = art.reelCopies.get(m.id);
@@ -382,12 +391,27 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
             (chunk.material as unknown as THREE.Material | null)?.dispose();
           }
           copies.material = mesh.material;
+          reelSources[reelSources.length - 1].meshes.push(copies);
         }
         // the old reel material may be shared with other batches; dispose() frees it with the scene
         delete mesh.userData.originalMaterial;
         reelTextures++;
       })
       .catch((err: unknown) => console.warn('[floor3d] reel art', m.id, err));
+    reelLoads.push(load);
+  }
+  if (reelLoads.length > 1 && devFlag('reelsheet') !== 'off') {
+    void Promise.allSettled(reelLoads).then(() => {
+      if (disposed) return;
+      // a stable tile order whatever order the atlases finished in
+      reelSources.sort((a, b) => MACHINES.findIndex((x) => x.id === a.id) - MACHINES.findIndex((x) => x.id === b.id));
+      reelSheet = buildReelSheet(reelSources, Math.min(4096, renderer.capabilities.maxTextureSize), (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h }));
+      if (!reelSheet) return;
+      art.root.add(reelSheet.mesh);
+      // the hidden per-machine reels keep their canvases (refresh redraws from them); their GPU
+      // copies are freed and would be uploaded again only if they were shown
+      for (const s of reelSources) for (const r of s.meshes) ((r.material as THREE.MeshBasicMaterial).map as THREE.Texture | null)?.dispose();
+    });
   }
 
   // ------------------------------------------------------------------ gameplay proxies
@@ -1203,6 +1227,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       artBatches: art.batches,
       artInteractive: art.interactive.size,
       reelTextures,
+      reelSheet: reelSheet ? { machines: reelSheet.tiles.size, size: [reelSheet.layout.width, reelSheet.layout.height], meshes: reelSources.reduce((n, r) => n + r.meshes.length, 0), triangles: (reelSheet.mesh.geometry.getAttribute('position').count / 3) | 0 } : null,
       heroTextures: [art.heroTextures.length, heroMaps.size],
       heroSignLift: art.heroSignLift,
       pilot05,
