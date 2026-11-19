@@ -14,8 +14,8 @@ export function createVelvetFarStool(THREE, options = {}) {
   const seatWidth = clamp(options.seatWidth, 0.48, 0.35, 0.65);
   const root = new THREE.Group();
   root.name = 'velvet_far_stool';
-  const fabric = new THREE.MeshStandardMaterial({color: options.fabricColor ?? 0x531b32, roughness: 0.88, metalness: 0});
-  const metal = new THREE.MeshStandardMaterial({color: options.metalColor ?? 0x9c7840, roughness: 0.37, metalness: 0.72});
+  const fabric = new THREE.MeshStandardMaterial({color: options.fabricColor ?? 0x84233d, roughness: 0.88, metalness: 0, side: THREE.DoubleSide});
+  const metal = new THREE.MeshStandardMaterial({color: options.metalColor ?? 0x9c7840, roughness: 0.37, metalness: 0.72, side: THREE.DoubleSide});
   const shadow = new THREE.MeshStandardMaterial({color: 0x211b21, roughness: 0.95});
   const add = (name, geo, mat, x, y, z) => {
     const mesh = new THREE.Mesh(geo, mat);
@@ -52,17 +52,15 @@ export function createVelvetFarStool(THREE, options = {}) {
   curvedBack.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   curvedBack.setIndex(indices);
   curvedBack.computeVertexNormals();
-  const tubFabric = fabric.clone();
-  tubFabric.side = THREE.DoubleSide;
-  add('curved_tub_back', curvedBack, tubFabric, 0, 0, 0);
-  // A second, thin gold band marks the top of the curved upholstery.
+  add('curved_tub_back', curvedBack, fabric, 0, 0, 0);
+  // A 30 mm gold crest is legible at distance and shares the pedestal material.
   const trimVertices = [];
   const trimIndices = [];
   for (let i = 0; i <= 8; i++) {
     const angle = Math.PI * i / 8;
     const x = (radius + 0.002) * Math.cos(angle);
     const z = (radius + 0.002) * Math.sin(angle);
-    trimVertices.push(x, 0.908, z, x, 0.922, z);
+    trimVertices.push(x, 0.895, z, x, 0.925, z);
     if (i < 8) {
       const k = i * 2;
       trimIndices.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
@@ -72,9 +70,7 @@ export function createVelvetFarStool(THREE, options = {}) {
   trimGeo.setAttribute('position', new THREE.Float32BufferAttribute(trimVertices, 3));
   trimGeo.setIndex(trimIndices);
   trimGeo.computeVertexNormals();
-  const trimMetal = metal.clone();
-  trimMetal.side = THREE.DoubleSide;
-  add('tub_gold_crest', trimGeo, trimMetal, 0, 0, 0);
+  add('tub_gold_crest', trimGeo, metal, 0, 0, 0);
   // Approx. 176 triangles. Actual indexed count is recorded below.
   const triangles = root.children.reduce((sum, mesh) => {
     const g = mesh.geometry;
