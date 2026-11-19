@@ -1233,4 +1233,26 @@ describe('woven medallion carpet texture (436ef01, VA-0234, ?carpetart=on)', () 
     expect(b.position.toArray()).toEqual(a.position.toArray());
     expect(b.geometry.parameters).toEqual(a.geometry.parameters);
   });
+  it('?carpetart=damask2 selects the interlaced damask (5c65389, VA-0238) on the same mesh and square repeat', async () => {
+    const THREE = await import('three');
+    const { carpetArtFrom, carpetMotifFrom, composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
+    const { grandFloorLayout } = await import('../src/floor3d/grandHall.ts');
+    expect(carpetArtFrom('?carpetart=damask2')).toBe(true);
+    expect(carpetMotifFrom('?carpetart=damask2')).toBe('interlaced-damask');
+    expect(carpetMotifFrom('?carpetart=vine')).toBe('woven-vine');
+    const g = grandFloorLayout();
+    type Plane = InstanceType<typeof THREE.Mesh<InstanceType<typeof THREE.PlaneGeometry>>>;
+    const med = composeGrandHall(g, { liftSign: () => 0, carpetCanvas: stubCanvas(), carpetArt: true, carpetMotif: 'medallion' });
+    const d2 = composeGrandHall(g, { liftSign: () => 0, carpetCanvas: stubCanvas(), carpetArt: true, carpetMotif: 'interlaced-damask' });
+    expect(d2.carpetMotif).toBe('interlaced-damask');
+    const a = med.root.getObjectByName('VA_opt_in_patterned_carpet') as Plane;
+    const b = d2.root.getObjectByName('VA_opt_in_patterned_carpet') as Plane;
+    expect(b.userData.carpetArt).toBe('5c65389');
+    const ma = (a.material as InstanceType<typeof THREE.MeshStandardMaterial>).map!;
+    const mb = (b.material as InstanceType<typeof THREE.MeshStandardMaterial>).map!;
+    expect(mb.userData.velvetArt.motif).toBe('interlaced-damask');
+    expect(mb.repeat.toArray()).toEqual(ma.repeat.toArray());
+    expect(b.position.toArray()).toEqual(a.position.toArray());
+    expect(b.geometry.parameters).toEqual(a.geometry.parameters);
+  });
 });

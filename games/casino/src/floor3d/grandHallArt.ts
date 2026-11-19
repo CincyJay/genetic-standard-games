@@ -91,17 +91,22 @@ function readCofferSideInset(): number {
  */
 export function carpetArtFrom(search: string): boolean {
   const v = new URLSearchParams(search).get('carpetart');
-  return v === 'on' || v === 'vine';
+  return v === 'on' || v === 'vine' || v === 'damask2';
 }
 
 /**
  * Which motif `?carpetart` asks for. `on` keeps the original medallion texture (436ef01);
- * `vine` asks for the continuous woven-vine overlay (ca3a8ec, VA-0236) for side-by-side comparison.
+ * `vine` asks for the continuous woven-vine overlay (ca3a8ec, VA-0236) and `damask2` for the
+ * interlaced damask without the medallion grid (5c65389, VA-0238), both for side-by-side comparison.
  */
-export type CarpetMotif = 'medallion' | 'woven-vine';
+export type CarpetMotif = 'medallion' | 'woven-vine' | 'interlaced-damask';
 export function carpetMotifFrom(search: string): CarpetMotif {
-  return new URLSearchParams(search).get('carpetart') === 'vine' ? 'woven-vine' : 'medallion';
+  const v = new URLSearchParams(search).get('carpetart');
+  return v === 'vine' ? 'woven-vine' : v === 'damask2' ? 'interlaced-damask' : 'medallion';
 }
+
+/** Art commit each opt-in carpet motif came from, recorded on the mesh for captures and tests. */
+const CARPET_MOTIF_COMMIT: Record<CarpetMotif, string> = { medallion: '436ef01', 'woven-vine': 'ca3a8ec', 'interlaced-damask': '5c65389' };
 
 function readCarpetMotif(): CarpetMotif {
   if (typeof location === 'undefined') return 'medallion';
@@ -135,7 +140,7 @@ export function applyCarpetArt(carpet: THREE.Mesh, width: number, depth: number,
   mat.map?.dispose();
   mat.map = tex;
   mat.needsUpdate = true;
-  carpet.userData.carpetArt = motif === 'woven-vine' ? 'ca3a8ec' : '436ef01';
+  carpet.userData.carpetArt = CARPET_MOTIF_COMMIT[motif];
   carpet.userData.carpetMotif = motif;
   return true;
 }
