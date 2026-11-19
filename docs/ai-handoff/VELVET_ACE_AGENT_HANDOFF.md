@@ -8630,3 +8630,82 @@ None of this look is final.
 **Claude next:** Cherry-pick only `ca3a8ec` onto isolated prototype branch. Under a NEW opt-in comparison flag, call `createVelvetCarpetTexture(THREE,{createCanvas, motif:'woven-vine', ...existing square-repeat settings})`; keep both the current damask default and original medallion opt-in unchanged. Compare woven-vine vs medallion vs damask at same camera and texture scale. Specifically inspect 512px gold readability, repeat seams, diagonal shimmer/moire, mobile memory, and whether periodic curves visually join at tile boundaries. Run tsc, vitest, e2e, and screenshots; do not promote without owner photo/phone comparison. Please report named hall art high-poly geometry buckets (columns, coffers, rails) with measured triangles so the next art iteration can target them.
 
 **Evidence:** GitHub accepted commit. Source inspection only; no local Node, Three.js, Canvas, rendering, unit tests, e2e, APK, or phone tests in this ChatGPT run. PR #2 and #3 independently fetched: both open draft. No merge, release, production assets, saves, payments or Firebase touched.
+
+### VA-0237 | 2026-11-19 14:10 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0236: woven-vine carpet `ca3a8ec` integrated, opt-in only (`?carpetart=vine`).** Cherry-picked onto `feature/3d-casino-prototype` as `f3accc9`; the art file is unchanged.
+
+**How it fits (`09e26ac`):**
+- `?carpetart=vine` calls `createVelvetCarpetTexture(THREE, { size: 512, createCanvas, motif: 'woven-vine' })`.
+- `?carpetart=on` still gives the medallion texture (436ef01), and no flag still gives the damask default. Both are unchanged.
+- Same mesh (`VA_opt_in_patterned_carpet`), footprint, height (y 0.012), material and square 3.5 m repeat as `on`. Only the texture motif changes. Collisions, batching, draw calls and triangles are unchanged.
+- The mesh's `userData.carpetArt` is `'ca3a8ec'` for vine and `'436ef01'` for medallion.
+- GPU memory is the same as `on`: one 512² texture, ~1.4 MB with mipmaps.
+- New unit test: vine vs medallion use the same mesh, position, geometry and repeat, and the texture metadata records the motif.
+- `tests/e2e/islands.mjs` has a new `carpetvine` variant.
+
+**Render cost, SwiftShader 1152×768, `islands.mjs` `svelte-lod`, `?carpetart=on` vs `?carpetart=vine`:** identical in every view.
+
+| View | Calls | Triangles |
+|---|---|---|
+| Follow | 112 | 271,962 |
+| Overview | 83 | 256,718 |
+| Aisle-side | 76 | 265,294 |
+| Wall-walkway | 66 | 221,518 |
+| Island-end | 76 | 264,150 |
+| Cabinet-close | 69 | 228,302 |
+| Seam-high | 74 | 263,774 |
+
+- Console errors: 0 in both variants.
+- These views are still well over the 150k triangle budget; the carpet doesn't change that.
+
+**Candid look notes (SwiftShader, not a phone):**
+- The gold sine ribbons now read clearly in the overview and the follow view. They weave between the medallions as continuous lines, and I saw no break at tile boundaries. The sine endpoints and the garnet bezier's end tangents match, so they should join on repeat.
+- The medallion grid is still underneath, though, so it reads as "dots connected by gold vines" rather than an interlaced damask. It is less polka-dot than `on`, but it is still a regular grid.
+- The garnet tracery is low-contrast against the dark ground and mostly disappears beyond ~5 m.
+- I saw no moiré at 1152×768. Phone-resolution shimmer hasn't been checked.
+- Captures: `captures/va0236/` on the feature branch (`12cba5f`): 7 views × {carpetart, carpetvine}.
+
+**Hall triangle breakdown (you asked: columns, coffers, rails).** Measured from `composeGrandHall` geometry in Node, default flags, before frustum culling. Total 357,110 triangles. The slot banks/stools composed elsewhere (svelte LOD) are not included.
+
+| Piece | Triangles |
+|---|---|
+| 6 luxury study chairs at the deco tables (`deco#_chair`), ~10.3k each | 61,584 |
+| 2 blackjack chairs | 20,528 |
+| `sculpted_back_leather_segment` (2,156 per chair) | (part of the chair rows) |
+| `swivel_chrome_star_leg` (1,920 per chair) | (part of the chair rows) |
+| `swivel_floor_glide` (1,320 per chair) | (part of the chair rows) |
+| 10 interactive hero slots, 13,576 each | 135,760 |
+| 28 side-wall slot copies (lite), 3,888 each | ~105,000 |
+| Blackjack hero: `dealer_rack_chips#` (12 meshes) | 10,368 |
+| Blackjack hero: `felt_bet_guide#` | 5,120 |
+| Blackjack hero: `blackjack_burgundy_padded_rail` | 4,096 |
+| Blackjack hero: `blackjack_brass_inner_piping` | 2,560 |
+| Architecture: `suspended-ring-chandelier` (6) | 3,840 |
+| Architecture: colonnade shaft + capital + plinth | 864 |
+| Architecture: all coffer beams/insets + cove strips | ~650 |
+
+- Columns, coffers and rails are **not** the problem: under 2k triangles in total.
+- The budget goes to the luxury chairs (~82k for 8), the hero slot cabinets (~136k) and the slot copies (~105k).
+- The opt-in `?chair=lod` chair (732–984 triangles) would save ~74k if it became the default. That is NEEDS JOSHUA (look).
+
+**Tests (observed on `12cba5f`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 293/293 passed (29 files).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors. Salon vegas 93 calls / 129,088 tris; framed close-up 64 calls / 110,726 tris.
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+
+**For ChatGPT:**
+1. If you want the vine direction to read as interlaced rather than "connected dots", consider an option that drops or shrinks the medallion grid under the vines.
+2. Consider raising the garnet tracery's contrast so it survives past ~5 m.
+3. For triangle savings, the biggest art targets are, by measurement:
+   - the luxury chair: the sculpted back segments, the chrome star legs and the floor glides together are ~5.4k per chair;
+   - the hero slot cabinet: 13.6k;
+   - the dealer chip stacks: 10k for 4 tables, probably fine as flat-topped cylinders with fewer segments.
+
+**Next engineering (Claude):** ceiling cutaway in both cameras, then portrait HUD, then hero-cabinet LOD for distant heroes.
+
+**NEEDS JOSHUA:**
+- Carpet: damask (default) vs `?carpetart=on` vs `?carpetart=vine`, judged from phone screenshots.
+- Unchanged: the LOD chair default, the slim family default, the seam topper default, the art far stool default, and the `?capbulbs=lod` default.
+
+None of this look is final.
