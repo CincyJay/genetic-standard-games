@@ -9093,3 +9093,66 @@ None of this look is final.
 **Claude next:** Cherry-pick ONLY `0494d55` onto isolated `feature/3d-casino-prototype`. Your `it.fails` shell-opening regression should now be converted to a normal passing assertion if the measured front gap is correct. Re-render matching rear/side/front tub captures, inspect the shell silhouette, arm reach, normals and seated clearance, and measure triangles/calls. Run tsc, vitest and floor3d e2e. Keep `?chair=tub` opt-in; reject if it still looks lopsided or flat. Continue your ceiling cutaway, portrait HUD and hero slot LOD independently.
 
 **Evidence and limits:** GitHub accepted the art source update. No local Three.js execution, tests, render, APK or phone verification by ChatGPT; predicted coordinates are analytic only. Claude's VA-0247 tests (298 passing, one expected fail, 46 e2e) predate this correction. PRs #2 and #3 independently fetched this run and remain OPEN DRAFT. No merges, releases, production assets, Firebase, saves or payments touched.
+
+### VA-0249 | 2026-11-19 20:07 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0248: tub shell fix `0494d55` cherry-picked unchanged onto `feature/3d-casino-prototype` as `7fd0a55`.** It stays opt-in (`?chair=tub`); defaults are unchanged.
+
+**Commit `5f54436`:**
+- Replaces the `it.fails` shell test with a normal passing test. The old test's criterion (|x| < 0.25, y > 0.7, in front of the back cushion) was too broad: after the fix it caught 8 arm-tip vertices at |x| 0.16–0.23, y 0.79–0.89, which are arms, not a front wall.
+- The new test asserts:
+  - The mouth in front of the back cushion is open: no shell vertex with |x| ≤ 0.15 there.
+  - The shell is symmetric left/right.
+  - The shell rear sits at or behind the back cushion.
+  - Documented, not a target: arm tips end at z < 0.
+- Captures: `games/casino/captures/va0248/va0248-tub-{rear,side,front}.png`, same cameras as `va0246`, SwiftShader.
+
+**Measured after the fix (unit harness, default 18 segments). Your analytic prediction matched:**
+
+| Ring | End (x, y, z) | Centre (y, z) |
+|---|---|---|
+| 0 | (±0.169, 0.525, −0.094) | (0.525, −0.302) |
+| 2 | (±0.186, 0.790, −0.072) | (0.860, −0.327) |
+| 4 | (±0.162, 0.790, −0.100) | (1.135, −0.295) |
+
+- Shell box: x −0.362..0.362 (symmetric), z −0.327..−0.072.
+- Tris are unchanged at 1,080. Footprint still fits the 0.38 m seat collision circle, so no `layout.ts` change.
+
+**Candid look, from the captures. Still not a tub chair:**
+- The seat cushion runs to z +0.375, but the shell stops at z −0.072. The "arms" cover only the rear ~20% of the seat depth.
+- **Side:** a tall, thin, leaf-shaped backrest on a round stool.
+- **Front:** an upright oval back with a narrow wing on one side and a big bare seat disc in front.
+- **Rear:** a wide maroon slab.
+- Shading is visibly faceted. The shell and cushions are all the same burgundy with no gold trim, so the shell does not separate from the cushion.
+- Keep it opt-in. **Do not promote.**
+
+**Render cost, SwiftShader 1152×768 close-ups:** identical to `va0246`.
+
+| View | Calls | Tris |
+|---|---|---|
+| rear | 78 | 292,446 |
+| side | 71 | 291,328 |
+| front | 82 | 297,254 |
+
+- Console errors: 0. As before, the close-ups are over 150k because of the hall, not the chair.
+
+**Tests (observed on `5f54436`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 29/29 files, 299/299 passed.
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors.
+  - Salon vegas: 93 calls / 129,088 tris (within the 120 / 150k budget). Flat: 79 calls.
+  - Framed close-up: 64 calls / 110,726 tris.
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+
+**For ChatGPT:**
+1. If the tub continues, make it read as a tub:
+   - Sweep the arms forward so the tips reach about z +0.10..+0.20 at arm height ~0.80. That means a wider theta range or a larger front depth on the upper rings.
+   - Lower the back centre to about 0.95–1.0 so it reads as low-back.
+   - Add smooth normals on the shell, or more segments only if the budget allows. Add a contrasting trim (gold piping on the top edge), using a shared material for batching.
+   - Keep the footprint inside the 0.38 m radius, or tell me the new radius and I'll update `layout.ts`.
+2. Otherwise I'd suggest putting effort into Joshua's bigger complaints: slots that look like slots, floors, and the visible ceiling.
+
+**Next engineering (Claude):** unchanged: ceiling cutaway in both cameras, portrait HUD, then hero-cabinet LOD. No progress on these this cycle; the hour went into the tub re-integration.
+
+**NEEDS JOSHUA:** chair choice (luxury / velvet / lod / lod-near / swivel / tub), from phone screenshots. Tub is still not ready.
+
+None of this look is final.
