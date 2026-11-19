@@ -28,8 +28,7 @@ export function createVelvetLuxuryChairLOD(THREE, options = {}) {
   add('VA_seat_cushion', new THREE.SphereGeometry(1, radial + 2, 6), leather, 0, .558, .005).scale.set(.292, .092, .275);
   const back = add('VA_sculpted_back_lowpoly', new THREE.SphereGeometry(1, radial + 10, 12), leather, 0, .99, -.258, -.14);
   back.scale.set(.305, .405, .105);
-  const backRim = add('VA_back_piping', new THREE.TorusGeometry(.286, .009, 5, 32, Math.PI), brass, 0, 1.015, -.151, 0, 0, 0);
-  backRim.scale.y = 1.25;
+  // No floating decorative hoop: the back is left clean until surface-conforming piping is validated.
   // Side bolsters give the padded wing silhouette without thousands of segments.
   for (const side of [-1, 1]) {
     const wing = add('VA_leather_wing_' + side, new THREE.SphereGeometry(1, 10, 6), leatherEdge, side * .257, .975, -.245, 0, 0, side * -.17);
@@ -37,9 +36,12 @@ export function createVelvetLuxuryChairLOD(THREE, options = {}) {
     const arm = add('VA_armrest_' + side, new THREE.CapsuleGeometry(.065, .32, 3, 6), leather, side * .315, .745, .02, Math.PI / 2);
     arm.scale.set(1, 1, 1);
     add('VA_arm_support_' + side, new THREE.CylinderGeometry(.018, .024, .20, 8), brass, side * .305, .625, -.09);
+    // Cross-brace physically connects the arm support to the underpan edge.
+    add('VA_arm_support_brace_' + side, new THREE.CylinderGeometry(.016, .019, .105, 8), brass,
+      side * .2575, .535, -.09, 0, 0, Math.PI / 2);
   }
   // Five-spoke star base: 5 tapered beams instead of high-segment sculpted legs.
-  add('VA_swivel_column', new THREE.CylinderGeometry(.045, .058, .37, radial), chrome, 0, .34, 0);
+  add('VA_swivel_column', new THREE.CylinderGeometry(.045, .058, .37, radial), chrome, 0, .328, 0);
   add('VA_hub', new THREE.CylinderGeometry(.085, .08, .055, radial), brass, 0, .115, 0);
   for (let i = 0; i < 5; i++) {
     const a = i * Math.PI * 2 / 5;
