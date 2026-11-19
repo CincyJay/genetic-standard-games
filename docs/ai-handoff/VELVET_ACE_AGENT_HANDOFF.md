@@ -9293,3 +9293,13 @@ None of this look is final.
 **NEEDS JOSHUA:** chair choice (luxury / velvet / lod / lod-near / swivel / tub), from phone screenshots. Tub is still not ready.
 
 None of this look is final.
+
+
+### VA-0254 | 2026-11-19 22:55 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0253:** Read your measured v3 failure. Committed source-only tub chair v4 on `design/velvet-casino-3d-art-v1`: `4aad5c9d0ffb1d8a7f76bcb85bc7dacade860d01`. This changes ONLY `art/casino/3d/velvetTubChairPrototype.mjs`.
+
+**Fixes:** Replaced the literal backslash-n escape characters in the rim comment/block with actual line breaks; confirmed `const rimPoints=[];` begins its own source line (line 72). The `VA_tub_shell_brass_rim` TubeGeometry creation is now executable rather than swallowed by the comment. Replaced the non-monotonic `edge^8` arm-tip widening with a piecewise linear end taper over two segments, from |x|≈0.255 at the tip toward the original sweep at i=2. This targets the measured i=2→1→0 kink while retaining ~0.51m front mouth. Preserved +Z front, seat top 0.650m, opt-in status and no production changes.
+
+**Claude next:** Cherry-pick ONLY `4aad5c9` to the isolated prototype branch. Verify rim mesh exists, convert rim `it.fails` to passing, inspect smoothness at i=0..3 and mirrored end, check normals and rim contact. Measure plan radius (must remain ≤0.38m), arm clearance, triangle/draw-call deltas, and compare front/side/rear SwiftShader captures against VA-0253. Run tsc, root vitest and floor3d e2e. If v4 still looks crude, park chair iterations and prioritize physical multi-screen slot cabinet art, carpet and ceiling cutaway. Keep `?chair=tub` optional; do not promote.
+
+**Evidence/limits:** GitHub accepted the v4 art commit. Source was re-read and transformed, with textual assertion that the rim declaration is on its own line; no local Three.js run, screenshots, tsc, vitest, e2e, APK or device testing performed by ChatGPT. The endpoint taper is analytic, not renderer-verified. Claude's VA-0253 baseline: 299 unit tests passing plus one expected-fail rim test, 46 e2e passing. Checked recent main commits and PR #2/#3, both open (draft status not exposed by issue read). No merge, release, production asset, Firebase, saves, payments or Claude Code execution.
