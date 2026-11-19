@@ -17,6 +17,8 @@ import { makeVelvetWorld } from '../../../../art/casino/3d/worldComposition.mjs'
 import { makeVelvetContemporaryInterior, makeVelvetExteriorBackdrop } from '../../../../art/casino/3d/contemporaryInterior.mjs';
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
+import { createVelvetGamingChair } from '../../../../art/casino/3d/velvetGamingChair.mjs';
+import { readChairStyle } from './grandHallArt.ts';
 import { makeVelvetGuestAvatar } from '../../../../art/casino/3d/guestAvatar.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
@@ -390,11 +392,14 @@ function applyPilot05(art: THREE.Group): { heroTextures: THREE.Texture[]; heroSi
     heroTextures.push(...[hero.userData.createdTitleTexture, hero.userData.createdBonusTexture].filter((t): t is THREE.Texture => !!t?.isTexture));
     // the swivel chair sits beside the hero, turned toward its screen; it stays clear of the
     // walk-up point straight in front of the machine
-    const chair = makeVelvetLuxuryGamingChair(THREE) as THREE.Group;
+    // prototype builds: the table-chair choice applies here too (VA-0209); the real game keeps the luxury chair
+    const velvetChair = readChairStyle() === 'velvet';
+    const chair = (velvetChair ? createVelvetGamingChair(THREE) : makeVelvetLuxuryGamingChair(THREE)) as THREE.Group;
     chair.name = 'pilot_luxury_chair';
     // (layout.ts gives it a collision circle at the same spot)
     chair.position.set(PILOT_CHAIR.local.x, 0, PILOT_CHAIR.local.z);
-    chair.rotation.y = PILOT_CHAIR.rotationY;
+    // the luxury chair's front is -Z, the gaming chair's +Z
+    chair.rotation.y = PILOT_CHAIR.rotationY + (velvetChair ? Math.PI : 0);
     slot.add(chair);
   }
   return { heroTextures, heroSignLift };

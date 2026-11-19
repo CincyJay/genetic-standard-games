@@ -20,6 +20,7 @@ import { createGrandHallArchitecture } from '../../../../art/casino/3d/grandHall
 import { createGrandHallEndcaps } from '../../../../art/casino/3d/grandHallEndcaps.mjs';
 import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
+import { createVelvetGamingChair } from '../../../../art/casino/3d/velvetGamingChair.mjs';
 import { createVelvetGamingChairLod } from '../../../../art/casino/3d/velvetGamingChairLod.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
@@ -89,7 +90,7 @@ export interface GrandHallArt {
   wovenCarpet: boolean;
 }
 
-export type ChairStyle = 'luxury' | 'lod-mid' | 'lod-near';
+export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near';
 
 /**
  * Which chair the grand hall's tables get. The default stays the luxury study chair (about 10.3k
@@ -101,6 +102,7 @@ export function chairStyleFrom(search: string): ChairStyle {
   const raw = new URLSearchParams(search).get('chair');
   if (raw === 'lod' || raw === 'lod-mid') return 'lod-mid';
   if (raw === 'lod-near') return 'lod-near';
+  if (raw === 'velvet') return 'velvet';
   return 'luxury';
 }
 
@@ -168,14 +170,19 @@ export function liteCabinet(src: THREE.Object3D, cache: Map<string, THREE.Buffer
 }
 
 export const CHAIR_STORAGE_KEY = 'va3d.chair';
-export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'luxury' };
-/** A `?chair=` parameter wins; otherwise the ⚙ button's stored choice (VA-0207), so a phone can compare. */
+export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'velvet' };
+/**
+ * A `?chair=` parameter wins; otherwise the ⚙ button's stored choice (VA-0207), so a phone can compare.
+ * With nothing stored, prototype builds get Claude's burgundy gaming chair (Joshua, VA-0209); the
+ * real game keeps the luxury chair.
+ */
 export function readChairStyle(): ChairStyle {
   if (typeof location === 'undefined') return 'luxury';
   if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return 'luxury';
   if (new URLSearchParams(location.search).has('chair')) return chairStyleFrom(location.search);
   try {
-    return chairStyleFrom(`?chair=${localStorage.getItem(CHAIR_STORAGE_KEY) ?? ''}`);
+    const stored = localStorage.getItem(CHAIR_STORAGE_KEY);
+    return stored === null ? 'velvet' : chairStyleFrom(`?chair=${stored}`);
   } catch {
     return 'luxury';
   }
@@ -195,7 +202,7 @@ export function chairAt(name: string, x: number, z: number, tx: number, tz: numb
   } else {
     let tpl = lodTemplates?.get(style);
     if (!tpl) {
-      tpl = createVelvetGamingChairLod(THREE, { detail: style === 'lod-near' ? 'near' : 'mid' }) as THREE.Group;
+      tpl = (style === 'velvet' ? createVelvetGamingChair(THREE) : createVelvetGamingChairLod(THREE, { detail: style === 'lod-near' ? 'near' : 'mid' })) as THREE.Group;
       lodTemplates?.set(style, tpl);
     }
     chair = tpl.clone();

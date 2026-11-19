@@ -991,6 +991,35 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     chair.traverse((m) => { if ((m as import('three').Mesh).isMesh) perChair++; });
     expect(lod.geos).toBe(perChair);
   });
+  it("Claude's burgundy gaming chair: faces its table, seat at SEAT_HEIGHT, light, clones share geometry (VA-0209)", async () => {
+    const THREE = await import('three');
+    const { chairStyleFrom, chairAt, NEXT_CHAIR_STYLE } = await import('../src/floor3d/grandHallArt.ts');
+    const { createVelvetGamingChair } = await import('../../../art/casino/3d/velvetGamingChair.mjs');
+    const { SEAT_HEIGHT } = await import('../src/floor3d/layout.ts');
+    expect(chairStyleFrom('?chair=velvet')).toBe('velvet');
+    // the ⚙ cycle visits every style once
+    const seen = new Set<string>();
+    let s: keyof typeof NEXT_CHAIR_STYLE = 'velvet';
+    for (let i = 0; i < 4; i++) { seen.add(s); s = NEXT_CHAIR_STYLE[s]; }
+    expect(s).toBe('velvet');
+    expect(seen.size).toBe(4);
+    const tpl = createVelvetGamingChair(THREE);
+    tpl.updateMatrixWorld(true);
+    expect(new THREE.Box3().setFromObject(tpl.getObjectByName('chair_seat_cushion')!).max.y).toBeCloseTo(SEAT_HEIGHT, 2);
+    const all = new THREE.Box3().setFromObject(tpl);
+    expect(Math.max(-all.min.x, all.max.x, -all.min.z, all.max.z)).toBeLessThan(0.38); // inside the seat collision circle
+    let tris = 0;
+    tpl.traverse((m) => { const g = (m as import('three').Mesh).geometry; if (g) tris += (g.index?.count ?? g.attributes.position.count) / 3; });
+    expect(tris).toBeLessThan(5000); // the luxury chair is ~10.3k
+    // facing a table at -X: the back ends up on the far side (+X)
+    const templates = new Map();
+    const chair = chairAt('c', 0, 0, -3, 0, 'velvet', templates);
+    const twin = chairAt('d', 2, 0, -3, 0, 'velvet', templates);
+    chair.updateMatrixWorld(true);
+    const back = new THREE.Box3().setFromObject(chair.getObjectByName('chair_back')!);
+    expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
+    expect((twin.getObjectByName('chair_back_pad') as import('three').Mesh).geometry).toBe((chair.getObjectByName('chair_back_pad') as import('three').Mesh).geometry);
+  });
   it('LOD chair keeps its seat cushion, its back meeting the shell centre (VA-0198/VA-0199, read-only check)', async () => {
     const THREE = await import('three');
     const { createVelvetGamingChairLod } = await import('../../../art/casino/3d/velvetGamingChairLod.mjs');
