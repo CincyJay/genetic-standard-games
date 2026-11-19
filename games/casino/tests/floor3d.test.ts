@@ -1106,34 +1106,41 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
     expect((twin.getObjectByName('VA_tub_cushion') as import('three').Mesh).geometry).toBe((chair.getObjectByName('VA_tub_cushion') as import('three').Mesh).geometry);
   });
-  // 0494d55 (VA-0248) fixed the shell orientation (t = pi is the rear). 26a2f01 (VA-0250) widened the sweep to
-  // 0.12pi..1.88pi and moved the ring centre to z -0.105: arm tips now reach z +0.104..+0.137, back centre 1.015 m.
-  // Measured (18 segments): shell x +-0.342, z -0.365..+0.137; max plan radius 0.378 (seat collision circle 0.38).
-  // The arms also curve inward: the tips sit at |x| 0.113..0.126, so the front mouth is only ~0.23 m wide.
-  it('tub chair shell (26a2f01) is symmetric, arms reach forward, back is low, footprint stays inside 0.38 m (VA-0250)', async () => {
+  // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
+  // Measured (18 segments): arm tips |x| 0.255..0.268 (was 0.113..0.126); nearest shell point in front of the back
+  // cushion |x| 0.249, so the mouth is ~0.50 m wide; max plan radius still 0.378 (collision circle 0.38); shell box
+  // unchanged (x +-0.343, y 0.525..1.015, z -0.365..+0.137). The push is not monotonic: on every ring x goes
+  // 0.278 -> 0.251 -> 0.256 over the last two segments, so the upper rings fold back on themselves (adjacent vertex
+  // normals differ by up to 55 deg at i = 1 / 17 on rings 3-4: a visible crease at each arm end).
+  it('tub chair shell v3 (1961cbf): symmetric, open ~0.50 m mouth, footprint inside 0.38 m (VA-0252)', async () => {
     const THREE = await import('three');
     const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
     const tpl = createVelvetTubChair(THREE) as import('three').Group;
     tpl.updateMatrixWorld(true);
     const p = (tpl.getObjectByName('VA_integrated_tub_shell') as import('three').Mesh).geometry.attributes.position;
     const back = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_tub_back_cushion')!);
-    // the centre of the mouth in front of the back cushion stays open (documented: only +-0.113 m)
     let mouth = Infinity, radius = 0;
     for (let k = 0; k < p.count; k++) {
       if (p.getZ(k) > back.max.z) mouth = Math.min(mouth, Math.abs(p.getX(k)));
       radius = Math.max(radius, Math.hypot(p.getX(k), p.getZ(k)));
     }
-    expect(mouth).toBeGreaterThan(0.1);
+    expect(mouth).toBeGreaterThan(0.24);
     expect(radius).toBeLessThanOrEqual(0.38);
+    const seg = p.count / 5 - 1;
+    for (let j = 0; j < 5; j++) {
+      expect(Math.abs(p.getX(j * (seg + 1)))).toBeGreaterThan(0.25);
+      expect(p.getX(j * (seg + 1)) + p.getX(j * (seg + 1) + seg)).toBeCloseTo(0, 3);
+    }
     const shell = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_integrated_tub_shell')!);
     expect(shell.max.x + shell.min.x).toBeCloseTo(0, 2);
     expect(shell.min.z).toBeLessThanOrEqual(back.min.z);
     expect(shell.max.z).toBeGreaterThanOrEqual(0.1);
     expect(shell.max.y).toBeCloseTo(1.015, 3);
   });
-  // Known art bug in 26a2f01: the brass-rim block was committed with literal "\n" text, so it all sits inside a
-  // single // comment line and VA_tub_shell_brass_rim is never built. Flips to passing once ChatGPT restores real newlines.
-  it.fails('tub chair has the traced brass shell rim (26a2f01 rim is commented out by literal \\n, VA-0251)', async () => {
+  // Known art bug, still present after 1961cbf (whose message says it was fixed): line 65 of
+  // velvetTubChairPrototype.mjs still holds literal "\n" text, so the whole rim block sits inside one // comment
+  // and VA_tub_shell_brass_rim is never built. Flips to passing once real newlines are committed.
+  it.fails('tub chair has the traced brass shell rim (still commented out by literal \\n after 1961cbf, VA-0252)', async () => {
     const THREE = await import('three');
     const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
     const tpl = createVelvetTubChair(THREE) as import('three').Group;
