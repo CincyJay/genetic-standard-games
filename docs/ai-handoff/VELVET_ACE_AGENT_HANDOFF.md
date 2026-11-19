@@ -8719,3 +8719,61 @@ None of this look is final.
 **Claude next:** Cherry-pick only `5c653896` onto isolated feature branch. Add a NEW optional comparison flag (e.g. `?carpetart=damask2`) passing `motif:'interlaced-damask'` with the same 512px canvas and 3.5m square repeats. Keep default damask, `on`, and `vine` unchanged. Capture follow, overview, and low-angle close-up side-by-side; inspect seams, ribbon intersections, moire, readability, and whether the new art is actually better than existing damask. Run tsc, vitest, e2e; report concrete screenshots/measurements. If it looks worse, reject it. Separately prioritize chair back/star-leg/floor-glide geometry for future art savings; do not compromise luxury seating silhouette.
 
 **Evidence/boundaries:** GitHub accepted source commit; source inspection only. No Node/Three.js/canvas render, tests, screenshot, APK, or device validation by ChatGPT. PR #2 and #3 were fetched this run: both OPEN DRAFT. Nothing merged, released, purchased, or changed in production/Firebase/saves.
+
+### VA-0239 | 2026-11-19 15:27 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0238: interlaced damask `5c65389` integrated, opt-in only (`?carpetart=damask2`).** Cherry-picked onto `feature/3d-casino-prototype` as `d145fd6`; the art file is unchanged.
+
+**How it fits (`6e2d003`):**
+- `?carpetart=damask2` calls `createVelvetCarpetTexture(THREE, { size: 512, createCanvas, motif: 'interlaced-damask' })`.
+- No flag (damask default), `?carpetart=on` (medallion) and `?carpetart=vine` are unchanged.
+- Same mesh (`VA_opt_in_patterned_carpet`), footprint, height (y 0.012), material, 512² texture and square 3.5 m repeat as `on`/`vine`. Collisions, batching, draw calls and triangles are unchanged.
+- The mesh's `userData.carpetArt` is now `'5c65389'` for damask2.
+- New unit test: damask2 vs medallion use the same mesh, position, geometry and repeat, and the texture metadata records the motif.
+- `tests/e2e/islands.mjs` has a new `carpetdamask2` variant.
+
+**Render cost, SwiftShader 1152×768, `islands.mjs` `svelte-lod`:** `on`, `vine` and `damask2` are identical in every view.
+
+| View | Calls | Triangles |
+|---|---|---|
+| Follow | 112 | 271,962 |
+| Overview | 83 | 256,718 |
+| Aisle-side | 76 | 265,294 |
+| Wall-walkway | 66 | 221,518 |
+| Island-end | 76 | 264,150 |
+| Cabinet-close | 69 | 228,302 |
+| Seam-high | 74 | 263,774 |
+
+- Console errors: 0 in all three variants.
+- These views are still well over the 150k triangle budget; the carpet doesn't change that.
+
+**Candid look notes (SwiftShader captures, not a phone):**
+- **The medallion grid and dots are gone.** At 1152×768 the overview shows the gold sine ribbons crossing as continuous lines. I saw no seam breaks at tile boundaries and no moiré.
+- **It does not read as damask.** It reads as a sparse gold wire / chain-link lattice on a mostly empty dark ground. Each 3.5 m tile has only 2 horizontal and 2 vertical ribbons, so there are large dark lens-shaped gaps with nothing in them.
+- **The "broad garnet underweave" is barely visible. This is a code observation, not a taste call:**
+  - The garnet stroke (width max(9, size/42) ≈ 12.2 px) runs on exactly the same path as the dark edge (≈ 9.1 px) and the gold (≈ 4.7 px).
+  - That leaves only about 1.5 px of garnet on each side.
+  - In the captures it disappears beyond a few metres.
+- **Follow view (low angle):** the lattice is visible beside the promenade but faint. The cabinet close-up hardly shows the floor.
+- **My comparison:** damask2 is less busy than `vine`, which still has the dotted medallion grid, but it is also emptier. I would **not** call it better than the default damask yet.
+- Captures are in `games/casino/captures/va0238/` (`ac32a7e`), 7 views each for `carpetart`, `carpetvine` and `carpetdamask2`.
+
+**Tests (observed on `6e2d003`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 294/294 passed (29 files).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors. Salon vegas 93 calls / 129,088 tris; framed close-up 64 calls / 110,726 tris.
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+- Environment note: in the cloud, `npm ci` inside `games/casino` emptied that workspace's node_modules. Run `npm ci` at the repo root instead (workspaces).
+
+**For ChatGPT:**
+1. If you keep `interlaced-damask`, make the garnet underweave visibly broader than the dark edge, e.g. a separate, wider path or a phase offset from the gold, so it actually reads at mid distance.
+2. Fill the empty lens areas with a small leaf or fleur element so it reads as a damask rather than wire.
+3. Consider 3–4 ribbons per axis per tile instead of 2, to raise the density.
+4. Chair savings, as you prioritised: the measured targets are still `sculpted_back_leather_segment` (2,156 triangles), `swivel_chrome_star_leg` (1,920) and `swivel_floor_glide` (1,320) per luxury chair. An 8–12 segment glide and a 5-spoke leg with fewer radial segments would likely cut most of that without changing the silhouette.
+
+**Next engineering (Claude):** unchanged: ceiling cutaway in both cameras, then portrait HUD, then hero-cabinet LOD for distant heroes.
+
+**NEEDS JOSHUA:**
+- Carpet: damask (default) vs `on` vs `vine` vs `damask2`, judged from phone screenshots.
+- Unchanged: the LOD chair default, the slim family default, the seam topper default, the art far stool default, and the `?capbulbs=lod` default.
+
+None of this look is final.
