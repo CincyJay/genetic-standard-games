@@ -42,9 +42,15 @@ export function createVelvetTubChair(THREE, options = {}) {
     const ring=rings[j];
     for(let i=0;i<=segments;i++){
       const t=start+(end-start)*i/segments;
-      const edge=Math.abs(i/segments-.5)*2;
-      const armStraighten=Math.pow(edge, 8);
-      const x=Math.sin(t)*ring.r + (i < segments/2 ? 1 : -1)*.142*armStraighten;
+      // Linear end-cap taper over the outer two intervals avoids the edge^8
+      // overshoot that produced a torn-flap crease in VA-0253.
+      const distanceToEnd=Math.min(i,segments-i);
+      const baseX=Math.sin(t)*ring.r;
+      const tipX=.255;
+      const anchorAngle=start+(end-start)*2/segments;
+      const anchorX=Math.sin(anchorAngle)*ring.r;
+      const sign=i<=segments/2?1:-1;
+      const x=distanceToEnd<=2 ? sign*(tipX+(anchorX-tipX)*distanceToEnd/2) : baseX;
       const z=Math.cos(t)*ring.depth - .105;
       // lower the arm ends progressively; keep back highest at the centre.
       const endFactor=Math.pow(Math.abs(i/segments-.5)*2,2);
@@ -62,7 +68,16 @@ export function createVelvetTubChair(THREE, options = {}) {
   shellGeo.setIndex(indices); shellGeo.computeVertexNormals();
   const shellMat=upholstery.clone(); shellMat.side=THREE.DoubleSide; shellMat.flatShading=false;
   mesh('VA_integrated_tub_shell',shellGeo,shellMat);
-  // A continuous, fine brass rim traces the actual upper shell ring, not a floating hoop.\n  const rimPoints=[];\n  const topRing=rings.length-1;\n  for(let i=0;i<=segments;i++){\n    const k=(topRing*(segments+1)+i)*3;\n    rimPoints.push(new THREE.Vector3(positions[k],positions[k+1]+.004,positions[k+2]));\n  }\n  const rimCurve=new THREE.CatmullRomCurve3(rimPoints,false,'centripetal');\n  mesh('VA_tub_shell_brass_rim',new THREE.TubeGeometry(rimCurve,segments*3,.006,5,false),brass);\n  // Inner padded back is integrated visually, without freestanding wing lobes.
+  // A continuous, fine brass rim traces the actual upper shell ring, not a floating hoop.
+  const rimPoints=[];
+  const topRing=rings.length-1;
+  for(let i=0;i<=segments;i++){
+    const k=(topRing*(segments+1)+i)*3;
+    rimPoints.push(new THREE.Vector3(positions[k],positions[k+1]+.004,positions[k+2]));
+  }
+  const rimCurve=new THREE.CatmullRomCurve3(rimPoints,false,'centripetal');
+  mesh('VA_tub_shell_brass_rim',new THREE.TubeGeometry(rimCurve,segments*3,.006,5,false),brass);
+  // Inner padded back is integrated visually, without freestanding wing lobes.
   const inner=mesh('VA_tub_back_cushion',new THREE.SphereGeometry(1,segments,10),upholstery,0,.83,-.272);
   inner.scale.set(.275,.16,.075);
   // Low casino pedestal: floor-contacting weighted circular foot, not office star.
@@ -70,7 +85,7 @@ export function createVelvetTubChair(THREE, options = {}) {
   mesh('VA_pedestal_column',new THREE.CylinderGeometry(.07,.10,.38,segments),shadowLeather,0,.245,0);
   mesh('VA_pedestal_cap',new THREE.CylinderGeometry(.16,.12,.045,segments),brass,0,.454,0);
   root.userData.velvetArt={
-    type:'original-tub-chair-v3',visualOnly:true,prototype:true,
+    type:'original-tub-chair-v4',visualOnly:true,prototype:true,
     orientation:'front +Z',seatHeight:.65,
     integration:'Opt-in chair comparison only; do not replace defaults. Compare against velvet/luxury from all camera angles.',
     validation:'Source-only; not rendered, not photorealistic, not device-tested. Verify normals, seated camera and collision.'
