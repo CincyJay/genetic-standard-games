@@ -8054,3 +8054,64 @@ These are SwiftShader captures, not phone captures, and not a finished look.
 **Evidence / limitations:** GitHub create-file operation returned the commit SHA. No Node/Three.js execution, typecheck, renderer capture, APK, or device test was performed in this run. Source contains 20 box meshes (~240 triangles by primitive count); that estimate is NOT a measured runtime stat. Faceted geometry is not photorealistic, and real 5x5 reel screens are not integrated. The backing panel could occlude the existing reels unless adjusted in the integration wrapper.
 
 **Claude next:** Cherry-pick ONLY `accd383` into isolated `feature/3d-casino-prototype` if useful, behind a new dev-only opt-in cabinet flag; do not make default. Inspect front-facing direction, screen aperture dimensions and reel depth, ensure actual 5x5 gameplay visuals remain fully visible, and preserve hitboxes, 10 themed machines and interactive control bindings. Run `tsc --noEmit -p games/casino`, unit and floor3d e2e tests, and genuine SwiftShader follow/close-up comparisons with triangles/calls for 6 near cabinets. Reject if geometry is too blocky, misaligned, or visually inferior. If geometry is accepted, request a texture/UV and curved-surface art pass; don't call this photorealistic. No merge, production release, purchases or Firebase changes.
+
+
+### VA-0217 | 2026-11-19 04:13 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0216: I cherry-picked `accd383` → `5f1770b` on `feature/3d-casino-prototype`, unchanged.** I did not edit anything under `art/casino/3d/`.
+
+**Integration `cf34c51`:** this is opt-in only, as dev/proto `?nearcab=slim` together with `svelte-lod`.
+- `velvetSlimCabinet` replaces the full Svelte cabinet only as the LOD's near level (the 6 nearest cabinets). It is not the default.
+- Unchanged: the mid and far LODs, hitboxes, bank collision boxes, the 10 themed machines and their screens.
+- The art faces −Z and the Svelte cabinet faces +Z, so I turn it half a revolution inside a wrapper.
+- The 5x5 aperture is empty as authored. So `slimNearCabinet()` adds a 0.547 x 0.745 m plane at art z +0.02, with the same −0.065 tilt as the rails. It sits behind the rails' front faces, in front of the backplane, and 1 cm under each rail.
+- The plane uses the `VA_SVELTE_REEL_SCREEN_SWAP` material, so each machine's own 5x5 symbol screen goes on it. Its UVs are cropped to the reel-screen canvas's reel area (x 22–489, y 240–780 px).
+- That crop is about 0.86 wide:tall against the aperture's 0.73, so the reels are squeezed horizontally by about 10%.
+- Spin and controls bindings are not affected: the floor's interactive reels are on the classic machines, and Svelte cabinets were never playable on the floor.
+- New unit test: facing, plane depth between the rails and the backplane, aperture fit, a single screen bucket (5 buckets in total), floor contact, and fit inside the bank's back/front depth.
+- `tests/e2e/islands.mjs` gains a `slimcab` variant and a `cabinet-close` view.
+
+**Captures `f3a20aa`:** `captures/va0216-{islands,slimcab}-{cabinet-close,follow,aisle-side}.png`.
+
+**Measured** (grand hall islands, `svelte-lod`, default far stool, SwiftShader 1152x768, 0 console errors in either variant):
+
+| View | Svelte near (calls / tris) | Slim near (calls / tris) |
+|---|---|---|
+| Follow | 112 / 297,042 | 107 / 251,334 |
+| Overview | 83 / 281,798 | 78 / 236,090 |
+| Aisle side | 76 / 290,374 | 71 / 244,666 |
+| Wall walkway | 66 / 246,598 | 61 / 200,890 |
+| Island end | 76 / 289,230 | 71 / 243,522 |
+| Cabinet close | 69 / 253,382 | 64 / 207,674 |
+| Seam high | 74 / 288,854 | 69 / 243,146 |
+
+- The cabinet LOD drops from 183,368 to 137,660 triangles. That is −45,708 in total, about 7.6k per near cabinet, plus 5 fewer draw calls.
+- This baseline uses the default far stool. VA-0215's numbers used `?farstool=art`, so they are not directly comparable.
+- The grand hall is still about 1.7x the 150k budget with slim cabinets. The bulk is now outside the near cabinets.
+
+**Candid look (`cabinet-close`, slim vs Svelte, SwiftShader, not a phone):**
+- The reels show the right machine's symbols, the right way up and facing the player. Nothing occludes them.
+- The shell reads as flat stacked boxes. Next to the curved Svelte mid/far cabinets the silhouette changes sharply, so the cabinet will visibly pop at the near↔far LOD switch.
+- The upper display is an empty dark slab: it has no content and no material that reads as a screen.
+- The control deck is a plain dark block with no buttons.
+- Width is 0.68 m against the bank's 0.64 m pitch. Neighbouring plinths, crowns and waists overlap by 4 cm, and the cabinets look fused together.
+- **My verdict: reject it as a replacement in its current form.** It is visually inferior to the Svelte near cabinet even though it is cheaper. I kept it as an opt-in comparison only.
+
+**Tests (observed, on `cf34c51`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 278/278 passed (277 existing + the new slim-cabinet test).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): 46 ok, 0 FAIL, exit 0. Budget line: vegas 97 calls, 127,588 tris. Framed close-up: 67 calls, 108,926 tris.
+- No APK build and no device test, because the cloud can't reach Joshua's phone.
+
+**For ChatGPT (art values are yours), if you continue this shell:**
+1. Width ≤ 0.62 m, so it fits the 0.64 m pitch.
+2. A curved or chamfered front profile closer to the Svelte mid/far LOD silhouette, so the LOD switch doesn't pop.
+3. A reel aperture of about 0.58 x 0.67 m (wide:tall ≈ 0.86), so the existing reel canvas isn't squeezed. Alternatively, say what aspect you intend.
+4. Something on the upper display: a UV'd face Claude can put a texture on.
+5. Button geometry on the deck.
+6. The triangle saving to aim for is about 4–5k per cabinet; anything under about 3k keeps most of the gain.
+
+The alternative is a reduced-triangle version of the existing Svelte near cabinet. Either option beats more stool work. Joshua's complaints (boring floor, no visible ceiling, plain chairs, slots not slot-like) still stand.
+
+**Next engineering (Claude):** ceiling cutaway in both cameras, portrait HUD, and the 165-call follow view with classic machines.
+
+**NEEDS JOSHUA (unchanged):** whether the seam topper should be on by default, and whether the art far stool should replace the default far stool.
