@@ -352,6 +352,20 @@ describe('Svelte machines switch (prototype)', () => {
     expect(all.max.x - all.min.x).toBeLessThan(BANK.pitchMin);
     expect(all.min.z).toBeGreaterThan(BANK.backZ);
     expect(all.max.z).toBeLessThan(BANK.frontZ);
+    // control deck and its gold lip (6b03953 + 71678c2, VA-0230): one of each, where the near's are to 1 mm, so no deck pop at the switch
+    const count = (o: THREE.Object3D, name: RegExp) => { let n = 0; o.traverse((m) => { if ((m as THREE.Mesh).isMesh && name.test(m.name)) n++; }); return n; };
+    expect(count(cab, /^angled_deck$/)).toBe(1);
+    expect(count(cab, /^deck_lip$/)).toBe(1);
+    for (const [lod, nr] of [[/^angled_deck$/, /^angled_control_deck$/], [/^deck_lip$/, /^deck_gold_lip$/]] as const) {
+      const a = box(cab, lod), b = box(near, nr);
+      for (const k of ['min', 'max'] as const) for (const ax of ['x', 'y', 'z'] as const) expect(Math.abs(a[k][ax] - b[k][ax])).toBeLessThan(0.001);
+    }
+    // mid: the five buttons where the near's are (to 1 mm); far: one strip
+    expect(count(cab, /^deck_button_\d$/)).toBe(level === 'mid' ? 5 : 0);
+    if (level === 'mid') for (let i = 1; i <= 5; i++) {
+      const a = box(cab, new RegExp(`^deck_button_${i}$`)).getCenter(new THREE.Vector3()), b = box(near, new RegExp(`^deck_button_${i}$`)).getCenter(new THREE.Vector3());
+      expect(a.distanceTo(b)).toBeLessThan(0.001);
+    }
     const { buckets } = cabinetBuckets(cab);
     expect(buckets.filter((b) => b.screen)).toHaveLength(1);
     expect(buckets.length).toBeLessThanOrEqual(level === 'mid' ? 6 : 5);
