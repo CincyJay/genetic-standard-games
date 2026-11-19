@@ -1058,6 +1058,27 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(drop.min.y).toBeLessThanOrEqual(glide.max.y);
     expect(drop.max.y).toBeGreaterThanOrEqual(spoke.min.y);
   });
+  it('swivel chair revision (47dad4b/e07c1e2): no floating piping, column meets hub, arm braces reach underpan (VA-0244, read-only check)', async () => {
+    const THREE = await import('three');
+    const { createVelvetLuxuryChairLOD } = await import('../../../art/casino/3d/velvetLuxuryChairLOD.mjs');
+    const tpl = createVelvetLuxuryChairLOD(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const box = (n: string) => new THREE.Box3().setFromObject(tpl.getObjectByName(n)!);
+    expect(tpl.getObjectByName('VA_back_piping')).toBeUndefined();
+    // column bottom within 2 mm of the hub top (nominal 1 mm gap)
+    expect(box('VA_swivel_column').min.y - box('VA_hub').max.y).toBeLessThan(0.002);
+    const pan = box('VA_seat_underpan');
+    for (const side of [-1, 1]) {
+      const brace = box('VA_arm_support_brace_' + side);
+      const support = box('VA_arm_support_' + side);
+      // brace lies along X: wider than tall
+      expect(brace.max.x - brace.min.x).toBeGreaterThan(brace.max.y - brace.min.y);
+      // overlaps the support bottom and reaches inside the underpan's x extent
+      expect(brace.max.y).toBeGreaterThanOrEqual(support.min.y);
+      expect(side > 0 ? brace.min.x < pan.max.x : brace.max.x > pan.min.x).toBe(true);
+      expect(brace.min.y).toBeLessThanOrEqual(pan.max.y);
+    }
+  });
   it('LOD chair keeps its seat cushion, its back meeting the shell centre (VA-0198/VA-0199, read-only check)', async () => {
     const THREE = await import('three');
     const { createVelvetGamingChairLod } = await import('../../../art/casino/3d/velvetGamingChairLod.mjs');
