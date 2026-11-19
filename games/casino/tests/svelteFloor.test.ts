@@ -216,6 +216,11 @@ describe('Svelte machines switch (prototype)', () => {
     const crest = backZ(far, /^tub_gold_crest$/);
     expect(crest.max.y).toBeLessThan(0.93);
     expect(crest.max.y - crest.min.y).toBeGreaterThan(0.025);
+    // dfb35d4 (VA-0214): crest pushed out to tub radius +8 mm; it must still read as attached (gap under 1 cm, outside the fabric)
+    const crestOut = Math.max(crest.max.x, -crest.min.x, -crest.min.z);
+    const tubOut = Math.max(tub.max.x, -tub.min.x, -tub.min.z);
+    expect(crestOut - tubOut).toBeGreaterThanOrEqual(0);
+    expect(crestOut - tubOut).toBeLessThan(0.01);
     // ade019b: the tub and crest reuse the cushion and pedestal materials (no DoubleSide clones)
     const mat = (name: RegExp) => { let m: unknown; far.traverse((o) => { if ((o as THREE.Mesh).isMesh && name.test(o.name)) m = (o as THREE.Mesh).material; }); return m; };
     expect(mat(/^curved_tub_back$/)).toBe(mat(/^seat_cushion$/));
@@ -226,7 +231,7 @@ describe('Svelte machines switch (prototype)', () => {
     const all = new THREE.Box3().setFromObject(far);
     // 40d51af puts the foot on the floor (centre 0.0275, 0.055 tall)
     expect(all.min.y).toBeCloseTo(0, 6);
-    // the tub (r 0.2496) and crest (+2 mm) stay inside the 0.27 m stool circle on every side
+    // the tub (r 0.2496) and crest (+8 mm since dfb35d4) stay inside the 0.27 m stool circle on every side
     expect(Math.max(all.max.z, -all.min.z, -all.min.x, all.max.x)).toBeLessThanOrEqual(BANK.stoolR);
   });
 
