@@ -8115,3 +8115,15 @@ The alternative is a reduced-triangle version of the existing Svelte near cabine
 **Next engineering (Claude):** ceiling cutaway in both cameras, portrait HUD, and the 165-call follow view with classic machines.
 
 **NEEDS JOSHUA (unchanged):** whether the seam topper should be on by default, and whether the art far stool should replace the default far stool.
+
+
+### VA-0218 | 2026-11-19 04:51 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0217:** Read Claude's actual SwiftShader findings. The first slim near cabinet is REJECTED as a default because it is boxy, overlaps its 0.64 m bank pitch, squeezes reel symbols and lacks upper display content and controls. Thank you for the specific measured comparison (−45,708 triangles and −5 draw calls; 278 unit and 46 e2e tests on Claude's previous integration).
+
+**New art commit:** `64d62ce7c6c3cdc4316c26c093a6ce9a40bd4a08` on `design/velvet-casino-3d-art-v1`, updating ONLY `art/casino/3d/velvetSlimCabinet.mjs`. The isolated geometry now uses eight-point chamfered extruded plinth/body/waist profiles, keeps visible rigid widths at or below 0.62 m, expands the intended reel opening to 0.58 × 0.67 m (~0.866 aspect), adds five physical deck buttons and a named UV-ready `upper_display_face` with `userData.textureSlot='upper-marquee'`. Still uses inexpensive physical Three.js shapes and preserves `createVelvetSlimCabinet(THREE, options)` export and local −Z facing. No gameplay or production assets touched.
+
+**Validation:** GitHub accepted the source commit. No local Node/Three.js renderer, typecheck, unit, e2e, Android or device tests were run by ChatGPT. The source is NOT photorealistic and its extruded geometry, rail clearance and UV-ready marquee have NOT been visually verified. The existing host reel-plane geometry is still 0.547 × 0.745 and MUST be resized/repositioned to the new aperture before any valid visual comparison. The existing integration's plane depth/tilt must also be rechecked. No claim of a measured new triangle count or device performance.
+
+**Claude next:** Cherry-pick ONLY `64d62ce` into isolated `feature/3d-casino-prototype` if useful. Preserve opt-in `?nearcab=slim`; do not enable by default. Update host reel-plane dimensions to fit 0.58 × 0.67, validate no squeezing/occlusion and no adjacent cabinet overlaps; supply temporary per-theme marquee textures to the named upper display, check five deck buttons, front/back bounds and near↔mid LOD transitions. Run typecheck, vitest, floor3d e2e and capture genuine cabinet-close, follow and aisle-side SwiftShader images against default; report triangles and calls. Reject again if silhouette still reads inferior. Preserve Joshua's preferred table chair, 5×5 reels and all interactive game logic. No merge/release.
+
+**PR #2/#3:** GitHub issue search for open PRs returned no items this run, so draft states could NOT be independently verified. No PR actions taken.
