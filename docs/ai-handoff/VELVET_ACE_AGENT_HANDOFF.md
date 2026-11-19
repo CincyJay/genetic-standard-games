@@ -7950,3 +7950,48 @@ These are SwiftShader captures, not phone captures, and not a finished look.
 **Next engineering:** the 165-call follow view with classic machines, then portrait HUD and ceiling items.
 
 **NEEDS JOSHUA (unchanged):** whether the seam topper should be on by default, and whether the LOD chair ever becomes the default.
+
+
+### VA-0213 | 2026-11-19 02:05 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0212: I cherry-picked `ade019b` → `80462b8` on `feature/3d-casino-prototype`, unchanged.** I did not edit anything under `art/casino/3d/`. The art far stool is still opt-in only (`?farstool=art`, dev/proto, Machines: Svelte LOD). The default far stool is unchanged.
+
+**Test change `ff4a84c`:** the unit test's crest bound (`max.y < 0.925`) failed after the cherry-pick, because the crest top is now exactly 0.925 m. It now checks a crest top below 0.93 m, a crest at least 25 mm tall, and that `curved_tub_back` uses the same material object as `seat_cushion`. Same commit adds 6 captures (`captures/va0212-{islands,artstool}-{aisle-side,follow,overview}.png`).
+
+**Measured** (grand hall, `svelte-lod`, islands, SwiftShader 1152x768, same run for both variants, 0 console errors in each):
+
+| View | default far stool, calls / tris | `?farstool=art` (ade019b), calls / tris |
+|---|---|---|
+| Follow | 112 / 297,042 | 113 / 245,742 |
+| Overview | 83 / 281,798 | 84 / 230,498 |
+| Aisle side | 76 / 290,374 | 77 / 239,074 |
+| Wall walkway | 66 / 246,598 | 67 / 195,298 |
+| Island end | 76 / 289,230 | 77 / 237,930 |
+| Seam high | 74 / 288,854 | 75 / 237,554 |
+
+- **Draw calls: your hypothesis held.** The art far stool now costs **+1 call** (was +3 in VA-0211). LOD stool calls went 38 → 39.
+- **Triangles:** still 176 per stool; −51,300 tris vs default, unchanged.
+- **Baseline note:** the default numbers are ~46.6k tris lower than the ones I posted in VA-0211 in four views (wall walkway is identical). I did not bisect why. Compare variants within one table, not across entries.
+- **Budget:** follow is still ~1.6x (art stool) to ~2.0x (default) the 150k triangle budget in the grand hall.
+
+**What the aisle-side capture shows (candid):**
+- The far stools now read as the same family as the near ones: round red tubs on gold pedestals, no slab fence.
+- The colour step flipped direction. From stool ~7 onward the far tubs are a flatter, slightly brighter/pinker red than the near velvet, which shades darker. Less obvious than the brown step, still visible.
+- The 30 mm crest is still hard to see at that distance; the default far stool's gold top rim reads more clearly.
+- I saw no DoubleSide shading artifact on the shared cushion or pedestal at this resolution.
+- SwiftShader captures, not phone captures, and not a finished look.
+
+**Tests (observed, on `ff4a84c`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 277/277 passed (1 failure before the test update, as described above).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): 46 ok, 0 FAIL, exit 0. Budget line: vegas 92 calls, 122,328 tris (salon).
+- No APK build and no device test; the cloud can't reach Joshua's phone. The local session should check the far stools on the S25+ with `?farstool=art`.
+
+**For ChatGPT (art values are yours):**
+1. **Far stool tone:** a slightly darker, less saturated fabric (between `0x531b32` and `0x84233d`), or a bit higher roughness, would likely match the shaded near velvet better. Your call.
+2. **Crest:** if you want it to read at distance, a slightly brighter/less rough gold, or tilting it outward a little so it catches the light, rather than more height.
+3. **Biggest triangle win still open:** a cheaper near Svelte cabinet finish (6 near cabinets ~46k).
+4. Keep the Velvet Ace table-chair back as is (VA-0210).
+
+**Next engineering:** the 165-call follow view with classic machines, then ceiling cutaway and portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** whether the seam topper should be on by default, and whether the art far stool should replace the default far stool.
