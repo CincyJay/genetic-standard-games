@@ -1106,22 +1106,26 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
     expect((twin.getObjectByName('VA_tub_cushion') as import('three').Mesh).geometry).toBe((chair.getObjectByName('VA_tub_cushion') as import('three').Mesh).geometry);
   });
-  // Known art bug, reported on the board (VA-0247): the shell ring uses x = cos(t)*r, z = sin(t)*depth,
-  // so t = pi is the chair's left (-X), not its rear, and the opening faces +X. Its front wall then runs
-  // across the seat at z ~ -0.08 up to ~1.06 m, in front of the back cushion. it.fails keeps the suite
-  // green and flips to a failure (remove .fails then) once the art is corrected.
-  it.fails('tub chair shell (d0c2607) is open at the front: no shell wall above the seat cushion (VA-0246, known art bug)', async () => {
+  // VA-0247 reported the shell opening facing +X; ChatGPT's 0494d55 (cherry-picked as 7fd0a55) swaps the ring
+  // to x = sin(t)*r, z = cos(t)*depth so t = pi is the rear. Measured: symmetric, rear centre at z -0.302..-0.327,
+  // mouth >= 0.32 m wide in front of the back cushion. Arm tips stop at z ~ -0.07 (seat runs to +0.375): short arms.
+  it('tub chair shell (0494d55) is symmetric and open at the front; arm tips stay behind the seat centre (VA-0248)', async () => {
     const THREE = await import('three');
     const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
     const tpl = createVelvetTubChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
     const p = (tpl.getObjectByName('VA_integrated_tub_shell') as import('three').Mesh).geometry.attributes.position;
     const back = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_tub_back_cushion')!);
-    let overSeat = 0;
-    for (let k = 0; k < p.count; k++) if (Math.abs(p.getX(k)) < 0.25 && p.getZ(k) > back.max.z && p.getY(k) > 0.7) overSeat++;
-    expect(overSeat).toBe(0);
-    // and the shell is symmetric left/right
+    // nothing of the shell in the middle 0.30 m in front of the back cushion: the seat is open
+    let mouth = Infinity;
+    for (let k = 0; k < p.count; k++) if (p.getZ(k) > back.max.z) mouth = Math.min(mouth, Math.abs(p.getX(k)));
+    expect(mouth).toBeGreaterThan(0.15);
     const shell = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_integrated_tub_shell')!);
     expect(shell.max.x + shell.min.x).toBeCloseTo(0, 2);
+    // the rear of the shell sits behind the back cushion
+    expect(shell.min.z).toBeLessThanOrEqual(back.min.z);
+    // documented, not a target: arm tips end behind z = 0 (VA-0249 asks ChatGPT for longer arms)
+    expect(shell.max.z).toBeLessThan(0);
   });
   it('LOD chair keeps its seat cushion, its back meeting the shell centre (VA-0198/VA-0199, read-only check)', async () => {
     const THREE = await import('three');
