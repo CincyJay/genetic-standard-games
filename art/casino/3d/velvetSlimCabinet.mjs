@@ -52,7 +52,7 @@ export function createVelvetSlimCabinet(THREE, options = {}) {
   contour('lower_body', 0.58, 0.73, 0.53, 0.10, 0.06, mat.shell);
   contour('waist_accent', 0.61, 0.07, 0.55, 0.83, 0.045, mat.gold);
   add('reel_backplane', 0.61, 0.78, 0.22, 0, 1.28, 0.16, mat.glass, -0.065);
-  // Reel screen remains supplied by Claude's existing 5x5 canvas swap. Aperture ~0.58:0.67 = 0.866.
+  // Reel screen remains supplied by Claude's existing 5x5 canvas swap. Aperture between rail inner edges is ~0.58 x 0.69 m; the host supplies the actual reel canvas.
   // Claude must mount the actual 5x5 reels in the open area and check depth occlusion.
   add('reel_left_rail', 0.016, 0.71, 0.065, -0.298, 1.28, -0.005, mat.gold, -0.065);
   add('reel_right_rail', 0.016, 0.71, 0.065, 0.298, 1.28, -0.005, mat.gold, -0.065);
@@ -66,15 +66,17 @@ export function createVelvetSlimCabinet(THREE, options = {}) {
   add('angled_control_deck', 0.58, 0.13, 0.28, 0, 0.86, -0.23, mat.shell, -0.28);
   add('deck_gold_lip', 0.58, 0.018, 0.055, 0, 0.78, -0.365, mat.gold);
   add('side_gold_spine_left', 0.018, 1.10, 0.035, -0.300, 1.36, 0.09, mat.gold);
-  add('side_gold_spine_right', 0.018, 1.10, 0.035, 0.315, 1.36, 0.09, mat.gold);
+  add('side_gold_spine_right', 0.018, 1.10, 0.035, 0.300, 1.36, 0.09, mat.gold);
+  // Accent bars sit behind the reel rails rather than intersecting their front-facing volume.
   // Optional LED strips are geometry only; no bloom, shaders or texture fetches.
-  add('light_bar_left', 0.012, 0.65, 0.02, -0.305, 1.30, -0.02, mat.accent);
-  add('light_bar_right', 0.012, 0.65, 0.02, 0.305, 1.30, -0.02, mat.accent);
+  add('light_bar_left', 0.012, 0.65, 0.02, -0.305, 1.30, 0.065, mat.accent);
+  add('light_bar_right', 0.012, 0.65, 0.02, 0.305, 1.30, 0.065, mat.accent);
+  // Physical controls lowered 19 mm along the deck normal to eliminate the observed floating gap.
   // Physical controls on the angled deck, with shared materials.
   for (let i = 0; i < 5; i++) {
     const key = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.012, 10), mat.button);
     key.name = 'deck_button_' + (i + 1);
-    key.position.set((i - 2) * 0.105, 0.941, -0.272);
+    key.position.set((i - 2) * 0.105, 0.922, -0.272);
     key.rotation.x = -0.28;
     root.add(key);
   }
@@ -86,8 +88,8 @@ export function createVelvetSlimCabinet(THREE, options = {}) {
   root.userData.velvetArt = {
     type: 'slim-multiscreen-slot-shell', visualOnly: true, productionIntegrated: false,
     triangles, meshCount: root.children.length, dimensionsM: { width: 0.62, height: 2.08, depth: 0.73 },
-    front: '-Z', reelApertureM: { width: 0.58, height: 0.67, centerY: 1.28 },
-    warning: 'Geometry-only prototype; host must resize/reposition its reel plane to 0.58 x 0.67, supply marquee texture, and verify bounds, LOD and visual quality.'
+    front: '-Z', reelApertureM: { width: 0.58, height: 0.69, centerY: 1.28 },
+    warning: 'Geometry-only prototype; host must resize/reposition its reel plane to 0.58 x 0.69, supply marquee texture, and verify bounds, LOD and visual quality.'
   };
   return root;
 }
