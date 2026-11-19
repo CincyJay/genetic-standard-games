@@ -173,7 +173,7 @@ export const CHAIR_STORAGE_KEY = 'va3d.chair';
 export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'velvet' };
 /**
  * A `?chair=` parameter wins; otherwise the ⚙ button's stored choice (VA-0207), so a phone can compare.
- * With nothing stored, prototype builds get Claude's burgundy gaming chair (Joshua, VA-0209); the
+ * With nothing stored, prototype builds get Claude's burgundy gaming chair (Joshua, VA-0210); the
  * real game keeps the luxury chair.
  */
 export function readChairStyle(): ChairStyle {

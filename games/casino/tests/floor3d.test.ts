@@ -991,7 +991,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     chair.traverse((m) => { if ((m as import('three').Mesh).isMesh) perChair++; });
     expect(lod.geos).toBe(perChair);
   });
-  it("Claude's burgundy gaming chair: faces its table, seat at SEAT_HEIGHT, light, clones share geometry (VA-0209)", async () => {
+  it("Claude's burgundy gaming chair: faces its table, seat at SEAT_HEIGHT, light, clones share geometry (VA-0210)", async () => {
     const THREE = await import('three');
     const { chairStyleFrom, chairAt, NEXT_CHAIR_STYLE } = await import('../src/floor3d/grandHallArt.ts');
     const { createVelvetGamingChair } = await import('../../../art/casino/3d/velvetGamingChair.mjs');

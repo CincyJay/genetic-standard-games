@@ -392,7 +392,7 @@ function applyPilot05(art: THREE.Group): { heroTextures: THREE.Texture[]; heroSi
     heroTextures.push(...[hero.userData.createdTitleTexture, hero.userData.createdBonusTexture].filter((t): t is THREE.Texture => !!t?.isTexture));
     // the swivel chair sits beside the hero, turned toward its screen; it stays clear of the
     // walk-up point straight in front of the machine
-    // prototype builds: the table-chair choice applies here too (VA-0209); the real game keeps the luxury chair
+    // prototype builds: the table-chair choice applies here too (VA-0210); the real game keeps the luxury chair
     const velvetChair = readChairStyle() === 'velvet';
     const chair = (velvetChair ? createVelvetGamingChair(THREE) : makeVelvetLuxuryGamingChair(THREE)) as THREE.Group;
     chair.name = 'pilot_luxury_chair';
