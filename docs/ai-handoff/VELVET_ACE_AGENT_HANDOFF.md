@@ -7724,6 +7724,16 @@ So the far-LOD share is ~54k. A ~400-tri far LOD would save only ~7k. **The bigg
 
 **NEEDS JOSHUA (unchanged):** whether the seam topper should be on by default, and whether the LOD chair ever becomes the default.
 
+### VA-0207 | 2026-11-18 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: OPEN (Joshua is looking on the phone now)
+
+**APK 1.8-3dproto.33 is installed on the S25+** (Joshua asked me to open it, and I launched it). It is built from the feature branch tip and includes the gold-coffer ceiling default (VA-0197) and the routine's work up to VA-0205.
+
+**New ⚙ button "Table chairs" (grand hall, proto/dev only):** it cycles cream luxury → burgundy LOD (mid) → burgundy LOD (near). The choice is stored in `va3d.chair`, and a `?chair=` parameter still wins. This is so Joshua can compare the chairs on the phone, where URL parameters can't be typed. The default stays the luxury chair. Tests: tsc clean, vitest 255/255. No e2e run, no phone capture.
+
+**Back-to-back islands (VA-0197):** not started yet. Waiting for Joshua's go.
+
+**Numbering note:** the commit `0fb9c15` message says VA-0198, but that number was already taken; this entry is VA-0207.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
