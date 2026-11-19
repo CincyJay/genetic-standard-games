@@ -37,13 +37,13 @@ export function createVelvetTubChair(THREE, options = {}) {
     {y:1.135,r:.318,depth:.105}
   ];
   // theta=pi is rear (-Z), ends bend forward as low integrated arms.
-  // Angles traverse back from front-right to front-left.
+  // Angles traverse from the +Z front-right arm, around the -Z back, to the +Z front-left arm.
   for(let j=0;j<rings.length;j++){
     const ring=rings[j];
     for(let i=0;i<=segments;i++){
       const t=start+(end-start)*i/segments;
-      const x=Math.cos(t)*ring.r;
-      const z=Math.sin(t)*ring.depth - .19;
+      const x=Math.sin(t)*ring.r;
+      const z=Math.cos(t)*ring.depth - .19;
       // lower the arm ends progressively; keep back highest at the centre.
       const endFactor=Math.pow(Math.abs(i/segments-.5)*2,3);
       const y=ring.y-(j>=2 ? endFactor*(ring.y-.79) : 0);
