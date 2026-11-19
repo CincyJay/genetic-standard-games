@@ -20,6 +20,7 @@ import { createSvelteReelScreen } from '../../../../art/casino/3d/svelteReelScre
 import { createSvelteSlotCabinetFarLOD } from '../../../../art/casino/3d/svelteSlotCabinetFarLOD.mjs';
 import { createSvelteSlotCabinetMidLOD } from '../../../../art/casino/3d/svelteSlotCabinetMidLOD.mjs';
 import { createVelvetIslandEndCapMarquee } from '../../../../art/casino/3d/velvetIslandEndCapMarquee.mjs';
+import { createVelvetChaseBulbGeometry } from '../../../../art/casino/3d/velvetChaseBulbLOD.mjs';
 import { createVelvetIslandSeamTopper } from '../../../../art/casino/3d/velvetIslandSeamTopper.mjs';
 import { createVelvetSlotStool } from '../../../../art/casino/3d/velvetSlotStool.mjs';
 import { createVelvetFarStool } from '../../../../art/casino/3d/velvetFarStool.mjs';
@@ -564,16 +565,37 @@ export function floorBulbGeometry(authored: THREE.BufferGeometry): THREE.BufferG
   return new THREE.IcosahedronGeometry(r, 0);
 }
 
+/** ChatGPT's far chase bulb (f61fe6e, VA-0232): 8 triangles at the floor bulb's own radius. */
+export function farBulbGeometry(nearBulb: THREE.BufferGeometry): THREE.BufferGeometry {
+  nearBulb.computeBoundingSphere();
+  const radius = nearBulb.boundingSphere?.radius ?? 0.017;
+  return createVelvetChaseBulbGeometry(THREE, { level: 'far', radius }) as THREE.BufferGeometry;
+}
+
 /**
  * Builds the end caps from one authored cap, merged for the phone: its static parts become one mesh
  * per material across every cap, and all their bulbs one instanced mesh, so 20 caps cost the draw
  * calls (and the two face canvases) of one. Kept out of the floor's batches so the bulbs can chase:
  * the authored cap's own animation runs and its bulb colours are copied to every cap.
  */
-export function buildSvelteCaps(caps: readonly CapPlacement[]): { root: THREE.Group; animate: (t: number) => void } {
+export interface SvelteCaps {
+  root: THREE.Group;
+  animate: (t: number) => void;
+  /** With `bulbLod`: puts each cap's bulbs on the near or far geometry by the camera's distance to the cap. */
+  update: (camera: THREE.Vector3) => void;
+  /** Caps whose bulbs are currently drawn far (0 without `bulbLod`). */
+  farCaps: () => number;
+}
+
+/** `?capbulbs=lod` (VA-0232): caps at least this far from the camera draw ChatGPT's 8-triangle far bulb. */
+export const CAP_BULB_FAR_M = 15;
+/** Hysteresis around CAP_BULB_FAR_M so a cap at the threshold doesn't flip every frame. */
+export const CAP_BULB_HYSTERESIS_M = 0.5;
+
+export function buildSvelteCaps(caps: readonly CapPlacement[], opts: { bulbLod?: number } = {}): SvelteCaps {
   const root = new THREE.Group();
   root.name = 'svelte_end_caps';
-  if (!caps.length) return { root, animate: () => {} };
+  if (!caps.length) return { root, animate: () => {}, update: () => {}, farCaps: () => 0 };
   const cap = createVelvetIslandEndCapMarquee(THREE, { depth: CAP.depth, height: CAP.height, width: CAP.width }) as THREE.Group;
   cap.updateMatrixWorld(true);
   const placements = caps.map((c) => new THREE.Matrix4().compose(new THREE.Vector3(c.x, 0, c.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), c.rotationY), new THREE.Vector3(1, 1, 1)));
@@ -608,29 +630,71 @@ export function buildSvelteCaps(caps: readonly CapPlacement[]): { root: THREE.Gr
   }
   const src = bulbs as THREE.InstancedMesh | null;
   let copyColours = () => {};
+  let update: (camera: THREE.Vector3) => void = () => {};
+  let farCaps = () => 0;
   if (src) {
     const n = src.count;
-    const all = new THREE.InstancedMesh(floorBulbGeometry(src.geometry), src.material, n * placements.length);
-    all.name = 'svelte_end_caps:marquee_chase_bulbs';
-    all.userData.glow = true;
-    const local = new THREE.Matrix4(), world = new THREE.Matrix4();
-    placements.forEach((p, k) => {
-      for (let i = 0; i < n; i++) {
-        src.getMatrixAt(i, local);
-        all.setMatrixAt(k * n + i, world.multiplyMatrices(p, src.matrixWorld).multiply(local));
-      }
-    });
-    all.instanceMatrix.needsUpdate = true;
-    all.computeBoundingSphere();
-    all.setColorAt(0, new THREE.Color());
-    const dst = all.instanceColor!.array as Float32Array;
+    // every bulb's world matrix, cap by cap, in the authored order
+    const local = new THREE.Matrix4();
+    const worlds = placements.map((p) => Array.from({ length: n }, (_, i) => {
+      src.getMatrixAt(i, local);
+      return new THREE.Matrix4().multiplyMatrices(p, src.matrixWorld).multiply(local);
+    }));
+    const near = new THREE.InstancedMesh(floorBulbGeometry(src.geometry), src.material, n * placements.length);
+    near.name = 'svelte_end_caps:marquee_chase_bulbs';
+    near.userData.glow = true;
+    near.setColorAt(0, new THREE.Color());
+    // ChatGPT's far bulb (f61fe6e): an octahedron at the same radius, same material, colours and chase
+    const far = opts.bulbLod === undefined ? null : new THREE.InstancedMesh(farBulbGeometry(near.geometry), src.material, n * placements.length);
+    if (far) {
+      far.name = 'svelte_end_caps:marquee_chase_bulbs_far';
+      far.userData.glow = true;
+      far.setColorAt(0, new THREE.Color());
+    }
+    const isFar = placements.map(() => false);
+    let nearCaps: number[] = [], farList: number[] = [];
+    const fill = () => {
+      nearCaps = []; farList = [];
+      isFar.forEach((f, k) => (f ? farList : nearCaps).push(k));
+      const put = (mesh: THREE.InstancedMesh, list: number[]) => {
+        list.forEach((k, j) => worlds[k].forEach((m, i) => mesh.setMatrixAt(j * n + i, m)));
+        mesh.count = list.length * n;
+        mesh.visible = list.length > 0;
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.computeBoundingSphere();
+      };
+      put(near, nearCaps);
+      if (far) put(far, farList);
+    };
+    fill();
     copyColours = () => {
       const c = src.instanceColor!.array as Float32Array;
-      for (let k = 0; k < placements.length; k++) dst.set(c, k * c.length);
-      all.instanceColor!.needsUpdate = true;
+      const put = (mesh: THREE.InstancedMesh, list: number[]) => {
+        if (!list.length) return;
+        const dst = mesh.instanceColor!.array as Float32Array;
+        for (let j = 0; j < list.length; j++) dst.set(c, j * c.length);
+        mesh.instanceColor!.needsUpdate = true;
+      };
+      put(near, nearCaps);
+      if (far) put(far, farList);
     };
     copyColours();
-    root.add(all);
+    root.add(near);
+    if (far) {
+      root.add(far);
+      const centres = caps.map((c) => new THREE.Vector3(c.x, CAP.height / 2, c.z));
+      const at = opts.bulbLod!;
+      update = (camera) => {
+        let changed = false;
+        centres.forEach((c, k) => {
+          const d = c.distanceTo(camera);
+          const f = isFar[k] ? d >= at - CAP_BULB_HYSTERESIS_M : d >= at + CAP_BULB_HYSTERESIS_M;
+          if (f !== isFar[k]) { isFar[k] = f; changed = true; }
+        });
+        if (changed) { fill(); copyColours(); }
+      };
+      farCaps = () => farList.length;
+    }
   }
   const animateCap = cap.userData.animate as ((t: number) => void) | undefined;
   return {
@@ -639,6 +703,8 @@ export function buildSvelteCaps(caps: readonly CapPlacement[]): { root: THREE.Gr
       animateCap?.(t);
       copyColours();
     },
+    update: (camera) => update(camera),
+    farCaps: () => farCaps(),
   };
 }
 

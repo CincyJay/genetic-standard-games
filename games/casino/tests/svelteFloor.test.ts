@@ -4,7 +4,7 @@ import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
 import { NavGrid } from '../src/floor3d/nav.ts';
 import { buildArtScene } from '../src/floor3d/artScene.ts';
-import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, FAR_STOOL_SEGMENTS, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps, slimNearCabinet, slimLodCabinet, SLIM_SCREEN, SLIM_MARQUEE } from '../src/floor3d/svelteFloor.ts';
+import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, FAR_STOOL_SEGMENTS, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CAP_BULB_FAR_M, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps, slimNearCabinet, slimLodCabinet, SLIM_SCREEN, SLIM_MARQUEE } from '../src/floor3d/svelteFloor.ts';
 
 describe('Svelte machines switch (prototype)', () => {
   it('puts one end cap past each end of a row, facing out', () => {
@@ -96,6 +96,50 @@ describe('Svelte machines switch (prototype)', () => {
     b.geometry.computeBoundingSphere();
     expect(b.geometry.boundingSphere!.radius).toBeCloseTo(0.017, 3);
     expect(tris).toBeLessThan(2500); // was ~9.9k per cap with 160-triangle bulbs
+  });
+
+  it('?capbulbs=lod: far caps draw ChatGPT\'s 8-tri bulb, same count, radius, matrices and chase (VA-0232)', () => {
+    const caps = [0, 1, 2, 3].map((i) => ({ x: i * 10, z: 0, rotationY: i }));
+    const plain = buildSvelteCaps(caps);
+    const lod = buildSvelteCaps(caps, { bulbLod: CAP_BULB_FAR_M });
+    const inst = (r: THREE.Object3D) => r.children.filter((c) => (c as THREE.InstancedMesh).isInstancedMesh) as THREE.InstancedMesh[];
+    const [ref] = inst(plain.root);
+    const [near, far] = inst(lod.root);
+    expect(far.name).toBe('svelte_end_caps:marquee_chase_bulbs_far');
+    expect(far.geometry.attributes.position!.count / 3).toBe(8);
+    far.geometry.computeBoundingSphere(); near.geometry.computeBoundingSphere();
+    expect(far.geometry.boundingSphere!.radius).toBeCloseTo(near.geometry.boundingSphere!.radius, 5);
+    expect(far.material).toBe(near.material);
+    const n = ref.count / caps.length;
+    // starts all near: identical to the default
+    expect(near.count).toBe(ref.count);
+    expect(far.visible).toBe(false);
+    // camera at the first cap: caps at 10 m stay near, 20 m and 30 m go far; total bulbs unchanged
+    lod.update(new THREE.Vector3(0, 1.6, 0));
+    expect(lod.farCaps()).toBe(2);
+    expect(near.count + far.count).toBe(ref.count);
+    expect(far.count).toBe(2 * n);
+    const a = new THREE.Matrix4(), b = new THREE.Matrix4();
+    for (let i = 0; i < n; i++) {
+      far.getMatrixAt(i, a); ref.getMatrixAt(2 * n + i, b);
+      expect(a.elements.every((e, j) => Math.abs(e - b.elements[j]) < 1e-9)).toBe(true);
+    }
+    // the far caps keep chasing with the authored colours
+    lod.animate(0.7); plain.animate(0.7);
+    const fc = far.instanceColor!.array, rc = ref.instanceColor!.array;
+    for (let i = 0; i < n * 3; i++) expect(fc[i]).toBeCloseTo(rc[2 * n * 3 + i], 6);
+    // hysteresis: just inside the threshold doesn't flip back; well inside does
+    lod.update(new THREE.Vector3(20 - CAP_BULB_FAR_M + 0.2, 1.6, 0));
+    expect(lod.farCaps()).toBe(2);
+    // camera at x=12: the 20 m cap (8 m away) comes back near, the 30 m cap (18 m) stays far
+    lod.update(new THREE.Vector3(12, 1.6, 0));
+    expect(lod.farCaps()).toBe(1);
+    expect(far.count).toBe(n);
+    expect(near.count + far.count).toBe(ref.count);
+    // default caps have no far mesh and ignore the camera
+    plain.update(new THREE.Vector3(1000, 0, 0));
+    expect(inst(plain.root)).toHaveLength(1);
+    expect(plain.farCaps()).toBe(0);
   });
 
   it('banks: the salon walls become two continuous banks of evenly spaced machines, a stool at each', () => {

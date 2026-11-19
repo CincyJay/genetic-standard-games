@@ -21,7 +21,7 @@ import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, readCeilingStyle, readChairStyle } from './grandHallArt.ts';
-import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
+import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { buildReelSheet, type ReelSheet, type ReelSource } from './reelSheet.ts';
 import { perfText, protoBadge } from './badge.ts';
@@ -83,7 +83,7 @@ export interface FloorStats {
   /** ChatGPT's opt-in woven carpet (VA-0058, `?carpet`) replaced the pilot carpet. */
   wovenCarpet: boolean;
   /** The prototype Svelte machine switch: cabinets put in, end caps placed and caps dropped (no room). */
-  svelteMachines: { cabinets: number; caps: number; capsDropped: number; stools: number; stoolsDropped: number; lod: { near: number; mid: number; triangles: number; drawCalls: number } | null };
+  svelteMachines: { cabinets: number; caps: number; capsDropped: number; stools: number; stoolsDropped: number; lod: { near: number; mid: number; triangles: number; drawCalls: number } | null; capBulbsFar: number };
   /** The player is drawn with ChatGPT's guest avatar pilot (VA-0035) rather than the capsule. */
   guestAvatar: boolean;
   /** The hero cabinet's canvas textures (title, BONUS sign): built, and still drawn after batching. */
@@ -324,7 +324,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on' });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
-  const capScene = svelteBanks ? buildSvelteCaps(svelteBanks.caps) : null;
+  // ChatGPT's far chase bulb (VA-0232), dev opt-in `?capbulbs=lod`; default keeps every bulb on the 20-tri icosahedron
+  const capScene = svelteBanks ? buildSvelteCaps(svelteBanks.caps, devFlag('capbulbs') === 'lod' ? { bulbLod: CAP_BULB_FAR_M } : {}) : null;
   if (svelteBanks && capScene) {
     obstacles.push(...svelteBanks.obstacles);
     scene.add(capScene.root);
@@ -1174,6 +1175,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     camera.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
     camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
     art.svelteLod?.update(camera.position);
+    capScene?.update(camera.position);
     if (Math.abs(camera.fov - pose.fov) > 0.01) {
       camera.fov = pose.fov;
       camera.updateProjectionMatrix();
@@ -1238,6 +1240,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         cabinets: art.svelteCabinets, caps: svelteBanks?.caps.length ?? 0, capsDropped: svelteBanks?.capsDropped ?? 0,
         stools: svelteBanks?.slots.reduce((n, b) => n + b.stools.length, 0) ?? 0, stoolsDropped: svelteBanks?.stoolsDropped ?? 0,
         lod: art.svelteLod ? { near: art.svelteLod.near.size, mid: art.svelteLod.mid.size, triangles: art.svelteLod.triangles(), drawCalls: art.svelteLod.drawCalls } : null,
+        capBulbsFar: capScene?.farCaps() ?? 0,
       },
       guestAvatar,
       lightMode,
