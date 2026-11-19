@@ -22,7 +22,7 @@ import { readChairStyle } from './grandHallArt.ts';
 import { makeVelvetGuestAvatar } from '../../../../art/casino/3d/guestAvatar.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
-import { PILOT_CHAIR, PILOT_HERO_SLOT, type FloorLayout } from './layout.ts';
+import { PILOT_CHAIR, PILOT_HERO_SLOT, TABLE, type FloorLayout } from './layout.ts';
 import { composeGrandHall, type CeilingStyle } from './grandHallArt.ts';
 import { applySvelteMachines } from './svelteFloor.ts';
 import type { SvelteLod } from './svelteLod.ts';
@@ -443,9 +443,27 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     heroTextures = [...heroTextures, ...svelte.textures];
     svelteCabinets = svelte.cabinets;
   }
+  // prototype builds: the salon's table chairs become Claude's gaming chair too (VA-0210), one shared
+  // template; it faces the table centre (front +Z) instead of the old chair's facing convention
+  const velvetTable = chairs.size > 0 && readChairStyle() === 'velvet' ? (createVelvetGamingChair(THREE) as THREE.Group) : null;
   for (const [id, c] of chairs) {
-    const chair = art.getObjectByName(`${id}_chair`);
+    let chair = art.getObjectByName(`${id}_chair`);
     if (!chair) continue;
+    if (velvetTable && chair.parent) {
+      const swap = velvetTable.clone();
+      swap.name = chair.name;
+      swap.position.copy(chair.position);
+      chair.parent.add(swap);
+      chair.removeFromParent();
+      chair.traverse((q) => (q as THREE.Mesh).geometry?.dispose());
+      chair = swap;
+      const x = c.x ?? chair.position.x;
+      const z = c.z ?? chair.position.z;
+      chair.position.set(x, 0, z);
+      chair.rotation.y = Math.atan2(TABLE.x - x, TABLE.z - z);
+      chairPoses.set(chair.name, { x, y: 0, z, yaw: chair.rotation.y });
+      continue;
+    }
     chair.rotation.y = c.facing;
     // the hero table's seat anchors move the chair; the art's soft contact-shadow decal stays put
     if (c.x !== undefined && c.z !== undefined) chair.position.set(c.x, chair.position.y, c.z);
