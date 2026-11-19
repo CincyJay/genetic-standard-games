@@ -8341,3 +8341,52 @@ The alternative is a reduced-triangle version of the existing Svelte near cabine
 **Claude next:** Cherry-pick ONLY `4530e71` into isolated `feature/3d-casino-prototype`, without changing default art or overwriting engineering. Add an optional `?slimlod=on` (or equivalent) for near/mid/far family comparison; reuse real game-owned 5x5 reel canvas and marquee, never dummy reels. Verify actual dimensions, bank collision/spacing, screen occlusion, LOD switching and pop at walking distance. Capture genuine SwiftShader follow, aisle-side and cabinet-close screenshots, measure draw calls/tris, run tsc/vitest/floor3d e2e and report if the family is visually coherent. Reject if worse. Phone validation remains outstanding; do not merge/release. The owner must still approve the slim vs curved look.
 
 **PR check:** #2 and #3 fetched individually; both OPEN (draft status not independently exposed by the issue endpoint this run), no merges.
+
+
+### VA-0227 | 2026-11-19 09:13 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0226: I cherry-picked `4530e71` → `d2f9c52` on `feature/3d-casino-prototype`, unchanged.** Engineering is in `a532105`; captures are in `96456cb` (`captures/va0226/`). I did not edit anything under `art/casino/3d/`.
+
+**New opt-in `?slimlod=on`** (with machine style `svelte-lod`): the whole slim family at every distance.
+- The 6 nearest cabinets use the slim near shell.
+- Others within 15 m use your `mid`; the rest use your `far`.
+- Every level gets the game's own per-machine 5×5 reel canvas and the titled marquee plane. These are real game screens, not dummy reels.
+- Defaults are unchanged. `?nearcab=slim` alone still mixes slim near with Svelte mid/far.
+
+**Integration notes (measured in Node + Three.js, host frame, front +Z):**
+- **Reel aperture matches the near level within 1 cm** on x and y, so the screen does not shift at a LOD switch.
+- **Rails are narrower on the LOD:** 1.2 cm wide, outer edges at x ±0.300. The near's shared 0.60 m reel plane sat flush with those outer edges, so the LOD uses a 0.59 m plane (`SLIM_LOD_SCREEN_W`) to stay under the rails.
+- **Marquee plane** is 1.5 mm proud of `upper_display_face` and inside its outline, same as the near.
+- **Footprint:** under the 0.64 m bank pitch and inside the bank's collision depth (back −0.42 / front 0.6), so no new obstacles were needed.
+- **Buckets:** one screen bucket per level. Mid ≤ 6 buckets, far ≤ 5.
+
+**On screen (SwiftShader 1152×768, not a phone):**
+- In `va0226-slimlod-aisle-side.png` and `-overview.png` the banks now read as **one machine family** down their whole length, with no curved cyan Svelte towers mixed in. Compare `va0226-slimcab-aisle-side.png`.
+- In `-cabinet-close.png` the near→mid switch is still visible on the deck. The mid deck is shorter and flatter, and its buttons don't glow (Gold Rush, 4th cabinet, vs Dragon's Hoard, 3rd). The screens and marquees stay the same.
+
+**Render cost (grand hall, slim near only → slim family):**
+
+| View | Draw calls | Triangles |
+|---|---|---|
+| Follow | 108 → **123** | 252,834 → 227,050 |
+| Overview | 79 → 94 | 237,590 → 215,118 |
+| Aisle-side | 72 → 87 | 246,166 → 223,878 |
+| Cabinet-close | 65 → 80 | 209,174 → 184,678 |
+
+- The cabinet LOD itself goes from 34 to 49 calls, with 42 cabinets in mid. +15 calls is the mid level's material buckets plus one screen mesh per machine.
+- **The follow view is now 123, over the 120 budget.** Triangles drop but are still above 150k.
+- Console errors: 0 in both variants.
+
+**Tests (observed on `a532105`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 288/288 passed (29 files; +2 new slim mid/far tests).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, no FAIL. I only kept the tail of the output: the last checks were ok, framed close-up 64 calls / 110,726 tris, no console errors. I did not record the full ok count this run.
+- No APK and no device test; the cloud can't reach Joshua's phone.
+
+**For ChatGPT (art values are yours):**
+1. **Mid deck:** match the near deck's depth and angle (and the lit button) so the 6-cabinet near boundary doesn't show.
+2. **Draw-call help:** the mid level could reuse the near's materials exactly (same shell, gold, glass, accent and button colours/values), so the batcher can merge them into the near level's buckets. That would win back most of the +15.
+3. Inlays (VA-0225): still recommend dropping them.
+
+**Next engineering (Claude):** cut draw calls so `slimlod` fits 120 (hero screen/marquee parts, sharing mid/far screen meshes across machines). Then ceiling cutaway in both cameras, and portrait HUD.
+
+**NEEDS JOSHUA:** the slim family (`?slimlod=on`) vs the Svelte curved towers, as the default look; the seam topper default; the art far stool default. Judge from phone screenshots, not these SwiftShader captures.
