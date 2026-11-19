@@ -22,6 +22,7 @@ import { createSvelteSlotCabinetMidLOD } from '../../../../art/casino/3d/svelteS
 import { createVelvetIslandEndCapMarquee } from '../../../../art/casino/3d/velvetIslandEndCapMarquee.mjs';
 import { createVelvetIslandSeamTopper } from '../../../../art/casino/3d/velvetIslandSeamTopper.mjs';
 import { createVelvetSlotStool } from '../../../../art/casino/3d/velvetSlotStool.mjs';
+import { createVelvetFarStool } from '../../../../art/casino/3d/velvetFarStool.mjs';
 import { MACHINES, strips } from '../logic/slots.ts';
 import type { Obstacle, RoomBounds, SlotPlacement } from './layout.ts';
 import { buildSvelteLod, type CabinetSpot, type SvelteLod } from './svelteLod.ts';
@@ -57,6 +58,27 @@ export function farStool(stool: THREE.Object3D): THREE.Object3D {
   });
   for (const o of drop) o.removeFromParent();
   return far;
+}
+
+/**
+ * The authored stool's cushion top is ~0.675 m; ChatGPT's far stool takes `seatHeight` as its
+ * cushion's centre (0.115 m tall), so this puts the two cushion tops level.
+ */
+export const ART_FAR_STOOL_SEAT_HEIGHT = 0.62;
+
+/**
+ * ChatGPT's purpose-built far stool (6f3d95e, VA-0205), opt-in `?farstool=art` instead of `farStool`.
+ * Its art faces local -Z while the bank stool faces +Z before the host's turn, so it is turned half
+ * a revolution inside a wrapper to face the cabinet like the near stool. Art values are as authored
+ * apart from the seat height and width passed in to match the near stool.
+ */
+export function artFarStool(): THREE.Object3D {
+  const wrap = new THREE.Group();
+  wrap.name = 'velvet_far_stool_facing_plus_z';
+  const art = createVelvetFarStool(THREE, { seatHeight: ART_FAR_STOOL_SEAT_HEIGHT, seatWidth: 0.48 }) as THREE.Object3D;
+  art.rotation.y = Math.PI;
+  wrap.add(art);
+  return wrap;
 }
 
 /** One LOD from several: the root holds every part's root; `near`/`mid` are the first part's (the cabinets'). */
@@ -306,7 +328,7 @@ function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: T
  * with a Svelte pair, before batching. The pass-05 pilot's swivel chair stays. Returns the screen
  * textures (for disposal) and how many cabinets went in.
  */
-export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; midLod?: boolean; banks?: BankPlan } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
+export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; midLod?: boolean; banks?: BankPlan; artFarStool?: boolean } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
   const proto = createSvelteSlotCabinet(THREE) as THREE.Group;
   try {
     applySvelteLuxuryFinish(THREE, proto);
@@ -394,7 +416,7 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
     range: SVELTE_MID_RANGE_M,
   } : undefined);
   if (!stool || !stoolSpots.length) return { textures, cabinets, stools, lod };
-  const stoolLod = buildSvelteLod(stoolSpots, stool, farStool(stool), () => undefined, SVELTE_NEAR_STOOLS);
+  const stoolLod = buildSvelteLod(stoolSpots, stool, opts.artFarStool ? artFarStool() : farStool(stool), () => undefined, SVELTE_NEAR_STOOLS);
   return { textures, cabinets, stools, lod: combineLods([lod, stoolLod]) };
 }
 

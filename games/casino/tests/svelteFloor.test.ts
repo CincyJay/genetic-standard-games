@@ -4,7 +4,7 @@ import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
 import { NavGrid } from '../src/floor3d/nav.ts';
 import { buildArtScene } from '../src/floor3d/artScene.ts';
-import { BANK, FAR_STOOL_DROP, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps } from '../src/floor3d/svelteFloor.ts';
+import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps } from '../src/floor3d/svelteFloor.ts';
 
 describe('Svelte machines switch (prototype)', () => {
   it('puts one end cap past each end of a row, facing out', () => {
@@ -194,6 +194,32 @@ describe('Svelte machines switch (prototype)', () => {
     let cabTris = 0;
     cabinetsOnly.traverse((o) => { const im = o as THREE.InstancedMesh; if (im.isInstancedMesh && im.visible) cabTris += (im.geometry.index ? im.geometry.index.count : im.geometry.attributes.position!.count) / 3 * im.count; });
     expect(lod.triangles() - cabTris).toBe(n * 626 + Math.min(n, SVELTE_NEAR_STOOLS) * 492);
+  });
+
+  it('art far stool (VA-0205, opt-in): faces the cabinet like the near stool, cushion level with it, inside the stool circle, fewer triangles', async () => {
+    const { createVelvetSlotStool } = await import('../../../art/casino/3d/velvetSlotStool.mjs');
+    const tris = (o: THREE.Object3D) => { let t = 0; o.traverse((m) => { const g = (m as THREE.Mesh).geometry; if ((m as THREE.Mesh).isMesh) t += (g.index ? g.index.count : g.attributes.position!.count) / 3; }); return t; };
+    const near = createVelvetSlotStool(THREE) as THREE.Group;
+    const far = artFarStool();
+    far.updateMatrixWorld(true);
+    const art = far.children[0];
+    expect(art.userData.velvetArt.seatHeight).toBe(ART_FAR_STOOL_SEAT_HEIGHT);
+    expect(tris(far)).toBe(art.userData.velvetArt.triangles);
+    expect(tris(far)).toBeLessThan(200);
+    // the backrest sits behind the seat: at -Z in the host's frame, like the near stool's back shell
+    const backZ = (o: THREE.Object3D, name: RegExp) => { const b = new THREE.Box3(); o.updateMatrixWorld(true); o.traverse((m) => { if ((m as THREE.Mesh).isMesh && name.test(m.name)) b.expandByObject(m); }); return b; };
+    expect(backZ(far, /^backrest$/).getCenter(new THREE.Vector3()).z).toBeLessThan(-0.1);
+    expect(backZ(near, /back|shell/).getCenter(new THREE.Vector3()).z).toBeLessThan(-0.05);
+    // cushion tops level within 1 cm; the whole stool on the floor and inside its collision circle
+    const cushion = backZ(far, /^seat_cushion$/);
+    expect(Math.abs(cushion.max.y - 0.675)).toBeLessThan(0.01);
+    const all = new THREE.Box3().setFromObject(far);
+    // the art's foot is centred at 0.028 m and 0.055 m tall, so it floats 0.5 mm: invisible, reported on the board
+    expect(all.min.y).toBeGreaterThanOrEqual(0);
+    expect(all.min.y).toBeLessThan(0.002);
+    // the tilted backrest reaches ~0.276 m behind the pedestal, 6 mm past the 0.27 m circle: reported, not a walk-through
+    expect(Math.max(all.max.z, -all.min.x, all.max.x)).toBeLessThanOrEqual(BANK.stoolR);
+    expect(-all.min.z).toBeLessThan(BANK.stoolR + 0.01);
   });
 
   it('islands (VA-0197): the grand hall side banks stand back to back, caps and stools all fit, every machine reachable', async () => {

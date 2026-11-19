@@ -16,7 +16,7 @@ const base = process.argv[2] ?? 'http://localhost:5175/';
 const out = process.argv[3] ?? fileURLToPath(new URL('../../screenshots/', import.meta.url));
 const tag = process.argv[4] ?? 'islands';
 const style = process.argv[5] ?? 'svelte-lod';
-const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on' };
+const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art' };
 const variants = (process.argv[6] ?? 'islands,walls').split(',').map((v) => [v, VARIANTS[v]]);
 mkdirSync(out, { recursive: true });
 // the west islands: centre line x -8.6, back third z -15..-6.6

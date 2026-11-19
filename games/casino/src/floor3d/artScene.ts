@@ -301,6 +301,8 @@ export interface ArtOptions {
   svelteMidLod?: boolean;
   /** With svelteMachines: continuous banks with a stool at every machine (VA-0160), planned by world.ts. */
   svelteBanks?: BankPlan;
+  /** With svelteLod and banks: ChatGPT's far stool (VA-0205) instead of the trimmed authored one; dev opt-in. */
+  artFarStool?: boolean;
   /** Grand hall only: its own ceiling, or ChatGPT's gold coffers and chandeliers (VA-0175). */
   ceiling?: CeilingStyle;
 }
@@ -431,7 +433,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let svelteLod: SvelteLod | null = null;
   if (opts.svelteMachines) {
     const ids = opts.layout?.slots.map((s) => s.id) ?? MACHINES.map((m) => m.id);
-    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, midLod: opts.svelteMidLod, banks: opts.svelteBanks });
+    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, midLod: opts.svelteMidLod, banks: opts.svelteBanks, artFarStool: opts.artFarStool });
     svelteLod = svelte.lod;
     heroTextures = [...heroTextures, ...svelte.textures];
     svelteCabinets = svelte.cabinets;

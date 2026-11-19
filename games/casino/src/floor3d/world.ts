@@ -127,6 +127,12 @@ export interface FloorHandle {
  * time the fade starts or ends); kept transparent, a fade only changes uniforms and depthWrite.
  * At opacity 1 with depthWrite on they draw as before.
  */
+/** A `?name=value` URL switch, read only in dev/proto builds (prototype opt-ins until Joshua has seen them). */
+function devFlag(name: string): string | null {
+  if (!(import.meta.env.MODE === 'proto' || import.meta.env.DEV)) return null;
+  return new URLSearchParams(location.search).get(name);
+}
+
 function makeFadeable(m: THREE.Material): void {
   m.transparent = true;
   m.depthWrite = true;
@@ -312,7 +318,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   lampPlan.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   lampScale = lampPlan.intensityScale;
   applyLighting();
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art' });
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
   const capScene = svelteBanks ? buildSvelteCaps(svelteBanks.caps) : null;
@@ -321,7 +327,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     scene.add(capScene.root);
   }
   // ChatGPT's optional island seam topper (VA-0201), dev/proto opt-in until Joshua has seen it
-  const toppers = svelteBanks && (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && new URLSearchParams(location.search).get('topper') === 'on' ? buildIslandToppers(islandSeams(svelteBanks)) : null;
+  const toppers = svelteBanks && devFlag('topper') === 'on' ? buildIslandToppers(islandSeams(svelteBanks)) : null;
   if (toppers) scene.add(toppers.root);
   const nav = new NavGrid(ROOM, obstacles);
   scene.add(art.root);
