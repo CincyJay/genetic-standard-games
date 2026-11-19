@@ -286,12 +286,11 @@ describe('Svelte machines switch (prototype)', () => {
     const buttons: THREE.Object3D[] = [];
     cab.traverse((m) => { if (/^deck_button_\d$/.test(m.name)) buttons.push(m); });
     expect(buttons).toHaveLength(5);
-    // stands on the floor; 64d62ce's extremes are the right side spine (art x 0.315 + 0.009; the left one
-    // is at -0.300) and the left light bar (-0.311), reported on the board: 0.635 m, under the 0.64 m
-    // pitch, so neighbours no longer overlap
+    // stands on the floor; since b5c7644 (VA-0220) the spines are mirrored at x ±0.300 and the extremes
+    // are the light bars (±0.311): 0.622 m, under the 0.64 m pitch, so neighbours do not overlap
     const all = new THREE.Box3().setFromObject(cab);
     expect(all.min.y).toBeCloseTo(0, 6);
-    expect(all.max.x - all.min.x).toBeCloseTo(0.635, 3);
+    expect(all.max.x - all.min.x).toBeCloseTo(0.622, 3);
     expect(all.max.x - all.min.x).toBeLessThan(BANK.pitchMin);
     // inside the bank's collision depth (back -0.42, front 0.6)
     expect(all.min.z).toBeGreaterThan(BANK.backZ);
