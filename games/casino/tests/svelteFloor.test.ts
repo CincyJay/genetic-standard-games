@@ -212,7 +212,13 @@ describe('Svelte machines switch (prototype)', () => {
     const tub = backZ(far, /^curved_tub_back$/);
     expect(tub.getCenter(new THREE.Vector3()).z).toBeLessThan(-0.1);
     expect(tub.max.y).toBeCloseTo(0.92, 3);
-    expect(backZ(far, /^tub_gold_crest$/).max.y).toBeLessThan(0.925);
+    // ade019b (VA-0212): crest widened to 30 mm (0.895-0.925 m), still level with the near rim
+    const crest = backZ(far, /^tub_gold_crest$/);
+    expect(crest.max.y).toBeLessThan(0.93);
+    expect(crest.max.y - crest.min.y).toBeGreaterThan(0.025);
+    // ade019b: the tub and crest reuse the cushion and pedestal materials (no DoubleSide clones)
+    const mat = (name: RegExp) => { let m: unknown; far.traverse((o) => { if ((o as THREE.Mesh).isMesh && name.test(o.name)) m = (o as THREE.Mesh).material; }); return m; };
+    expect(mat(/^curved_tub_back$/)).toBe(mat(/^seat_cushion$/));
     expect(backZ(near, /back|shell/).getCenter(new THREE.Vector3()).z).toBeLessThan(-0.05);
     // cushion tops level within 1 cm; the whole stool on the floor and inside its collision circle
     const cushion = backZ(far, /^seat_cushion$/);
