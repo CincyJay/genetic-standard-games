@@ -1044,6 +1044,20 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
     expect((twin.getObjectByName('VA_seat_cushion') as import('three').Mesh).geometry).toBe((chair.getObjectByName('VA_seat_cushion') as import('three').Mesh).geometry);
   });
+  it("swivel chair revision (c05c46c) rests on the floor, cushion top at SEAT_HEIGHT, declares its +Z front (VA-0242, read-only check)", async () => {
+    const THREE = await import('three');
+    const { createVelvetLuxuryChairLOD } = await import('../../../art/casino/3d/velvetLuxuryChairLOD.mjs');
+    const tpl = createVelvetLuxuryChairLOD(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    expect(tpl.userData.forward).toBe('+Z');
+    expect(new THREE.Box3().setFromObject(tpl).min.y).toBeCloseTo(0, 3);
+    expect(new THREE.Box3().setFromObject(tpl.getObjectByName('VA_seat_cushion')!).max.y).toBeCloseTo(0.65, 3);
+    const glide = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_floor_glide_0')!);
+    const drop = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_glide_drop_0')!);
+    const spoke = new THREE.Box3().setFromObject(tpl.getObjectByName('VA_five_spoke_0')!);
+    expect(drop.min.y).toBeLessThanOrEqual(glide.max.y);
+    expect(drop.max.y).toBeGreaterThanOrEqual(spoke.min.y);
+  });
   it('LOD chair keeps its seat cushion, its back meeting the shell centre (VA-0198/VA-0199, read-only check)', async () => {
     const THREE = await import('three');
     const { createVelvetGamingChairLod } = await import('../../../art/casino/3d/velvetGamingChairLod.mjs');
