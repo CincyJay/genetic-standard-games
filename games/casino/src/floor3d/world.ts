@@ -20,7 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
-import { CEILING_STORAGE_KEY, NEXT_CEILING_STYLE, readCeilingStyle } from './grandHallArt.ts';
+import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, readCeilingStyle, readChairStyle } from './grandHallArt.ts';
 import { MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { perfText, protoBadge } from './badge.ts';
@@ -572,6 +572,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="lightmode"></button>
     <button type="button" class="sveltemachines" hidden></button>
     <button type="button" class="ceilingstyle" hidden></button>
+    <button type="button" class="chairstyle" hidden></button>
     <button type="button" class="sveltepreview" hidden>Preview: Svelte 01 slot</button>
   </div>
 </div>
@@ -762,6 +763,22 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       return toast('Can’t switch the ceiling: storage is unavailable');
     }
     location.reload();
+  });
+  // prototype builds, grand hall only: the table chairs, luxury or ChatGPT's LOD chair (stored; reloads the floor)
+  const chairBtn = $<HTMLButtonElement>('.chairstyle');
+  const chairStyle = readChairStyle();
+  chairBtn.hidden = svelteBtn.hidden || hall !== 'grand';
+  chairBtn.textContent = { luxury: 'Table chairs: cream luxury', 'lod-mid': 'Table chairs: burgundy (preview)', 'lod-near': 'Table chairs: burgundy, finer (preview)' }[chairStyle];
+  chairBtn.setAttribute('aria-label', `${chairBtn.textContent}. Tap to switch (reloads the floor).`);
+  chairBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem(CHAIR_STORAGE_KEY, NEXT_CHAIR_STYLE[chairStyle]);
+    } catch {
+      return toast('Can’t switch the chairs: storage is unavailable');
+    }
+    const url = new URL(location.href);
+    url.searchParams.delete('chair');
+    location.replace(url.toString());
   });
   svelteBtn.addEventListener('click', () => {
     if (!sitting && !seated) location.href = 'svelte-slot.html?view=front&reel=art&spin=loop&engine=sevens&finish=luxury&look=vegas&from=floor';

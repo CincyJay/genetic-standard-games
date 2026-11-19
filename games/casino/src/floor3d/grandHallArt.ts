@@ -167,10 +167,18 @@ export function liteCabinet(src: THREE.Object3D, cache: Map<string, THREE.Buffer
   return copy;
 }
 
-function readChairStyle(): ChairStyle {
+export const CHAIR_STORAGE_KEY = 'va3d.chair';
+export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'luxury' };
+/** A `?chair=` parameter wins; otherwise the ⚙ button's stored choice (VA-0198), so a phone can compare. */
+export function readChairStyle(): ChairStyle {
   if (typeof location === 'undefined') return 'luxury';
   if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return 'luxury';
-  return chairStyleFrom(location.search);
+  if (new URLSearchParams(location.search).has('chair')) return chairStyleFrom(location.search);
+  try {
+    return chairStyleFrom(`?chair=${localStorage.getItem(CHAIR_STORAGE_KEY) ?? ''}`);
+  } catch {
+    return 'luxury';
+  }
 }
 
 /**
