@@ -3,6 +3,7 @@
  * `?islands=off` (the old wall banks) for comparison. Pinned cameras (debug.pinCamera), a fresh
  * browser profile (no real save) and `?floor3d` (no Firebase sign-in). Captures for review only:
  * SwiftShader, not a phone.
+ * `slimcab` swaps the near cabinets for ChatGPT's slim shell (`?nearcab=slim`, VA-0216).
  * `topper` adds ChatGPT's island seam topper (`?topper=on`, VA-0201).
  * Usage: node tests/e2e/islands.mjs [url] [outDir] [tag] [machineStyle] [variants, default islands,walls]
  */
@@ -16,7 +17,7 @@ const base = process.argv[2] ?? 'http://localhost:5175/';
 const out = process.argv[3] ?? fileURLToPath(new URL('../../screenshots/', import.meta.url));
 const tag = process.argv[4] ?? 'islands';
 const style = process.argv[5] ?? 'svelte-lod';
-const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art' };
+const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art', slimcab: '&nearcab=slim' };
 const variants = (process.argv[6] ?? 'islands,walls').split(',').map((v) => [v, VARIANTS[v]]);
 mkdirSync(out, { recursive: true });
 // the west islands: centre line x -8.6, back third z -15..-6.6
@@ -26,6 +27,8 @@ const views = {
   'wall-walkway': { pos: { x: -10.9, y: 1.7, z: -4.4 }, target: { x: -9.4, y: 1.0, z: -12 }, fov: 50 },
   'island-end': { pos: { x: -8.6, y: 1.6, z: -3.6 }, target: { x: -8.6, y: 1.0, z: -8 }, fov: 50 },
   // looking down onto the back island's shared backs and its near double cap (VA-0201)
+  // the east face of the west island at stool distance, where the near cabinets draw (VA-0216)
+  'cabinet-close': { pos: { x: -6.4, y: 1.45, z: -8.0 }, target: { x: -8.3, y: 1.25, z: -8.6 }, fov: 50 },
   'seam-high': { pos: { x: -7.4, y: 3.3, z: -4.6 }, target: { x: -8.6, y: 2.0, z: -8.5 }, fov: 50 },
 };
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
