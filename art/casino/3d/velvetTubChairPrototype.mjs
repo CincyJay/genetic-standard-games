@@ -42,7 +42,9 @@ export function createVelvetTubChair(THREE, options = {}) {
     const ring=rings[j];
     for(let i=0;i<=segments;i++){
       const t=start+(end-start)*i/segments;
-      const x=Math.sin(t)*ring.r;
+      const edge=Math.abs(i/segments-.5)*2;
+      const armStraighten=Math.pow(edge, 8);
+      const x=Math.sin(t)*ring.r + (i < segments/2 ? 1 : -1)*.142*armStraighten;
       const z=Math.cos(t)*ring.depth - .105;
       // lower the arm ends progressively; keep back highest at the centre.
       const endFactor=Math.pow(Math.abs(i/segments-.5)*2,2);
@@ -68,7 +70,7 @@ export function createVelvetTubChair(THREE, options = {}) {
   mesh('VA_pedestal_column',new THREE.CylinderGeometry(.07,.10,.38,segments),shadowLeather,0,.245,0);
   mesh('VA_pedestal_cap',new THREE.CylinderGeometry(.16,.12,.045,segments),brass,0,.454,0);
   root.userData.velvetArt={
-    type:'original-tub-chair-v2',visualOnly:true,prototype:true,
+    type:'original-tub-chair-v3',visualOnly:true,prototype:true,
     orientation:'front +Z',seatHeight:.65,
     integration:'Opt-in chair comparison only; do not replace defaults. Compare against velvet/luxury from all camera angles.',
     validation:'Source-only; not rendered, not photorealistic, not device-tested. Verify normals, seated camera and collision.'
