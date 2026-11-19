@@ -121,8 +121,8 @@ function slimPlane(w: number, h: number, open: { w: number; h: number }, uv: { u
  * upper display shows the canvas header with that machine's name. The art faces local −Z and the
  * Svelte cabinet +Z, so it is turned half a revolution inside a wrapper. Art as authored.
  */
-export function slimNearCabinet(): THREE.Object3D {
-  return slimWithScreens(createVelvetSlimCabinet(THREE) as THREE.Object3D, 'velvet_slim_cabinet_facing_plus_z');
+export function slimNearCabinet(screenW: number = SLIM_SCREEN.w): THREE.Object3D {
+  return slimWithScreens(createVelvetSlimCabinet(THREE) as THREE.Object3D, 'velvet_slim_cabinet_facing_plus_z', screenW);
 }
 
 /**
@@ -502,7 +502,9 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
   for (const { id } of spots) screenFor(id);
   // `slimLod`: the whole slim family (near, mid within SVELTE_MID_RANGE_M, far), one machine look at every distance
   const lod = opts.slimLod
-    ? buildSvelteLod(spots, slimNearCabinet(), slimLodCabinet('far'), (id) => screens.get(id), SVELTE_NEAR_CABINETS, { cabinet: slimLodCabinet('mid'), range: SVELTE_MID_RANGE_M })
+    // near takes the LOD's 0.59 m reel plane (still past the near's ±0.288 aperture, under its rails) so all
+    // three levels share one screen geometry and each machine's screen is one draw call (VA-0229)
+    ? buildSvelteLod(spots, slimNearCabinet(SLIM_LOD_SCREEN_W), slimLodCabinet('far'), (id) => screens.get(id), SVELTE_NEAR_CABINETS, { cabinet: slimLodCabinet('mid'), range: SVELTE_MID_RANGE_M }, { shareScreens: true })
     : buildSvelteLod(spots, opts.slimNear ? slimNearCabinet() : proto, createSvelteSlotCabinetFarLOD(THREE) as THREE.Group, (id) => screens.get(id), SVELTE_NEAR_CABINETS, opts.midLod ? {
       cabinet: createSvelteSlotCabinetMidLOD(THREE) as THREE.Group,
       range: SVELTE_MID_RANGE_M,

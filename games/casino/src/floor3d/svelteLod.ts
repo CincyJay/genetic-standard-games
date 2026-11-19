@@ -82,6 +82,7 @@ export function buildSvelteLod(
   screenFor: (id: string) => THREE.Material | undefined,
   nearCount: number,
   mid?: { cabinet: THREE.Object3D; range: number },
+  opts: { shareScreens?: boolean } = {},
 ): SvelteLod {
   const root = new THREE.Group();
   root.name = 'svelte_lod';
@@ -90,10 +91,12 @@ export function buildSvelteLod(
   const pos = spots.map((s) => new THREE.Vector3().setFromMatrixPosition(s.matrix));
   const k = Math.min(Math.max(0, nearCount), spots.length);
 
-  const level = (cabinet: THREE.Object3D, name: string, cap: (n: number) => number) => {
+  const share = !!opts.shareScreens;
+  const level = (cabinet: THREE.Object3D, name: string, cap: (n: number) => number, screens: 'own' | 'all' | 'none' = share ? 'none' : 'own') => {
     const out: LevelMesh[] = [];
     let tris = 0;
     for (const b of cabinetBuckets(cabinet).buckets) {
+      if (b.screen && screens === 'none') { b.geometry.dispose(); b.material.dispose(); continue; }
       tris += triangles(b.geometry);
       const make = (material: THREE.Material, n: number, id: string | null) => {
         const mesh = new THREE.InstancedMesh(b.geometry, material, Math.max(1, n));
@@ -106,12 +109,14 @@ export function buildSvelteLod(
         root.add(mesh);
         out.push({ mesh, id, tris: triangles(b.geometry) });
       };
-      if (b.screen) for (const [id, n] of perId) make(screenFor(id) ?? b.material, cap(n), id);
+      if (b.screen) for (const [id, n] of perId) make(screenFor(id) ?? b.material, screens === 'all' ? n : cap(n), id);
       else make(b.material, cap(spots.length), null);
     }
     return { meshes: out, tris };
   };
-  const nearLevel = level(near, 'svelte_lod_near', (n) => Math.min(n, k));
+  // shareScreens (VA-0229): every level's screen bucket is the same plane, so each machine's screen
+  // is one instanced mesh over all its spots, whatever their level, instead of one per level
+  const nearLevel = level(near, 'svelte_lod_near', (n) => Math.min(n, k), share ? 'all' : 'own');
   const midLevel = mid ? level(mid.cabinet, 'svelte_lod_mid', (n) => n) : null;
   const farLevel = level(far, 'svelte_lod_far', (n) => n);
   const all = [...nearLevel.meshes, ...(midLevel?.meshes ?? []), ...farLevel.meshes];
@@ -129,6 +134,7 @@ export function buildSvelteLod(
         if (lm.id !== null && lm.id !== s.id) continue;
         lm.mesh.setMatrixAt(lm.mesh.count++, s.matrix);
       }
+      if (share && lv !== nearLevel) for (const lm of nearLevel.meshes) if (lm.id === s.id) lm.mesh.setMatrixAt(lm.mesh.count++, s.matrix);
     });
     for (const lm of all) {
       lm.mesh.visible = lm.mesh.count > 0;

@@ -187,3 +187,48 @@ describe('Svelte islands three-level LOD (near / mid / far)', () => {
     console.info(`[svelte lod 3] near ${lod.trianglesNear}, mid ${lod.trianglesMid}, far ${lod.trianglesFar} tris; ${lod.drawCalls} calls max`);
   });
 });
+
+describe('slim family LOD with shared screens (VA-0229, ?slimlod=on)', () => {
+  const spots: CabinetSpot[] = Array.from({ length: 78 }, (_, i) => ({
+    id: ['sevens', 'lanterns', 'gold'][i % 3],
+    matrix: new THREE.Matrix4().makeTranslation((i % 13) * 1.2, 0, Math.floor(i / 13) * 2.4),
+  }));
+  const ids = ['sevens', 'lanterns', 'gold'];
+  const screens = new Map(ids.map((id) => [id, new THREE.MeshStandardMaterial({ name: `screen_${id}` })]));
+
+  it('all three slim levels have the same screen + marquee plane, so one screen mesh per machine serves every level', async () => {
+    const { slimNearCabinet, slimLodCabinet, SLIM_LOD_SCREEN_W } = await import('../src/floor3d/svelteFloor.ts');
+    const { cabinetBuckets } = await import('../src/floor3d/svelteFloorBatch.ts');
+    const screenGeo = (o: THREE.Object3D) => cabinetBuckets(o).buckets.find((b) => b.screen)!.geometry;
+    const n = screenGeo(slimNearCabinet(SLIM_LOD_SCREEN_W));
+    for (const level of ['mid', 'far'] as const) {
+      const g = screenGeo(slimLodCabinet(level));
+      expect(g.attributes.position.count).toBe(n.attributes.position.count);
+      const a = g.attributes.position.array, b = n.attributes.position.array;
+      for (let i = 0; i < a.length; i++) expect(Math.abs(a[i] - b[i])).toBeLessThan(1e-6);
+    }
+  });
+
+  it('draws each machine screen once over all levels: fewer calls, same instances and triangles', async () => {
+    const { slimNearCabinet, slimLodCabinet, SLIM_LOD_SCREEN_W } = await import('../src/floor3d/svelteFloor.ts');
+    const build = (share: boolean) => buildSvelteLod(spots, slimNearCabinet(SLIM_LOD_SCREEN_W), slimLodCabinet('far'), (id) => screens.get(id), 6, { cabinet: slimLodCabinet('mid'), range: 6 }, { shareScreens: share });
+    const own = build(false), shared = build(true);
+    const p = new THREE.Vector3(0, 1.6, 0);
+    own.update(p); shared.update(p);
+    // two of the three levels' per-machine screen meshes are gone
+    expect(own.drawCalls - shared.drawCalls).toBe(2 * ids.length);
+    expect(shared.triangles()).toBe(own.triangles());
+    const screenCounts = (lod: typeof own) => {
+      const c = new Map<string, number>();
+      for (const m of lod.root.children as THREE.InstancedMesh[]) if (m.visible && [...screens.values()].includes(m.material as THREE.MeshStandardMaterial)) c.set((m.material as THREE.Material).name, (c.get((m.material as THREE.Material).name) ?? 0) + m.count);
+      return c;
+    };
+    // every spot still draws exactly one screen instance on its own machine's screen
+    expect(screenCounts(shared)).toEqual(screenCounts(own));
+    expect([...screenCounts(shared).values()].reduce((a, b) => a + b, 0)).toBe(78);
+    // and after walking, the shared screens follow every spot
+    shared.update(new THREE.Vector3(14.4, 1.6, 12)); own.update(new THREE.Vector3(14.4, 1.6, 12));
+    expect(screenCounts(shared)).toEqual(screenCounts(own));
+    own.dispose(); shared.dispose();
+  });
+});
