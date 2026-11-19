@@ -1091,7 +1091,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(tpl.userData.forward).toBe('+Z');
     let tris = 0;
     tpl.traverse((m) => { const g = (m as import('three').Mesh).geometry; if (g) tris += (g.index?.count ?? g.attributes.position.count) / 3; });
-    expect(tris).toBe(1080);
+    expect(tris).toBe(1620);
     const all = new THREE.Box3().setFromObject(tpl);
     expect(all.min.y).toBeCloseTo(0, 3);
     expect(new THREE.Box3().setFromObject(tpl.getObjectByName('VA_tub_cushion')!).max.y).toBeCloseTo(0.65, 3);
@@ -1112,7 +1112,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
   // unchanged (x +-0.343, y 0.525..1.015, z -0.365..+0.137). The push is not monotonic: on every ring x goes
   // 0.278 -> 0.251 -> 0.256 over the last two segments, so the upper rings fold back on themselves (adjacent vertex
   // normals differ by up to 55 deg at i = 1 / 17 on rings 3-4: a visible crease at each arm end).
-  it('tub chair shell v3 (1961cbf): symmetric, open ~0.50 m mouth, footprint inside 0.38 m (VA-0252)', async () => {
+  it('tub chair shell v3/v4: symmetric, open ~0.50 m mouth, footprint inside 0.38 m (VA-0252, VA-0254)', async () => {
     const THREE = await import('three');
     const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
     const tpl = createVelvetTubChair(THREE) as import('three').Group;
@@ -1137,14 +1137,39 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(shell.max.z).toBeGreaterThanOrEqual(0.1);
     expect(shell.max.y).toBeCloseTo(1.015, 3);
   });
-  // Known art bug, still present after 1961cbf (whose message says it was fixed): line 65 of
-  // velvetTubChairPrototype.mjs still holds literal "\n" text, so the whole rim block sits inside one // comment
-  // and VA_tub_shell_brass_rim is never built. Flips to passing once real newlines are committed.
-  it.fails('tub chair has the traced brass shell rim (still commented out by literal \\n after 1961cbf, VA-0252)', async () => {
+  // 4aad5c9 (v4) commits real newlines: the traced rim is built (540 tris, chair 1,080 -> 1,620), uses the shared
+  // brass material and sits on the shell's top ring (rim max y 1.025 = top ring 1.015 + 0.004 lift + 0.006 radius).
+  it('tub chair v4 (4aad5c9) builds the traced brass shell rim on the top ring (VA-0254)', async () => {
     const THREE = await import('three');
     const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
     const tpl = createVelvetTubChair(THREE) as import('three').Group;
-    expect(tpl.getObjectByName('VA_tub_shell_brass_rim')).toBeTruthy();
+    tpl.updateMatrixWorld(true);
+    const rim = tpl.getObjectByName('VA_tub_shell_brass_rim') as import('three').Mesh;
+    expect(rim).toBeTruthy();
+    expect(rim.material).toBe((tpl.getObjectByName('VA_pedestal_foot') as import('three').Mesh).material);
+    const box = new THREE.Box3().setFromObject(rim);
+    expect(box.max.y).toBeCloseTo(1.025, 3);
+    expect(Math.max(-box.min.x, box.max.x, -box.min.z, box.max.z)).toBeLessThanOrEqual(0.38);
+  });
+  // v4 makes |x| monotonic over the last two segments (0.255 -> 0.257..0.271 -> 0.256..0.286), but it pins every ring's
+  // tip to x 0.255 and (rings 2-4) y 0.790, so the three upper tip vertices sit within 0.021 m of each other in z only.
+  // The tip quads of rings 3-4 are near-degenerate slivers: computeVertexNormals gives inward / asymmetric normals there
+  // (adjacent-normal jump 83 deg ring 3, 87 deg ring 4 at i = 17; 32 / 56 deg at i = 0), worse than v3's 55 deg.
+  // Kept as an expected failure until the art fixes the tip; work in engineering code would mean changing art values.
+  it.fails('tub chair v4 arm tips have no near-degenerate faces (adjacent normals within 45 deg) (VA-0254)', async () => {
+    const THREE = await import('three');
+    const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
+    const tpl = createVelvetTubChair(THREE) as import('three').Group;
+    const g = (tpl.getObjectByName('VA_integrated_tub_shell') as import('three').Mesh).geometry;
+    const n = g.attributes.normal, seg = n.count / 5 - 1;
+    const a = new THREE.Vector3(), b = new THREE.Vector3();
+    let worst = 0;
+    for (let j = 0; j < 5; j++) for (let i = 0; i < seg; i++) {
+      const k = j * (seg + 1) + i;
+      a.fromBufferAttribute(n, k); b.fromBufferAttribute(n, k + 1);
+      worst = Math.max(worst, a.angleTo(b) * 180 / Math.PI);
+    }
+    expect(worst).toBeLessThan(45);
   });
   it('LOD chair keeps its seat cushion, its back meeting the shell centre (VA-0198/VA-0199, read-only check)', async () => {
     const THREE = await import('three');
