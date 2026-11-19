@@ -4,7 +4,7 @@ import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
 import { NavGrid } from '../src/floor3d/nav.ts';
 import { buildArtScene } from '../src/floor3d/artScene.ts';
-import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps, slimNearCabinet, SLIM_SCREEN } from '../src/floor3d/svelteFloor.ts';
+import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps, slimNearCabinet, SLIM_SCREEN, SLIM_MARQUEE } from '../src/floor3d/svelteFloor.ts';
 
 describe('Svelte machines switch (prototype)', () => {
   it('puts one end cap past each end of a row, facing out', () => {
@@ -235,7 +235,7 @@ describe('Svelte machines switch (prototype)', () => {
     expect(Math.max(all.max.z, -all.min.z, -all.min.x, all.max.x)).toBeLessThanOrEqual(BANK.stoolR);
   });
 
-  it('slim near cabinet (VA-0216, opt-in): faces +Z like the Svelte cabinet, reel plane behind the rails and in front of the backplane, one screen bucket', async () => {
+  it('slim near cabinet (VA-0216/0218, opt-in): faces +Z like the Svelte cabinet, reel plane behind the rails and in front of the backplane, one screen bucket', async () => {
     const { cabinetBuckets } = await import('../src/floor3d/svelteFloorBatch.ts');
     const cab = slimNearCabinet();
     cab.updateMatrixWorld(true);
@@ -252,23 +252,47 @@ describe('Svelte machines switch (prototype)', () => {
     expect(screenZ).toBeLessThan(face('reel_left_rail', 0.065) - 0.02);
     expect(screenZ).toBeGreaterThan(face('reel_backplane', 0.22) + 0.02);
     expect(back.max.z).toBeLessThan(rails.max.z);
-    // fills the aperture and tucks under the rails, never past their outer edges
+    // fills the 0.58 × 0.69 m opening (64d62ce) and tucks under the rails, never past their outer edges
+    const railBox = (n: string) => box(new RegExp(`^reel_${n}_rail$`));
     expect(screen.max.x).toBeLessThan(rails.max.x);
-    expect(screen.max.x).toBeGreaterThan(0.264);
+    expect(screen.max.x).toBeGreaterThan(railBox('left').max.x * -1);
     expect(screen.max.y).toBeLessThan(rails.max.y);
+    expect(screen.max.y).toBeGreaterThan(railBox('top').min.y);
     expect(screen.min.y).toBeGreaterThan(rails.min.y);
+    expect(screen.min.y).toBeLessThan(railBox('bottom').max.y);
     expect(screen.getCenter(new THREE.Vector3()).y).toBeCloseTo(SLIM_SCREEN.y, 2);
+    // the reels are within 4 % of the canvas reel area's 467:540 aspect (VA-0217 measured ~10 % squeeze)
+    expect((SLIM_SCREEN.open.w / SLIM_SCREEN.open.h) / (467 / 540)).toBeGreaterThan(0.96);
     // the screen plane faces the player (+Z)
     const n = new THREE.Vector3();
     cab.traverse((m) => { if (m.name === 'slim_reel_screen') n.fromBufferAttribute((m as THREE.Mesh).geometry.attributes.normal as THREE.BufferAttribute, 0).transformDirection(m.matrixWorld); });
     expect(n.z).toBeGreaterThan(0.99);
+    // the marquee sits just proud of the upper display face, inside its outline, facing the player
+    const upper = box(/^upper_display_face$/);
+    const marquee = box(/^slim_marquee_screen$/);
+    expect(marquee.max.z).toBeGreaterThan(upper.max.z);
+    expect(marquee.max.z - upper.max.z).toBeLessThan(0.01);
+    expect(marquee.min.x).toBeGreaterThan(upper.min.x);
+    expect(marquee.max.x).toBeLessThan(upper.max.x);
+    expect(marquee.min.y).toBeGreaterThan(upper.min.y);
+    expect(marquee.max.y).toBeLessThan(upper.max.y);
+    expect(marquee.getCenter(new THREE.Vector3()).y).toBeCloseTo(SLIM_MARQUEE.y, 2);
     const { buckets } = cabinetBuckets(cab);
+    // reels and marquee share the machine's screen material: still one screen bucket
     expect(buckets.filter((b) => b.screen)).toHaveLength(1);
-    expect(buckets.length).toBeLessThanOrEqual(5);
-    // stands on the floor; 0.68 m wide, so at the 0.64 m pair pitch neighbours overlap by 4 cm (reported on the board)
+    // shell, gold, glass, accent, 64d62ce's button gold, screen: one more call than accd383 for all near cabinets
+    expect(buckets.length).toBeLessThanOrEqual(6);
+    // five deck buttons, on the player's side of the deck
+    const buttons: THREE.Object3D[] = [];
+    cab.traverse((m) => { if (/^deck_button_\d$/.test(m.name)) buttons.push(m); });
+    expect(buttons).toHaveLength(5);
+    // stands on the floor; 64d62ce's extremes are the right side spine (art x 0.315 + 0.009; the left one
+    // is at -0.300) and the left light bar (-0.311), reported on the board: 0.635 m, under the 0.64 m
+    // pitch, so neighbours no longer overlap
     const all = new THREE.Box3().setFromObject(cab);
     expect(all.min.y).toBeCloseTo(0, 6);
-    expect(all.max.x - all.min.x).toBeCloseTo(0.68, 3);
+    expect(all.max.x - all.min.x).toBeCloseTo(0.635, 3);
+    expect(all.max.x - all.min.x).toBeLessThan(BANK.pitchMin);
     // inside the bank's collision depth (back -0.42, front 0.6)
     expect(all.min.z).toBeGreaterThan(BANK.backZ);
     expect(all.max.z).toBeLessThan(BANK.frontZ);

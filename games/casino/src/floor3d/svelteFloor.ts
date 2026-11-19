@@ -84,34 +84,61 @@ export function artFarStool(): THREE.Object3D {
 
 /** Reel area of ChatGPT's reel-screen canvas (svelteReelScreen.mjs, 512×1024): the five rails span x 22–489, y 240–780 px. */
 export const SLIM_SCREEN_UV = { u0: 22 / 512, u1: 489 / 512, v0: 1 - 780 / 1024, v1: 1 - 240 / 1024 } as const;
-/** The reel plane behind the slim shell's gold rails (rail inner edges: ±0.264 m, y 0.918–1.643 m); 1 cm under each rail. */
-export const SLIM_SCREEN = { w: 0.547, h: 0.745, y: 1.28, z: 0.02, tilt: -0.065 } as const;
+/**
+ * The reel plane behind the slim shell's gold rails. Since 64d62ce (VA-0218) the rails' inner edges
+ * are x ±0.290, y 0.935–1.625 m (a 0.58 × 0.69 m opening), front faces at art z −0.0375, backplane
+ * face at +0.05. The plane tucks 1 cm under each rail; `open` is the visible opening the canvas's
+ * reel area maps onto, so the hidden margins carry a little canvas past it rather than squeezing it.
+ */
+export const SLIM_SCREEN = { w: 0.6, h: 0.71, open: { w: 0.58, h: 0.69 }, y: 1.28, z: 0.02, tilt: -0.065 } as const;
+/**
+ * The marquee on the shell's `upper_display_face` (textureSlot 'upper-marquee', 0.54 × 0.25 m,
+ * centre y 1.89, z −0.003, 1.8 cm thick, tilt −0.09): a plane 1.5 mm proud of its front face, inset
+ * 1 cm, showing the same machine's screen canvas cropped to its header (title and the four jackpot
+ * plaques). Same material as the reels, so it adds no draw call.
+ */
+export const SLIM_MARQUEE = { w: 0.52, h: 0.23, y: 1.89, z: -0.003, face: 0.009 + 0.0015, tilt: -0.09 } as const;
+export const SLIM_MARQUEE_UV = { u0: 22 / 512, u1: 490 / 512, v0: 1 - 236 / 1024, v1: 1 - 30 / 1024 } as const;
+
+/** A plane facing the art's −Z front, UVs spanning `uv` over `open` (centred) and extrapolated to the plane's edges. */
+function slimPlane(w: number, h: number, open: { w: number; h: number }, uv: { u0: number; u1: number; v0: number; v1: number }): THREE.PlaneGeometry {
+  const g = new THREE.PlaneGeometry(w, h);
+  const a = g.attributes.uv as THREE.BufferAttribute;
+  const du = ((uv.u1 - uv.u0) / open.w) * (w - open.w) / 2;
+  const dv = ((uv.v1 - uv.v0) / open.h) * (h - open.h) / 2;
+  for (let i = 0; i < a.count; i++) a.setXY(i, a.getX(i) ? uv.u1 + du : uv.u0 - du, a.getY(i) ? uv.v1 + dv : uv.v0 - dv);
+  g.rotateY(Math.PI);
+  return g;
+}
 
 /**
- * ChatGPT's slim near-cabinet shell (accd383, VA-0216), opt-in `?nearcab=slim` with `svelte-lod`: it
- * replaces the full Svelte cabinet as the LOD's near level only (mid/far LODs, hitboxes, the 10
- * themed machines and their screens unchanged). The shell's 5×5 aperture is empty by design, so a
- * plane with the reel screen material (`VA_SVELTE_REEL_SCREEN_SWAP`, so each machine's own screen
- * goes on it) sits behind its rails, UV-cropped to the canvas's reel area. The art faces local -Z
- * and the Svelte cabinet +Z, so it is turned half a revolution inside a wrapper. Art as authored.
+ * ChatGPT's slim near-cabinet shell (accd383 → 64d62ce, VA-0216/0218), opt-in `?nearcab=slim` with
+ * `svelte-lod`: it replaces the full Svelte cabinet as the LOD's near level only (mid/far LODs,
+ * hitboxes, the 10 themed machines and their screens unchanged). The shell's 5×5 aperture is empty by
+ * design, so a plane with the reel screen material (`VA_SVELTE_REEL_SCREEN_SWAP`, so each machine's own
+ * screen goes on it) sits behind its rails, UV-mapped to the canvas's reel area; a second plane on the
+ * upper display shows the canvas header with that machine's name. The art faces local −Z and the
+ * Svelte cabinet +Z, so it is turned half a revolution inside a wrapper. Art as authored.
  */
 export function slimNearCabinet(): THREE.Object3D {
   const wrap = new THREE.Group();
   wrap.name = 'velvet_slim_cabinet_facing_plus_z';
   const art = createVelvetSlimCabinet(THREE) as THREE.Object3D;
-  const g = new THREE.PlaneGeometry(SLIM_SCREEN.w, SLIM_SCREEN.h);
-  const uv = g.attributes.uv as THREE.BufferAttribute;
-  for (let i = 0; i < uv.count; i++) {
-    uv.setXY(i, uv.getX(i) ? SLIM_SCREEN_UV.u1 : SLIM_SCREEN_UV.u0, uv.getY(i) ? SLIM_SCREEN_UV.v1 : SLIM_SCREEN_UV.v0);
-  }
-  g.rotateY(Math.PI); // face the art's -Z front
-  g.rotateX(SLIM_SCREEN.tilt);
-  g.translate(0, SLIM_SCREEN.y, SLIM_SCREEN.z);
   const mat = new THREE.MeshStandardMaterial({ color: 0x111725, roughness: 0.2 });
   mat.name = 'VA_SVELTE_REEL_SCREEN_SWAP';
+  const g = slimPlane(SLIM_SCREEN.w, SLIM_SCREEN.h, SLIM_SCREEN.open, SLIM_SCREEN_UV);
+  g.rotateX(SLIM_SCREEN.tilt);
+  g.translate(0, SLIM_SCREEN.y, SLIM_SCREEN.z);
   const screen = new THREE.Mesh(g, mat);
   screen.name = 'slim_reel_screen';
   art.add(screen);
+  const mg = slimPlane(SLIM_MARQUEE.w, SLIM_MARQUEE.h, SLIM_MARQUEE, SLIM_MARQUEE_UV);
+  mg.translate(0, 0, -SLIM_MARQUEE.face);
+  mg.rotateX(SLIM_MARQUEE.tilt);
+  mg.translate(0, SLIM_MARQUEE.y, SLIM_MARQUEE.z);
+  const marquee = new THREE.Mesh(mg, mat);
+  marquee.name = 'slim_marquee_screen';
+  art.add(marquee);
   art.rotation.y = Math.PI;
   wrap.add(art);
   return wrap;
@@ -320,7 +347,7 @@ export function fitCaps(caps: readonly CapPlacement[], existing: readonly Obstac
 }
 
 /** A machine's static 5×5 screen: ChatGPT's reel-screen art with that machine's own symbols. */
-function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: THREE.Texture[]): THREE.MeshStandardMaterial {
+function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: THREE.Texture[], titled = false): THREE.MeshStandardMaterial {
   const mat = base.clone();
   if (typeof document === 'undefined') return mat;
   const screen = createSvelteReelScreen(THREE, { width: 512, height: 1024 }) as {
@@ -336,6 +363,15 @@ function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: T
   if (!machine) return mat;
   const reels = strips(machine);
   const g = screen.canvas.getContext('2d')!;
+  if (titled) {
+    // slim near cabinet's marquee (VA-0218): the machine's name over the art's '♠ CASINO ♠' line
+    g.fillStyle = '#25112b';
+    g.fillRect(30, 117, 452, 38);
+    g.textAlign = 'center';
+    g.fillStyle = '#ffe0a0';
+    g.font = 'bold 28px Georgia, serif';
+    g.fillText(machine.name.toUpperCase(), 256, 147, 440);
+  }
   const cells: { img: HTMLImageElement; x: number; y: number; s: number }[] = [];
   screen.reelWindows.forEach((w, r) => {
     const strip = reels[r];
@@ -387,7 +423,7 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
   const screens = new Map<string, THREE.MeshStandardMaterial>();
   const screenFor = (id: string) => {
     let m = screens.get(id);
-    if (!m && baseScreen) screens.set(id, (m = machineScreen(id, baseScreen, textures)));
+    if (!m && baseScreen) screens.set(id, (m = machineScreen(id, baseScreen, textures, !!opts.slimNear)));
     return m;
   };
   const ids = new Set(slotIds);
