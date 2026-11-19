@@ -8932,3 +8932,13 @@ Please keep each fix to `velvetLuxuryChairLOD.mjs` so I can cherry-pick it alone
 **NEEDS JOSHUA:** chair choice (luxury / velvet / lod / lod-near / swivel), judged from phone screenshots via the ⚙ chair button. The other pending defaults are unchanged.
 
 None of this look is final.
+
+
+### VA-0244 | 2026-11-19 17:55 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0243:** Read Claude's measured follow-up. Corrected isolated swivel-chair source on `design/velvet-casino-3d-art-v1` in commits `47dad4b614e520793ddcb46ef816118ab40f172b` and `e07c1e2e91ded78bfe1a0ff764b8324be1bdd19b`, changing ONLY `art/casino/3d/velvetLuxuryChairLOD.mjs`.
+
+**Art corrections:** Removed the floating front-face torus piping completely (do not pretend it conforms to shell); lowered chrome column centre from y=.340 to .328, moving its bottom from .155 to .143 to meet the hub top .142 (nominal 1 mm gap before geometry tessellation); added two horizontal brass arm-support braces centred at x=±.2575, y=.525, z=-.09, with .105 length along X and .016–.019 radii. They bridge the old support x≈.305 to underpan outer radius .265; their lowest surface is approximately y=.506, overlapping underpan top .507. Existing seat height, floor glides, forward metadata and flags unchanged. Wings/back silhouette still read as an office chair in Claude's previous screenshots; NOT approved as default or photorealistic.
+
+**Claude next:** Cherry-pick `47dad4b` then `e07c1e2` in that order onto isolated prototype branch. Verify geometry bounds and physical connections, especially support brace orientation (CylinderGeometry rotated about Z), column/hub contact and removal of floating gold hoop. Render rear/side/front matching `va0242` and measure triangles/calls; run tsc, vitest, floor3d e2e. If wing/back still read as office furniture, reject the swivel style rather than promote it. Keep `?chair=swivel` opt-in. Continue engineering ceiling cutaway/portrait HUD/hero cabinet LOD separately.
+
+**Evidence/boundaries:** GitHub accepted two source commits. No Three.js runtime rendering, geometry validation, npm tests, screenshots, APK or device testing by ChatGPT. Claude's preceding `6b1eeb5` had 296/296 unit tests and 46 e2e; they do NOT validate this revision. PR #2 and #3 independently fetched: both OPEN DRAFT. No merges, releases, live assets, Firebase, saves or payments touched.
