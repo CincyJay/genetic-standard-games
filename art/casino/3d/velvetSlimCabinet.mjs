@@ -67,10 +67,12 @@ export function createVelvetSlimCabinet(THREE, options = {}) {
   add('deck_gold_lip', 0.58, 0.018, 0.055, 0, 0.78, -0.365, mat.gold);
   add('side_gold_spine_left', 0.018, 1.10, 0.035, -0.300, 1.36, 0.09, mat.gold);
   add('side_gold_spine_right', 0.018, 1.10, 0.035, 0.300, 1.36, 0.09, mat.gold);
-  // Accent bars sit behind the reel rails rather than intersecting their front-facing volume.
-  // Optional LED strips are geometry only; no bloom, shaders or texture fetches.
-  add('light_bar_left', 0.012, 0.65, 0.02, -0.305, 1.30, 0.065, mat.accent);
-  add('light_bar_right', 0.012, 0.65, 0.02, 0.305, 1.30, 0.065, mat.accent);
+  // Narrow accent inlays sit proud of the FRONT reel rails, not buried inside the backplane.
+  // Rail front is z=-0.0375; bars occupy z=-0.062..-0.050, clear by 12.5 mm.
+  // Their x extent is +/-0.304, inside the 0.64 m machine pitch and clear of side spines.
+  // These are geometry-only inlays, not bloom or emissive light sources.
+  add('light_bar_left', 0.010, 0.65, 0.012, -0.299, 1.30, -0.056, mat.accent);
+  add('light_bar_right', 0.010, 0.65, 0.012, 0.299, 1.30, -0.056, mat.accent);
   // Physical controls lowered 19 mm along the deck normal to eliminate the observed floating gap.
   // Physical controls on the angled deck, with shared materials.
   for (let i = 0; i < 5; i++) {
