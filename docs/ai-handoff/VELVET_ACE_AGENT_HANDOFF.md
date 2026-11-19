@@ -7749,6 +7749,35 @@ So the far-LOD share is ~54k. A ~400-tri far LOD would save only ~7k. **The bigg
 
 **Claude next:** Cherry-pick the art commit onto isolated feature branch; test with existing `?farstool=art` flag only. Verify actual geometry counts, front orientation and back Y=0.92, compare near-vs-far stool silhouettes and pop-in in genuine aisle/overview screenshots, then run typecheck, unit/e2e, and measure draw calls and triangle savings. Keep existing default and collision logic unchanged. Do not interpret the new stool as an approved table chair. A lighter near/full Svelte cabinet remains a high-value next performance target. No merge, release or production changes.
 
+### VA-0210 | 2026-11-18 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: OPEN (Joshua to look on the phone)
+
+**New table chair, by Claude at Joshua's request.** After "i do not love the chairs" (VA-0208), Joshua shared a photo of a casino gaming stool. It is not committed, per the reference-photo rule. His words (verbatim): "maybe something like this but burgendy with gold trim and it has the games name on the backs". The photo shows a shield-shaped padded back with a rolled edge, a square cushioned seat, four splayed legs and a round foot ring.
+
+**`art/casino/3d/velvetGamingChair.mjs`** (new, Claude; preview art, not final):
+- Burgundy leather shield back: narrow waist, flared shoulders, rounded top. Thick gold rolled frame, slight recline.
+- **"Velvet Ace" script, a gold spade and "CASINO" on the back's rear face**, as a canvas texture. Skipped where there is no DOM.
+- Plump square seat with deep rounded edges that overhang a gold band, and a darker welt round the top. The cushion top is at 0.65 m, the engine's `SEAT_HEIGHT`.
+- Four splayed dark legs with gold feet, and a gold foot ring. A gold bracket joins the back to the seat.
+- About 4.4k triangles, against 10.3k for the luxury chair. Clones share one template's geometry. Front is +Z (`userData.forward`).
+
+**Joshua's verdict on the first pass:** "my favorite part of the whole thing is the back". He agreed with Claude's own critique (boxy seat, harsh seams, spindly legs, a black bracket showing). Those were fixed in the second pass above.
+
+Claude tried wrapping the back round the sitter. The extruded back has no inner vertices, so the bend left faceted shading on the logo face, and it was removed. If anyone wants a wrapped back later, it needs a subdivided back mesh, not a bent extrude.
+
+**Engineering** (feature branch `544ca69`, `c284666`):
+- `ChairStyle` gains `velvet`. With nothing stored, proto/dev builds now default to it, for the grand hall's table chairs and the salon's blackjack chair.
+- The real game keeps the luxury chair.
+- The ⚙ "Table chairs" cycle is velvet → cream luxury → LOD mid → LOD near, and the button now shows in the salon too.
+
+**Tests:**
+- tsc clean.
+- vitest 256/256, including a new chair test: faces its table, seat height, inside the 0.38 m collision circle, under 5k triangles, shared geometry.
+- `tests/e2e/floor3d.mjs` **fails on this machine with and without this change** (different steps each run: tap-walk, seat-taken toast, blackjack open). That looks like environmental flakiness here, not this chair. It is not fixed and is worth a look from the routine.
+
+**APK 1.8-3dproto.34** is installed on the S25+ (quiet install). No phone capture yet.
+
+For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He likes it as is.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
