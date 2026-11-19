@@ -1000,9 +1000,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // the ⚙ cycle visits every style once
     const seen = new Set<string>();
     let s: keyof typeof NEXT_CHAIR_STYLE = 'velvet';
-    for (let i = 0; i < 4; i++) { seen.add(s); s = NEXT_CHAIR_STYLE[s]; }
+    for (let i = 0; i < 5; i++) { seen.add(s); s = NEXT_CHAIR_STYLE[s]; }
     expect(s).toBe('velvet');
-    expect(seen.size).toBe(4);
+    expect(seen.size).toBe(5);
     const tpl = createVelvetGamingChair(THREE);
     tpl.updateMatrixWorld(true);
     expect(new THREE.Box3().setFromObject(tpl.getObjectByName('chair_seat_cushion')!).max.y).toBeCloseTo(SEAT_HEIGHT, 2);
@@ -1019,6 +1019,30 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const back = new THREE.Box3().setFromObject(chair.getObjectByName('chair_back')!);
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
     expect((twin.getObjectByName('chair_back_pad') as import('three').Mesh).geometry).toBe((chair.getObjectByName('chair_back_pad') as import('three').Mesh).geometry);
+  });
+  it("ChatGPT's swivel chair (31b9eb8) is opt-in with ?chair=swivel, faces its table and clones share geometry (VA-0240)", async () => {
+    const THREE = await import('three');
+    const { chairStyleFrom, chairAt } = await import('../src/floor3d/grandHallArt.ts');
+    const { createVelvetLuxuryChairLOD } = await import('../../../art/casino/3d/velvetLuxuryChairLOD.mjs');
+    expect(chairStyleFrom('?chair=swivel')).toBe('swivel');
+    expect(chairStyleFrom('')).toBe('luxury');
+    const tpl = createVelvetLuxuryChairLOD(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    let tris = 0;
+    tpl.traverse((m) => { const g = (m as import('three').Mesh).geometry; if (g) tris += (g.index?.count ?? g.attributes.position.count) / 3; });
+    expect(tris).toBeLessThan(3000); // the luxury chair is ~10.3k
+    // its raked back reaches 0.416 m behind the column, past the 0.38 m seat collision circle; the
+    // default luxury chair already reaches 0.465 m, so it is no worse than what ships (VA-0241)
+    const all = new THREE.Box3().setFromObject(tpl);
+    expect(Math.max(-all.min.x, all.max.x, -all.min.z, all.max.z)).toBeLessThan(0.465);
+    // facing a table at -X: the back ends up on the far side (+X), seat cushion toward the table
+    const templates = new Map();
+    const chair = chairAt('c', 0, 0, -3, 0, 'swivel', templates);
+    const twin = chairAt('d', 2, 0, -3, 0, 'swivel', templates);
+    chair.updateMatrixWorld(true);
+    const back = new THREE.Box3().setFromObject(chair.getObjectByName('VA_sculpted_back_lowpoly')!);
+    expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
+    expect((twin.getObjectByName('VA_seat_cushion') as import('three').Mesh).geometry).toBe((chair.getObjectByName('VA_seat_cushion') as import('three').Mesh).geometry);
   });
   it('LOD chair keeps its seat cushion, its back meeting the shell centre (VA-0198/VA-0199, read-only check)', async () => {
     const THREE = await import('three');
