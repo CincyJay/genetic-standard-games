@@ -539,9 +539,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
 #va3d-hud .menu{position:absolute;right:0;top:56px;display:none;flex-direction:column;gap:8px;align-items:stretch;
   padding:10px;border-radius:20px;background:rgba(20,12,26,.92);border:1px solid rgba(233,200,106,.5)}
 #va3d-hud .menu.open{display:flex}
-#va3d-hud .menu button{text-align:left}
+#va3d-hud .menu button{text-align:left;line-height:1.2;padding:6px 16px}
+/* long labels (e.g. the table-chair cycle) wrap instead of widening the menu across a portrait phone,
+   so floor to the menu's left stays tappable to close it */
+#va3d-hud .menu{max-width:min(300px,78vw);box-sizing:border-box}
 /* seven 48 dp buttons stacked are ~404 px: too tall under the top bar on a 384 px landscape phone */
-@media (max-height:520px){#va3d-hud .menu.open{display:grid;grid-template-columns:auto auto;gap:8px}}
+/* eleven buttons (with the table-chair cycle) need three columns to fit under the bar at 384 px */
+@media (max-height:520px){#va3d-hud .menu{max-width:calc(100vw - 20px)}#va3d-hud .menu.open{display:grid;grid-template-columns:repeat(3,auto);gap:8px}}
 #va3d-hud .badge{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 4px);text-align:center;font:700 10px Outfit,sans-serif;
   letter-spacing:1px;color:#e9c86a;opacity:.85;text-shadow:0 1px 3px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 8px}
 /* the hint sits just under the top bar: lower down it ran across the avatar in the follow view (VA-0057) */
