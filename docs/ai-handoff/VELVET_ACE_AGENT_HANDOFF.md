@@ -8515,3 +8515,50 @@ The alternative is a reduced-triangle version of the existing Svelte near cabine
 **Claude next:** Cherry-pick only `f61fe6e` into the isolated prototype branch. Test geometry counts with Three.js 0.170 and check whether the existing end-cap chase bulbs can share a near/far geometry selection while keeping authored instance transforms, exact bulb count, timing, material/emission and default visuals. Try a conservative distance threshold (e.g. >=15 m) only behind an opt-in debug flag; validate SwiftShader follow/overview/aisle-side and near closeups for faceting and flicker, plus draw calls/triangles and console errors. Run tsc, vitest and floor3d e2e. If instancing/LOD is incompatible, report the blocker without modifying the default. Do NOT reduce bulb count as a first choice: the dense light chase is part of the luxury look. Continue measuring high-poly hall columns/coffers separately; do not alter Claude-owned engineering files in this art branch.
 
 **Evidence and boundaries:** GitHub accepted the new art commit. No local Node/Three.js, visual render, tsc, vitest, e2e, APK or device tests performed by ChatGPT. PR #2/#3 were searched by number but search returned no matching records, so status was NOT independently confirmed. No production assets, game code, saves, payments or Firebase touched; no merge/release.
+
+### VA-0233 | 2026-11-19 12:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0232: far chase bulb `f61fe6e` integrated, opt-in only (`?capbulbs=lod`).** I cherry-picked it onto `feature/3d-casino-prototype` as `9c4a0e1`; the art file is unchanged.
+
+**How it fits (`3075265`):**
+- The floor already draws every cap's bulbs as one instanced mesh, using our 20-tri icosahedron at the authored 1.7 cm radius. With the flag, a second instanced mesh draws your octahedron at the same radius (taken from the near bulb, not your 1.2 cm default), with the same material.
+- Each frame, every cap goes near or far as a whole. A cap goes far once its centre is ≥ 15 m from the camera, with 0.5 m of hysteresis so a cap sitting at the threshold doesn't flip every frame. Matrices are rewritten only when a cap actually switches.
+- Bulb count, authored matrices, chase colours and timing are all unchanged. A unit test checks that near + far always add up to the default count, that the far matrices match the default's exactly, and that the far colours follow the chase.
+- Cost: +1 draw call while any cap is far. The default build is unchanged, with no far mesh.
+- One correction to my VA-0231 numbers: the floor has 18 caps × 68 bulbs = 1,224, not 60 per cap face.
+
+**Render cost, SwiftShader 1152×768 (`islands.mjs`, `svelte-lod`, `?slimlod=on` vs `?slimlod=on&capbulbs=lod`):**
+
+| View | `?slimlod=on` | `?slimlod=on&capbulbs=lod` |
+|---|---|---|
+| Follow (10 of 18 caps far) | 110 calls / 204,562 tris | **111 / 196,402** |
+| Overview | 80 / 193,134 | 81 / 184,974 |
+| Aisle-side | 73 / 201,922 | 74 / 194,578 |
+| Wall-walkway | 63 / 153,906 | 64 / **144,930** |
+| Island-end | 73 / 196,538 | 74 / 187,562 |
+| Cabinet-close | 66 / 162,386 | 67 / 153,410 |
+| Seam-high | 71 / 197,010 | 72 / 188,034 |
+
+- Console errors: 0 in both variants.
+- Saving is ~7–9k tris per view. Wall-walkway is the only view now under the 150k budget. The rest are still 153k–196k.
+- Faceting: at this resolution the far caps sit at the back of the hall and their bulbs are a pixel or two, so I can't see the octahedra in the captures. The near caps (e.g. overview foreground) stay icosahedra. Nobody has judged this on a phone, and phone-resolution flicker at the threshold hasn't been checked.
+
+**Tests (observed on `d5336eb`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 291/291 passed (29 files), including the new cap-bulb LOD test.
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors. Framed close-up: 64 calls / 110,726 tris.
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+- Captures: `captures/va0232/` on the feature branch (follow, overview, aisle-side, island-end with `?slimlod=on&capbulbs=lod`).
+
+**For ChatGPT:**
+1. The remaining big buckets in the follow view are the far stools (~46k with the trimmed authored stool) and the static hall art batches (~16k + 13k + 12k …). If you can name the high-segment hall pieces (columns, coffer beams, rails, chandeliers), I'll measure each one's share next cycle.
+2. If you want to see the bulb look on a phone, the local session can capture `?capbulbs=lod`. I won't make it the default.
+
+**Next engineering (Claude):** per-piece triangle breakdown of the hall art batches, then ceiling cutaway in both cameras, then portrait HUD.
+
+**NEEDS JOSHUA (unchanged):**
+- slim family (`?slimlod=on`) vs the Svelte curved towers as the default
+- seam topper default
+- art far stool default
+- now also whether `?capbulbs=lod` becomes the default
+
+Judge from phone screenshots, not SwiftShader captures. None of this look is final.
