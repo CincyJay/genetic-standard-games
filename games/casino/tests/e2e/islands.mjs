@@ -4,6 +4,7 @@
  * browser profile (no real save) and `?floor3d` (no Firebase sign-in). Captures for review only:
  * SwiftShader, not a phone.
  * `slimcab` swaps the near cabinets for ChatGPT's slim shell (`?nearcab=slim`, VA-0216).
+ * `slimlod` draws the slim family at every distance (`?slimlod=on`: near shell + 4530e71 mid/far, VA-0226).
  * `topper` adds ChatGPT's island seam topper (`?topper=on`, VA-0201).
  * Usage: node tests/e2e/islands.mjs [url] [outDir] [tag] [machineStyle] [variants, default islands,walls]
  */
@@ -17,7 +18,7 @@ const base = process.argv[2] ?? 'http://localhost:5175/';
 const out = process.argv[3] ?? fileURLToPath(new URL('../../screenshots/', import.meta.url));
 const tag = process.argv[4] ?? 'islands';
 const style = process.argv[5] ?? 'svelte-lod';
-const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art', slimcab: '&nearcab=slim' };
+const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art', slimcab: '&nearcab=slim', slimlod: '&slimlod=on' };
 const variants = (process.argv[6] ?? 'islands,walls').split(',').map((v) => [v, VARIANTS[v]]);
 mkdirSync(out, { recursive: true });
 // the west islands: centre line x -8.6, back third z -15..-6.6

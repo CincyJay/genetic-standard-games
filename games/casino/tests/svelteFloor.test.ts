@@ -4,7 +4,7 @@ import { layoutFor } from '../src/floor3d/grandHall.ts';
 import { obstaclesFor, SEATS, SPAWN, ROOM, SALON_ROOM, useRoom } from '../src/floor3d/layout.ts';
 import { NavGrid } from '../src/floor3d/nav.ts';
 import { buildArtScene } from '../src/floor3d/artScene.ts';
-import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps, slimNearCabinet, SLIM_SCREEN, SLIM_MARQUEE } from '../src/floor3d/svelteFloor.ts';
+import { ART_FAR_STOOL_SEAT_HEIGHT, artFarStool, BANK, FAR_STOOL_DROP, farStool, SVELTE_NEAR_STOOLS, buildIslandToppers, buildSvelteCaps, CABINET_TOP, islandSeams, CAP, capObstacle, planBanks, fitCaps, SVELTE_PAIR_X, svelteRowCaps, slimNearCabinet, slimLodCabinet, SLIM_SCREEN, SLIM_MARQUEE } from '../src/floor3d/svelteFloor.ts';
 
 describe('Svelte machines switch (prototype)', () => {
   it('puts one end cap past each end of a row, facing out', () => {
@@ -295,6 +295,46 @@ describe('Svelte machines switch (prototype)', () => {
     // inside the bank's collision depth (back -0.42, front 0.6)
     expect(all.min.z).toBeGreaterThan(BANK.backZ);
     expect(all.max.z).toBeLessThan(BANK.frontZ);
+  });
+
+  it.each(['mid', 'far'] as const)('slim %s LOD (4530e71, VA-0226, opt-in): same footprint and screens as the slim near cabinet, few buckets', async (level) => {
+    const { cabinetBuckets } = await import('../src/floor3d/svelteFloorBatch.ts');
+    const cab = slimLodCabinet(level);
+    cab.updateMatrixWorld(true);
+    const near = slimNearCabinet();
+    near.updateMatrixWorld(true);
+    const box = (o: THREE.Object3D, name: RegExp) => { const b = new THREE.Box3(); o.traverse((m) => { if ((m as THREE.Mesh).isMesh && name.test(m.name)) b.expandByObject(m); }); return b; };
+    // deck on the player's side (+Z), like the near level
+    expect(box(cab, /^angled_deck$/).getCenter(new THREE.Vector3()).z).toBeGreaterThan(0.15);
+    // reel plane: behind the rails' fronts, in front of the backplane, inside the rails' outer edges
+    const screen = box(cab, /^slim_reel_screen$/);
+    const rails = box(cab, /^reel_(left|right|top|bottom)$/);
+    const back = box(cab, /^reel_backplane$/);
+    expect(screen.max.z).toBeLessThan(rails.max.z);
+    expect(screen.min.z).toBeGreaterThan(back.max.z - 0.03);
+    expect(screen.max.x).toBeLessThan(rails.max.x);
+    expect(screen.min.x).toBeGreaterThan(rails.min.x);
+    expect(screen.max.y).toBeLessThan(rails.max.y);
+    expect(screen.min.y).toBeGreaterThan(rails.min.y);
+    // the LOD's reel opening lines up with the near's within 1 cm (no shift at the switch)
+    const nearRails = box(near, /^reel_(left|right|top|bottom)_rail$/);
+    for (const k of ['min', 'max'] as const) for (const a of ['x', 'y'] as const) expect(Math.abs(rails[k][a] - nearRails[k][a])).toBeLessThan(0.01);
+    // the marquee sits just proud of the upper display face, inside it
+    const upper = box(cab, /^upper_display_face$/);
+    const marquee = box(cab, /^slim_marquee_screen$/);
+    expect(marquee.max.z).toBeGreaterThan(upper.max.z);
+    expect(marquee.max.z - upper.max.z).toBeLessThan(0.01);
+    expect(marquee.min.x).toBeGreaterThan(upper.min.x);
+    expect(marquee.max.x).toBeLessThan(upper.max.x);
+    // stands on the floor, under the bank pitch, inside the bank's collision depth
+    const all = new THREE.Box3().setFromObject(cab);
+    expect(all.min.y).toBeCloseTo(0, 6);
+    expect(all.max.x - all.min.x).toBeLessThan(BANK.pitchMin);
+    expect(all.min.z).toBeGreaterThan(BANK.backZ);
+    expect(all.max.z).toBeLessThan(BANK.frontZ);
+    const { buckets } = cabinetBuckets(cab);
+    expect(buckets.filter((b) => b.screen)).toHaveLength(1);
+    expect(buckets.length).toBeLessThanOrEqual(level === 'mid' ? 6 : 5);
   });
 
   it('islands (VA-0197): the grand hall side banks stand back to back, caps and stools all fit, every machine reachable', async () => {

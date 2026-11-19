@@ -24,6 +24,7 @@ import { createVelvetIslandSeamTopper } from '../../../../art/casino/3d/velvetIs
 import { createVelvetSlotStool } from '../../../../art/casino/3d/velvetSlotStool.mjs';
 import { createVelvetFarStool } from '../../../../art/casino/3d/velvetFarStool.mjs';
 import { createVelvetSlimCabinet } from '../../../../art/casino/3d/velvetSlimCabinet.mjs';
+import { createVelvetSlimCabinetLOD } from '../../../../art/casino/3d/velvetSlimCabinetLOD.mjs';
 import { MACHINES, strips } from '../logic/slots.ts';
 import type { Obstacle, RoomBounds, SlotPlacement } from './layout.ts';
 import { buildSvelteLod, type CabinetSpot, type SvelteLod } from './svelteLod.ts';
@@ -121,12 +122,28 @@ function slimPlane(w: number, h: number, open: { w: number; h: number }, uv: { u
  * Svelte cabinet +Z, so it is turned half a revolution inside a wrapper. Art as authored.
  */
 export function slimNearCabinet(): THREE.Object3D {
+  return slimWithScreens(createVelvetSlimCabinet(THREE) as THREE.Object3D, 'velvet_slim_cabinet_facing_plus_z');
+}
+
+/**
+ * ChatGPT's matching slim mid/far LOD (4530e71, VA-0226), opt-in `?slimlod=on` with `svelte-lod`:
+ * same two-housing silhouette, same 0.58 × 0.69 m reel aperture (rails x ±0.288, y 0.935–1.625,
+ * fronts at art z −0.0375, backplane face +0.05) and same 0.54 × 0.25 upper display face, so the
+ * near's reel and marquee planes go on unchanged with the machine's own screen material. Art as authored.
+ */
+export function slimLodCabinet(level: 'mid' | 'far'): THREE.Object3D {
+  return slimWithScreens(createVelvetSlimCabinetLOD(THREE, { level }) as THREE.Object3D, `velvet_slim_${level}_facing_plus_z`, SLIM_LOD_SCREEN_W);
+}
+
+/** The LOD's rails are 1.2 cm wide with outer edges at x ±0.300 (the near's are wider), so its reel plane is 1 cm narrower to stay under them. */
+export const SLIM_LOD_SCREEN_W = 0.59;
+
+function slimWithScreens(art: THREE.Object3D, name: string, screenW: number = SLIM_SCREEN.w): THREE.Object3D {
   const wrap = new THREE.Group();
-  wrap.name = 'velvet_slim_cabinet_facing_plus_z';
-  const art = createVelvetSlimCabinet(THREE) as THREE.Object3D;
+  wrap.name = name;
   const mat = new THREE.MeshStandardMaterial({ color: 0x111725, roughness: 0.2 });
   mat.name = 'VA_SVELTE_REEL_SCREEN_SWAP';
-  const g = slimPlane(SLIM_SCREEN.w, SLIM_SCREEN.h, SLIM_SCREEN.open, SLIM_SCREEN_UV);
+  const g = slimPlane(screenW, SLIM_SCREEN.h, SLIM_SCREEN.open, SLIM_SCREEN_UV);
   g.rotateX(SLIM_SCREEN.tilt);
   g.translate(0, SLIM_SCREEN.y, SLIM_SCREEN.z);
   const screen = new THREE.Mesh(g, mat);
@@ -400,7 +417,7 @@ function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: T
  * with a Svelte pair, before batching. The pass-05 pilot's swivel chair stays. Returns the screen
  * textures (for disposal) and how many cabinets went in.
  */
-export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; midLod?: boolean; banks?: BankPlan; artFarStool?: boolean; slimNear?: boolean } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
+export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; midLod?: boolean; banks?: BankPlan; artFarStool?: boolean; slimNear?: boolean; slimLod?: boolean } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
   const proto = createSvelteSlotCabinet(THREE) as THREE.Group;
   try {
     applySvelteLuxuryFinish(THREE, proto);
@@ -423,7 +440,7 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
   const screens = new Map<string, THREE.MeshStandardMaterial>();
   const screenFor = (id: string) => {
     let m = screens.get(id);
-    if (!m && baseScreen) screens.set(id, (m = machineScreen(id, baseScreen, textures, !!opts.slimNear)));
+    if (!m && baseScreen) screens.set(id, (m = machineScreen(id, baseScreen, textures, !!(opts.slimNear || opts.slimLod))));
     return m;
   };
   const ids = new Set(slotIds);
@@ -483,10 +500,13 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
   }
   if (!opts.lod) return { textures, cabinets, stools, lod: null };
   for (const { id } of spots) screenFor(id);
-  const lod = buildSvelteLod(spots, opts.slimNear ? slimNearCabinet() : proto, createSvelteSlotCabinetFarLOD(THREE) as THREE.Group, (id) => screens.get(id), SVELTE_NEAR_CABINETS, opts.midLod ? {
-    cabinet: createSvelteSlotCabinetMidLOD(THREE) as THREE.Group,
-    range: SVELTE_MID_RANGE_M,
-  } : undefined);
+  // `slimLod`: the whole slim family (near, mid within SVELTE_MID_RANGE_M, far), one machine look at every distance
+  const lod = opts.slimLod
+    ? buildSvelteLod(spots, slimNearCabinet(), slimLodCabinet('far'), (id) => screens.get(id), SVELTE_NEAR_CABINETS, { cabinet: slimLodCabinet('mid'), range: SVELTE_MID_RANGE_M })
+    : buildSvelteLod(spots, opts.slimNear ? slimNearCabinet() : proto, createSvelteSlotCabinetFarLOD(THREE) as THREE.Group, (id) => screens.get(id), SVELTE_NEAR_CABINETS, opts.midLod ? {
+      cabinet: createSvelteSlotCabinetMidLOD(THREE) as THREE.Group,
+      range: SVELTE_MID_RANGE_M,
+    } : undefined);
   if (!stool || !stoolSpots.length) return { textures, cabinets, stools, lod };
   const stoolLod = buildSvelteLod(stoolSpots, stool, opts.artFarStool ? artFarStool() : farStool(stool), () => undefined, SVELTE_NEAR_STOOLS);
   return { textures, cabinets, stools, lod: combineLods([lod, stoolLod]) };

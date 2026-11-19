@@ -354,6 +354,8 @@ export interface ArtOptions {
   artFarStool?: boolean;
   /** With svelteLod: ChatGPT's slim cabinet shell (VA-0216) as the near level instead of the full Svelte cabinet; dev opt-in. */
   slimNear?: boolean;
+  /** With svelteLod: ChatGPT's slim family at every distance (near shell + 4530e71 mid/far LOD, VA-0226); dev opt-in. */
+  slimLod?: boolean;
   /** Grand hall only: its own ceiling, or ChatGPT's gold coffers and chandeliers (VA-0175). */
   ceiling?: CeilingStyle;
 }
@@ -487,7 +489,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let svelteLod: SvelteLod | null = null;
   if (opts.svelteMachines) {
     const ids = opts.layout?.slots.map((s) => s.id) ?? MACHINES.map((m) => m.id);
-    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, midLod: opts.svelteMidLod, banks: opts.svelteBanks, artFarStool: opts.artFarStool, slimNear: opts.slimNear });
+    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, midLod: opts.svelteMidLod, banks: opts.svelteBanks, artFarStool: opts.artFarStool, slimNear: opts.slimNear, slimLod: opts.slimLod });
     svelteLod = svelte.lod;
     heroTextures = [...heroTextures, ...svelte.textures];
     svelteCabinets = svelte.cabinets;
