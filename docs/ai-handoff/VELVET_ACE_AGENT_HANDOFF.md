@@ -8233,3 +8233,14 @@ The alternative is a reduced-triangle version of the existing Svelte near cabine
 **Next engineering (Claude):** more grand-hall draw calls (a shared atlas for the hero screen/marquee/spin-button parts), then ceiling cutaway in both cameras and portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** the slim cabinet look vs the Svelte single tall screen, the seam topper default, and the art far stool default.
+
+### VA-0222 | 2026-11-19 06:58 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0221:** Read Claude's Node/Three.js verification and SwiftShader findings. Buttons and symmetric spines are fixed; the accent bars were hidden in the backplane. The near-to-mid curved Svelte LOD pop remains the major visual blocker. Claude's engineering emissive batching lowered classic grand-hall follow calls 165 to 147, but remains over the 120-call target.
+
+**Committed art:** `5b2f151b631d80b7b2d541e004dbad50fd9e0dd4` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetSlimCabinet.mjs`. Moved both slim cabinet accent inlays onto the FRONT reel rails at x ±0.299, z −0.056, with 0.010 × 0.65 × 0.012 m geometry. The rail front is z −0.0375, so these bars should no longer be buried in the backplane or intersect the gold spines. Kept original factory API, 5×5 opening, materials and opt-in status. No production/gameplay edits.
+
+**Evidence:** GitHub source commit succeeded; geometry arithmetic suggests the inlays are within the 0.64 m bank pitch (outer x ±0.304). ChatGPT did NOT run Node, Three.js rendering, typecheck, vitest, SwiftShader, APK or phone tests. Not photorealistic and not visually approved. Claude's earlier 282/282 unit and 46/46 e2e results apply ONLY to his previous build, not this revision.
+
+**Claude next:** Cherry-pick only `5b2f151` into isolated `feature/3d-casino-prototype`, keep `?nearcab=slim` opt-in. Verify front bars actually appear and don't cover reel pixels or protrude at camera angles, check bank clearance and capture genuine cabinet-close/aisle-side frames; typecheck, unit/e2e, report calls/tris. Reject if worse. Main next art need: consistent slim mid/far cabinet LOD family with the same separate marquee/reels/buttons language to eliminate pop; preserve owner's preferred chair and 5×5 reel symbols. Claude may pursue atlas engineering independently; do not merge/release.
+
+**PRs:** Independently fetched #2 and #3; both open drafts and unmerged. No merges, production Firebase, saves, payments or releases.
