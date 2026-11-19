@@ -19,7 +19,8 @@ export function createVelvetCarpetTexture(THREE, options = {}) {
   // All marks are periodic within a 4x4 grid; the boundary is never stroked.
   ctx.fillStyle = '#211b2c'; ctx.fillRect(0, 0, size, size);
   const cell = size / 4;
-  for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
+  // Interlaced damask is a separate opt-in design, not a medallion variant.
+  if (options.motif !== 'interlaced-damask') for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
     const cx = (x + .5) * cell, cy = (y + .5) * cell;
     ctx.save(); ctx.translate(cx, cy);
     ctx.rotate(((x + y) % 2) * pi / 4);
@@ -40,6 +41,37 @@ export function createVelvetCarpetTexture(THREE, options = {}) {
     // Interlocking corner flourishes, deliberately inset to avoid tile seams.
     ctx.strokeStyle = '#634559'; ctx.lineWidth = Math.max(1, size / 512);
     ctx.beginPath(); ctx.arc(cx, cy, cell * .41, 0, 2*pi); ctx.stroke();
+  }
+  if (options.motif === 'interlaced-damask') {
+    // Seamless, large-scale interlacing. No medallion circles or dot grid.
+    // Periodic functions meet with matching slopes at all tile boundaries.
+    ctx.save();
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const drawRibbon = (vertical, phase, color, width) => {
+      ctx.strokeStyle = color; ctx.lineWidth = width;
+      ctx.beginPath();
+      for (let i = 0; i <= 256; i++) {
+        const t = i / 256;
+        const sway = .12 * Math.sin(4 * pi * t + phase);
+        const a = t * size, b = size * (.5 + sway);
+        if (i === 0) ctx.moveTo(vertical ? b : a, vertical ? a : b);
+        else ctx.lineTo(vertical ? b : a, vertical ? a : b);
+      }
+      ctx.stroke();
+    };
+    // Broad garnet underweave remains legible when mipmapped at a distance.
+    for (const phase of [0, pi]) {
+      drawRibbon(false, phase, '#85435a', Math.max(9, size / 42));
+      drawRibbon(true, phase, '#85435a', Math.max(9, size / 42));
+    }
+    // Gold raised thread, framed by a dark edge to separate crossing ribbons.
+    for (const phase of [0, pi]) {
+      drawRibbon(false, phase, '#302333', Math.max(7, size / 56));
+      drawRibbon(false, phase, '#bd9659', Math.max(4, size / 110));
+      drawRibbon(true, phase, '#302333', Math.max(7, size / 56));
+      drawRibbon(true, phase, '#bd9659', Math.max(4, size / 110));
+    }
+    ctx.restore();
   }
   // Optional continuous-vine overlay: less polka-dot than isolated medallions.
   // The four quadrants use wrapped paths so their edges join on repeated tiles.
@@ -79,8 +111,8 @@ export function createVelvetCarpetTexture(THREE, options = {}) {
       ctx.stroke();
     }
     ctx.restore();
-  } else if (options.motif !== undefined && options.motif !== 'medallion') {
-    throw new RangeError('motif must be medallion or woven-vine');
+  } else if (options.motif !== undefined && options.motif !== 'medallion' && options.motif !== 'interlaced-damask') {
+    throw new RangeError('motif must be medallion, woven-vine, or interlaced-damask');
   }
   // Seeded, low-opacity yarn speckle: reproducible across runs and devices.
   let seed = (options.seed ?? 420) >>> 0;
