@@ -1168,3 +1168,43 @@ describe('fps readout', () => {
     expect(perfText({ fps: 59.6, intervalP95Ms: 17.04, cpuAvgMs: 3.25, drawCalls: 92 })).toBe('60 fps · p95 17.0 ms\ncpu 3.3 ms · 92 calls');
   });
 });
+
+describe('woven medallion carpet texture (436ef01, VA-0234, ?carpetart=on)', () => {
+  const stubCanvas = () => {
+    const ctx = new Proxy({} as Record<string, unknown>, { get: (t, k) => (k in t ? t[k as string] : () => {}), set: (t, k, v) => ((t[k as string] = v), true) });
+    return { width: 0, height: 0, getContext: () => ctx };
+  };
+  it('is off by default and only swaps the hall carpet texture: same mesh, footprint and square repeat', async () => {
+    const THREE = await import('three');
+    const { carpetArtFrom, composeGrandHall, CARPET_ART_SIZE } = await import('../src/floor3d/grandHallArt.ts');
+    const { grandHallLayout, GRAND_SPEC } = await import('../src/floor3d/grandHall.ts');
+    expect(carpetArtFrom('')).toBe(false);
+    expect(carpetArtFrom('?floor3d&carpetart=on')).toBe(true);
+    expect(carpetArtFrom('?carpetart=1')).toBe(false);
+    const { grandFloorLayout } = await import('../src/floor3d/grandHall.ts');
+    const g = grandFloorLayout();
+    type Plane = InstanceType<typeof THREE.Mesh<InstanceType<typeof THREE.PlaneGeometry>>>;
+    const carpetOf = (root: InstanceType<typeof THREE.Group>) => root.getObjectByName('VA_opt_in_patterned_carpet') as Plane;
+    const off = composeGrandHall(g, { liftSign: () => 0, carpetCanvas: stubCanvas() });
+    const on = composeGrandHall(g, { liftSign: () => 0, carpetCanvas: stubCanvas(), carpetArt: true });
+    expect(off.carpetArt).toBe(false);
+    expect(on.carpetArt).toBe(true);
+    const a = carpetOf(off.root), b = carpetOf(on.root);
+    expect(b.userData.carpetArt).toBe('436ef01');
+    expect(a.userData.carpetArt).toBeUndefined();
+    expect(b.position.toArray()).toEqual(a.position.toArray());
+    expect(b.geometry.parameters).toEqual(a.geometry.parameters);
+    const map = (b.material as InstanceType<typeof THREE.MeshStandardMaterial>).map!;
+    expect(map.userData.velvetArt.textureSize).toBe(CARPET_ART_SIZE);
+    const { width, height } = b.geometry.parameters;
+    // square tiles: metres per repeat equal on both axes, and the same as the damask's
+    expect(width / map.repeat.x).toBeCloseTo(height / map.repeat.y, 6);
+    expect(width / map.repeat.x).toBeCloseTo(b.userData.repeatMeters, 6);
+    // still exactly one carpet mesh
+    let n = 0;
+    on.root.traverse((o) => { if (o.name === 'VA_opt_in_patterned_carpet') n++; });
+    expect(n).toBe(1);
+    // no canvas, no texture: the placeholder floor stays and nothing throws
+    expect(composeGrandHall(g, { liftSign: () => 0, carpetArt: true }).carpetArt).toBe(false);
+  });
+});

@@ -24,6 +24,7 @@ import { createVelvetGamingChair } from '../../../../art/casino/3d/velvetGamingC
 import { createVelvetGamingChairLod } from '../../../../art/casino/3d/velvetGamingChairLod.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
+import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
 import { BLACKJACK_HERO_ANCHORS, type FloorLayout, type TablePlacement } from './layout.ts';
 
@@ -83,11 +84,53 @@ function readCofferSideInset(): number {
   return cofferSideInsetFrom(location.search);
 }
 
+/**
+ * ChatGPT's woven medallion carpet texture (436ef01, VA-0234), opt-in for dev and prototype builds
+ * with `?carpetart=on`. It only swaps the hall carpet's texture: same mesh, footprint, height and
+ * material, so collisions and batching don't change. The default stays the damask carpet.
+ */
+export function carpetArtFrom(search: string): boolean {
+  return new URLSearchParams(search).get('carpetart') === 'on';
+}
+
+function readCarpetArt(): boolean {
+  if (typeof location === 'undefined') return false;
+  if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return false;
+  return carpetArtFrom(location.search);
+}
+
+/** Texture size for `?carpetart=on`: 512² RGBA is ~1.4 MB on the GPU with mipmaps. */
+export const CARPET_ART_SIZE = 512;
+
+/**
+ * Puts the woven medallion texture on an existing carpet mesh. One texture tile is 4×4 medallions;
+ * the tile is kept square and the same size in metres as the damask's repeat (`userData.repeatMeters`),
+ * so a medallion is a quarter of that. `makeCanvas` supplies a sized canvas (a browser's, or a test stub).
+ */
+export function applyCarpetArt(carpet: THREE.Mesh, width: number, depth: number, makeCanvas: (n: number) => unknown): boolean {
+  const mat = carpet.material as THREE.MeshStandardMaterial;
+  const repeatMeters = Number((carpet.userData as { repeatMeters?: number }).repeatMeters) || 3.5;
+  let tex: THREE.Texture;
+  try {
+    tex = createVelvetCarpetTexture(THREE, { size: CARPET_ART_SIZE, createCanvas: makeCanvas }) as THREE.Texture;
+  } catch {
+    return false;
+  }
+  tex.repeat.set(width / repeatMeters, depth / repeatMeters);
+  mat.map?.dispose();
+  mat.map = tex;
+  mat.needsUpdate = true;
+  carpet.userData.carpetArt = '436ef01';
+  return true;
+}
+
 export interface GrandHallArt {
   root: THREE.Group;
   heroes: THREE.Object3D[];
   heroTextures: THREE.Texture[];
   wovenCarpet: boolean;
+  /** Whether `?carpetart=on` put ChatGPT's woven medallion texture (436ef01) on the hall carpet. */
+  carpetArt: boolean;
 }
 
 export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near';
@@ -226,7 +269,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -239,10 +282,22 @@ export function composeGrandHall(
 
   // floor: ChatGPT's woven carpet, sized to the hall
   let wovenCarpet = false;
+  let carpetArt = false;
   if (opts.carpetCanvas || typeof document !== 'undefined') {
     // below the architecture's stone promenade (top at 0.0225), so the walkway shows through
-    root.add(makeVelvetPatternCarpet(THREE, { width: w, depth: d, x: cx, y: 0.012, z: cz, canvas: opts.carpetCanvas }) as THREE.Mesh);
+    const carpet = makeVelvetPatternCarpet(THREE, { width: w, depth: d, x: cx, y: 0.012, z: cz, canvas: opts.carpetCanvas }) as THREE.Mesh;
+    root.add(carpet);
     wovenCarpet = true;
+    if (opts.carpetArt ?? readCarpetArt()) {
+      const stub = opts.carpetCanvas as { width: number; height: number } | undefined;
+      const make = (n: number): unknown => {
+        const c = stub ? Object.create(stub) : document.createElement('canvas');
+        c.width = n;
+        c.height = n;
+        return c;
+      };
+      carpetArt = applyCarpetArt(carpet, w, d, make);
+    }
   } else {
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2b1b2c, roughness: 0.9 }));
     floor.name = 'grand_floor_placeholder';
@@ -307,5 +362,5 @@ export function composeGrandHall(
     copy.add(machineDetail === 'lite' ? liteCabinet(src, liteGeos) : src.clone());
     root.add(copy);
   });
-  return { root, heroes, heroTextures, wovenCarpet };
+  return { root, heroes, heroTextures, wovenCarpet, carpetArt };
 }
