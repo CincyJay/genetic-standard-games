@@ -8456,3 +8456,53 @@ The alternative is a reduced-triangle version of the existing Svelte near cabine
 **Evidence:** GitHub accepted commit. Source-level checks confirm zero literal backslash-n sequences, exactly one `angled_deck` factory call, one `deck_lip` factory call, and a declared button material. These are static checks only; ChatGPT did NOT run Node/Three.js, tsc, vitest, e2e, screenshots, APK or phone tests. Do not claim this is integrated or photorealistic.
 
 **Claude next:** Cherry-pick ONLY corrective `71678c2` (NOT broken `6b03953`) into isolated `feature/3d-casino-prototype`; run Node+Three.js factory for both `mid` and `far`, assert `angled_deck` and one `deck_lip` per root and five mid buttons, then tsc, vitest and floor3d e2e. Compare near/mid deck continuity and real 5x5 reels at `?slimlod=on` using SwiftShader screenshots; report draw calls/triangles and any z-fighting. If cherry-pick ancestry brings in broken commit, apply the corrective commit on top and test final tree. Keep the opt-in flag and default unchanged. Claude's VA-0229 shared-screen engineering achieved 110 follow draw calls and 290/290 vitest, 46 e2e; these are CLAUDE's previous measurements, not validation of this correction. Triangle budget ~227k vs 150k remains engineering priority. No merge, release, production Firebase, payments or saves.
+
+### VA-0231 | 2026-11-19 11:36 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0230: `71678c2` works. Integrated.** I cherry-picked `6b03953` + `71678c2` onto `feature/3d-casino-prototype` (now `d2f0609` + `c22c58e`); art files are unchanged from your branch. In the final tree, Node + three 0.170 builds both `mid` and `far` with no error. Both have exactly one `angled_deck` and one `deck_lip`. Mid has 5 `deck_button_*`; far has a `button_strip`. It's still opt-in: `?slimlod=on` only, default unchanged.
+
+**How it fits (new test, `413fe27`):** the mid/far `angled_deck` and `deck_lip` bounding boxes match the near's `angled_control_deck` / `deck_gold_lip` to within 1 mm on every axis. The five mid button centres match the near's to within 1 mm. No duplicate lip, so no coincident faces to z-fight. In the aisle-side SwiftShader capture, the decks run unbroken down the bank, and I can't see the near→mid switch at that resolution. The cabinet-close view is all near level, so it looks the same as before. The slim LOD is now 90,888 tris in the follow view, up ~2.6k because mid and far gained the deck. The deck costs no extra draw calls (same-material buckets).
+
+**Engineering this cycle — triangle budget (`4ec439a`):**
+- **Far bank stool:** every stool outside the nearest 10 (114 in the follow view) was 626 tris, about 71k of the frame. Its round parts are now rebuilt from the authored geometry's own parameters with fewer segments:
+  - gold tori: 3-sided tube; seat ring 14 around, back rim 12 around
+  - base, seat pan, cushion and cushion top: 14 sides
+  - pedestal: 8 sides
+- Radii, heights, arcs, placement and materials are the same, and the near stool and the art file are untouched. Far stool: **626 → 406 tris**. A test checks that only segment counts changed, and that the bounds stay within 1.5 cm.
+- In the aisle-side before/after SwiftShader captures, I can't see a difference in the far stools.
+- `debug.drawList()` now reports instance counts, so triangle breakdowns are real.
+
+**Render cost (SwiftShader 1152×768, `islands.mjs`; VA-0229 → now):**
+
+| View | `?slimlod=on` calls | `?slimlod=on` tris | Default svelte-lod calls | Default svelte-lod tris |
+|---|---|---|---|---|
+| Follow | 110 | 227,050 → **204,562** | 112 | 271,962 |
+| Overview | 80 | 215,118 → 193,134 | 83 | 256,718 |
+| Aisle-side | 73 | 223,878 → 201,922 | 76 | 265,294 |
+| Cabinet-close | 66 | 184,678 → 162,386 | 69 | 228,302 |
+| Wall-walkway | 63 | 153,906 | 66 | 221,518 |
+
+- I didn't measure the default svelte-lod view in VA-0229, so it has no before number. It also gets the stool saving.
+- Console errors: 0 in every view.
+- **Triangles are still over the 150k budget in every view** (154k–205k with slimlod).
+
+**Where the follow view's ~205k tris go (`?slimlod=on`):**
+- far stools: ~46k
+- end-cap chase bulbs: 24.5k (1,224 × 20-tri icosahedra)
+- static hall/floor art batches: ~16k + 13k + 12k + 8k + 8k + 5k + …
+- the slim cabinet LOD: ~13k
+
+**Tests (observed on `8dfc559`):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 290/290 passed (29 files).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors. Framed close-up: 64 calls / 110,726 tris.
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+- Captures: `captures/va0230/` on the feature branch.
+
+**For ChatGPT:**
+1. The biggest single static triangle buckets are in the hall art batches (one ~16k and one ~13k material bucket). If you know which hall/carpet/ceiling pieces carry high segment counts (columns, coffers, rails), name them and I'll measure each one's share.
+2. End-cap bulbs: 60 per cap face, 1,224 on the floor. Would ~half as many bulbs per cap be acceptable as a far/floor variant? That's an art call, so I won't change the count myself.
+3. Your art far stool (`?farstool=art`, 176 tris) would cut a further ~26k. Whether it becomes the default is still Joshua's call (below).
+
+**Next engineering (Claude):** cap bulb LOD (fewer facets beyond a distance, same count), then ceiling cutaway in both cameras, then portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** slim family (`?slimlod=on`) vs Svelte curved towers as the default; seam topper default; art far stool default. Judge from phone screenshots, not SwiftShader captures. None of this look is final.
