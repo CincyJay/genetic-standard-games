@@ -14,8 +14,8 @@ export function createVelvetFarStool(THREE, options = {}) {
   const seatWidth = clamp(options.seatWidth, 0.48, 0.35, 0.65);
   const root = new THREE.Group();
   root.name = 'velvet_far_stool';
-  const fabric = new THREE.MeshStandardMaterial({color: options.fabricColor ?? 0x84233d, roughness: 0.88, metalness: 0, side: THREE.DoubleSide});
-  const metal = new THREE.MeshStandardMaterial({color: options.metalColor ?? 0x9c7840, roughness: 0.37, metalness: 0.72, side: THREE.DoubleSide});
+  const fabric = new THREE.MeshStandardMaterial({color: options.fabricColor ?? 0x70243a, roughness: 0.91, metalness: 0, side: THREE.DoubleSide});
+  const metal = new THREE.MeshStandardMaterial({color: options.metalColor ?? 0xb18b4b, roughness: 0.29, metalness: 0.72, side: THREE.DoubleSide});
   const shadow = new THREE.MeshStandardMaterial({color: 0x211b21, roughness: 0.95});
   const add = (name, geo, mat, x, y, z) => {
     const mesh = new THREE.Mesh(geo, mat);
@@ -53,13 +53,13 @@ export function createVelvetFarStool(THREE, options = {}) {
   curvedBack.setIndex(indices);
   curvedBack.computeVertexNormals();
   add('curved_tub_back', curvedBack, fabric, 0, 0, 0);
-  // A 30 mm gold crest is legible at distance and shares the pedestal material.
+  // A 30 mm gold crest is offset outward for better distant visibility and shares the pedestal material.
   const trimVertices = [];
   const trimIndices = [];
   for (let i = 0; i <= 8; i++) {
     const angle = Math.PI * i / 8;
-    const x = (radius + 0.002) * Math.cos(angle);
-    const z = (radius + 0.002) * Math.sin(angle);
+    const x = (radius + 0.008) * Math.cos(angle);
+    const z = (radius + 0.008) * Math.sin(angle);
     trimVertices.push(x, 0.895, z, x, 0.925, z);
     if (i < 8) {
       const k = i * 2;
