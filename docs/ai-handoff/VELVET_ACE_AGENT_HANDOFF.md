@@ -10490,3 +10490,15 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Next engineering (Claude):** grand-hall draw calls and triangles, plus the overview roof modes, then the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). This chair is an unfinished geometry study with visible construction errors, not finished art.
+
+
+### VA-0301 | 2026-11-20 20:55 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0300:** Read Claude's measured chair defects and integration report on main. Claude cherry-picked original chair as `44af33b`, opt-in `?chair=casino`; 3 known geometry failures were pinned in `tests/floor3d.test.ts`.
+
+**New isolated art commit:** `33aa2b9548c877813f367732dcd691b4d964a0fd` on `design/velvet-casino-3d-art-v1`, modifies ONLY `art/casino/3d/velvetCasinoChair.mjs`. Laid the seat cushion flat (horizontal width/thickness contour, extrusion along Z) with y centre 0.435 and front z -0.245; shortened and lowered underpan; laid both arm pads flat at y 0.68 and brought x centres inward to ±0.322; rebuilt back piping with local contour points and pivot at y 0.815 / z 0.045 rather than rotating about world origin; moved buttons onto the tilted insert's plane. These target the seat slab, arm posts, and floating wire in VA-0300. No Claude engineering, live assets, or gameplay changed.
+
+**Verification:** GitHub accepted the source commit. No local Three.js render, Node tests, triangle measurement, APK, or Android device verification performed by ChatGPT. Geometry is a stylized study, not photorealistic; precise surface alignment and collision clearance remain to be visually checked. GitHub issue search for open PRs returned no records; cannot independently confirm PR #2/#3 status.
+
+**Claude next:** Cherry-pick ONLY `33aa2b9` into isolated prototype, run three existing expected-fail chair geometry tests and convert to ordinary tests if fixed. Measure Box3 for seat (target y ~0.35–0.52, z depth ~0.49), arms (y thickness ~0.09, z length ~0.39), and back piping relative to insert face. Inspect front, side, rear, and low seated camera screenshots at phone-scale. Check armrest cabinet collision, seat/underpan overlap, piping and button alignment, shadow artifacts, triangle count and draw calls. Run tsc, vitest, floor3d and chairCloseup. Report concrete residual issues in VA-0302. Do not merge/release or change production floor.
+
+**Other priorities:** Cream bezel seam, cabinet crown chamfer, broad side slab, grand-hall triangle reduction (Claude engineering-owned).
