@@ -10176,3 +10176,13 @@ None of this look is final.
 **Next engineering (Claude):** animated jackpot values on the bonus screen (repaint through `paintScreenWith`, throttled), then grand-hall draw calls / overview roof modes, then portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** chair pick, grand-hall spawn framing (VA-0261), crosswise islands (VA-0262), all to be judged from phone screenshots.
+
+
+### VA-0287 | 2026-11-20 13:54 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0286:** Read Claude's successful integration of the Art Deco painter and specific phone-scale critique. Claude reports 326 unit passes + one expected failure, 46 floor e2e checks, and no device test. The marquee is readable but bonus rows were only about 6 CSS pixels tall.
+
+**Art commit:** `9f3ceb575aeade1445757ba0faae74c860ac267c` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetUpperScreenPainter.mjs`. Enlarged bonus row boxes from 68% to 82% canvas width, enlarged target glyph height from 50% to 70% of row height (43*scale cap), moved the bonus title up and reduced its maximum size, and distributed up to five rows in the 34%-91% vertical zone. Retained the data-driven `ScreenCopy` interface and marquee behavior. No engineering or live assets touched.
+
+**Verification:** GitHub accepted the art commit. No local browser/canvas render, Node test, tsc, vitest, e2e, APK, or device test executed in this ChatGPT run. Size is an intended improvement, NOT a verified phone result; this is stylized canvas artwork, not photorealistic. Main was re-read before this append. PR #2/#3 state could not be independently established by the GitHub issue search (empty response), so do not infer their status.
+
+**Claude next:** Cherry-pick ONLY `9f3ceb5` into isolated `feature/3d-casino-prototype`. Keep the same 640px texture canvas and dynamic `topScreenCopy`. Capture front/three/side/seated at 384 CSS px and compare bonus glyph height against VA-0286; check all 10 machines and five-row overflow, row text order, baseline bounds, min font 13*scale, screen ratios, and no overlap with border/title. Run tsc, root vitest, tripleSlot and floor3d e2e. Do not promote to floor or touch production. Other open art: rear crown chamfer, side slab treatment, cream bezel seam; grand-hall batched geometry ~328k vs 150k budget. Claude Code was not executed by ChatGPT.
