@@ -95,14 +95,29 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     // Keep it behind the display bezels and inside the collision envelope.
     const channelPoints=sections.slice(1,-1).map(([y,w,rear,front])=>
       new THREE.Vector3(side*(w+0.008),y,front-0.052));
-    const channel=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(channelPoints),20,0.0035,5,false),light);
+    // 12 mm luminous ribbon with a dark recessed backing, rather than a gold pinstripe.
+    // A flat band faces outwards from each side; no bloom dependency.
+    const ribbonVerts=[], ribbonIndices=[];
+    for (const p of channelPoints) {
+      ribbonVerts.push(p.x + side*0.002,p.y,p.z-0.006,
+                       p.x + side*0.002,p.y,p.z+0.006);
+    }
+    for (let j=0;j<channelPoints.length-1;j++) {
+      const a=2*j,b=a+2;
+      if(side>0) ribbonIndices.push(a,b+1,a+1,a,b,b+1);
+      else ribbonIndices.push(a,a+1,b+1,a,b+1,b);
+    }
+    const ribbonGeometry=new THREE.BufferGeometry();
+    ribbonGeometry.setAttribute('position',new THREE.Float32BufferAttribute(ribbonVerts,3));
+    ribbonGeometry.setIndex(ribbonIndices);ribbonGeometry.computeVertexNormals();
+    const channel=new THREE.Mesh(ribbonGeometry,light);
     channel.name='VA_inset_light_channel_'+(side<0?'left':'right');root.add(channel);
   }
   // Arched crown: a shallow curved upper outline instead of a rectangular cap.
   const crownShape=new THREE.Shape();
   crownShape.moveTo(-0.365,2.19);
-  crownShape.lineTo(-0.365,2.28);
-  crownShape.bezierCurveTo(-0.28,2.43,0.28,2.43,0.365,2.28);
+  crownShape.lineTo(-0.365,2.255);
+  crownShape.bezierCurveTo(-0.28,2.365,0.28,2.365,0.365,2.255);
   crownShape.lineTo(0.365,2.19);
   crownShape.closePath();
   const crown=new THREE.Mesh(new THREE.ExtrudeGeometry(crownShape,{depth:0.45,bevelEnabled:true,bevelSize:0.009,bevelThickness:0.008,bevelSegments:2,curveSegments:12}),brass);
