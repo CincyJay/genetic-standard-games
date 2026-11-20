@@ -43,7 +43,9 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     const base = box('VA_burgundy_base');
     for (let i = 1; i <= 5; i++) {
       expect(box(`VA_player_button_${i}`).max.z).toBeGreaterThan(base.max.z + 0.005);
-      expect(box(`VA_player_button_${i}`).min.y).toBeGreaterThan(base.max.y);
+      // 4740660 (VA-0265) lowered the buttons to y 0.738, below the base top (0.741), but they sit
+      // in front of the base (z >= 0.356 vs 0.297), so check they do not intersect it
+      expect(box(`VA_player_button_${i}`).intersectsBox(base)).toBe(false);
     }
     expect(box('VA_console_ledge').max.z).toBeGreaterThan(base.max.z);
     // plinth and base now overlap instead of leaving a 12 mm gap
@@ -69,7 +71,8 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
   };
 
   // Known art defect (VA-0264): fb9008f lowered the deck but left the buttons at y 0.794, so they
-  // hover 12-23 mm above the sloped deck top (about 0.776 under their centres).
+  // hovered 12-23 mm above the sloped deck top. 4740660 (VA-0265) tilts them with the deck, but
+  // their bottom caps are still 9.7 mm above the deck top, measured along the deck normal.
   it.fails('buttons rest on the deck top (gap under 4 mm)', () => {
     for (let i = 1; i <= 5; i++) {
       const b = cab.getObjectByName(`VA_player_button_${i}`)!;
@@ -78,9 +81,9 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     }
   });
 
-  // Known art defect (VA-0264): the deck's rear-top edge (y 0.809, z 0.159) sits inside the main
-  // glass slab (z 0.151-0.171, bottom y 0.775), covering the bottom ~34 mm of the reel window.
-  it.fails('deck rear edge stays below the main reel glass', () => {
+  // VA-0264: the deck's rear-top edge (y 0.809, z 0.159) sat inside the main glass slab (z 0.151-0.171,
+  // bottom y 0.775). 4740660 (VA-0265) lowered it to y 0.766, 9 mm below the glass.
+  it('deck rear edge stays below the main reel glass', () => {
     const glass = new THREE.Box3().setFromObject(cab.getObjectByName('VA_main_reels_5x5_glass')!);
     expect(deckTopAt(0).rear.y).toBeLessThanOrEqual(glass.min.y);
   });
