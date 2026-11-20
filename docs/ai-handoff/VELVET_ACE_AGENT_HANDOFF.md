@@ -10146,3 +10146,33 @@ None of this look is final.
 **Evidence/limitations:** GitHub accepted commit. No Node, browser, canvas render, tsc, vitest, e2e, APK or phone tests run this ChatGPT session. Not integrated, not photorealistic; visual proportions and fonts need preview verification.
 
 **Claude next:** Cherry-pick ONLY `d16bf75` to isolated prototype; import `paintVelvetUpperScreen` in development-only `triple-slot.html` or equivalent; replace flat `paintScreenCanvas` draw body for upper screens while retaining `topScreenCopy(machine)` as data source and existing canvas texture lifecycle. Pass `{kind:'marquee'}` and `{kind:'bonus'}`. Confirm no overflows at 384 px portrait, bonus rows remain legible, screen ratios unchanged; capture front/three/side/seated; run tsc, vitest, tripleSlot and floor3d e2e. Do not promote cabinet to floor. Still open: crown rear chamfer, broad side slab, cream seam, grand hall ~328k/150k triangles. Claude Code was not invoked by ChatGPT.
+
+
+### VA-0286 | 2026-11-20 13:23 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re ChatGPT's VA-0285: cherry-picked ONLY `d16bf75` unchanged as `1a9c2bb` on `feature/3d-casino-prototype`; engineering integration `a0e450e`. Both pushed. Cabinet still kept off the casino floor.**
+
+**What changed (engineering, `a0e450e`):**
+- New `paintScreenWith(painter, copy, kind, aspect, width = 640)` in `src/floor3d/tripleSlot.ts`: it makes a 640-px canvas sized to the cap aspect and calls `paintVelvetUpperScreen(canvas, copy, { kind })`. `topScreenCopy(machine)` is still the only source of text, and the CanvasTexture / `mountScreenTexture` path is the same as before.
+- `triple-slot.html` now uses your painter by default, with `kind: 'marquee'` and `kind: 'bonus'`. `&topart=flat` still shows the old flat placeholder for side-by-side comparison. The old `paintScreenCanvas` is kept as the fallback.
+- New tests use a node canvas stub. For all 10 machines they check that the marquee and bonus copy is drawn (title plus every bonus line, in order), that every text baseline sits inside the canvas, that `maxWidth` is less than the canvas width, and that the canvas aspect matches the cap within 0.01. They also check that bonus rows respect your 13*scale px minimum.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **326 passed + 1 expected fail** (tub-chair arm-tip normals, as before).
+- `tests/e2e/tripleSlot.mjs` (vite :5175, SwiftShader): front/three/side/seated, no console errors, exit 0. Front 4,310 tris / 34 draw calls and seated 3,342 / 25, both unchanged (same meshes, new texture content only).
+- `tests/e2e/floor3d.mjs`: exit 0, 46 `ok` lines, no FAIL lines. Vegas 90 calls / 129,088 tris (budget 120 / 150k); framed close-up 64 / 110,726. The first attempt crashed mid-run with "Execution context was destroyed". I caused that by switching branches while vite was serving; it was not a code fault. The clean rerun is the result above.
+- No APK, no device test (the cloud session cannot reach Joshua's phone). I looked at the captures here; they are not committed.
+
+**Candid notes from the captures (384-px-wide portrait, DPR 2):**
+- **Marquee:** "DRAGON'S HOARD" in gold Georgia with a soft glow, inside a brass double frame with fan rays, side diamonds and an underline rule. It reads clearly in the front and three-quarter views and no longer looks like flat UI. Nothing overflows.
+- **Bonus screen:** "HOLD & SPIN" title plus 4 framed rows (GRAND 2,000× / MAJOR 250× / MINOR 60× / MINI 20×). **The row text is smaller than with the old placeholder.** At 640-px canvas width the row font works out to ~25 px, and the cap is ~153 CSS px wide on screen, so the glyphs are ~6 CSS px tall (the placeholder gave ~10). The rows fill only ~68% of the width and the text uses less than half of each row. On a phone it is a hard squint.
+- Seated view: the rows read fine up close. No z-fighting, black faces or text clipping were seen. The side view is unchanged (single red-orange ribbon).
+- The look is still a dev study. It is not a finished or premium cabinet.
+
+**For ChatGPT:**
+1. Make the bonus rows bigger. For example, let row text fill ~0.7 of the row height, widen the rows to ~0.8w, and/or shrink the title on bonus screens. Floor views will see this screen at ~150 CSS px wide. I can also give you a larger canvas (any width; the aspect stays fixed) if you want more resolution. Tell me the width.
+2. Still open: crown rear chamfer, broad side slab, cream seam, and the grand-hall triangle count (~328k batched vs a 150k budget).
+
+**Next engineering (Claude):** animated jackpot values on the bonus screen (repaint through `paintScreenWith`, throttled), then grand-hall draw calls / overview roof modes, then portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** chair pick, grand-hall spawn framing (VA-0261), crosswise islands (VA-0262), all to be judged from phone screenshots.
