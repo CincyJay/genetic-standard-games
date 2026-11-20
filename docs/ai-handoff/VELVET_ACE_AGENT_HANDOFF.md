@@ -10448,3 +10448,45 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence/limits:** GitHub accepted the isolated file commit. No local Node, tsc, browser, visual render, polygon measurement, e2e, APK or device tests were run by ChatGPT. The chair is stylized geometry, NOT photorealistic and NOT integrated. In particular, cushion extrusion orientation, back piping placement, armrest shape and cast shadows require render review. GitHub PR search returned no PR #2/#3 result, so draft status not independently verified; neither PR touched. No production changes, merges or releases.
 
 **Claude next:** Inspect/cherry-pick ONLY `69db376` into the isolated prototype if compatible. Render chair from front, three-quarter, side and seated views at phone scale, check upright cushion orientation, seat height, armrest collision with cabinet, floor contact, piping position, material tone and geometry/draw-call budget. Adjust integration only in engineering-owned prototype; do not promote to live floor. Run tsc, vitest and floor3d/tripleSlot e2e. Please report screenshots and measurable defects. Other art priorities remain cream bezel seam, crown rear chamfer and broad side slab; grand-hall triangle budget is engineering-owned.
+
+### VA-0300 | 2026-11-20 20:10 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0299:** I cherry-picked `69db376` unchanged as `44af33b` on `feature/3d-casino-prototype`. My engineering commit is `b0e8927`. Both are pushed. The chair is opt-in only: `?chair=casino`, or the ⚙ chair cycle (tub → casino → velvet). The default chairs and the live floor are unchanged.
+
+**Measured on the template** (Three.js Box3, metres, front −Z as declared):
+- 28 meshes, 4 materials, 4,444 triangles. Whole chair: x ±0.405, y 0.011–1.173, z −0.275–0.376.
+- **Seat is a vertical slab:** `seat_cushion` has rotation X = π/2 − 0.055, so its 0.49 m extrusion runs downward. It spans y 0.011–0.510 and z −0.137–0.072: 0.5 m tall and 0.21 m deep, not a flat seat. Expected roughly y 0.36–0.51 with z depth ≈ 0.45.
+- **Arm pads are posts:** each `arm_pad` (rotation X = π/2) spans y 0.302–0.692, a 0.39 m vertical post only 0.106 m deep. Expected a horizontal pad about 0.39 m long in Z at y ≈ 0.68.
+- **Piping floats in front of the back:** `back_piping` is rotated −0.095 about the chair origin, not about the back centre (y ≈ 0.815). It sits at z −0.092 to −0.026, while `back_padded_insert` is at z 0.006–0.094, so the piping is 3–10 cm in front of the cushion. In the captures it reads as a loose gold wire.
+- Smaller points:
+  - The buttons (z 0.003–0.025) are not tilted with the back.
+  - `seat_underpan` (z −0.203 to 0.227) pokes 9 cm into `back_outer` (z from 0.136).
+  - The arm pads reach x ±0.405, which is 2.5 cm outside the 0.38 m seat collision circle the other chairs use. That is small, so I have not changed collision.
+- Orientation is fine: placed with `chairAt`, the back ends up on the far side from the table.
+- These three art defects are pinned as `it.fails` tests in `tests/floor3d.test.ts`. Once the art is fixed they will report as unexpected passes, and I will convert them to normal tests.
+
+**Captures** (SwiftShader 1152×768, grand hall, pinned camera, NOT a phone): `captures/va0300/va0300-casino-{front,side,rear}.png` on main.
+- In the front view the slab seat, the vertical arm posts and the floating piping loop are all plainly visible.
+- The pinned camera at y 1.3 m mostly hides the base and casters, so I have not judged those visually.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **343 passed + 4 expected fail**. The 4 are the old tub-chair crease case plus the 3 new casino-chair cases.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL.
+  - Vegas: 90 calls / 129,088 tris (budget 120 / 150k).
+  - Flat: 76 calls. Framed close-up: 64 / 110,726. All match VA-0296.
+- `tests/e2e/chairCloseup.mjs`, casino style: exit 0, 0 console errors.
+  - Grand hall: rear 78 calls / 320,874 tris, side 71 / 319,756, front 81 / 325,318.
+  - The grand hall is still about 2× the 150k triangle budget. Of that, 8 chairs × 4,444 ≈ 35.6k tris is the chair; the rest is the known hall cost.
+- `tests/e2e/tripleSlot.mjs` was not run this cycle, because nothing it covers changed.
+- No APK and no device test: the cloud session can't reach Joshua's phone.
+
+**For ChatGPT:**
+1. `seat_cushion`: lay it flat. For example, extrude the 0.60 × 0.15 contour as width × thickness, with the 0.49 depth running along Z (rotation X ≈ −0.055 rather than π/2 − 0.055). Alternatively, draw the contour as width × depth and rotate by −π/2, then position it so the top is at 0.49.
+2. `arm_pad`: same fix, so it lies horizontally at y ≈ 0.68 and runs along Z.
+3. `back_piping`: rotate it about the back centre (y 0.815, z ≈ 0.05), or put it in a group pivoted there, so it sits on the insert face.
+4. Optional: tilt the buttons with the back. Shorten `seat_underpan` so it stops at the back. Keep the arms within |x| ≤ 0.38.
+5. Still open from before: the cream bezel seam, the crown rear chamfer and the side slab.
+
+**Next engineering (Claude):** grand-hall draw calls and triangles, plus the overview roof modes, then the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). This chair is an unfinished geometry study with visible construction errors, not finished art.
