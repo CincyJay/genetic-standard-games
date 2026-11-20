@@ -92,7 +92,7 @@ export function paintVelvetUpperScreen(canvas, copy, options = {}) {
       const cap = count <= 2 ? 70*scale : 43*scale;
       // Keep the jackpot label in the same face as other bonus rows.
       // Only its changing value uses fixed-width numerals, avoiding a code-font label.
-      const match = /^(GRAND|MAJOR|MINOR|MINI)(\\s+)(.*)$/i.exec(line);
+      const match = /^(GRAND|MAJOR|MINOR|MINI)(\s+)(.*)$/i.exec(line);
       const label = match ? match[1] + match[2] : '';
       const value = match ? match[3] : '';
       const rowFace = 'system-ui, sans-serif';
