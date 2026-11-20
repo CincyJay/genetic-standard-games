@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createVelvetTripleSlotCabinet } from '../../../art/casino/3d/velvetTripleScreenSlotStudy.mjs';
-import { TRIPLE_SCREENS, cabinetReport, fitScreenUvs, mountScreenTexture } from '../src/floor3d/tripleSlot.ts';
+import { TRIPLE_SCREENS, cabinetReport, fitScreenUvs, mountScreenTexture, screenAspect, topScreenCopy } from '../src/floor3d/tripleSlot.ts';
+import { MACHINES } from '../src/logic/slots.ts';
 
 describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
   const cab = createVelvetTripleSlotCabinet(THREE);
@@ -281,5 +282,40 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     const mats = glass.material as THREE.Material[];
     expect((mats[0] as THREE.MeshBasicMaterial).map).toBe(tex);
     expect(mats[1]).toBe(authored);
+  });
+});
+
+describe('triple-slot rails and upper-screen copy (671fd2e, VA-0283)', () => {
+  const cab = createVelvetTripleSlotCabinet(THREE);
+  it('front contour rails are non-emissive: the side ribbon is the only side light', () => {
+    for (const side of [-1, 1]) {
+      const rail = cab.getObjectByName(`VA_contoured_light_rail_${side}`) as THREE.Mesh;
+      const rib = cab.getObjectByName(`VA_inset_light_channel_${side < 0 ? 'left' : 'right'}`) as THREE.Mesh;
+      expect(rail.material).not.toBe(rib.material);
+      const m = rail.material as THREE.MeshStandardMaterial;
+      expect(m.emissive.r * m.emissiveIntensity).toBeLessThan(0.05);
+    }
+  });
+
+  it('marquee and bonus copy come from the machine data', () => {
+    const dragon = MACHINES.find((m) => m.id === 'dragon')!;
+    const c = topScreenCopy(dragon);
+    expect(c.marquee.title).toBe("DRAGON'S HOARD");
+    expect(c.bonus.title).toBe('HOLD & SPIN');
+    expect(c.bonus.lines).toEqual(['GRAND 2,000×', 'MAJOR 250×', 'MINOR 60×', 'MINI 20×']);
+    for (const m of MACHINES) {
+      const t = topScreenCopy(m);
+      expect(t.marquee.title.length).toBeGreaterThan(0);
+      expect(t.bonus.lines.length).toBeGreaterThan(0);
+      expect(t.bonus.lines.length).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('upper screens are landscape (aspect 1.5..1.9) so the copy canvas is sized to the cap', () => {
+    for (const name of ['VA_top_marquee_glass', 'VA_bonus_display_glass']) {
+      const a = screenAspect((cab.getObjectByName(name) as THREE.Mesh).geometry);
+      expect(a).toBeGreaterThan(1.5);
+      expect(a).toBeLessThan(1.9);
+    }
   });
 });

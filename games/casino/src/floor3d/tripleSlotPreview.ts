@@ -3,7 +3,8 @@
  * ChatGPT's triple-screen cabinet study (art 1670e35, VA-0256) exactly as authored, on a plain
  * floor, lit like slot-pilot.html. With `screens=game` (default) the main 5x5 screen shows the
  * machine's real reel atlas (reelDisplayArt.mjs, the same art the floor uses); the marquee and
- * bonus screens stay as authored (no game art exists for them yet). For review captures only.
+ * bonus screens show engineering placeholder copy from the machine data (topScreenCopy, VA-0282).
+ * For review captures only.
  * Hooks: globalThis.__tripleSlot = { ready, view, stats, rects }.
  */
 import * as THREE from 'three';
@@ -11,7 +12,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createVelvetTripleSlotCabinet } from '../../../../art/casino/3d/velvetTripleScreenSlotStudy.mjs';
 import { createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
-import { cabinetReport, mountScreenTexture } from './tripleSlot.ts';
+import { cabinetReport, mountScreenTexture, paintScreenCanvas, screenAspect, topScreenCopy } from './tripleSlot.ts';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'front';
@@ -78,6 +79,14 @@ async function main(): Promise<void> {
     const reel = await createVelvetReelArt(THREE, m.id, m.symbols, { base: './art' });
     const glass = cabinet.getObjectByName('VA_main_reels_5x5_glass') as THREE.Mesh;
     mountScreenTexture(THREE, glass, reel.texture);
+    const copy = topScreenCopy(m);
+    for (const [name, c] of [['VA_top_marquee_glass', copy.marquee], ['VA_bonus_display_glass', copy.bonus]] as const) {
+      const screen = cabinet.getObjectByName(name) as THREE.Mesh;
+      const tex = new THREE.CanvasTexture(paintScreenCanvas(c, screenAspect(screen.geometry)));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      mountScreenTexture(THREE, screen, tex);
+    }
     mounted = m.id;
   }
   renderer.render(scene, camera);
