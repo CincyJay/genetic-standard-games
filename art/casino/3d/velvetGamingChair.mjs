@@ -124,20 +124,25 @@ export function createVelvetGamingChair(THREE, { logoText = 'Velvet Ace' } = {})
   // ---- the game's name on the back's rear face
   if (typeof document !== 'undefined') {
     const c = document.createElement('canvas');
-    c.width = 512;
-    c.height = 320;
+    c.width = 1024;
+    c.height = 640;
     const g = c.getContext('2d');
     if (g) {
-      const grad = g.createLinearGradient(0, 40, 0, 260);
-      grad.addColorStop(0, '#fbe7a6');
-      grad.addColorStop(0.55, '#d4ad62');
-      grad.addColorStop(1, '#9c7432');
-      g.fillStyle = grad;
+      // drawn in a 512x320 design space at 2x; a dark outline under heavy gold so it reads from
+      // walking distance against the burgundy leather (Joshua: bigger logo, 2026-11-19)
+      g.scale(2, 2);
+      const grad = g.createLinearGradient(0, 30, 0, 270);
+      grad.addColorStop(0, '#fff0b8');
+      grad.addColorStop(0.5, '#e2bd6c');
+      grad.addColorStop(1, '#a87c36');
+      const ink = '#24050d';
       g.textAlign = 'center';
       g.textBaseline = 'middle';
+      g.lineJoin = 'round';
       // spade
       g.save();
-      g.translate(256, 70);
+      g.translate(256, 62);
+      g.scale(1.15, 1.15);
       g.beginPath();
       g.moveTo(0, -38);
       g.bezierCurveTo(30, -10, 44, 8, 26, 24);
@@ -147,21 +152,40 @@ export function createVelvetGamingChair(THREE, { logoText = 'Velvet Ace' } = {})
       g.lineTo(-3, 18);
       g.bezierCurveTo(-4, 26, -14, 34, -26, 24);
       g.bezierCurveTo(-44, 8, -30, -10, 0, -38);
+      g.closePath();
+      g.strokeStyle = ink;
+      g.lineWidth = 8;
+      g.stroke();
+      g.fillStyle = grad;
       g.fill();
       g.restore();
-      g.font = 'italic 700 92px "Brush Script MT", "Segoe Script", cursive, Georgia, serif';
-      g.shadowColor = 'rgba(0,0,0,0.55)';
-      g.shadowBlur = 6;
-      g.fillText(logoText, 256, 172, 480);
-      g.font = '600 34px Georgia, "Times New Roman", serif';
-      g.fillText('C A S I N O', 256, 252, 300);
-      g.shadowBlur = 0;
-      g.fillRect(120, 285, 272, 3);
+      const heavy = (text, y, maxW, outline, thicken) => {
+        g.strokeStyle = ink;
+        g.lineWidth = outline;
+        g.strokeText(text, 256, y, maxW);
+        g.fillStyle = grad;
+        g.fillText(text, 256, y, maxW);
+        g.strokeStyle = grad;
+        g.lineWidth = thicken;
+        g.strokeText(text, 256, y, maxW);
+      };
+      g.font = 'italic 700 112px "Brush Script MT", "Segoe Script", cursive, Georgia, serif';
+      heavy(logoText, 168, 496, 12, 3.5);
+      g.font = '700 40px Georgia, "Times New Roman", serif';
+      heavy('C A S I N O', 252, 320, 8, 1.5);
+      g.strokeStyle = ink;
+      g.lineWidth = 9;
+      g.beginPath();
+      g.moveTo(116, 290);
+      g.lineTo(396, 290);
+      g.stroke();
+      g.fillStyle = grad;
+      g.fillRect(116, 288, 280, 4);
       const map = new THREE.CanvasTexture(c);
       map.colorSpace = THREE.SRGBColorSpace ?? map.colorSpace;
-      map.anisotropy = 4;
+      map.anisotropy = 8;
       const logoMat = new THREE.MeshStandardMaterial({ name: 'VA_CHAIR_BACK_LOGO', map, transparent: true, alphaTest: 0.08, roughness: 0.3, metalness: 0.75, depthWrite: false });
-      const logo = add(back, 'chair_back_logo', new THREE.PlaneGeometry(0.3, 0.1875), logoMat, 0, 0.225, -(BACK_DEPTH / 2 + BEVEL + 0.002));
+      const logo = add(back, 'chair_back_logo', new THREE.PlaneGeometry(0.38, 0.2375), logoMat, 0, 0.235, -(BACK_DEPTH / 2 + BEVEL + 0.002));
       logo.rotation.y = Math.PI; // faces out of the back (-Z)
       logo.castShadow = false;
       group.userData.createdTexture = map;
