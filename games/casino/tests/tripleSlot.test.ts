@@ -346,6 +346,21 @@ function stubCanvas() {
   return { canvas, texts, curves };
 }
 
+type Span = ReturnType<typeof stubCanvas>['texts'][number];
+/** 6f04f7a paints a jackpot row as two left-aligned fillText spans (label, value) on one baseline:
+ * merge spans sharing a y into one row so row-level checks stay row-level. */
+function rowsOf(texts: Span[]) {
+  const rows: (Span & { spans: Span[] })[] = [];
+  for (const t of texts) {
+    const prev = rows[rows.length - 1];
+    if (prev && Math.abs(prev.y - t.y) < 1e-6) { prev.spans.push(t); prev.text += t.text; prev.px = Math.max(prev.px, t.px); }
+    else rows.push({ ...t, spans: [t] });
+  }
+  return rows;
+}
+/** stub measureText width (0.55 em per char) of a span at its painted size */
+const spanWidth = (t: Span) => t.text.length * 0.55 * t.px;
+
 describe('upper-screen painter integration (art d16bf75, VA-0285)', () => {
   const cab = createVelvetTripleSlotCabinet(THREE);
   const aspectOf = (n: string) => screenAspect((cab.getObjectByName(n) as THREE.Mesh).geometry);
@@ -365,11 +380,15 @@ describe('upper-screen painter integration (art d16bf75, VA-0285)', () => {
           const canvas = paintScreenWith(paintVelvetUpperScreen as never, c, kind, aspectOf(name));
           expect(canvas.width).toBe(640);
           expect(Math.abs(canvas.width / canvas.height - aspectOf(name))).toBeLessThan(0.01);
-          expect(texts.map((t) => t.text)).toEqual([c.title, ...(kind === 'bonus' ? c.lines : [])]);
+          expect(rowsOf(texts).map((t) => t.text)).toEqual([c.title, ...(kind === 'bonus' ? c.lines : [])]);
           for (const t of texts) {
             expect(t.y).toBeGreaterThan(0);
             expect(t.y).toBeLessThan(canvas.height);
-            expect(t.maxWidth).toBeLessThan(canvas.width);
+            if (t.maxWidth !== undefined) expect(t.maxWidth).toBeLessThan(canvas.width);
+            else { // split jackpot span: no maxWidth, so it must sit inside the canvas by position
+              expect(t.x).toBeGreaterThanOrEqual(0);
+              expect(t.x + spanWidth(t)).toBeLessThanOrEqual(canvas.width);
+            }
           }
         });
       }
@@ -473,12 +492,9 @@ describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
     }
   });
 
-  // e7b62a0's split uses /^(GRAND|MAJOR|MINOR|MINI)(\\s+)(.*)$/ in a regex literal: `\\s` is a literal
-  // backslash + "s", so it never matches "GRAND 250,123" and whole jackpot rows fall back to
-  // system-ui (digit widths roll again, VA-0294 measured a 45-px swing). Expected to fail until the
-  // painter uses `\s+`; when this starts passing, flip it to `it` and re-check row counts in the
-  // tests above (split rows paint two fillText spans).
-  it.fails('jackpot values are painted in a fixed-width face (blocked: e7b62a0 regex, VA-0296)', () => {
+  // e7b62a0 split jackpot rows into a system-ui label + ui-monospace value; its regex literal had
+  // `\\s+` and never matched (VA-0296). 6f04f7a (VA-0297) fixed it, so the split now runs.
+  it('jackpot values are painted in a fixed-width face (6f04f7a fixed the e7b62a0 regex)', () => {
     for (const m of MACHINES) {
       for (const live of LIVE) {
         const spans = paintAll(m, live);
@@ -488,10 +504,39 @@ describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
     }
   });
 
+  it('split jackpot rows: label then value on one baseline, centred, combined width within the 76% fit', () => {
+    for (const m of MACHINES) {
+      for (const live of LIVE) {
+        const { canvas } = paintBonus(m);
+        const rows = rowsOf(paintAll(m, live));
+        for (const r of rows.filter((x) => x.spans.length > 1)) {
+          expect(r.spans).toHaveLength(2);
+          const [label, value] = r.spans;
+          expect(label.text).toMatch(/^(GRAND|MAJOR|MINOR|MINI)\s+$/);
+          expect(label.font).toMatch(/system-ui/);
+          expect(value.font).toMatch(/ui-monospace/);
+          expect(label.px).toBe(value.px);
+          const total = spanWidth(label) + spanWidth(value);
+          expect(value.x).toBeCloseTo(label.x + spanWidth(label), 6);
+          expect(total).toBeLessThanOrEqual(canvas.width * 0.76 + 1e-6);
+          expect(label.x + total / 2).toBeCloseTo(canvas.width / 2, 6);
+        }
+      }
+    }
+  });
+
+  it('rolling GRAND keeps one glyph size while its character count is unchanged', () => {
+    const m = MACHINES.find((x) => !x.holdSpin)!;
+    const grandPx = (grand: number) => rowsOf(paintAll(m, { bet: 50, grand })).find((r) => r.text.startsWith('GRAND'))!.px;
+    const sizes = [250_111, 250_188, 249_999, 999_999].map(grandPx);
+    expect(new Set(sizes).size).toBe(1);
+    expect(grandPx(1_000_000)).toBeLessThanOrEqual(sizes[0]);
+  });
+
   it('rows sit below the title and inside the canvas without overlapping each other', () => {
     for (const m of MACHINES) {
       const { canvas, texts } = paintBonus(m);
-      const [title, ...rows] = texts;
+      const [title, ...rows] = rowsOf(texts);
       if (!rows.length) continue;
       // centred (middle-baseline) text: half the glyph height above/below y
       expect(rows[0].y - rows[0].px / 2).toBeGreaterThan(title.y + title.px / 2);
