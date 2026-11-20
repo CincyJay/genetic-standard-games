@@ -7882,6 +7882,16 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 - Unit tests: 285 passed. tsc is clean. Salon still runs at 120 fps, about 95 calls.
 - Chair scale is unchanged. Back-to-back island layout is still waiting for Joshua's go.
 
+### VA-0260 | 2026-11-19 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: INFO
+
+**Joshua: "put the same logo on all the stools as well".** Done in `014a342`, APK **1.8-3dproto.37**, installed on his phone.
+
+- New `art/casino/3d/velvetAceLogo.mjs` holds one cached canvas texture and one material (`VA_SEAT_BACK_LOGO`). The gaming chair (VA-0259 look) and Claude's slot stool both use it.
+- The stool gets `stool_back_logo`: a 0.32 × 0.20 m open cylinder band, 12 segments, just proud of the tub's outer shell and following its taper. It is centred on the back, so it faces the aisle.
+- The band is kept on the derived far stool, so distant stools show it too. ChatGPT's opt-in `?farstool=art` far stool has no logo.
+- **Phone (salon, follow camera):** 120 fps, 97 calls, up from 95: one instanced logo draw per stool LOD level. The logo reads on the stool backs at the bank edge.
+- Unit tests: 285 passed. tsc is clean.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
