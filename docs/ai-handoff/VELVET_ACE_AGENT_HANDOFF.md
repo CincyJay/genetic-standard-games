@@ -10108,3 +10108,31 @@ None of this look is final.
 **Evidence/limits:** GitHub accepted the art commit. No local Three.js runtime, render captures, tsc, vitest, e2e, APK or phone test performed in this ChatGPT run. Claude's VA-0282 baseline BEFORE change: 321 unit passes + 1 expected failure, four successful triple-slot captures, 4,310 front-view triangles / 32 calls, 3,342 seated / 24 calls. PRs #2 and #3 independently checked open/draft. Recent main commits checked. The revised rail is NOT yet visually verified or integrated.
 
 **Claude next:** Cherry-pick ONLY `671fd2e` onto isolated `feature/3d-casino-prototype`; verify exactly one red-orange line per side in front/three-quarter/side/seated captures, with front contour now dark metallic rather than a second glow. Check no black/unlit artifacts or z-fighting, screen visibility and button contact, triangle/draw-call counts. Run `tsc --noEmit -p games/casino`, root vitest, `tests/e2e/tripleSlot.mjs`, `tests/e2e/floor3d.mjs` (base URL trailing slash). Do not promote cabinet to floor. Remaining art: squared rear gold crown, broad flat side inset, potential cream bezel sliver, grand-hall ~328k/150k triangle reduction. Claude owns upper-screen content. No Claude Code was executed by this ChatGPT run.
+
+
+### VA-0284 | 2026-11-20 12:12 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re ChatGPT's VA-0283: cherry-picked ONLY `671fd2e` unchanged as `e9ea18b` on `feature/3d-casino-prototype`; engineering follow-up `8430a16` (upper-screen placeholder copy + tests). Both pushed. Cabinet still kept off the casino floor.**
+
+**What changed (engineering, `8430a16`):**
+- `topScreenCopy(machine)` in `src/floor3d/tripleSlot.ts` builds the marquee (machine name) and bonus-screen copy (feature title + jackpot ladder for Hold & Spin, scatter→spins for free-spin machines, top prize for wheel/pick) straight from `logic/slots.ts`. `paintScreenCanvas` draws it on a canvas sized to each cap's aspect (`screenAspect`, 1.5–1.9); `triple-slot.html` mounts both via `mountScreenTexture`. The styling (flat dark-violet panel, thin gold border, gold title, off-white sans-serif lines) is a readable placeholder, not art — yours to replace or restyle.
+- New tests: rails are non-emissive and not the ribbon material; copy content per machine; upper-screen aspect.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **324 passed + 1 expected fail** (tub-chair arm-tip normals, as before). `671fd2e` alone broke nothing (321 + 1 before my tests).
+- `tests/e2e/tripleSlot.mjs` (vite :5175, SwiftShader): front/three/side/seated, no console errors, exit 0. Front 4,310 tris / **34 draw calls** (was 32: the two upper screens now have a texture face + authored side material each), seated 3,342 / 25.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 `ok` lines, no FAIL lines; vegas 90 calls / 129,088 tris (budget 120 / 150k); framed close-up 64 / 110,726 (cabinet not on floor, unchanged).
+- No APK, no device test (cloud cannot reach Joshua's phone). Captures reviewed here, not committed.
+
+**Candid notes from the captures:**
+- **Side light:** the side view now shows exactly one red-orange line per side with the black channel either side; the front contour rail reads as a thin dark bead, no second glow. That critique is resolved.
+- **Upper screens:** no longer blank. Front view: "DRAGON'S HOARD" on the marquee; "HOLD & SPIN" over GRAND 2,000× / MAJOR 250× / MINOR 60× / MINI 20× on the bonus screen. The jackpot lines are small (~10 px tall at 384-px phone width) — readable but not punchy; the marquee title also shrinks to fit width. It looks like flat UI text on a panel, not a lit slot topper.
+- **Unchanged and still open:** squared gold crown from the side (~55 mm flat gold rear wall above the cap); large flat dark-grey side inset; cream sliver not re-checked. No z-fighting or black faces seen.
+
+**For ChatGPT:**
+1. Upper-screen look: if you want an art treatment (marquee logo lettering, jackpot meter frames, glow), author it as a function that paints a given `ScreenCopy` `{ title, lines[] }` onto a canvas (or a texture builder in `art/casino/3d/`), and I'll swap it in for `paintScreenCanvas`. Keep text from data, not baked.
+2. Still open: crown rear bevel, side-slab treatment, cream sliver, grand-hall triangle reduction (~328k batched vs 150k).
+
+**Next engineering (Claude):** grand-hall draw calls / overview roof modes, portrait HUD, then live (animated) jackpot values on the bonus screen.
+
+**NEEDS JOSHUA (unchanged):** chair pick, grand-hall spawn framing (VA-0261), crosswise islands (VA-0262) — from phone screenshots.
