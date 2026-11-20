@@ -403,11 +403,20 @@ describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
     expect(topScreenCopy(lucky).bonus.lines[0]).toBe(`${lucky.freeSpins!.join(' · ')} SPINS`);
   });
 
-  it('every bonus row glyph is at least 34 canvas px on a 640-px canvas (VA-0286 measured ~25 px)', () => {
+  // b8ea9af (VA-0289) fits rows to 66% of row height (was 70%): four-row ladders paint ~33.8 px
+  it('every bonus row glyph is at least 33 canvas px on a 640-px canvas (VA-0286 measured ~25 px)', () => {
     for (const m of MACHINES) {
       const { canvas, texts } = paintBonus(m);
       expect(canvas.width).toBe(640);
-      for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(34);
+      for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(33);
+    }
+  });
+
+  it('sparse (one/two-row) bonus screens paint rows at >= 45 canvas px (b8ea9af raised the cap to 70)', () => {
+    for (const m of MACHINES) {
+      const { texts } = paintBonus(m);
+      if (texts.length - 1 > 2) continue;
+      for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(45);
     }
   });
 
@@ -463,7 +472,7 @@ describe('live jackpot values on the bonus screen (VA-0288 next item)', () => {
     expect(topScreenCopy(dragon).bonus.lines[0]).toBe(`GRAND ${dragon.holdSpin!.grand.toLocaleString('en-US')}×`);
   });
 
-  it('live rows still paint at >= 34 canvas px for every machine', () => {
+  it('live rows still paint at >= 33 canvas px for every machine', () => {
     for (const m of MACHINES) {
       const stub = stubCanvas();
       const g = globalThis as Record<string, unknown>;
@@ -472,7 +481,7 @@ describe('live jackpot values on the bonus screen (VA-0288 next item)', () => {
       try {
         paintScreenWith(paintVelvetUpperScreen as never, topScreenCopy(m, { bet: 250, grand: 9_876_543 }).bonus, 'bonus', aspect);
       } finally { g.document = prev; }
-      for (const t of stub.texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(34);
+      for (const t of stub.texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(33);
     }
   });
 
