@@ -90,14 +90,42 @@ export function paintVelvetUpperScreen(canvas, copy, options = {}) {
       // Aim for 70% of each row's height, with a width fit for long
       // translated titles or large dynamic jackpot figures.
       const cap = count <= 2 ? 70*scale : 43*scale;
-      // Monospaced numerals keep rolling GRAND values from changing digit widths.
-      // Use the same font for measurement and paint to avoid clipping.
-      const jackpot = /^(GRAND|MAJOR|MINOR|MINI)\b/i.test(line);
-      const family = jackpot ? 'ui-monospace, monospace' : 'system-ui, sans-serif';
-      const px=fitText(line,w*0.76,Math.min(cap,rowHeight*(count <= 2 ? 0.66 : 0.70)),13*scale,family);
-      ctx.font=`700 ${px}px ${family}`;
+      // Keep the jackpot label in the same face as other bonus rows.
+      // Only its changing value uses fixed-width numerals, avoiding a code-font label.
+      const match = /^(GRAND|MAJOR|MINOR|MINI)(\\s+)(.*)$/i.exec(line);
+      const label = match ? match[1] + match[2] : '';
+      const value = match ? match[3] : '';
+      const rowFace = 'system-ui, sans-serif';
+      const digitFace = 'ui-monospace, monospace';
+      const maxWidth = w*0.76;
+      const initial = Math.min(cap,rowHeight*(count <= 2 ? 0.66 : 0.70));
+      let px = initial;
+      const measureParts = (size) => {
+        ctx.font = `700 ${size}px ${rowFace}`;
+        const labelWidth = ctx.measureText(label).width;
+        ctx.font = `700 ${size}px ${digitFace}`;
+        return { labelWidth, total: labelWidth + ctx.measureText(value).width };
+      };
+      if(match){
+        while(px > 13*scale && measureParts(px).total > maxWidth) px -= 2*scale;
+        px = Math.max(13*scale,px);
+      } else {
+        px = fitText(line,maxWidth,initial,13*scale,rowFace);
+      }
       ctx.fillStyle='#fff0c9';
-      ctx.fillText(line,w/2,y,w*0.76);
+      if(match){
+        const { labelWidth, total } = measureParts(px);
+        const left = w/2-total/2;
+        ctx.textAlign='left';
+        ctx.font=`700 ${px}px ${rowFace}`;
+        ctx.fillText(label,left,y);
+        ctx.font=`700 ${px}px ${digitFace}`;
+        ctx.fillText(value,left+labelWidth,y);
+        ctx.textAlign='center';
+      } else {
+        ctx.font=`700 ${px}px ${rowFace}`;
+        ctx.fillText(line,w/2,y,maxWidth);
+      }
     });
   } else {
     ctx.fillStyle='#d2a55c';
