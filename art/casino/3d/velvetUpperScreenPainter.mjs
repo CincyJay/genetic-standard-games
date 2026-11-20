@@ -48,9 +48,9 @@ export function paintVelvetUpperScreen(canvas, copy, options = {}) {
     ctx.lineTo(0,10*scale);ctx.lineTo(-8*scale,0);ctx.closePath();ctx.fill();ctx.restore();
   }
   ctx.textAlign='center';ctx.textBaseline='middle';
-  const fitText=(text,maxWidth,initial,min) => {
+  const fitText=(text,maxWidth,initial,min,fontFamily='Georgia, serif') => {
     let px=initial;
-    do { ctx.font=`700 ${px}px Georgia, serif`; if(ctx.measureText(text).width<=maxWidth)break; px-=2*scale; }
+    do { ctx.font=`700 ${px}px ${fontFamily}`; if(ctx.measureText(text).width<=maxWidth)break; px-=2*scale; }
     while(px>min);
     return Math.max(min,px);
   };
@@ -72,7 +72,7 @@ export function paintVelvetUpperScreen(canvas, copy, options = {}) {
     // Decorative only: the text and jackpot values remain data-driven.
     if(count<=2){
       const cy=h*0.29;
-      ctx.save();ctx.strokeStyle='rgba(234,177,95,0.20)';ctx.lineWidth=1.4*scale;
+      ctx.save();ctx.strokeStyle='rgba(234,177,95,0.35)';ctx.lineWidth=1.8*scale;
       for(const direction of [-1,1]){
         for(let k=0;k<5;k++){
           ctx.beginPath();ctx.moveTo(w/2+direction*95*scale,cy);
@@ -90,8 +90,12 @@ export function paintVelvetUpperScreen(canvas, copy, options = {}) {
       // Aim for 70% of each row's height, with a width fit for long
       // translated titles or large dynamic jackpot figures.
       const cap = count <= 2 ? 70*scale : 43*scale;
-      const px=fitText(line,w*0.76,Math.min(cap,rowHeight*(count <= 2 ? 0.66 : 0.70)),13*scale);
-      ctx.font=`700 ${px}px system-ui, sans-serif`;
+      // Monospaced numerals keep rolling GRAND values from changing digit widths.
+      // Use the same font for measurement and paint to avoid clipping.
+      const jackpot = /^(GRAND|MAJOR|MINOR|MINI)\b/i.test(line);
+      const family = jackpot ? 'ui-monospace, monospace' : 'system-ui, sans-serif';
+      const px=fitText(line,w*0.76,Math.min(cap,rowHeight*(count <= 2 ? 0.66 : 0.70)),13*scale,family);
+      ctx.font=`700 ${px}px ${family}`;
       ctx.fillStyle='#fff0c9';
       ctx.fillText(line,w/2,y,w*0.76);
     });
