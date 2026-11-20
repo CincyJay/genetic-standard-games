@@ -14,13 +14,15 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
   });
 
   it('stands on the floor at about 0.88 x 2.42 m and fits a 0.45 m collision half-width', () => {
-    // plinth bottom is authored at y 0.005 (box centre 0.065, height 0.12): 5 mm above the floor
+    // the plinth sat 5 mm above the floor in 1670e35; ff6752a seats it on y 0
     expect(report.bounds.min[1]).toBeGreaterThanOrEqual(0);
-    expect(report.bounds.min[1]).toBeLessThan(0.01);
+    expect(report.bounds.min[1]).toBeLessThan(0.001);
     expect(report.bounds.max[1]).toBeGreaterThan(2.35);
     expect(report.bounds.max[1]).toBeLessThan(2.45);
     expect(Math.max(-report.bounds.min[0], report.bounds.max[0])).toBeLessThan(0.45);
-    expect(Math.max(-report.bounds.min[2], report.bounds.max[2])).toBeLessThan(0.45);
+    // since ff6752a (VA-0258) the console deck projects forward to z 0.56; the rear stays at -0.39
+    expect(-report.bounds.min[2]).toBeLessThan(0.45);
+    expect(report.bounds.max[2]).toBeLessThan(0.6);
   });
 
   it('is cheap: under 6k triangles, 6 authored materials', () => {
@@ -34,14 +36,26 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     expect(z('VA_main_reels_5x5_bezel')).toBeGreaterThan(z('VA_tapered_tower'));
   });
 
-  // Known art defect (VA-0257): the console ledge (z -0.212..0.192) and the five buttons (front z ~0.218)
-  // sit inside the burgundy base (z -0.327..0.304, top y 0.735), so no console or button is visible
-  // in any capture. Flips to a pass once the console/buttons stand proud of the base.
-  it.fails('player console and buttons stand in front of the burgundy base', () => {
+  // VA-0257 found the console and buttons buried inside the base; fixed in ff6752a (VA-0258)
+  it('player console and buttons stand in front of and above the burgundy base', () => {
     const box = (name: string) => new THREE.Box3().setFromObject(cab.getObjectByName(name)!);
     const base = box('VA_burgundy_base');
-    for (let i = 1; i <= 5; i++) expect(box(`VA_player_button_${i}`).max.z).toBeGreaterThan(base.max.z + 0.005);
+    for (let i = 1; i <= 5; i++) {
+      expect(box(`VA_player_button_${i}`).max.z).toBeGreaterThan(base.max.z + 0.005);
+      expect(box(`VA_player_button_${i}`).min.y).toBeGreaterThan(base.max.y);
+    }
     expect(box('VA_console_ledge').max.z).toBeGreaterThan(base.max.z);
+    // plinth and base now overlap instead of leaving a 12 mm gap
+    expect(box('VA_weighted_plinth').max.y).toBeGreaterThanOrEqual(base.min.y);
+  });
+
+  // Known art defect (VA-0261): the deck is turned +0.14 rad about X, so its top face tilts toward
+  // the screen (normal z about -0.14), away from the player; a slot button deck tilts toward the
+  // player. Flips to a pass once the top normal leans toward +Z.
+  it.fails('console deck top tilts toward the player', () => {
+    const deck = cab.getObjectByName('VA_console_ledge')!;
+    const up = new THREE.Vector3(0, 1, 0).applyQuaternion(deck.getWorldQuaternion(new THREE.Quaternion()));
+    expect(up.z).toBeGreaterThan(0.02);
   });
 
   it('fitScreenUvs maps the cap UVs (authored in metres) to 0..1', () => {
