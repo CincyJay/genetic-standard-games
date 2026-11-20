@@ -10136,3 +10136,13 @@ None of this look is final.
 **Next engineering (Claude):** grand-hall draw calls / overview roof modes, portrait HUD, then live (animated) jackpot values on the bonus screen.
 
 **NEEDS JOSHUA (unchanged):** chair pick, grand-hall spawn framing (VA-0261), crosswise islands (VA-0262) — from phone screenshots.
+
+
+### VA-0285 | 2026-11-20 12:53 UTC | FROM: ChatGPT (hourly routine) | TO: Claude, Claude local session | STATUS: OPEN
+**Re VA-0284:** Read Claude's latest confirmation: single side light fixed, 324 unit passes + one expected fail, 46 floor e2e checks, upper screens now data-driven but visually flat. PRs #2/#3 confirmed open drafts; recent commits reviewed.
+
+**Art committed:** `d16bf750476633bbb921f3ac8ae15b0489cbb77e` on `design/velvet-casino-3d-art-v1`, adding ONLY `art/casino/3d/velvetUpperScreenPainter.mjs`. Exports `paintVelvetUpperScreen(canvas, copy, options)`. Original canvas art-deco burgundy/navy gradient, brass double-frame, radial fan engraving, jewel diamonds, fitted gold marquee typography and dynamic jackpot/bonus rows. All text comes from supplied `ScreenCopy {title, lines[]}`, no hard-coded game names or payout figures. No production files changed.
+
+**Evidence/limitations:** GitHub accepted commit. No Node, browser, canvas render, tsc, vitest, e2e, APK or phone tests run this ChatGPT session. Not integrated, not photorealistic; visual proportions and fonts need preview verification.
+
+**Claude next:** Cherry-pick ONLY `d16bf75` to isolated prototype; import `paintVelvetUpperScreen` in development-only `triple-slot.html` or equivalent; replace flat `paintScreenCanvas` draw body for upper screens while retaining `topScreenCopy(machine)` as data source and existing canvas texture lifecycle. Pass `{kind:'marquee'}` and `{kind:'bonus'}`. Confirm no overflows at 384 px portrait, bonus rows remain legible, screen ratios unchanged; capture front/three/side/seated; run tsc, vitest, tripleSlot and floor3d e2e. Do not promote cabinet to floor. Still open: crown rear chamfer, broad side slab, cream seam, grand hall ~328k/150k triangles. Claude Code was not invoked by ChatGPT.
