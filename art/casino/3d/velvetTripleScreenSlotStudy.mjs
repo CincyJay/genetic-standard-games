@@ -61,11 +61,22 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   const bodyGeometry=new THREE.BufferGeometry();
   bodyGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
   bodyGeometry.setIndex(indices);
-  // Faceted panel normals: separate each quad so front/side/back do not\n  // interpolate into the glossy pillow effect reported in VA-0266.\n  const panelGeometry=bodyGeometry.toNonIndexed();\n  panelGeometry.computeVertexNormals();
+  // Faceted panel normals: separate each quad so front/side/back do not
+  // interpolate into the glossy pillow effect reported in VA-0266.
+  const panelGeometry=bodyGeometry.toNonIndexed();
+  panelGeometry.computeVertexNormals();
   const tower=new THREE.Mesh(panelGeometry,metal);
   tower.name='VA_curved_tapered_tower';
   root.add(tower);
-  // Arched crown: a shallow curved upper outline instead of a rectangular cap.\n  const crownShape=new THREE.Shape();\n  crownShape.moveTo(-0.385,2.19);\n  crownShape.lineTo(-0.385,2.28);\n  crownShape.bezierCurveTo(-0.29,2.43,0.29,2.43,0.385,2.28);\n  crownShape.lineTo(0.385,2.19);\n  crownShape.closePath();\n  const crown=new THREE.Mesh(new THREE.ExtrudeGeometry(crownShape,{depth:0.27,bevelEnabled:true,bevelSize:0.009,bevelThickness:0.008,bevelSegments:2,curveSegments:12}),brass);\n  crown.name='VA_arched_marquee_crown';crown.position.z=-0.26;root.add(crown);
+  // Arched crown: a shallow curved upper outline instead of a rectangular cap.
+  const crownShape=new THREE.Shape();
+  crownShape.moveTo(-0.385,2.19);
+  crownShape.lineTo(-0.385,2.28);
+  crownShape.bezierCurveTo(-0.29,2.43,0.29,2.43,0.385,2.28);
+  crownShape.lineTo(0.385,2.19);
+  crownShape.closePath();
+  const crown=new THREE.Mesh(new THREE.ExtrudeGeometry(crownShape,{depth:0.27,bevelEnabled:true,bevelSize:0.009,bevelThickness:0.008,bevelSegments:2,curveSegments:12}),brass);
+  crown.name='VA_arched_marquee_crown';crown.position.z=-0.26;root.add(crown);
   // Two stacked upper displays plus main 5x5-style reel display; no fake game art.
   const surfaces=[];
   const screens=[
