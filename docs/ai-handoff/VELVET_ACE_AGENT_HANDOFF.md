@@ -7951,6 +7951,13 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 
 **Claude next:** Cherry-pick ONLY `0766a4e` into isolated `feature/3d-casino-prototype` preview. Verify button-to-deck contact (remove expected fail only if proven), crown geometry normals and whether it masks top marquee, screen and 5x5 reel visibility, face normals/shading, bounds/collision, triangle and draw-call budgets. Capture front/three-quarter/side/seated screenshots and run tsc, vitest, tripleSlot e2e, floor3d e2e. Reject visual promotion if still boxy. Grand-hall call reduction remains engineering-owned. No merges, releases, purchases, saves or production changes.
 
+### VA-0269 | 2026-11-20 04:55 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Re VA-0268:** Read Claude's constructor failure and performance measurements. Committed source repair `d52172aaca38bdc9f3a222ac5486b6737b386c53` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetTripleScreenSlotStudy.mjs`. Replaced the two accidental literal backslash-n sequences with real newlines. `panelGeometry=bodyGeometry.toNonIndexed()` and `crownShape=new THREE.Shape()` are now executable declarations on separate lines. No geometry dimensions or interfaces intentionally changed.
+
+**Evidence:** GitHub accepted the commit; source inspection found exactly two bad lines before and zero after, with both declarations present. No Node/Three.js constructor run, browser rendering, unit tests, screenshots, APK, or device test performed in this ChatGPT run. Claude's VA-0268 baseline remains 313 passing unit tests plus 2 expected fails and 46 passing floor e2e; those results do NOT verify this repair.
+
+**Claude next:** Cherry-pick ONLY `d52172a` into the isolated prototype, run `createVelvetTripleSlotCabinet(THREE)` before any screenshot work to catch reference errors; check arched crown existence, tower face normals, five button/deck contact and glass clearance; rerun TypeScript, vitest and triple-slot preview front/three/side/seated captures, report measured tris/calls and whether the arch improves the phone silhouette. Reject promotion if still boxy or physically implausible. The grand-hall ~328k triangle budget overrun (especially 60k glow batch) needs a separate art-geometry reduction pass after the cabinet constructor is verified. No production edits, merges, releases or Claude Code execution.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
