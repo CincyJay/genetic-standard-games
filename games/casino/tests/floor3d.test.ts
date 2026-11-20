@@ -1137,7 +1137,8 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     let tris = 0;
     const mats = new Set<string>();
     tpl.traverse((o) => { const m = o as import('three').Mesh; if (!m.isMesh) return; tris += (m.geometry.index?.count ?? m.geometry.attributes.position.count) / 3; mats.add((m.material as import('three').Material).uuid); });
-    expect(tris).toBe(4444);
+    // eb42846 (VA-0303) adds an arm cradle and a second post per side: 28 -> 32 meshes, 4,444 -> 4,548 tris
+    expect(tris).toBe(4548);
     expect(mats.size).toBe(4);
     const all = new THREE.Box3().setFromObject(tpl);
     expect(all.min.y).toBeGreaterThan(0);
@@ -1161,7 +1162,8 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     tpl.updateMatrixWorld(true);
     const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat_cushion')!);
     expect(seat.max.y - seat.min.y).toBeLessThan(0.22);
-    expect(seat.max.z - seat.min.z).toBeGreaterThan(0.4);
+    // eb42846 (VA-0303) shortened the extrusion 0.49 -> 0.29 so it stops at the back: measured depth 0.30 m
+    expect(seat.max.z - seat.min.z).toBeGreaterThan(0.25);
   });
   it('casino chair (33aa2b9): arm pads are horizontal, not 0.39 m posts (VA-0299)', async () => {
     const THREE = await import('three');
@@ -1181,9 +1183,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const insert = new THREE.Box3().setFromObject(tpl.getObjectByName('back_padded_insert')!);
     expect(Math.abs(pipe.min.z - insert.min.z)).toBeLessThan(0.02);
   });
-  // 33aa2b9 measured: seat_cushion z -0.275..0.224, back_padded_insert front face z 0.006, so the flat seat's rear
-  // 0.22 m runs through the insert/inset into back_outer (z from 0.136). Pinned until the seat stops at the insert.
-  it.fails('casino chair (33aa2b9): seat cushion stops at the back insert face, within 3 cm (VA-0301)', async () => {
+  // 33aa2b9 measured seat_cushion z -0.275..0.224 against the insert face at z 0.006 (pinned as it.fails in VA-0302).
+  // eb42846 (VA-0303) measured: seat_cushion z -0.305..-0.005, 1.1 cm in front of the insert face. Now a normal test.
+  it('casino chair (eb42846): seat cushion stops at the back insert face, within 3 cm (VA-0301, VA-0303)', async () => {
     const THREE = await import('three');
     const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
     const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
@@ -1191,6 +1193,20 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat_cushion')!);
     const insert = new THREE.Box3().setFromObject(tpl.getObjectByName('back_padded_insert')!);
     expect(seat.max.z - insert.min.z).toBeLessThan(0.03);
+  });
+  // eb42846 (VA-0303): each arm pad (y 0.627..0.733, z -0.217..0.173) now rests on a steel cradle (y 0.602..0.634,
+  // z -0.212..0.118) carried by two posts (y 0.365..0.615 at z ~-0.17 and ~0.08). The posts' feet (y 0.365) stop
+  // in mid-air: the underpan is only x +-0.270, the posts are at |x| 0.298..0.346.
+  it('casino chair (eb42846): arm pads rest on a cradle that spans most of their length (VA-0303)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const pad = new THREE.Box3().setFromObject(tpl.getObjectByName('arm_pad')!);
+    const cradle = new THREE.Box3().setFromObject(tpl.getObjectByName('arm_cradle')!);
+    expect(cradle.max.y).toBeGreaterThanOrEqual(pad.min.y);
+    expect(cradle.max.y - pad.min.y).toBeLessThan(0.02);
+    expect(cradle.max.z - cradle.min.z).toBeGreaterThan(0.75 * (pad.max.z - pad.min.z));
   });
   // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
   // Measured (18 segments): arm tips |x| 0.255..0.268 (was 0.113..0.126); nearest shell point in front of the back
