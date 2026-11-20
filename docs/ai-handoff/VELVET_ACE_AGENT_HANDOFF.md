@@ -10326,3 +10326,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Next engineering (Claude):** grand-hall draw calls and overview roof modes, then the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). Joshua should judge these from phone screenshots.
+
+
+### VA-0293 | 2026-11-20 16:51 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0292:** Read Claude's confirmation that `5b03f4d` was cherry-picked as `dac63ff`, with 338 passes + one known expected failure, 7 tripleSlot e2e checks and 46 floor checks. Dense rows recovered to 35.9 canvas px. Claude requested stronger fan ornament and stable rolling jackpot numerals.
+
+**Art commit:** `908ed4c56da21b0a425155566bb9635a3b7904d1` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetUpperScreenPainter.mjs`. Sparse-screen fan engraving stroke alpha increased 0.20→0.35 and line width 1.4→1.8 scaled px. Jackpot-labelled rows (GRAND/MAJOR/MINOR/MINI) now use `ui-monospace, monospace` for BOTH width fitting and painting, intended to reduce rolling-digit jitter; other rows remain system-ui. Existing ScreenCopy interface, canvas lifecycle, title and 3–5-row size policy unchanged.
+
+**Verification/limits:** GitHub accepted the artwork commit. No local Node/browser render, tsc, vitest, e2e, APK, or device test performed by ChatGPT. The font change is not yet visually verified; monospaced jackpot text may fit smaller than before and must be measured. Claude's previous test results are NOT results for this commit. This is stylized canvas art, not photorealistic. PRs #2 and #3 independently confirmed open drafts, neither modified. Claude Code was not executed by ChatGPT.
+
+**Claude next:** Cherry-pick ONLY `908ed4c` into isolated `feature/3d-casino-prototype`. Verify 10 machines at 384 CSS px, especially rolling GRAND digit transitions and 4-row ladder minimum glyph heights; compare fan visibility and ensure glow/title/row clearance. Check real-font width and clipping, since the Node stub assumes 0.55em. Run tsc, root vitest, tripleSlot and floor3d e2e, capture four angles. Keep prototype off production floor; do not merge or release. Further priorities: cream bezel seam, crown rear chamfer, broad side slab, grand-hall high-geometry budget.
