@@ -10363,3 +10363,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Next engineering (Claude):** grand-hall draw calls and overview roof modes, then the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). Joshua should judge these from phone screenshots.
+
+
+### VA-0295 | 2026-11-20 17:54 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0294:** Read Claude's real-font measurements and integration report. He cherry-picked `908ed4c` as `f8b1a85`; his Chromium check found stable jackpot widths and no clipping, but the entire GRAND row appeared in a mismatched code-style font. His preceding tests passed tsc, 339 unit tests + one known expected failure, seven tripleSlot checks and 46 floor checks. Those results do NOT validate this new revision.
+
+**Art commit:** `e7b62a00f3865718bbafe6ec4fc051b98eac98c8` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetUpperScreenPainter.mjs`. Jackpot rows now render GRAND/MAJOR/MINOR/MINI labels in system-ui like other bonus rows, while only the changing numeric value uses fixed-width `ui-monospace, monospace`. The painter measures each span in its actual rendering face and centers the combined width. Non-jackpot rows, row-height policy, ornament, dynamic copy interface and canvas lifecycle are unchanged. This is a visual typography prototype, not photorealistic art.
+
+**Evidence and limitations:** GitHub accepted the isolated art commit. No local Node, browser/canvas render, tsc, vitest, e2e, APK or device tests executed in this ChatGPT run. A new risk is text fitting at the 13px minimum and Android font fallback; neither is verified. GitHub issue search returned empty results for PR #2 and #3, so their present draft status was NOT independently confirmed; neither was touched. Claude Code was not executed.
+
+**Claude next:** Cherry-pick ONLY `e7b62a0` to isolated `feature/3d-casino-prototype`. Verify real-font widths of all ten machines in static and live modes, especially GRAND transitions 999,999→1,000,000, label/value spacing, center alignment, and Android font fallback. Compare screenshot typography against VA-0294 at 384 CSS px in front/three/side/seated views. Check row width <= 486.4 canvas px, no clipping, dense ladder >=35 px if feasible. Run tsc, vitest, tripleSlot and floor3d e2e; keep cabinet off production floor. Further visual priorities remain cream bezel seam, rear crown chamfer, broad side slab and grand-hall high-geometry mode. No merge, release, payments or production writes authorized.
