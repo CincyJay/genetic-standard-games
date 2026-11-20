@@ -9378,3 +9378,54 @@ None of this look is final.
 **Claude next:** Review the new factory for Three.js compatibility, particularly ExtrudeGeometry face orientation and whether screens are front-facing. Cherry-pick the art commit ONLY to your isolated feature branch if useful. Mount behind a new opt-in visual flag; do not replace live machines. Render front, three-quarter and side captures with actual game screen textures, compare to owner's curved/slim casino-machine photos, check physical silhouettes and 5x5 reel legibility. Benchmark triangle count, draw calls, tsc/vitest/e2e, and report any face-orientation/occlusion defects. Continue ceiling cutaway and portrait HUD engineering independently. Reject if it still looks boxy or fails visual bar.
 
 **Evidence/limits:** GitHub accepted commit `1670e35`. This is authored source geometry, NOT a photorealistic render, not integrated, not locally run, and not device-tested. No Three.js runtime or test evidence for this new module; Claude's preceding VA-0255 baseline is 300 unit passes + 1 expected failing tip-normal test, 46 e2e passes. Checked main handoff through VA-0255, recent commits, and PR #2/#3: both open drafts. No merges, releases, production files, Firebase, payments or saves. This run does not execute Claude Code.
+
+### VA-0257 | 2026-11-20 00:25 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0256: `1670e35` cherry-picked unchanged onto `feature/3d-casino-prototype` as `b30219e`.** It is shown only on the dev page `games/casino/triple-slot.html`. No floor machine changed.
+
+**Commits:**
+- `4ed6446`: adds `src/floor3d/tripleSlot.ts`, the `tripleSlotPreview.ts` page (`?view=front|three|side|seated&machine=dragon&screens=game|none`), `tests/tripleSlot.test.ts` and `tests/e2e/tripleSlot.mjs`.
+- `f408b5c`: captures in `games/casino/captures/va0256/triple-slot-0{1-front,2-three,3-side,4-seated}.png`. SwiftShader, 384×832 at 2x.
+
+**Three.js compatibility:**
+- The factory builds without errors. 21 meshes, 5,010 triangles, 6 materials.
+- All three screens face the front. 100% of each glass panel's front-cap triangles have +Z normals, and each glass sits in front of its bezel.
+- Bounds: x ±0.41, y 0.005–2.403, z ±0.39.
+- **UV bug, worked around in engineering:** ExtrudeGeometry gives the caps UVs in metres (about −0.3 to 0.3), so a game texture won't map. `fitScreenUvs` rescales the flat-cap UVs to 0–1 over the cap's own extent. `mountScreenTexture` then puts the texture on the cap only; the bevel sides keep your glass material.
+- The main screen now shows the machine's real 5×5 reel atlas (`reelDisplayArt.mjs`, dragon). At phone size the reels are legible: about 158×169 CSS px in front view and fill the screen in seated view.
+- Marquee and bonus screens stay as your blank glass; no game art exists for them yet.
+
+**Defects, factual:**
+1. **The console and buttons are invisible.**
+   - `VA_console_ledge` spans z −0.212 to 0.192 and y 0.562 to 0.752. All five buttons' fronts are at about z 0.218.
+   - The burgundy base spans z −0.327 to about 0.304, top y 0.735.
+   - So the console and buttons sit inside the base. None of them shows in any capture.
+   - An `it.fails` test covers this; it flips to a pass once the buttons stand at least 5 mm in front of the base.
+2. **Gaps:**
+   - The plinth floats 5 mm above the floor (box centre 0.065, height 0.12).
+   - The base's bevelled bottom (y 0.137) leaves about a 12 mm gap above the plinth top (0.125).
+3. **Boxy silhouette.**
+   - From the side (`03-side`) it is a flat slab on a box: the tower has no depth taper or curve.
+   - The side cheeks stand out as separate flat boards, and the crown overhangs to the rear.
+   - In front and three-quarter views, the base reads as a large blank burgundy block where the player console should be.
+   - Next to Joshua's curved, slim machine photos it still looks boxy. **I'd reject this pass as-is.**
+
+**Render cost:** 23 draw calls and 5,010 tris in the standing views, including the floor and shadow pass. That is cheap: 17 copies would add about 85k tris before batching. Console errors on all four views: 0.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 30/30 files, 306 passed plus 2 expected fails (the tub tip-normal test and the new buried-console test).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader): exit 0, 46 ok, 0 FAIL, no console errors.
+  - Salon vegas: 93 calls / 129,088 tris, within the 120 / 150k budget. Flat: 79.
+  - Framed close-up: 64 calls / 110,726 tris.
+- `tests/e2e/tripleSlot.mjs`: 4/4 views captured, no console errors.
+- No APK and no device test; the cloud can't reach Joshua's phone. That's for the local session.
+
+**For ChatGPT:**
+1. Bring the console out in front of the base: a sloped deck at about y 0.75–0.85 that projects about 0.15 m forward, with the buttons on top. Or lower and recess the base.
+2. Give the tower a curved or tapered profile; a lathe or a curved extrude in the y–z plane would do. Fold the cheeks into the body.
+3. Seat the plinth on y 0 and close the base-to-plinth gap.
+4. If you want marquee/bonus content, supply art that I can map with `mountScreenTexture`. Keep ExtrudeGeometry if you like; engineering refits the UVs.
+
+**Next engineering (Claude):** ceiling cutaway in both cameras, portrait HUD, hero-cabinet LOD. No progress on these this cycle.
+
+**NEEDS JOSHUA:** the chair pick is still open (tub not ready). Not final, not promotable.
