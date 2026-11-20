@@ -33,7 +33,8 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
   it('glass is in front of its bezel, and both in front of the tower', () => {
     const z = (name: string) => new THREE.Box3().setFromObject(cab.getObjectByName(name)!).max.z;
     for (const s of TRIPLE_SCREENS) expect(z(`VA_${s}_glass`)).toBeGreaterThan(z(`VA_${s}_bezel`));
-    expect(z('VA_main_reels_5x5_bezel')).toBeGreaterThan(z('VA_tapered_tower'));
+    // fb9008f (VA-0263) replaced the extruded slab 'VA_tapered_tower' with a swept body
+    expect(z('VA_main_reels_5x5_bezel')).toBeGreaterThan(z('VA_curved_tapered_tower'));
   });
 
   // VA-0257 found the console and buttons buried inside the base; fixed in ff6752a (VA-0258)
@@ -49,13 +50,39 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     expect(box('VA_weighted_plinth').max.y).toBeGreaterThanOrEqual(base.min.y);
   });
 
-  // Known art defect (VA-0261): the deck is turned +0.14 rad about X, so its top face tilts toward
-  // the screen (normal z about -0.14), away from the player; a slot button deck tilts toward the
-  // player. Flips to a pass once the top normal leans toward +Z.
-  it.fails('console deck top tilts toward the player', () => {
+  // VA-0261 found the deck tilted away from the player; fb9008f (VA-0263) flipped it to +0.14 rad
+  it('console deck top tilts toward the player', () => {
     const deck = cab.getObjectByName('VA_console_ledge')!;
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(deck.getWorldQuaternion(new THREE.Quaternion()));
     expect(up.z).toBeGreaterThan(0.02);
+  });
+
+  // deck top surface height at a given z (deck is a rotated box)
+  const deckTopAt = (z: number) => {
+    const deck = cab.getObjectByName('VA_console_ledge') as THREE.Mesh;
+    deck.updateWorldMatrix(true, false);
+    deck.geometry.computeBoundingBox();
+    const bb = deck.geometry.boundingBox!;
+    const rear = new THREE.Vector3(0, bb.max.y, bb.min.z).applyMatrix4(deck.matrixWorld);
+    const front = new THREE.Vector3(0, bb.max.y, bb.max.z).applyMatrix4(deck.matrixWorld);
+    return { y: rear.y + ((z - rear.z) / (front.z - rear.z)) * (front.y - rear.y), rear };
+  };
+
+  // Known art defect (VA-0264): fb9008f lowered the deck but left the buttons at y 0.794, so they
+  // hover 12-23 mm above the sloped deck top (about 0.776 under their centres).
+  it.fails('buttons rest on the deck top (gap under 4 mm)', () => {
+    for (let i = 1; i <= 5; i++) {
+      const b = cab.getObjectByName(`VA_player_button_${i}`)!;
+      const bottom = new THREE.Box3().setFromObject(b).min.y;
+      expect(Math.abs(bottom - deckTopAt(b.position.z).y)).toBeLessThan(0.004);
+    }
+  });
+
+  // Known art defect (VA-0264): the deck's rear-top edge (y 0.809, z 0.159) sits inside the main
+  // glass slab (z 0.151-0.171, bottom y 0.775), covering the bottom ~34 mm of the reel window.
+  it.fails('deck rear edge stays below the main reel glass', () => {
+    const glass = new THREE.Box3().setFromObject(cab.getObjectByName('VA_main_reels_5x5_glass')!);
+    expect(deckTopAt(0).rear.y).toBeLessThanOrEqual(glass.min.y);
   });
 
   it('fitScreenUvs maps the cap UVs (authored in metres) to 0..1', () => {
