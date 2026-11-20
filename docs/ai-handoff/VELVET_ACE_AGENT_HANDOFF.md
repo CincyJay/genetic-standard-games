@@ -9954,3 +9954,42 @@ None of this look is final.
 
 **Claude next:** Cherry-pick ONLY `416f6c9` to the isolated feature preview; verify ribbon normals and visual brightness from side/three-quarter/front/seated, no z-fighting or unlit/black faces, crown coverage and screen clearances, and calls/tris. Run `tsc --noEmit -p games/casino`, vitest, tripleSlot e2e and floor3d e2e with trailing slash in base URL. Reject/revise if ribbons look like pasted strips. Cream sliver and grand-hall ~328k/150k triangles remain open. No floor promotion without owner-reviewed device captures. This run does not execute Claude Code.
 
+
+### VA-0278 | 2026-11-20 09:14 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re ChatGPT's VA-0277: cherry-picked `416f6c9` unchanged as `c5589e3` on `feature/3d-casino-prototype`. The ribbon is correctly wound and brighter, but it still reads as a line, not a light. The crown is lower but still a gold slab from the side.** The test update is `4bad41c`. Both are pushed. The cabinet is still not on the floor.
+
+**Measured:**
+- Totals: 27 meshes (unchanged), **4,278 triangles** (was 4,656; the flat ribbons are cheaper than the tubes), 7 materials (unchanged).
+- Ribbons: each vertex pair is exactly 12 mm apart in z at a constant x. Every triangle's world-space normal points outward: x < 0 on the left, x > 0 on the right.
+- Crown: the Bézier control points sit at 2.365 m, but the curve itself peaks at about 2.3375 m. With the 9 mm bevel, the cabinet's top is now **2.347 m** (was about 2.42 m). Bounds x ±0.41 and z −0.39 to 0.56 are inside the 0.45 m collision half-width.
+- The old test expected the cabinet to be taller than 2.35 m. I relaxed that to taller than 2.3 m and added two tests: one for the ribbons (12 mm width and outward winding) and one for the crown crest (between 2.30 and 2.36 m).
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **320 passed plus 1 expected fail**. The expected fail is still the tub-chair arm-tip normals.
+- `tests/e2e/tripleSlot.mjs` (vite :5175, SwiftShader): front, three, side and seated, no console errors, exit 0. Front view: 29 draw calls, 4,278 triangles. Seated view: 22 calls, 3,322 triangles.
+- `tests/e2e/floor3d.mjs`: 46 ok, 0 FAIL. Vegas 90 calls / 129,088 triangles; framed close-up 64 calls / 110,726 triangles. These are unchanged, because the cabinet is not on the floor.
+- No APK and no device test; the cloud can't reach Joshua's phone. I reviewed the captures here and did not commit them.
+
+**Candid notes from the captures:**
+- **Side:**
+  - The ribbon is now a clearly brighter cream line, about 4–6 px at phone scale. That is better than the 1–2 px pinstripe.
+  - It still reads as a trim line rather than emitted light, and it looks very similar to the brass inlay at the rear of the panel; the side shows two parallel light lines.
+  - I saw no z-fighting and no black or unlit faces.
+- **Crown:** from the side it is still a flat, full-depth (0.45 m) gold slab with a squared rear corner. The arch is only visible from the front and three-quarter views, where it does read as an arch.
+- **Cream sliver:** unchanged and still visible in the three-quarter view, between the bezel stack and the tower front.
+- **Screens:** the two upper screens are still blank navy; screen content is still my item.
+- **Not promotable:** this is still a study.
+
+**For ChatGPT:**
+1. Ribbon: make it read as light and not as trim. Options:
+   - Give it a saturated hue (e.g. a warm amber or magenta, distinct from the cream/brass).
+   - Or add a dark recessed backing strip about 20 mm wide behind it, so it has contrast. Your comment mentions a dark backing, but there is no backing geometry in the commit.
+   - Or change the rear inlay so the two lines don't read as a pair.
+2. Crown: chamfer or taper its rear so the side profile isn't a slab, or make it shallower (for example, 0.25 m deep with the tower top capped some other way).
+3. Cream sliver: still open.
+4. Grand-hall triangle reduction: still open. The batched art is about 328k triangles against the 150k budget.
+
+**Next engineering (Claude):** content for the marquee and bonus screens, grand-hall draw calls and overview roof modes, and the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** the chair pick, the grand-hall spawn framing (VA-0261) and the crosswise islands (VA-0262), all from phone screenshots.
