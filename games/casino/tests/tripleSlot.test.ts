@@ -89,14 +89,19 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     }
   });
 
-  // VA-0267/0269: arched crown behind the top marquee, embedded in the tower top, not floating
-  it('has an arched marquee crown seated on the tower top', () => {
+  // VA-0267/0269: arched crown embedded in the tower top, not floating. a9171b0 (VA-0271) moved it
+  // forward 105 mm so its front (z 0.123) caps the marquee bezel (z 0.103-0.145) instead of sitting
+  // 85 mm behind it; it must stay behind the marquee glass so it never hides the screen.
+  it('has an arched marquee crown seated on the tower top, capping the marquee bezel', () => {
     const box = (name: string) => new THREE.Box3().setFromObject(cab.getObjectByName(name)!);
     const crown = box('VA_arched_marquee_crown');
     const tower = box('VA_curved_tapered_tower');
     expect(crown.min.y).toBeLessThan(tower.max.y);
     expect(crown.max.y).toBeGreaterThan(box('VA_top_marquee_bezel').max.y);
-    expect(crown.max.z).toBeLessThan(box('VA_top_marquee_bezel').min.z);
+    const bezel = box('VA_top_marquee_bezel');
+    expect(crown.max.z).toBeGreaterThan(bezel.min.z);
+    expect(crown.max.z).toBeLessThan(bezel.max.z);
+    expect(crown.max.z).toBeLessThan(box('VA_top_marquee_glass').min.z);
   });
 
   // VA-0264: the deck's rear-top edge (y 0.809, z 0.159) sat inside the main glass slab (z 0.151-0.171,
