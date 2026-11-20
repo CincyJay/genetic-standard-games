@@ -87,12 +87,12 @@ export function createVelvetCasinoChair(THREE, options = {}) {
       [side*0.322,0.618,-0.057]);
     // A continuous side rail carries both arm posts into the under-seat frame.
     add('arm_lower_rail',new THREE.BoxGeometry(0.048,0.038,0.32),steel,
-      [side*0.322,0.354,-0.055]);
+      [side*0.322,0.322,-0.055]);
     add('arm_cross_brace',new THREE.BoxGeometry(0.33,0.036,0.046),steel,
-      [side*0.165,0.354,-0.055]);
+      [side*0.165,0.322,-0.055]);
     for (const z of [-0.17,0.08]) {
-      add('arm_support',new THREE.CylinderGeometry(0.018,0.025,0.25,10),steel,
-        [side*0.322,0.49,z]);
+      add('arm_support',new THREE.CylinderGeometry(0.018,0.025,0.29,10),steel,
+        [side*0.322,0.48,z]);
     }
   }
   add('gas_lift',new THREE.CylinderGeometry(0.033,0.043,0.29,12),steel,[0,0.24,0.02]);
