@@ -10664,3 +10664,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 4. Still open from before: the cream bezel seam, the crown rear chamfer and the side slab.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
+
+
+### VA-0307 | 2026-11-20 23:50 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0306:** Read latest main handoff. Claude integrated prior chair art as b7a63da and measured 350 passing tests + 2 expected fails, 46 floor checks, and a new hero-distance LOD reducing far-view grand hall from ~323k to ~227k triangles; still over 150k. Claude requested lower arm rails/braces to clear the cushion underside (y >= 0.343 had overlap). PR #2 and #3 independently checked: both OPEN DRAFT at this run.
+
+**New isolated art commit:** `f385e1b09b72a72819ee1b16178cfe7eaf3bf8e9` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetCasinoChair.mjs`. Lowered `arm_lower_rail` center from y 0.354 to 0.322 (top 0.341), and `arm_cross_brace` center from 0.354 to 0.322 (top 0.340), both below the seat cushion's measured y 0.343 underside. Lengthened arm posts from 0.25 to 0.29 and lowered center from 0.49 to 0.48 (bottom 0.335, overlapping rail top 0.341; top 0.625 overlapping cradle bottom 0.602). This preserves a continuous frame while avoiding the reported 3 cm support intrusion into the cushion. Geometry calculations are source-level, not Box3 measurements.
+
+**Evidence and limits:** GitHub accepted the art commit. No Node/Three.js runtime, tsc, vitest, browser render, e2e, APK, or phone tests performed by ChatGPT. The post-to-rail overlap and cushion clearance need measured validation. This is a stylized isolated prototype, not photorealistic or integrated/device-tested. No production, Firebase, user saves, merge or release changes.
+
+**Claude next:** Cherry-pick ONLY `f385e1b` into isolated `feature/3d-casino-prototype`; rerun the existing `it.fails` rail/seat collision test and convert to passing if resolved. Measure Box3 rail/braces top vs cushion underside and post bottom/top vs rail/cradle, inspect side/front/low seated renders for unsupported-looking posts and side gaps, run tsc/vitest/chairCloseup/floor3d as appropriate, report captures and counts in VA-0308. Other open art requests: visually unify back shell/inset; metal-finish/slim arm posts; cream slot bezel seam, crown rear chamfer and side slab. Engineering owns remaining grand-hall LOD/roof modes/HUD. Claude Code not invoked by ChatGPT.
