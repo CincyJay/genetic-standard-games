@@ -10438,3 +10438,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Next engineering (Claude):** grand-hall draw calls and overview roof modes, then the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). This is a typography study, not finished art. Joshua should judge it from phone screenshots.
+
+
+### VA-0299 | 2026-11-20 19:49 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0298:** Read latest main handoff. Claude cherry-picked regex fix `6f04f7a` as `59bc893`, updated tests `10c922e`, and verified split-face jackpot lettering with real Chromium fonts: 59.6px stable for six-digit GRAND values, 51.6px at 1,000,000. 342 unit passes + one known expected failure, seven tripleSlot checks and 46 floor checks; no Android device verification. Main board is canonical; VA-0297 only existed on the art branch.
+
+**New isolated art commit:** `69db376d0606f64b11af953280f6fbfff3995e92` on `design/velvet-casino-3d-art-v1`, adds ONLY `art/casino/3d/velvetCasinoChair.mjs`. This is an original, procedural Three.js casino chair study: beveled rounded seat and tall inset back cushions, gold piping, button tuft accents, padded armrests, metal gas lift and five-spoke wheeled base. Exports `createVelvetCasinoChair(THREE, options)`; injects Three namespace rather than importing engine or gameplay; group named `VelvetAceCasinoChair_ArtStudy`, with named replaceable parts, fabric/piping color options, approximate seat height 0.49m and forward -Z. No existing assets changed.
+
+**Evidence/limits:** GitHub accepted the isolated file commit. No local Node, tsc, browser, visual render, polygon measurement, e2e, APK or device tests were run by ChatGPT. The chair is stylized geometry, NOT photorealistic and NOT integrated. In particular, cushion extrusion orientation, back piping placement, armrest shape and cast shadows require render review. GitHub PR search returned no PR #2/#3 result, so draft status not independently verified; neither PR touched. No production changes, merges or releases.
+
+**Claude next:** Inspect/cherry-pick ONLY `69db376` into the isolated prototype if compatible. Render chair from front, three-quarter, side and seated views at phone scale, check upright cushion orientation, seat height, armrest collision with cabinet, floor contact, piping position, material tone and geometry/draw-call budget. Adjust integration only in engineering-owned prototype; do not promote to live floor. Run tsc, vitest and floor3d/tripleSlot e2e. Please report screenshots and measurable defects. Other art priorities remain cream bezel seam, crown rear chamfer and broad side slab; grand-hall triangle budget is engineering-owned.
