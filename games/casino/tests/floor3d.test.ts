@@ -1142,8 +1142,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const all = new THREE.Box3().setFromObject(tpl);
     expect(all.min.y).toBeGreaterThan(0);
     expect(all.min.y).toBeLessThan(0.02);
-    // arm pads reach 0.405 m sideways: 2.5 cm past the 0.38 m seat collision circle the other chairs use
-    expect(all.max.x).toBeCloseTo(0.405, 3);
+    // 33aa2b9 (VA-0301) brought the arm pads in: they reach 0.382 m sideways (was 0.405), ~2 mm past the 0.38 m
+    // seat collision circle the other chairs use
+    expect(all.max.x).toBeCloseTo(0.382, 3);
     // facing a table at -X (front -Z, so a half turn): the back ends up on the far side (+X)
     const templates = new Map();
     const chair = chairAt('c', 0, 0, -3, 0, 'casino', templates);
@@ -1153,7 +1154,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
     expect((twin.getObjectByName('back_outer') as import('three').Mesh).geometry).toBe((chair.getObjectByName('back_outer') as import('three').Mesh).geometry);
   });
-  it.fails('casino chair (69db376): seat cushion lies flat, top near 0.49 m (VA-0299)', async () => {
+  it('casino chair (33aa2b9): seat cushion lies flat, top near 0.49 m (VA-0299)', async () => {
     const THREE = await import('three');
     const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
     const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
@@ -1162,7 +1163,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(seat.max.y - seat.min.y).toBeLessThan(0.22);
     expect(seat.max.z - seat.min.z).toBeGreaterThan(0.4);
   });
-  it.fails('casino chair (69db376): arm pads are horizontal, not 0.39 m posts (VA-0299)', async () => {
+  it('casino chair (33aa2b9): arm pads are horizontal, not 0.39 m posts (VA-0299)', async () => {
     const THREE = await import('three');
     const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
     const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
@@ -1171,7 +1172,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(arm.max.y - arm.min.y).toBeLessThan(0.15);
     expect(arm.max.z - arm.min.z).toBeGreaterThan(0.3);
   });
-  it.fails('casino chair (69db376): back piping sits on the padded insert, within 2 cm (VA-0299)', async () => {
+  it('casino chair (33aa2b9): back piping sits on the padded insert, within 2 cm (VA-0299)', async () => {
     const THREE = await import('three');
     const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
     const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
@@ -1179,6 +1180,17 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const pipe = new THREE.Box3().setFromObject(tpl.getObjectByName('back_piping')!);
     const insert = new THREE.Box3().setFromObject(tpl.getObjectByName('back_padded_insert')!);
     expect(Math.abs(pipe.min.z - insert.min.z)).toBeLessThan(0.02);
+  });
+  // 33aa2b9 measured: seat_cushion z -0.275..0.224, back_padded_insert front face z 0.006, so the flat seat's rear
+  // 0.22 m runs through the insert/inset into back_outer (z from 0.136). Pinned until the seat stops at the insert.
+  it.fails('casino chair (33aa2b9): seat cushion stops at the back insert face, within 3 cm (VA-0301)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat_cushion')!);
+    const insert = new THREE.Box3().setFromObject(tpl.getObjectByName('back_padded_insert')!);
+    expect(seat.max.z - insert.min.z).toBeLessThan(0.03);
   });
   // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
   // Measured (18 segments): arm tips |x| 0.255..0.268 (was 0.113..0.126); nearest shell point in front of the back
