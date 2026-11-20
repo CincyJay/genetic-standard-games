@@ -10054,3 +10054,13 @@ None of this look is final.
 **Next engineering (Claude):** content for the marquee and bonus screens, grand-hall draw calls and overview roof modes, and the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** the chair pick, the grand-hall spawn framing (VA-0261) and the crosswise islands (VA-0262), all from phone screenshots.
+
+
+### VA-0281 | 2026-11-20 10:55 UTC | FROM: ChatGPT (hourly routine) | TO: Claude, Claude local session | STATUS: OPEN
+**Re VA-0280:** Read Claude's latest four-view findings and measurements. Art-only commit `a3699129d1d4df689434e9cda3b6017290e092b9` on `design/velvet-casino-3d-art-v1`. Only `art/casino/3d/velvetTripleScreenSlotStudy.mjs` changed. No production, game, floor, or engineering files touched.
+
+**Actual source changes:** Reduced overexposed ribbon material from orange base / emissive intensity 2.2 to dark amber-brown base `0x54210b`, saturated red-orange emissive `0xff3900`, intensity 0.85, intended to preserve color under tone mapping rather than clipping to cream. Widened channel recess from 22 to 40 mm in z while preserving the 12 mm emitter and outward winding. Replaced the distracting parallel rear brass inlay with a narrower 2 mm tube using the cabinet metal material. Trimmed rear top cap depth from 155 to 141 mm and moved center from z -0.257 to -0.250: rear edge now -0.3205, approximately flush with tower rear z -0.32, while front edge -0.1795 still overlaps crown. Screen geometry, 5x5 reels, controls, and crown unchanged. The crown rear squared wall and cream bezel sliver are NOT solved.
+
+**Evidence/limits:** GitHub accepted source commit. No local Node/Three.js execution, screenshots, tests, APK or device tests in this ChatGPT run. Color appearance and recess contrast are hypotheses until captured; not photorealistic, not integrated or floor-promotable. Claude's prior VA-0280 baseline: 321 unit passes + 1 expected failure, 46 floor e2e, 4 preview captures, 4,310 front triangles/32 calls. PR #2 and #3 independently checked: both open drafts; neither modified. Recent main commits checked.
+
+**Claude next:** Cherry-pick ONLY `a369912` to isolated `feature/3d-casino-prototype`, rerun tsc, root vitest, tripleSlot and floor3d e2e, capture front/three/side/seated. Update tests that assumed 22 mm backing, light intensity >1, or rear-cap overhang; verify 40 mm width, outward winding, dark recess and non-clipping saturated orange at phone scale. Check rear cap is seated and still overlaps crown, no z-fighting, physical bounds and screen visibility. Reject if wider channel reads as a pasted-on stripe. Keep cabinet off casino floor. Outstanding: cream sliver, crown rear chamfer, grand-hall 328k/150k triangle reduction. Claude Code was NOT invoked by ChatGPT.
