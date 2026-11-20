@@ -16,8 +16,8 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   const burgundy = new THREE.MeshStandardMaterial({color:0x371423,metalness:0.38,roughness:0.32});
   const sideInset = new THREE.MeshStandardMaterial({color:0x39343e,metalness:0.34,roughness:0.58,side:THREE.DoubleSide});
   const glass = new THREE.MeshStandardMaterial({color:0x111d30,metalness:0.12,roughness:0.12,emissive:0x071326,emissiveIntensity:0.4});
-  const light = new THREE.MeshStandardMaterial({color:0xff9d32,emissive:0xff650c,emissiveIntensity:2.2,roughness:0.28});
-  const channelRecess = new THREE.MeshStandardMaterial({color:0x090b12,metalness:0.24,roughness:0.78,side:THREE.DoubleSide});
+  const light = new THREE.MeshStandardMaterial({color:0x54210b,emissive:0xff3900,emissiveIntensity:0.85,roughness:0.28});
+  const channelRecess = new THREE.MeshStandardMaterial({color:0x05060a,metalness:0.05,roughness:0.95,side:THREE.DoubleSide});
   function box(name,w,h,d,x,y,z,mat) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
     m.name=name;m.position.set(x,y,z);root.add(m);return m;
@@ -90,7 +90,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     const skin=new THREE.Mesh(g,sideInset);
     skin.name='VA_sculpted_side_inset_'+(side<0?'left':'right');root.add(skin);
     const trimPoints=sections.slice(1,-1).map(([y,w,rear])=>new THREE.Vector3(side*(w+0.007),y,rear+0.039));
-    const trim=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPoints),20,0.004,5,false),brass);
+    const trim=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPoints),20,0.002,5,false),metal);
     trim.name='VA_rear_side_inlay_'+(side<0?'left':'right');root.add(trim);
     // A recessed front-edge light channel breaks up the remaining flat inset.
     // Keep it behind the display bezels and inside the collision envelope.
@@ -108,11 +108,11 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
       if(side>0) ribbonIndices.push(a,b+1,a+1,a,b,b+1);
       else ribbonIndices.push(a,a+1,b+1,a,b+1,b);
     }
-    // 22 mm dark inset physically frames the 12 mm amber emitter on both sides.
+    // 40 mm dark inset physically frames the 12 mm amber emitter on both sides.
     // Backing is 2 mm behind the ribbon; no bloom or texture asset required.
     const backingVerts=[],backingIndices=[];
     for(const p of channelPoints){
-      backingVerts.push(p.x,p.y,p.z-0.011,p.x,p.y,p.z+0.011);
+      backingVerts.push(p.x,p.y,p.z-0.020,p.x,p.y,p.z+0.020);
     }
     for(let j=0;j<channelPoints.length-1;j++){
       const a=2*j,b=a+2;
@@ -141,7 +141,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   crown.name='VA_arched_marquee_crown';crown.position.z=-0.185;root.add(crown);
   // The shortened gold extrusion retains its original front plane; a charcoal
   // rear top cap covers the tower without recreating a full-depth gold slab.
-  box('VA_rear_tower_top_cap',0.71,0.024,0.155,0,2.271,-0.257,metal);
+  box('VA_rear_tower_top_cap',0.71,0.024,0.141,0,2.271,-0.250,metal);
   // Two stacked upper displays plus main 5x5-style reel display; no fake game art.
   const surfaces=[];
   const screens=[
