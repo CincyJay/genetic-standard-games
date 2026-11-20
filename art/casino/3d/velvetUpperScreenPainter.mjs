@@ -54,23 +54,31 @@ export function paintVelvetUpperScreen(canvas, copy, options = {}) {
     while(px>min);
     return Math.max(min,px);
   };
-  const titleSize=fitText(title,w-115*scale,bonus?49*scale:78*scale,23*scale);
+  const titleSize=fitText(title,w-115*scale,bonus?40*scale:78*scale,23*scale);
   ctx.shadowColor='#e9a244';ctx.shadowBlur=15*scale;
   ctx.fillStyle='#f9db9d';
   ctx.font=`700 ${titleSize}px Georgia, serif`;
-  ctx.fillText(title,w/2,bonus?h*0.24:h*0.49,w-110*scale);
+  ctx.fillText(title,w/2,bonus?h*0.19:h*0.49,w-110*scale);
   ctx.shadowBlur=0;
   if(bonus){
-    const available=h*0.56, row=Math.min(50*scale,available/Math.max(lines.length,1));
-    const first=h*0.43;
-    lines.slice(0,5).forEach((line,i)=>{
-      const y=first+i*row;
-      rounded(w*0.16,y-row*0.38,w*0.68,row*0.78,7*scale);
-      ctx.fillStyle=i%2===0?'rgba(16,12,33,0.78)':'rgba(65,25,49,0.75)';ctx.fill();
-      ctx.strokeStyle='rgba(213,167,93,0.55)';ctx.lineWidth=1.5*scale;ctx.stroke();
-      const px=fitText(line,w*0.62,Math.min(29*scale,row*0.5),13*scale);
-      ctx.font=`600 ${px}px system-ui, sans-serif`;ctx.fillStyle='#fff0c9';
-      ctx.fillText(line,w/2,y,w*0.61);
+    // Size for the physical topper, not a full-size UI panel. The rendered
+    // bonus cap is only ~150 CSS pixels wide in a portrait floor view.
+    const visible=lines.slice(0,5);
+    const count=Math.max(visible.length,1);
+    const top=h*0.34, bottom=h*0.91;
+    const pitch=(bottom-top)/count;
+    const rowHeight=pitch*0.91;
+    visible.forEach((line,i)=>{
+      const y=top+(i+0.5)*pitch;
+      rounded(w*0.09,y-rowHeight/2,w*0.82,rowHeight,7*scale);
+      ctx.fillStyle=i%2===0?'rgba(16,12,33,0.85)':'rgba(65,25,49,0.83)';ctx.fill();
+      ctx.strokeStyle='rgba(238,189,105,0.78)';ctx.lineWidth=1.8*scale;ctx.stroke();
+      // Aim for 70% of each row's height, with a width fit for long
+      // translated titles or large dynamic jackpot figures.
+      const px=fitText(line,w*0.76,Math.min(43*scale,rowHeight*0.70),13*scale);
+      ctx.font=`700 ${px}px system-ui, sans-serif`;
+      ctx.fillStyle='#fff0c9';
+      ctx.fillText(line,w/2,y,w*0.76);
     });
   } else {
     ctx.fillStyle='#d2a55c';
