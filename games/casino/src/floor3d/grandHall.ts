@@ -136,6 +136,15 @@ function tableSeats(t: HallTable, first: boolean): Seat[] {
 }
 
 /**
+ * How far down the hall from the entrance wall the avatar starts. At 2 m the follow camera's
+ * initial pose (zoom 4.2, 16°, 1.2 m look-ahead) wanted to stand ~0.8 m behind the entrance wall,
+ * so the room clamp slid it 1.3 m forward without re-aiming: it looked down at the avatar, the
+ * feet sat inside the joystick ring on 384×832 and the gold-coffer ceiling was a sliver under
+ * the top bar. At 3.5 m the initial pose is not clamped (VA-0261).
+ */
+export const SPAWN_FROM_ENTRANCE = 3.5;
+
+/**
  * Lays the hall out:
  * - blackjack hero tables in the middle of each gaming zone, as many as fit along the middle
  *   third of the hall;
@@ -226,7 +235,7 @@ export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: numbe
     seats,
     slots,
     obstacles,
-    spawn: { x: 0, z: length / 2 - 2, heading: 0 },
+    spawn: { x: 0, z: length / 2 - SPAWN_FROM_ENTRANCE, heading: 0 },
     entrance: { x0: -aisleWidth / 2, x1: aisleWidth / 2, z: length / 2 },
   };
 }

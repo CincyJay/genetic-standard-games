@@ -791,6 +791,19 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // the follow camera stays under the coffer beams
     expect(g.room.wallHeight).toBeCloseTo(7.2 - 0.32);
   });
+  it('the follow camera starts unclamped at the grand hall spawn (VA-0261)', () => {
+    useRoom(g.room);
+    for (const aspect of [384 / 832, 832 / 384]) {
+      const p = desiredPose('follow', g.spawn, g.spawn.heading, LIMITS.follow.initial, { aspect });
+      // the same pose with no walls: it only matches if the room clamp did not move the camera
+      useRoom({ ...g.room, z1: 1e3 });
+      const free = desiredPose('follow', g.spawn, g.spawn.heading, LIMITS.follow.initial, { aspect });
+      useRoom(g.room);
+      expect(p.pos.z, `aspect ${aspect}`).toBeCloseTo(free.pos.z, 6);
+      expect(p.pos.z).toBeLessThan(ROOM.z1);
+    }
+    useRoom(SALON_ROOM);
+  });
   it('walks from the spawn to every seat and every machine, and keeps the promenade clear', () => {
     expect(grandNav.walkableAt(g.spawn)).toBe(true);
     expect(g.seats).toHaveLength(8);
