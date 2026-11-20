@@ -23,6 +23,7 @@ import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, readCeilingStyle, readChairStyle } from './grandHallArt.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
+import { buildPlaceholderCrowd, type PlaceholderPerson } from './placeholderCrowd.ts';
 import { buildReelSheet, type ReelSheet, type ReelSource } from './reelSheet.ts';
 import { perfText, protoBadge } from './badge.ts';
 import { ROTATE_ORDER, type RotatePref } from './orientation.ts';
@@ -452,10 +453,11 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     if (o.kind === 'circle') proxy(new THREE.CylinderGeometry(o.r, o.r, o.h, 16), o.x, o.h / 2, o.z, data, true);
     else proxy(new THREE.BoxGeometry(o.x1 - o.x0, o.h, o.z1 - o.z0), (o.x0 + o.x1) / 2, o.h / 2, (o.z0 + o.z1) / 2, data, true);
   }
-  // placeholder people (no rigged human art yet): the dealer
-  scene.add(capsule(C.npc, DEALER_SPOT.x, DEALER_SPOT.z, 0, 0));
-  // the grand hall's other tables have placeholder dealers too
-  for (const p of layout.decor.dealers) scene.add(capsule(C.npc, p.x, p.z, 0, 0));
+  // placeholder people (no rigged human art yet): the dealer; the grand hall's other tables have
+  // placeholder dealers too, and taken seats a computer player (below). None move, so they are
+  // drawn as one merged mesh (placeholderCrowd.ts, VA-0268) instead of two draw calls each.
+  const people: PlaceholderPerson[] = [{ x: DEALER_SPOT.x, z: DEALER_SPOT.z, heading: 0, lift: 0 }];
+  for (const p of layout.decor.dealers) people.push({ x: p.x, z: p.z, heading: 0, lift: 0 });
   const labels = [TABLE, ...layout.decor.tables].map((t) => label('BLACKJACK', t.x, 2.6, t.z - 0.6, 1.6));
   scene.add(...labels);
 
@@ -484,12 +486,14 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       scene.add(marker);
     } else {
       // stage 1 has no multiplayer: a computer player shows what "taken" looks like
-      scene.add(capsule(C.npc, s.x, s.z, s.facing, SEAT_HEIGHT - 0.45));
+      people.push({ x: s.x, z: s.z, heading: s.facing, lift: SEAT_HEIGHT - 0.45 });
     }
     scene.add(ring, hit);
     pickables.push(hit, ring);
     seatViews.set(s.id, { ring, marker });
   }
+  const crowd = buildPlaceholderCrowd(people, AVATAR_HEIGHT, C.npc);
+  if (crowd) scene.add(crowd);
 
   // ------------------------------------------------------------------ avatar
   // a visual skin only: collision radius, movement and the cameras are the same either way
