@@ -1013,9 +1013,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // the ⚙ cycle visits every style once
     const seen = new Set<string>();
     let s: keyof typeof NEXT_CHAIR_STYLE = 'velvet';
-    for (let i = 0; i < 6; i++) { seen.add(s); s = NEXT_CHAIR_STYLE[s]; }
+    for (let i = 0; i < 7; i++) { seen.add(s); s = NEXT_CHAIR_STYLE[s]; }
     expect(s).toBe('velvet');
-    expect(seen.size).toBe(6);
+    expect(seen.size).toBe(7);
     const tpl = createVelvetGamingChair(THREE);
     tpl.updateMatrixWorld(true);
     expect(new THREE.Box3().setFromObject(tpl.getObjectByName('chair_seat_cushion')!).max.y).toBeCloseTo(SEAT_HEIGHT, 2);
@@ -1098,7 +1098,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const { createVelvetTubChair } = await import('../../../art/casino/3d/velvetTubChairPrototype.mjs');
     expect(chairStyleFrom('?chair=tub')).toBe('tub');
     expect(NEXT_CHAIR_STYLE.swivel).toBe('tub');
-    expect(NEXT_CHAIR_STYLE.tub).toBe('velvet');
+    expect(NEXT_CHAIR_STYLE.tub).toBe('casino');
     const tpl = createVelvetTubChair(THREE) as import('three').Group;
     tpl.updateMatrixWorld(true);
     expect(tpl.userData.forward).toBe('+Z');
@@ -1118,6 +1118,67 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const back = new THREE.Box3().setFromObject(chair.getObjectByName('VA_tub_back_cushion')!);
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
     expect((twin.getObjectByName('VA_tub_cushion') as import('three').Mesh).geometry).toBe((chair.getObjectByName('VA_tub_cushion') as import('three').Mesh).geometry);
+  });
+  // 69db376 (VA-0299), measured with three's Box3 on the template (front -Z, metres): 28 meshes, 4 materials,
+  // 4,444 triangles; whole chair x +-0.405, y 0.011..1.173, z -0.275..0.376. Three parts come out in the wrong place:
+  // seat_cushion is rotated PI/2 - 0.055 about X, so its 0.49 m extrusion runs DOWN: y 0.011..0.510, z -0.137..0.072
+  // (a 0.5 m tall, 0.21 m deep slab, not a seat); each arm_pad (rotated PI/2) is a 0.39 m post, y 0.302..0.692;
+  // back_piping is rotated -0.095 about the origin instead of the back's centre, so it sits at z -0.092..-0.026,
+  // 3-10 cm in front of back_padded_insert (z 0.006..0.094). Pinned as expected failures until the art moves.
+  it("ChatGPT's casino chair study (69db376) is opt-in with ?chair=casino, faces its table, clones share geometry (VA-0299)", async () => {
+    const THREE = await import('three');
+    const { chairStyleFrom, chairAt, NEXT_CHAIR_STYLE } = await import('../src/floor3d/grandHallArt.ts');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    expect(chairStyleFrom('?chair=casino')).toBe('casino');
+    expect(NEXT_CHAIR_STYLE.casino).toBe('velvet');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    expect(tpl.userData.forward).toBe('-Z');
+    let tris = 0;
+    const mats = new Set<string>();
+    tpl.traverse((o) => { const m = o as import('three').Mesh; if (!m.isMesh) return; tris += (m.geometry.index?.count ?? m.geometry.attributes.position.count) / 3; mats.add((m.material as import('three').Material).uuid); });
+    expect(tris).toBe(4444);
+    expect(mats.size).toBe(4);
+    const all = new THREE.Box3().setFromObject(tpl);
+    expect(all.min.y).toBeGreaterThan(0);
+    expect(all.min.y).toBeLessThan(0.02);
+    // arm pads reach 0.405 m sideways: 2.5 cm past the 0.38 m seat collision circle the other chairs use
+    expect(all.max.x).toBeCloseTo(0.405, 3);
+    // facing a table at -X (front -Z, so a half turn): the back ends up on the far side (+X)
+    const templates = new Map();
+    const chair = chairAt('c', 0, 0, -3, 0, 'casino', templates);
+    const twin = chairAt('d', 2, 0, -3, 0, 'casino', templates);
+    chair.updateMatrixWorld(true);
+    const back = new THREE.Box3().setFromObject(chair.getObjectByName('back_outer')!);
+    expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
+    expect((twin.getObjectByName('back_outer') as import('three').Mesh).geometry).toBe((chair.getObjectByName('back_outer') as import('three').Mesh).geometry);
+  });
+  it.fails('casino chair (69db376): seat cushion lies flat, top near 0.49 m (VA-0299)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat_cushion')!);
+    expect(seat.max.y - seat.min.y).toBeLessThan(0.22);
+    expect(seat.max.z - seat.min.z).toBeGreaterThan(0.4);
+  });
+  it.fails('casino chair (69db376): arm pads are horizontal, not 0.39 m posts (VA-0299)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const arm = new THREE.Box3().setFromObject(tpl.getObjectByName('arm_pad')!);
+    expect(arm.max.y - arm.min.y).toBeLessThan(0.15);
+    expect(arm.max.z - arm.min.z).toBeGreaterThan(0.3);
+  });
+  it.fails('casino chair (69db376): back piping sits on the padded insert, within 2 cm (VA-0299)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const pipe = new THREE.Box3().setFromObject(tpl.getObjectByName('back_piping')!);
+    const insert = new THREE.Box3().setFromObject(tpl.getObjectByName('back_padded_insert')!);
+    expect(Math.abs(pipe.min.z - insert.min.z)).toBeLessThan(0.02);
   });
   // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
   // Measured (18 segments): arm tips |x| 0.255..0.268 (was 0.113..0.126); nearest shell point in front of the back

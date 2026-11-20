@@ -24,6 +24,7 @@ import { createVelvetGamingChair } from '../../../../art/casino/3d/velvetGamingC
 import { createVelvetGamingChairLod } from '../../../../art/casino/3d/velvetGamingChairLod.mjs';
 import { createVelvetLuxuryChairLOD } from '../../../../art/casino/3d/velvetLuxuryChairLOD.mjs';
 import { createVelvetTubChair } from '../../../../art/casino/3d/velvetTubChairPrototype.mjs';
+import { createVelvetCasinoChair } from '../../../../art/casino/3d/velvetCasinoChair.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
@@ -158,7 +159,7 @@ export interface GrandHallArt {
   carpetMotif: CarpetMotif | null;
 }
 
-export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near' | 'swivel' | 'tub';
+export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near' | 'swivel' | 'tub' | 'casino';
 
 /**
  * Which chair the grand hall's tables get. The default stays the luxury study chair (about 10.3k
@@ -166,7 +167,8 @@ export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near' | 'swivel'
  * revised in 38aba98, VA-0187; tube side rails in 336a41b, VA-0189: 732 triangles at 'mid', 984 at 'near') is opt-in for dev and prototype builds with `?chair=lod` (mid) or `?chair=lod-near`,
  * for comparison before anyone decides on it. ChatGPT's low-poly luxury swivel chair (31b9eb8,
  * VA-0240) is opt-in the same way with `?chair=swivel`, and its tub chair (d0c2607, VA-0246) with
- * `?chair=tub`. Anything else is the default.
+ * `?chair=tub`; its upholstered office-style casino chair study (69db376, VA-0299) with `?chair=casino`.
+ * Anything else is the default.
  */
 export function chairStyleFrom(search: string): ChairStyle {
   const raw = new URLSearchParams(search).get('chair');
@@ -175,6 +177,7 @@ export function chairStyleFrom(search: string): ChairStyle {
   if (raw === 'velvet') return 'velvet';
   if (raw === 'swivel') return 'swivel';
   if (raw === 'tub') return 'tub';
+  if (raw === 'casino') return 'casino';
   return 'luxury';
 }
 
@@ -242,7 +245,7 @@ export function liteCabinet(src: THREE.Object3D, cache: Map<string, THREE.Buffer
 }
 
 export const CHAIR_STORAGE_KEY = 'va3d.chair';
-export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'swivel', swivel: 'tub', tub: 'velvet' };
+export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'swivel', swivel: 'tub', tub: 'casino', casino: 'velvet' };
 /**
  * A `?chair=` parameter wins; otherwise the ⚙ button's stored choice (VA-0207), so a phone can compare.
  * With nothing stored, prototype builds get Claude's burgundy gaming chair (Joshua, VA-0210); the
@@ -277,6 +280,7 @@ export function chairAt(name: string, x: number, z: number, tx: number, tz: numb
       tpl = (style === 'velvet' ? createVelvetGamingChair(THREE)
         : style === 'swivel' ? createVelvetLuxuryChairLOD(THREE)
           : style === 'tub' ? createVelvetTubChair(THREE)
+          : style === 'casino' ? createVelvetCasinoChair(THREE)
           : createVelvetGamingChairLod(THREE, { detail: style === 'lod-near' ? 'near' : 'mid' })) as THREE.Group;
       // the swivel chair (31b9eb8) states its front only as userData.velvetArt.orientation
       // ('front +Z'); without this it would get the -Z half turn and face away from its table

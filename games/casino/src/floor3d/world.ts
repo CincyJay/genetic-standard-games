@@ -803,7 +803,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const chairBtn = $<HTMLButtonElement>('.chairstyle');
   const chairStyle = readChairStyle();
   chairBtn.hidden = svelteBtn.hidden;
-  chairBtn.textContent = { velvet: 'Table chairs: burgundy + gold, Velvet Ace back (preview)', luxury: 'Table chairs: cream luxury', 'lod-mid': 'Table chairs: burgundy (preview)', 'lod-near': 'Table chairs: burgundy, finer (preview)', swivel: 'Table chairs: leather swivel (preview)', tub: 'Table chairs: burgundy tub (preview)' }[chairStyle];
+  chairBtn.textContent = { velvet: 'Table chairs: burgundy + gold, Velvet Ace back (preview)', luxury: 'Table chairs: cream luxury', 'lod-mid': 'Table chairs: burgundy (preview)', 'lod-near': 'Table chairs: burgundy, finer (preview)', swivel: 'Table chairs: leather swivel (preview)', tub: 'Table chairs: burgundy tub (preview)', casino: 'Table chairs: upholstered casino study (preview)' }[chairStyle];
   chairBtn.setAttribute('aria-label', `${chairBtn.textContent}. Tap to switch (reloads the floor).`);
   chairBtn.addEventListener('click', () => {
     try {
