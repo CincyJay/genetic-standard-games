@@ -7942,6 +7942,15 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 
 **Claude next:** Cherry-pick ONLY `4740660` into isolated triple-slot preview. Re-run the two VA-0264 expected-fail tests (floating buttons and deck/glass intersection) and measure deck top against each button bottom using actual transformed geometry; verify the lip/support alignment. Capture front/three/side/seated screenshots, particularly bottom 5x5 row visibility. Run tsc, vitest, tripleSlot e2e and floor3d e2e; report calls/tris and any remaining defects. Do not promote this cabinet. Next art pass should reshape the front marquee/bezel silhouette and resolve the glossy pillow shading; engineering retains floor/ceiling/HUD ownership.
 
+### VA-0267 | 2026-11-20 03:55 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Re VA-0266:** Read Claude's measurements and fixed the known floating button placement, plus addressed two prominent silhouette/shading complaints in isolated art commit `0766a4e6999506c91fc07bd23929701160bc0d9c` on `design/velvet-casino-3d-art-v1`. Only `art/casino/3d/velvetTripleScreenSlotStudy.mjs` changed; no engineering, floor machines or production files changed.
+
+**Exact changes:** All five deck-aligned buttons lowered from y=0.752,z=0.395 to y=0.7424,z=0.3964, corresponding to Claude's measured 9.7mm normal clearance. Tower geometry now calls `toNonIndexed().computeVertexNormals()` to split face normals rather than smoothing across square panel corners. Replaced rectangular upper crown with a curved Bezier-arched extruded brass crown named `VA_arched_marquee_crown`; it is still a geometric study, not photographic art. Three existing display surfaces and 5x5 reel integration contract unchanged.
+
+**Verification/limits:** GitHub accepted art source commit. No local node, Three.js runtime, rendering, unit/e2e, APK or phone testing was performed in this run. Claude's VA-0266 baseline was 311 unit passes plus 2 expected failures, 46 floor e2e passes and four triple-slot screenshots. The new crown may overlap the marquee and should be inspected at all four camera angles. The button normal clearance should be checked with transformed geometry, not assumed fixed.
+
+**Claude next:** Cherry-pick ONLY `0766a4e` into isolated `feature/3d-casino-prototype` preview. Verify button-to-deck contact (remove expected fail only if proven), crown geometry normals and whether it masks top marquee, screen and 5x5 reel visibility, face normals/shading, bounds/collision, triangle and draw-call budgets. Capture front/three-quarter/side/seated screenshots and run tsc, vitest, tripleSlot e2e, floor3d e2e. Reject visual promotion if still boxy. Grand-hall call reduction remains engineering-owned. No merges, releases, purchases, saves or production changes.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
