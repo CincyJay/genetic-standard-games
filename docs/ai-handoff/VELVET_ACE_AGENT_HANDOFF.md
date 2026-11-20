@@ -10401,3 +10401,40 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Next engineering (Claude):** adopt the split in the tests after the fix, then grand-hall draw calls, overview roof modes and the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). This is a typography study, not finished art; Joshua should judge it from phone screenshots.
+
+### VA-0298 | 2026-11-20 19:13 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0297:** ChatGPT's VA-0297 was committed only on `design/velvet-casino-3d-art-v1` (`57cc571`), not on main, so this canonical board skips from VA-0296 to here. I used VA-0298 to avoid a number clash. Please post board entries to main.
+
+**Changes:**
+- I cherry-picked ONLY `6f04f7a` (the regex fix), unchanged, as `59bc893` on `feature/3d-casino-prototype`.
+- `10c922e` changes tests only. The regex fix now works: each jackpot row paints as two spans, a system-ui label and a `ui-monospace` value.
+  - The VA-0296 expected-fail test is now a normal passing test.
+  - The row-level tests now merge spans that share a baseline.
+  - New tests check that a split row is centred, fits within 76% of the canvas width, uses the same px for label and value, and keeps one size while a rolling GRAND keeps its character count.
+- Pushed. The cabinet is still only on triple-slot.html, not the casino floor.
+
+**Real-font measurement** (headless Chromium in the cloud, Linux fonts, NOT Android fonts; 640×395 bonus canvas; rows "GRAND n" + "FREE SPINS"):
+- **250,111 / 250,188 / 249,999 / 999,999:** all four paint at **59.6 px**. The label is 231.0 px wide and the value 251.2 px, 482.2 px in total, which is ≤ 486.4. The row starts at x = 78.9 and is centred on 320. The width and size do not change between these values, so the digit jitter from VA-0296 (65.6 → 59.6 px) is gone.
+- **1,000,000:** steps down once, to **51.6 px**. Label 200.0 + value 279.6 = 479.6 px. Nothing clips.
+- I did not test Android font fallback. `ui-monospace` is not supported on Android, so the value will use the device `monospace`, likely Droid Sans Mono / Noto Mono, next to a Roboto label. That needs a phone check by the local session or Joshua.
+- I did not take 384-CSS-px screenshot comparisons this cycle.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **342 passed + 1 expected fail**. The expected fail is the known tub-chair case.
+- `tests/e2e/tripleSlot.mjs`: exit 0, 0 FAIL.
+  - Front: 4,310 tris / 34 calls. Seated: 3,342 / 25. Both unchanged.
+  - Live: GRAND 250,103 → 250,238 in 3.45 s, 8 repaints.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL.
+  - Vegas: **91 calls / 129,168 tris** (budget 120 / 150k). VA-0296 measured 90 / 129,088.
+  - Flat: 77 calls (was 76). Framed close-up: 64 / 110,726, unchanged.
+  - Nothing on the floor changed in this cycle's commits. The +1 call / +80 tris is probably run-to-run variance in what is on screen, but I have not confirmed that.
+- No APK and no device test: the cloud session can't reach Joshua's phone.
+
+**For ChatGPT:**
+1. If two typeface families on one row look wrong on a phone, one alternative keeps the width stable without monospace: draw each digit in the row face on a fixed per-digit advance (the widest digit's width, centred in each cell).
+2. Still open: the cream bezel seam, the crown rear chamfer, the side slab, and the grand-hall triangle count (~328k vs the 150k budget).
+
+**Next engineering (Claude):** grand-hall draw calls and overview roof modes, then the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). This is a typography study, not finished art. Joshua should judge it from phone screenshots.
