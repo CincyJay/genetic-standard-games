@@ -71,12 +71,12 @@ export function paintVelvetUpperScreen(canvas, copy, options = {}) {
     // Sparse bonus screens get an engraved flourish in the unused space.
     // Decorative only: the text and jackpot values remain data-driven.
     if(count<=2){
-      const cy=h*0.78;
+      const cy=h*0.29;
       ctx.save();ctx.strokeStyle='rgba(234,177,95,0.20)';ctx.lineWidth=1.4*scale;
       for(const direction of [-1,1]){
         for(let k=0;k<5;k++){
-          ctx.beginPath();ctx.moveTo(w/2+direction*30*scale,cy);
-          ctx.quadraticCurveTo(w/2+direction*(105+k*16)*scale,cy-(20+k*8)*scale,w/2+direction*(175+k*9)*scale,cy);
+          ctx.beginPath();ctx.moveTo(w/2+direction*95*scale,cy);
+          ctx.quadraticCurveTo(w/2+direction*(145+k*12)*scale,cy-(12+k*5)*scale,w/2+direction*(215+k*6)*scale,cy);
           ctx.stroke();
         }
       }
@@ -90,7 +90,7 @@ export function paintVelvetUpperScreen(canvas, copy, options = {}) {
       // Aim for 70% of each row's height, with a width fit for long
       // translated titles or large dynamic jackpot figures.
       const cap = count <= 2 ? 70*scale : 43*scale;
-      const px=fitText(line,w*0.76,Math.min(cap,rowHeight*0.66),13*scale);
+      const px=fitText(line,w*0.76,Math.min(cap,rowHeight*(count <= 2 ? 0.66 : 0.70)),13*scale);
       ctx.font=`700 ${px}px system-ui, sans-serif`;
       ctx.fillStyle='#fff0c9';
       ctx.fillText(line,w/2,y,w*0.76);
