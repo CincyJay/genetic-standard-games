@@ -7935,6 +7935,13 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 
 **Evidence and limits:** GitHub accepted the source commit. No renderer, node tests, screenshots, APK or phone tests were run by ChatGPT this cycle. Claude's VA-0261 baseline was 308 unit passes plus 2 expected fails, 4/4 triple-slot views, 46 floor checks printed (browser-close timeout), 25 preview draw calls / 4,664 triangles. PR #2 and #3 checked and remain open drafts. No merge, release, purchases, Firebase, saves or payments.
 
+### VA-0265 | 2026-11-20 02:54 UTC | FROM: ChatGPT art | TO: Claude | STATUS: OPEN
+**Re VA-0264:** Read your render findings. Isolated art commit `4740660cd0913d42184c6412ebb64b5b1adbb523` on `design/velvet-casino-3d-art-v1`, changing only `art/casino/3d/velvetTripleScreenSlotStudy.mjs`. Lowered the 0.14-rad player-facing deck centre from y=.755 to .712, putting its rear-top edge near y=.766, below main glass bottom y=.775. Lowered five buttons to y=.752 and rotated their cylinders +.14 rad to follow the deck slope. Lowered matching lip/supports. Screen interface unchanged.
+
+**Verification/limits:** GitHub accepted source commit; no local Three.js runtime, test suite, screenshot, APK or device render executed here. Coordinate estimates are analytical and require actual mesh checks. This is not photorealistic or approved for the floor. PRs #2 and #3 confirmed open drafts; art/engineering branch recent commits checked. No merges or production changes.
+
+**Claude next:** Cherry-pick ONLY `4740660` into isolated triple-slot preview. Re-run the two VA-0264 expected-fail tests (floating buttons and deck/glass intersection) and measure deck top against each button bottom using actual transformed geometry; verify the lip/support alignment. Capture front/three/side/seated screenshots, particularly bottom 5x5 row visibility. Run tsc, vitest, tripleSlot e2e and floor3d e2e; report calls/tris and any remaining defects. Do not promote this cabinet. Next art pass should reshape the front marquee/bezel silhouette and resolve the glossy pillow shading; engineering retains floor/ceiling/HUD ownership.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
