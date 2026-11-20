@@ -14,6 +14,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   const black = new THREE.MeshStandardMaterial({color:0x080b12,metalness:0.2,roughness:0.24});
   const brass = new THREE.MeshStandardMaterial({color:0xc6a365,metalness:0.84,roughness:0.22});
   const burgundy = new THREE.MeshStandardMaterial({color:0x371423,metalness:0.38,roughness:0.32});
+  const sideInset = new THREE.MeshStandardMaterial({color:0x39343e,metalness:0.34,roughness:0.58,side:THREE.DoubleSide});
   const glass = new THREE.MeshStandardMaterial({color:0x111d30,metalness:0.12,roughness:0.12,emissive:0x071326,emissiveIntensity:0.4});
   const light = new THREE.MeshStandardMaterial({color:0xf0c77c,emissive:0xe5a54c,emissiveIntensity:0.7,roughness:0.35});
   function box(name,w,h,d,x,y,z,mat) {
@@ -68,15 +69,33 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   const tower=new THREE.Mesh(panelGeometry,metal);
   tower.name='VA_curved_tapered_tower';
   root.add(tower);
+  // Recessed two-tone side skins follow the changing tower width/depth. The dark
+  // panels break up the flat mauve side face without altering display UVs.
+  for (const side of [-1,1]) {
+    const v=[], idx=[];
+    for (const [y,w,rear,front] of sections.slice(1,-1)) {
+      const x=side*(w+0.003);
+      v.push(x,y,rear+0.035, x,y,front-0.046);
+    }
+    for(let j=0;j<5;j++) {const a=2*j,b=a+2;idx.push(a,a+1,b+1,a,b+1,b);}
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+    g.setIndex(idx);g.computeVertexNormals();
+    const skin=new THREE.Mesh(g,sideInset);
+    skin.name='VA_sculpted_side_inset_'+(side<0?'left':'right');root.add(skin);
+    const trimPoints=sections.slice(1,-1).map(([y,w,rear])=>new THREE.Vector3(side*(w+0.007),y,rear+0.039));
+    const trim=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPoints),20,0.004,5,false),brass);
+    trim.name='VA_rear_side_inlay_'+(side<0?'left':'right');root.add(trim);
+  }
   // Arched crown: a shallow curved upper outline instead of a rectangular cap.
   const crownShape=new THREE.Shape();
-  crownShape.moveTo(-0.385,2.19);
-  crownShape.lineTo(-0.385,2.28);
-  crownShape.bezierCurveTo(-0.29,2.43,0.29,2.43,0.385,2.28);
-  crownShape.lineTo(0.385,2.19);
+  crownShape.moveTo(-0.365,2.19);
+  crownShape.lineTo(-0.365,2.28);
+  crownShape.bezierCurveTo(-0.28,2.43,0.28,2.43,0.365,2.28);
+  crownShape.lineTo(0.365,2.19);
   crownShape.closePath();
-  const crown=new THREE.Mesh(new THREE.ExtrudeGeometry(crownShape,{depth:0.27,bevelEnabled:true,bevelSize:0.009,bevelThickness:0.008,bevelSegments:2,curveSegments:12}),brass);
-  crown.name='VA_arched_marquee_crown';crown.position.z=-0.155;root.add(crown);
+  const crown=new THREE.Mesh(new THREE.ExtrudeGeometry(crownShape,{depth:0.45,bevelEnabled:true,bevelSize:0.009,bevelThickness:0.008,bevelSegments:2,curveSegments:12}),brass);
+  crown.name='VA_arched_marquee_crown';crown.position.z=-0.335;root.add(crown);
   // Two stacked upper displays plus main 5x5-style reel display; no fake game art.
   const surfaces=[];
   const screens=[
@@ -114,7 +133,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   }
   root.userData.screenSurfaces=surfaces;
   root.userData.console={deck,buttonTopY:0.7524,frontZ:0.548};
-  root.userData.materials={metal,black,brass,burgundy,glass,light};
+  root.userData.materials={metal,sideInset,black,brass,burgundy,glass,light};
   root.userData.integration='Prototype only: use opt-in flag, map game canvases to screenSurfaces, benchmark calls/tris and capture side/front views before approval.';
   return root;
 }
