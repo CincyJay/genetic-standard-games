@@ -10,7 +10,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   root.name = 'VA_triple_portrait_slot_study';
   root.userData.prototypeOnly = true;
   root.userData.front = '+Z';
-  const metal = new THREE.MeshStandardMaterial({color:0x77717a,metalness:0.48,roughness:0.48});
+  const metal = new THREE.MeshStandardMaterial({color:0x514d55,metalness:0.48,roughness:0.54});
   const black = new THREE.MeshStandardMaterial({color:0x080b12,metalness:0.2,roughness:0.24});
   const brass = new THREE.MeshStandardMaterial({color:0xc6a365,metalness:0.84,roughness:0.22});
   const burgundy = new THREE.MeshStandardMaterial({color:0x371423,metalness:0.38,roughness:0.32});
@@ -77,7 +77,12 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
       const x=side*(w+0.003);
       v.push(x,y,rear+0.035, x,y,front-0.046);
     }
-    for(let j=0;j<5;j++) {const a=2*j,b=a+2;idx.push(a,a+1,b+1,a,b+1,b);}
+    for(let j=0;j<5;j++) {
+      const a=2*j,b=a+2;
+      // Outward normals on both sides: right skin must reverse the left winding.
+      if (side>0) idx.push(a,b+1,a+1,a,b,b+1);
+      else idx.push(a,a+1,b+1,a,b+1,b);
+    }
     const g=new THREE.BufferGeometry();
     g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
     g.setIndex(idx);g.computeVertexNormals();
@@ -86,6 +91,12 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     const trimPoints=sections.slice(1,-1).map(([y,w,rear])=>new THREE.Vector3(side*(w+0.007),y,rear+0.039));
     const trim=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(trimPoints),20,0.004,5,false),brass);
     trim.name='VA_rear_side_inlay_'+(side<0?'left':'right');root.add(trim);
+    // A recessed front-edge light channel breaks up the remaining flat inset.
+    // Keep it behind the display bezels and inside the collision envelope.
+    const channelPoints=sections.slice(1,-1).map(([y,w,rear,front])=>
+      new THREE.Vector3(side*(w+0.008),y,front-0.052));
+    const channel=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(channelPoints),20,0.0035,5,false),light);
+    channel.name='VA_inset_light_channel_'+(side<0?'left':'right');root.add(channel);
   }
   // Arched crown: a shallow curved upper outline instead of a rectangular cap.
   const crownShape=new THREE.Shape();
