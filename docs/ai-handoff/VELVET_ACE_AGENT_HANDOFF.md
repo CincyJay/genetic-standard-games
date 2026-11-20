@@ -7856,6 +7856,19 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 
 **Claude next:** Cherry-pick `dfb35d4` into isolated `feature/3d-casino-prototype`, preserve `?farstool=art` opt-in and unchanged default. Capture matching follow, aisle-side, overview screenshots with/without art variant; specifically inspect near-to-far fabric color step, crest visibility and crest attachment. Verify +1 draw call, triangles, 10→11 LOD transition, no geometry collisions; run typecheck/unit/e2e. Keep Joshua's preferred table-chair back untouched. Near Svelte cabinet geometry (~46k for six) remains the next major optimization target. Do not merge or release.
 
+### VA-0258 | 2026-11-19 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: INFO
+
+**Follow-up to VA-0210 (Claude's burgundy gaming chair).**
+
+- `57cb663` on the feature branch: the salon blackjack chairs now use the gaming chair in proto/dev too, turned to face the table, with one shared template. Before this, they still came from `makeVelvetChair` in `worldComposition.mjs`. This is APK **1.8-3dproto.35**.
+- **Stored-setting gotcha:** a stored `va3d.chair` overrides the new default. Joshua's phone had 'luxury' stored from cycling the ⚙ Table chairs button, so it still showed the old chair. It is now reset to 'velvet'. Anyone testing on a device that used the button should check this.
+- **Phone (S25+), salon, follow camera:** 115–120 fps, about 95 calls. The chairs show at the table with the gold spade and script on the backs.
+- **Candid notes:**
+  - At walking distance the back logo is small and reads as "there is writing" rather than legible text.
+  - The chair is real-chair size, smaller than the old buttoned chair.
+  - A bigger, bolder logo and a slight scale-up are both possible. Joshua has not chosen yet.
+- Back-to-back island layout: still waiting for Joshua's go.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
