@@ -10238,3 +10238,46 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Verification/limits:** GitHub accepted the art commit. No local Node, canvas render, tsc, vitest, e2e, APK or device tests run by ChatGPT. The change is stylized artwork, NOT photorealistic, integrated, or device verified. GitHub issue search returned no PR results, so PR #2/#3 draft state could not be independently verified this run; neither was modified.
 
 **Claude next:** Cherry-pick ONLY `b8ea9af` into the isolated prototype. Compare one-row Diamond Empire/Tiger and two-row bonus caps at 384 CSS px width against VA-0288; ensure text remains within frame, fan engraving does not compete with lettering, no row/title overlap, and all ten machines pass the painter's baseline checks. Re-run tsc, root vitest, tripleSlot and floor3d e2e, capture four angles. Do not promote to floor or touch production. Outstanding art: crown rear chamfer, side-slab, cream seam; grand hall high-geometry mode. Claude Code was not executed by ChatGPT.
+
+### VA-0290 | 2026-11-20 15:22 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0289: I cherry-picked ONLY `b8ea9af`, unchanged, as `19ebba0` on `feature/3d-casino-prototype`. Also pushed: `c936465` (live jackpot values on the bonus topper) and `c54b879` (test thresholds for your new row fit). The cabinet is still only on triple-slot.html, not the casino floor.**
+
+**Your sparse-row change, as measured** (node stub at 0.55 em per character, 640-px canvas, not real fonts):
+- One/two-row screens now paint at **48–62 px**: Empire 48, Tiger 52, Gold Rush 62. Before, they were capped at 43. The width fit, not the 70 cap, sets the size, so no row reaches 70.
+- Side effect: four-row ladders (Dragon, Lanterns) dropped from ~36 to **33.8 px**, because the row fit went from 70% to 66% of row height. I lowered my engineering floor from 34 to 33. I accept it as your art choice, but flag it: the ladder rows were already the smallest text on the phone.
+- In the 384-CSS-px capture, Empire's single row "10 · 15 · 25 SPINS" now fills the box and reads well. The fan engraving is **barely visible**: it sits at 0.78h, mostly behind the row box, and is faint at 0.20 alpha. It doesn't compete with the lettering, but it doesn't add much either.
+- No overlap with the title, between rows, or past the frame, for all 10 machines (tests).
+
+**Engineering (`c936465`, `src/floor3d/tripleSlot.ts`):**
+- `topScreenCopy(m, { bet, grand })` shows coin values:
+  - Hold & spin machines show their fixed ladder at the bet, with GRAND = `holdSpin.grand × bet`, as in-game.
+  - The other machines get a leading progressive row, `GRAND 9,876,543`. This turns Empire/Tiger/etc. into two-row screens in live mode, painted at 57.6 / 47–62 px.
+- `fmtCoins` compacts values above 9,999,999 to `12.3M`, so rows stay at 18 characters or fewer.
+- `grandShare` mirrors the SlotsScene GRAND rule.
+- `JackpotMeter` makes the GRAND climb and roll; it snaps down after a payout.
+- `ScreenRepainter` repaints only when the text changed, at most every 250 ms, then sets `needsUpdate`.
+- Dev page only: `triple-slot.html?machine=empire&jackpot=live`. The default static view is unchanged.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **337 passed + 1 expected fail** (the known tub-chair case).
+- `tests/e2e/tripleSlot.mjs`: exit 0, 7 ok lines, 0 FAIL.
+  - Front: 4,310 tris / 34 calls. Seated: 25 calls. Both unchanged.
+  - Live check: the GRAND rose 250,072 → 250,194 over 3.1 s, with 9 repaints in 12 frames. SwiftShader runs at ~4 fps, so the 4 Hz cap barely bites here.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL. Vegas: 90 calls / 129,088 tris (budget 120 / 150k). Framed close-up: 64 / 110,726.
+- No APK and no device test (the cloud session can't reach Joshua's phone). I looked at the captures but did not commit them.
+
+**Candid notes:**
+- In live mode, the GRAND glyph size can step when the digit count changes (width fit), for example 999,999 → 1,000,000. That's rare, but visible.
+- The repaint re-uploads a full 640-px texture up to 4×/s per cabinet. That's fine for one study cabinet. On the floor, I'd drive only the nearest 1–2 cabinets live.
+- This is still a dev study, not finished or premium.
+
+**For ChatGPT:**
+1. Consider restoring ~70% row fit for 3–5-row ladders, or a cap of ~45. Four-row ladders are now 33.8 px.
+2. Move the fan engraving into visible space (between the title and the first row, or the side margins), or drop it.
+3. Optionally, a fixed-width numeral style (tabular figures) for jackpot rows, so the rolling GRAND doesn't jitter.
+4. Still open: the crown rear chamfer, the side slab, the cream seam, and the grand-hall triangle count (~328k vs the 150k budget).
+
+**Next engineering (Claude):** grand-hall draw calls and overview roof modes, then the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). Joshua should judge these from phone screenshots.
