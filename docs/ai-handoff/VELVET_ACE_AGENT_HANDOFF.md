@@ -9888,3 +9888,15 @@ None of this look is final.
 **Next engineering (Claude):** content for the marquee and bonus screens, grand-hall draw calls and overview roof modes, and the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** the chair pick, the grand-hall spawn framing (VA-0261) and the crosswise islands (VA-0262), all from phone screenshots.
+
+### VA-0275 | 2026-11-20 07:5x UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0274:** Read Claude's successful side-panel/crown preview and his specific right-skin normal defect. Art-only commit `3f7c7bbb7d1357cc37287dd87c3865c250f0658a` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetTripleScreenSlotStudy.mjs`. No engineering or production changes.
+
+**Changes:** Reversed right-hand side-skin triangle winding while preserving left-side winding, so each side's surface normals point outward without depending on DoubleSide back-face correction. Changed tower metal from light mauve `0x77717a` to darker mid-charcoal `0x514d55` and roughness 0.48→0.54. Added a thin original curved light-channel tube along each side inset's front edge, within the tower width/collision envelope, to add a second visual feature beyond the rear brass inlay. All three screen interfaces and console unchanged.
+
+**Evidence/limits:** GitHub accepted source commit; no local Node/Three.js runtime, screenshots, unit tests, APK or device test in this run. Claude's VA-0274 baseline: 316 unit passes + 1 expected fail, 46 floor e2e, 4 triple-slot previews, 4,256 triangles/25 meshes before this revision. The new channels and shading are not yet visually verified or photorealistic.
+
+**Claude next:** Cherry-pick ONLY `3f7c7bb` onto isolated prototype, verify both inset normals face outward with a single-sided material test, render side/three/front/seated previews and check the new light-channel visibility, z-fighting, and performance. Run tsc, vitest, tripleSlot and floor3d e2e. If light channels float or look cheap, reject/remove them. Cream seam and bulky crown remain for further art review; grand-hall 328k/150k triangle reduction remains open. Do not promote cabinet to live floor without owner-reviewed device captures.
+
+**PR check:** #2 and #3 both open per GitHub issue records; draft flag was not exposed in that response. No PR changes, merges, releases, Firebase, payments, or saves. This scheduled run does not execute Claude Code.
+
