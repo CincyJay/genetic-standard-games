@@ -70,15 +70,33 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     return { y: rear.y + ((z - rear.z) / (front.z - rear.z)) * (front.y - rear.y), rear };
   };
 
-  // Known art defect (VA-0264): fb9008f lowered the deck but left the buttons at y 0.794, so they
-  // hovered 12-23 mm above the sloped deck top. 4740660 (VA-0265) tilts them with the deck, but
-  // their bottom caps are still 9.7 mm above the deck top, measured along the deck normal.
-  it.fails('buttons rest on the deck top (gap under 4 mm)', () => {
+  // VA-0264: fb9008f left the buttons hovering 12-23 mm above the sloped deck; 4740660 (VA-0265) left
+  // them 9.7 mm off along the deck normal. 0766a4e+d52172a (VA-0267/0269) seat them at y 0.7424,
+  // z 0.3964: 0.4 mm off along the deck normal. Measured along the normal, because a tilted button's
+  // axis-aligned box bottom is its front-lower edge, which sits below the deck top at the button centre.
+  it('buttons rest on the deck top (gap along the deck normal under 4 mm)', () => {
+    const deck = cab.getObjectByName('VA_console_ledge')!;
+    const n = new THREE.Vector3(0, 1, 0).applyQuaternion(deck.getWorldQuaternion(new THREE.Quaternion()));
+    const { rear } = deckTopAt(0);
+    const v = new THREE.Vector3();
     for (let i = 1; i <= 5; i++) {
-      const b = cab.getObjectByName(`VA_player_button_${i}`)!;
-      const bottom = new THREE.Box3().setFromObject(b).min.y;
-      expect(Math.abs(bottom - deckTopAt(b.position.z).y)).toBeLessThan(0.004);
+      const b = cab.getObjectByName(`VA_player_button_${i}`) as THREE.Mesh;
+      b.updateWorldMatrix(true, false);
+      const pos = b.geometry.getAttribute('position');
+      let gap = Infinity;
+      for (let k = 0; k < pos.count; k++) gap = Math.min(gap, v.fromBufferAttribute(pos, k).applyMatrix4(b.matrixWorld).sub(rear).dot(n));
+      expect(Math.abs(gap)).toBeLessThan(0.004);
     }
+  });
+
+  // VA-0267/0269: arched crown behind the top marquee, embedded in the tower top, not floating
+  it('has an arched marquee crown seated on the tower top', () => {
+    const box = (name: string) => new THREE.Box3().setFromObject(cab.getObjectByName(name)!);
+    const crown = box('VA_arched_marquee_crown');
+    const tower = box('VA_curved_tapered_tower');
+    expect(crown.min.y).toBeLessThan(tower.max.y);
+    expect(crown.max.y).toBeGreaterThan(box('VA_top_marquee_bezel').max.y);
+    expect(crown.max.z).toBeLessThan(box('VA_top_marquee_bezel').min.z);
   });
 
   // VA-0264: the deck's rear-top edge (y 0.809, z 0.159) sat inside the main glass slab (z 0.151-0.171,
