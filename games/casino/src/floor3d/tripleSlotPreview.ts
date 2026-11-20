@@ -5,16 +5,20 @@
  * machine's real reel atlas (reelDisplayArt.mjs, the same art the floor uses); the marquee and
  * bonus screens show copy from the machine data (topScreenCopy, VA-0282) painted by ChatGPT's
  * paintVelvetUpperScreen (art d16bf75, VA-0285); `&topart=flat` restores the flat placeholder.
+ * `&jackpot=live` (dev) runs a render loop where the bonus screen shows coin values at `bet`
+ * (default 250) and, on non hold & spin machines, a rolling progressive GRAND from a JackpotMeter, repainted at most 4 Hz (ScreenRepainter).
  * For review captures only.
- * Hooks: globalThis.__tripleSlot = { ready, view, stats, rects }.
+ * Hooks: globalThis.__tripleSlot = { ready, view, stats, rects, live? }.
  */
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { createVelvetTripleSlotCabinet } from '../../../../art/casino/3d/velvetTripleScreenSlotStudy.mjs';
 import { createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
-import { MACHINES } from '../logic/slots.ts';
+import { MACHINES, MAX_TOTAL_BET } from '../logic/slots.ts';
 import { paintVelvetUpperScreen } from '../../../../art/casino/3d/velvetUpperScreenPainter.mjs';
-import { cabinetReport, mountScreenTexture, paintScreenCanvas, paintScreenWith, screenAspect, topScreenCopy } from './tripleSlot.ts';
+import {
+  JackpotMeter, ScreenRepainter, cabinetReport, grandShare, mountScreenTexture, paintScreenCanvas, paintScreenWith, screenAspect, topScreenCopy,
+} from './tripleSlot.ts';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'front';
@@ -22,6 +26,11 @@ const machineId = params.get('machine') ?? 'dragon';
 const screens = params.get('screens') ?? 'game';
 /** `topart=flat` shows the old engineering placeholder instead of ChatGPT's painter, for comparison. */
 const topArt = params.get('topart') ?? 'velvet';
+/** `jackpot=live`: animated GRAND on the bonus screen; `bet` sets the stake it is shown at. */
+const liveJackpot = params.get('jackpot') === 'live';
+const liveBet = Math.max(1, Number(params.get('bet')) || 250);
+/** Pool the live meter starts from (services.ts JACKPOT_SEED; not imported to keep Firebase out of this page). */
+const POOL_START = 250_000;
 const EYE = 1.6;
 /** Cabinet at the origin facing +Z; a seated player's eyes ~1.2 m, ~0.75 m from the screen. */
 const VIEWS: Record<string, { pos: [number, number, number]; look: [number, number, number] }> = {
@@ -76,6 +85,8 @@ const projectedRect = (name: string) => {
   return { x: Math.round(x0), y: Math.round(y0), w: Math.round(x1 - x0), h: Math.round(y1 - y0) };
 };
 
+let live: { repaints: () => number; frames: () => number; grand: () => number } | null = null;
+
 async function main(): Promise<void> {
   let mounted = 'none';
   if (screens === 'game') {
@@ -83,7 +94,9 @@ async function main(): Promise<void> {
     const reel = await createVelvetReelArt(THREE, m.id, m.symbols, { base: './art' });
     const glass = cabinet.getObjectByName('VA_main_reels_5x5_glass') as THREE.Mesh;
     mountScreenTexture(THREE, glass, reel.texture);
-    const copy = topScreenCopy(m);
+    const meter = new JackpotMeter(grandShare(POOL_START, liveBet, MAX_TOTAL_BET));
+    const copy = topScreenCopy(m, liveJackpot ? { bet: liveBet, grand: meter.value } : undefined);
+    let bonusTex: THREE.CanvasTexture | null = null;
     for (const [name, c, kind] of [['VA_top_marquee_glass', copy.marquee, 'marquee'], ['VA_bonus_display_glass', copy.bonus, 'bonus']] as const) {
       const screen = cabinet.getObjectByName(name) as THREE.Mesh;
       const aspect = screenAspect(screen.geometry);
@@ -92,8 +105,31 @@ async function main(): Promise<void> {
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
       mountScreenTexture(THREE, screen, tex);
+      if (kind === 'bonus') bonusTex = tex;
     }
     mounted = m.id;
+    if (liveJackpot && bonusTex && topArt !== 'flat') {
+      const tex = bonusTex;
+      const canvas = tex.image as HTMLCanvasElement;
+      const repainter = new ScreenRepainter((c) => {
+        canvas.getContext('2d')!.clearRect(0, 0, canvas.width, canvas.height);
+        paintVelvetUpperScreen(canvas, c, { kind: 'bonus' });
+      });
+      repainter.update(0, copy.bonus); // already painted above: records the signature
+      let pool = POOL_START;
+      let last = performance.now();
+      let frames = 0;
+      live = { repaints: () => repainter.paints - 1, frames: () => frames, grand: () => meter.value };
+      renderer.setAnimationLoop((now: number) => {
+        // stand-in for real bets feeding the pool (services.ts adds 2% of each slot bet)
+        if (frames % 120 === 119) { pool += Math.round(liveBet * 0.02 * 40); meter.setTarget(grandShare(pool, liveBet, MAX_TOTAL_BET)); }
+        meter.tick(now - last);
+        last = now;
+        frames++;
+        if (repainter.update(now, topScreenCopy(m, { bet: liveBet, grand: meter.value }).bonus)) tex.needsUpdate = true;
+        renderer.render(scene, camera);
+      });
+    }
   }
   renderer.render(scene, camera);
   const label = document.getElementById('label');
@@ -107,6 +143,11 @@ async function main(): Promise<void> {
       reels: projectedRect('VA_main_reels_5x5_glass'),
       bonus: projectedRect('VA_bonus_display_glass'),
       marquee: projectedRect('VA_top_marquee_glass'),
+    },
+    live: live && {
+      get repaints() { return live!.repaints(); },
+      get frames() { return live!.frames(); },
+      get grand() { return live!.grand(); },
     },
   };
 }

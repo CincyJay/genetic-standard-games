@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createVelvetTripleSlotCabinet } from '../../../art/casino/3d/velvetTripleScreenSlotStudy.mjs';
 import { paintVelvetUpperScreen } from '../../../art/casino/3d/velvetUpperScreenPainter.mjs';
-import { TOP_LINE_MAX, TRIPLE_SCREENS, cabinetReport, fitScreenUvs, mountScreenTexture, paintScreenWith, screenAspect, topScreenCopy } from '../src/floor3d/tripleSlot.ts';
-import { MACHINES } from '../src/logic/slots.ts';
+import { JackpotMeter, ScreenRepainter, TOP_LINE_MAX, TRIPLE_SCREENS, cabinetReport, fmtCoins, grandShare, fitScreenUvs, mountScreenTexture, paintScreenWith, screenAspect, topScreenCopy } from '../src/floor3d/tripleSlot.ts';
+import { MACHINES, MAX_TOTAL_BET } from '../src/logic/slots.ts';
 
 describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
   const cab = createVelvetTripleSlotCabinet(THREE);
@@ -424,5 +424,84 @@ describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
       const last = rows[rows.length - 1];
       expect(last.y + last.px / 2).toBeLessThan(canvas.height);
     }
+  });
+});
+
+describe('live jackpot values on the bonus screen (VA-0288 next item)', () => {
+  const cab = createVelvetTripleSlotCabinet(THREE);
+  const aspect = screenAspect((cab.getObjectByName('VA_bonus_display_glass') as THREE.Mesh).geometry);
+
+  it('fmtCoins keeps full digits to 9,999,999 and compacts above', () => {
+    expect(fmtCoins(250_000)).toBe('250,000');
+    expect(fmtCoins(9_999_999)).toBe('9,999,999');
+    expect(fmtCoins(12_349_999)).toBe('12.3M');
+    expect(fmtCoins(2_150_000_000)).toBe('2.1B');
+    expect(fmtCoins(-5)).toBe('0');
+  });
+
+  it('grandShare matches the in-game rule: share of the pool, floor 1,000x bet', () => {
+    expect(grandShare(250_000, 50, MAX_TOTAL_BET)).toBe(Math.max(50_000, Math.round(250_000 * Math.min(1, 50 / MAX_TOTAL_BET))));
+    expect(grandShare(1_000_000, MAX_TOTAL_BET, MAX_TOTAL_BET)).toBe(Math.max(1000 * MAX_TOTAL_BET, 1_000_000));
+    expect(grandShare(0, 10, MAX_TOTAL_BET)).toBe(10_000);
+  });
+
+  it('live copy: hold & spin shows its fixed ladder in coins, others lead with the progressive; all rows fit', () => {
+    for (const grand of [250_000, 9_999_999, 3_456_789_012]) {
+      for (const m of MACHINES) {
+        const { bonus } = topScreenCopy(m, { bet: 250, grand });
+        expect(bonus.lines[0]).toBe(`GRAND ${fmtCoins(m.holdSpin ? m.holdSpin.grand * 250 : grand)}`);
+        expect(bonus.lines.length).toBeLessThanOrEqual(5);
+        for (const l of bonus.lines) expect(l.length).toBeLessThanOrEqual(TOP_LINE_MAX);
+        if (m.holdSpin) {
+          const major = m.holdSpin.values.find((v) => v.lantern.label === 'MAJOR')!;
+          expect(bonus.lines).toContain(`MAJOR ${fmtCoins(major.lantern.mult * 250)}`);
+        }
+      }
+    }
+    // without live data the copy is unchanged (multiplier ladder)
+    const dragon = MACHINES.find((m) => m.id === 'dragon')!;
+    expect(topScreenCopy(dragon).bonus.lines[0]).toBe(`GRAND ${dragon.holdSpin!.grand.toLocaleString('en-US')}×`);
+  });
+
+  it('live rows still paint at >= 34 canvas px for every machine', () => {
+    for (const m of MACHINES) {
+      const stub = stubCanvas();
+      const g = globalThis as Record<string, unknown>;
+      const prev = g.document;
+      g.document = { createElement: () => stub.canvas };
+      try {
+        paintScreenWith(paintVelvetUpperScreen as never, topScreenCopy(m, { bet: 250, grand: 9_876_543 }).bonus, 'bonus', aspect);
+      } finally { g.document = prev; }
+      for (const t of stub.texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(34);
+    }
+  });
+
+  it('JackpotMeter climbs, rolls to a raised target, clamps dt, snaps down on payout', () => {
+    const j = new JackpotMeter(1000, 40, 1000);
+    expect(j.tick(1000)).toBe(1040);
+    expect(j.tick(60_000)).toBe(1080); // dt clamped to 1 s
+    j.setTarget(2080);
+    const mid = j.tick(500);
+    expect(mid).toBeGreaterThan(1080);
+    expect(mid).toBeLessThan(2080);
+    expect(j.tick(500)).toBe(2080);
+    let prev = j.value;
+    for (let i = 0; i < 20; i++) { const v = j.tick(16); expect(v).toBeGreaterThanOrEqual(prev); prev = v; }
+    j.setTarget(500);
+    expect(j.value).toBe(500);
+  });
+
+  it('ScreenRepainter skips unchanged copy and throttles to its interval', () => {
+    const painted: string[] = [];
+    const r = new ScreenRepainter((c) => painted.push(c.lines[0]), 250);
+    const c = (n: number) => ({ title: 'T', lines: [`GRAND ${n}`] });
+    expect(r.update(0, c(1))).toBe(true);
+    expect(r.update(10, c(1))).toBe(false); // unchanged
+    expect(r.update(100, c(2))).toBe(false); // too soon
+    expect(r.update(260, c(2))).toBe(true);
+    // a 60 fps loop for 2 s with a value changing every frame paints at most ~4 Hz
+    for (let t = 300; t < 2300; t += 16) r.update(t, c(t));
+    expect(r.paints).toBeLessThanOrEqual(2 + Math.ceil(2000 / 250));
+    expect(painted[0]).toBe('GRAND 1');
   });
 });

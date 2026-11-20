@@ -29,5 +29,25 @@ for (const [i, view] of ['front', 'three', 'side', 'seated'].entries()) {
   if (errors.length) { failed = true; console.log('FAIL console errors:', errors); } else console.log('ok   no console errors:', view);
   await page.close();
 }
+// live jackpot (dev): bonus screen repaints the rolling GRAND at most ~4 Hz while the loop runs
+{
+  const page = await browser.newPage({ viewport: { width: 384, height: 832 }, deviceScaleFactor: 2 });
+  const errors = [];
+  page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto(`${base}triple-slot.html?view=front&machine=empire&jackpot=live`);
+  await page.waitForFunction(() => globalThis.__tripleSlot?.ready, null, { timeout: 60000 });
+  const a = await page.evaluate(() => ({ ...globalThis.__tripleSlot.live, t: performance.now() }));
+  await page.waitForTimeout(3000);
+  const b = await page.evaluate(() => ({ ...globalThis.__tripleSlot.live, t: performance.now() }));
+  await page.screenshot({ path: `${out}/triple-slot-05-live-jackpot.png`, timeout: 60000 });
+  const secs = (b.t - a.t) / 1000;
+  const repaints = b.repaints - a.repaints;
+  console.log('live', JSON.stringify({ secs: +secs.toFixed(2), frames: b.frames - a.frames, repaints, grandFrom: a.grand, grandTo: b.grand }));
+  if (!(b.grand > a.grand)) { failed = true; console.log('FAIL live GRAND did not climb'); } else console.log('ok   live GRAND climbs');
+  if (!(repaints >= 1 && repaints <= Math.ceil(secs * 4) + 1)) { failed = true; console.log('FAIL live repaint rate', repaints); } else console.log('ok   live repaints throttled:', repaints);
+  if (errors.length) { failed = true; console.log('FAIL console errors:', errors); } else console.log('ok   no console errors: live');
+  await page.close();
+}
 await browser.close();
 process.exitCode = failed ? 1 : 0;

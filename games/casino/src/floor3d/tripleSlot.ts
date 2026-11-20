@@ -126,13 +126,47 @@ const fmt = (n: number) => n.toLocaleString('en-US');
  */
 export const TOP_LINE_MAX = 18;
 
-export function topScreenCopy(m: Machine): { marquee: ScreenCopy; bonus: ScreenCopy } {
+/**
+ * Live jackpot input for the bonus screen: the bet and the GRAND currently shown (a `JackpotMeter`
+ * reading). With it, hold & spin ladders show their fixed coin values at that bet instead of
+ * multipliers, and the other machines lead with the rolling progressive GRAND, as the in-game
+ * ladder does (SlotsScene.ladder).
+ */
+export interface LiveJackpot { bet: number; grand: number }
+
+/** Coin amount that fits a topper row: full digits up to 9,999,999, then 12.3M / 1.2B. */
+export function fmtCoins(n: number): string {
+  const v = Math.max(0, Math.floor(n));
+  if (v < 10_000_000) return fmt(v);
+  if (v < 1_000_000_000) return `${(Math.floor(v / 100_000) / 10).toFixed(1)}M`;
+  return `${(Math.floor(v / 100_000_000) / 10).toFixed(1)}B`;
+}
+
+/**
+ * The GRAND at `bet`: the player's share of the shared progressive, never below 1,000× the bet.
+ * Same rule as SlotsScene.grandValue, kept pure so the topper can be tested without Phaser.
+ */
+export function grandShare(progressive: number, bet: number, maxBet: number, grandMin = 1000): number {
+  return Math.max(grandMin * bet, Math.round(progressive * Math.min(1, bet / maxBet)));
+}
+
+export function topScreenCopy(m: Machine, live?: LiveJackpot): { marquee: ScreenCopy; bonus: ScreenCopy } {
   // the feature name is the bonus screen's title, so the marquee carries the machine name alone
   const marquee = { title: m.name.toUpperCase(), lines: [] as string[] };
   const lines: string[] = [];
   if (m.holdSpin) {
     const named = m.holdSpin.values.filter((v) => v.lantern.label).sort((a, b) => b.lantern.mult - a.lantern.mult);
-    lines.push(`GRAND ${fmt(m.holdSpin.grand)}×`, ...named.map((v) => `${v.lantern.label} ${fmt(v.lantern.mult)}×`));
+    if (live) {
+      // hold & spin GRAND is the machine's own fixed lantern prize, not the shared progressive
+      lines.push(`GRAND ${fmtCoins(m.holdSpin.grand * live.bet)}`, ...named.map((v) => `${v.lantern.label} ${fmtCoins(v.lantern.mult * live.bet)}`));
+    } else {
+      lines.push(`GRAND ${fmt(m.holdSpin.grand)}×`, ...named.map((v) => `${v.lantern.label} ${fmt(v.lantern.mult)}×`));
+    }
+  } else if (live) {
+    lines.push(`GRAND ${fmtCoins(live.grand)}`);
+  }
+  if (m.holdSpin) {
+    // the lantern ladder above is the whole feature
   } else if (m.freeSpins) {
     lines.push(`${m.freeSpins.join(' · ')} SPINS`);
   } else if (m.wheel) {
@@ -143,6 +177,81 @@ export function topScreenCopy(m: Machine): { marquee: ScreenCopy; bonus: ScreenC
   // the blurb is a full sentence (the in-game paytable shows it); only a short one fits a topper row
   if (m.blurb && m.blurb.length <= TOP_LINE_MAX) lines.push(m.blurb);
   return { marquee, bonus: { title: FEATURE_LABEL[m.feature], lines: lines.slice(0, 4) } };
+}
+
+/**
+ * Rolling progressive readout for the bonus screen. The displayed value creeps up cosmetically
+ * (`climbPerSec`, like the lobby meter) and, when the real target jumps (a bet adds to the pool),
+ * rolls to it over `rollMs`. It never shows less than the target and never runs backwards unless
+ * the target itself drops (a jackpot was paid), in which case it snaps.
+ */
+export class JackpotMeter {
+  private shown: number;
+  private target: number;
+  private from: number;
+  private rollLeft = 0;
+  private readonly climbPerSec: number;
+  private readonly rollMs: number;
+
+  constructor(start: number, climbPerSec = 40, rollMs = 900) {
+    this.shown = this.target = this.from = Math.max(0, start);
+    this.climbPerSec = climbPerSec;
+    this.rollMs = rollMs;
+  }
+
+  setTarget(v: number): void {
+    if (v < this.shown) { this.shown = this.target = this.from = v; this.rollLeft = 0; return; }
+    if (v === this.target) return;
+    this.target = v;
+    this.from = this.shown;
+    this.rollLeft = this.rollMs;
+  }
+
+  /** Advance by `dtMs` (clamped to 0..1000 so a backgrounded tab doesn't jump) and return the readout. */
+  tick(dtMs: number): number {
+    const dt = Math.min(1000, Math.max(0, dtMs));
+    if (this.rollLeft > 0) {
+      this.rollLeft = Math.max(0, this.rollLeft - dt);
+      const k = 1 - this.rollLeft / this.rollMs;
+      const ease = 1 - (1 - k) ** 3;
+      this.shown = Math.max(this.shown, this.from + (this.target - this.from) * ease);
+    } else {
+      this.shown += (this.climbPerSec * dt) / 1000;
+    }
+    this.target = Math.max(this.target, this.shown);
+    return Math.floor(this.shown);
+  }
+
+  get value(): number { return Math.floor(this.shown); }
+}
+
+/**
+ * Throttled repaint of one upper screen: repaints only when the copy text changed and at least
+ * `minIntervalMs` passed since the last paint (default 250 ms = 4 Hz), because every repaint
+ * re-uploads the whole 640-px canvas texture. Returns true when it painted (set needsUpdate then).
+ */
+export class ScreenRepainter {
+  private last = '';
+  private lastAt = -Infinity;
+  paints = 0;
+  private readonly paint: (copy: ScreenCopy) => void;
+  private readonly minIntervalMs: number;
+
+  constructor(paint: (copy: ScreenCopy) => void, minIntervalMs = 250) {
+    this.paint = paint;
+    this.minIntervalMs = minIntervalMs;
+  }
+
+  update(nowMs: number, copy: ScreenCopy): boolean {
+    const sig = `${copy.title}\n${copy.lines.join('\n')}`;
+    if (sig === this.last) return false;
+    if (this.paints > 0 && nowMs - this.lastAt < this.minIntervalMs) return false;
+    this.paint(copy);
+    this.last = sig;
+    this.lastAt = nowMs;
+    this.paints++;
+    return true;
+  }
 }
 
 /** Cap width/height of an extruded screen (front face only), for sizing its canvas. */
