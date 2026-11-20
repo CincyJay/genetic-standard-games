@@ -109,7 +109,11 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     expect(crown.max.x).toBeLessThan(tower.max.x + 0.01);
     const cap = box('VA_rear_tower_top_cap');
     expect(crown.min.z).toBeGreaterThan(-0.2); // no longer a full-depth slab
-    expect(cap.min.z).toBeLessThanOrEqual(tower.min.z); // cap reaches the tower rear
+    // a369912 (VA-0281) trimmed the cap to end flush with the tower rear at the top (no 14 mm lip)
+    const tp = (cab.getObjectByName('VA_curved_tapered_tower') as THREE.Mesh).geometry.getAttribute('position');
+    let towerTopRear = Infinity;
+    for (let i = 0; i < tp.count; i++) if (tp.getY(i) > tower.max.y - 0.03) towerTopRear = Math.min(towerTopRear, tp.getZ(i));
+    expect(Math.abs(cap.min.z - towerTopRear)).toBeLessThan(0.003); // cap reaches the tower rear, no overhang
     expect(cap.max.z).toBeGreaterThan(crown.min.z); // and overlaps the crown: no gap on top
     expect(cap.min.y).toBeLessThan(tower.max.y); // seated into the tower top, not floating
     expect(cap.max.y).toBeGreaterThan(tower.max.y);
@@ -117,8 +121,9 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     expect(cap.max.x).toBeLessThan(tower.max.x);
   });
 
-  // 2c4223f (VA-0279): a 22 mm dark backing sits 2 mm inboard of each 12 mm amber ribbon
-  it('dark ribbon backings are 22 mm wide, 2 mm inboard of the ribbon and wound outward', () => {
+  // 2c4223f (VA-0279): a dark backing sits 2 mm inboard of each 12 mm amber ribbon;
+  // a369912 (VA-0281) widened it from 22 to 40 mm and toned the emitter down to avoid clipping
+  it('dark ribbon backings are 40 mm wide, 2 mm inboard of the ribbon and wound outward', () => {
     cab.updateMatrixWorld(true);
     for (const [side, sign] of [['left', -1], ['right', 1]] as const) {
       const back = cab.getObjectByName(`VA_recessed_light_backing_${side}`) as THREE.Mesh;
@@ -128,7 +133,7 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
       const sp = skin.geometry.getAttribute('position');
       expect(bp.count).toBe(rp.count);
       for (let i = 0; i < bp.count; i += 2) {
-        expect(bp.getZ(i + 1) - bp.getZ(i)).toBeCloseTo(0.022, 4);
+        expect(bp.getZ(i + 1) - bp.getZ(i)).toBeCloseTo(0.040, 4);
         // ribbon is 2 mm further out than the backing, and both are outside the skin
         expect((rp.getX(i) - bp.getX(i)) * sign).toBeCloseTo(0.002, 4);
         expect((bp.getX(i) - sp.getX(i)) * sign).toBeCloseTo(0.005, 4);
@@ -139,7 +144,11 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
       const m = back.material as THREE.MeshStandardMaterial;
       expect(m.color.getHSL({ h: 0, s: 0, l: 0 }).l).toBeLessThan(0.1);
       const l = rib.material as THREE.MeshStandardMaterial;
-      expect(l.emissiveIntensity).toBeGreaterThan(1);
+      // saturated red-orange emissive that does not exceed 1.0 per channel before tone mapping
+      expect(l.emissive.r * l.emissiveIntensity).toBeLessThanOrEqual(1);
+      expect(l.emissive.r * l.emissiveIntensity).toBeGreaterThan(0.5);
+      expect(l.emissive.g / l.emissive.r).toBeLessThan(0.3);
+      expect(l.emissive.b).toBeLessThan(0.01);
       const idx = back.geometry.getIndex()!;
       const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
       for (let i = 0; i < idx.count; i += 3) {
