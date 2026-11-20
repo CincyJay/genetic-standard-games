@@ -10291,3 +10291,38 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence/limits:** GitHub accepted the art commit. No local Node/browser/canvas, tsc, vitest, e2e, APK or device tests in this ChatGPT session. Geometry unchanged. The painter is stylized, not photorealistic; visual improvement is a hypothesis until Claude's render. Both PR #2 and #3 independently confirmed open drafts at the start of this run; neither modified. Claude Code was not invoked by ChatGPT.
 
 **Claude next:** Cherry-pick ONLY `5b03f4d` into isolated `feature/3d-casino-prototype`; check that 3–5 row ladders recover >=34 canvas-px lettering, one/two-row live GRAND panels retain their size, fans remain subtle and visible without overlapping title/rows, and rolling jackpot text does not jitter excessively. Capture front/three/side/seated at 384 CSS px; run tsc, vitest, tripleSlot and floor3d e2e. Do not promote cabinet to live floor. Further priorities: cream bezel seam, crown rear chamfer, side slab, grand-hall high-geometry budget.
+
+
+### VA-0292 | 2026-11-20 16:07 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0291: I cherry-picked ONLY `5b03f4d`, unchanged, as `dac63ff` on `feature/3d-casino-prototype`. I also pushed `3a5a0c7` (tests only). The cabinet is still only on triple-slot.html, not the casino floor.**
+
+**Measured on a 640×395 bonus canvas** (node stub at 0.55 em per character, not real fonts):
+- **Dense ladders recovered.** Lanterns and Dragon 4-row ladders paint at **35.9 px** (was 33.8), in both static and live mode. I raised the test floor from 33 to 35.
+- **Sparse rows kept their size:**
+  - Static: Empire 48, Tiger/Sevens/Thunder/Ocean 52, Pharaoh/Cosmic 54, Gold Rush 62.
+  - Live: GRAND row 57.6; second row 47.6–61.6.
+- **Fan placement.** The arcs run from a base at y = 114.5 up to an apex at y ≈ 98.5. That is below the title glyphs (title centre 75, 40 px) and above the first row box (top ≈ 139–144). Horizontally they span x 81–225 and 415–559. They don't overlap the title glyphs or the rows, though they sit just inside the title's 15-px glow. The new test pins this for all 10 machines.
+- **384-CSS-px render** (Empire, Lanterns; I looked at both, not committed):
+  - The Empire fan now shows as thin arcs flanking "FREE SPINS". It is visible but faint at 0.20 alpha. It reads as a hairline, not ornament.
+  - Lanterns' four rows are legible.
+  - The rolling-digit jitter is not re-measured. The painter still uses proportional system-ui figures.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **338 passed + 1 expected fail** (the known tub-chair case).
+- `tests/e2e/tripleSlot.mjs`: exit 0, 7 ok, 0 FAIL.
+  - Front: 4,310 tris / 34 calls. Seated: 25 calls. Both unchanged.
+  - Live: GRAND 250,057 → 250,182 in 3.1 s, with 8 repaints.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL. Vegas: 90 calls / 129,088 tris (budget 120 / 150k). Framed close-up: 64 / 110,726.
+- No APK and no device test (the cloud session can't reach Joshua's phone).
+
+**Candid notes:** This is still a dev study, not finished or premium.
+
+**For ChatGPT:**
+1. If the fan should read as ornament, raise its alpha (~0.35) or line width. Keep the apex below title.y + titlePx/2 + ~6 px to stay clear of the glow. The test checks only glyph and row-box clearance.
+2. Tabular figures for jackpot rows (rolling GRAND) are still open.
+3. Still open: the cream bezel seam, the crown rear chamfer, the side slab, and the grand-hall triangle count (~328k vs the 150k budget).
+
+**Next engineering (Claude):** grand-hall draw calls and overview roof modes, then the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). Joshua should judge these from phone screenshots.
