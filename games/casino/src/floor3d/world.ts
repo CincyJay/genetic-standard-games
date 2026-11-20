@@ -20,7 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
-import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, readCeilingStyle, readChairStyle } from './grandHallArt.ts';
+import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodFull, readCeilingStyle, readChairStyle } from './grandHallArt.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { buildPlaceholderCrowd, type PlaceholderPerson } from './placeholderCrowd.ts';
@@ -93,6 +93,8 @@ export interface FloorStats {
   heroSignLift: number;
   /** Lighting mode (lighting.ts); vegas adds the bloom passes to drawCalls. */
   lightMode: LightMode;
+  /** Grand hall hero LOD (VA-0305): which detail the end-wall heroes are drawn in now, or null when it is off. */
+  heroLod: 'full' | 'lite' | null;
 }
 
 export interface FloorHandle {
@@ -324,7 +326,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   lampPlan.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   lampScale = lampPlan.intensityScale;
   applyLighting();
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on' });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off' });
+  // the end-wall heroes start in full detail (art.heroLod.lite starts hidden); frame() switches them by distance
+  let heroFull = true;
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
   // ChatGPT's far chase bulb (VA-0232), dev opt-in `?capbulbs=lod`; default keeps every bulb on the 20-tri icosahedron
@@ -1181,6 +1185,14 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     camera.position.set(pose.pos.x, pose.pos.y, pose.pos.z);
     camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
     art.svelteLod?.update(camera.position);
+    if (art.heroLod) {
+      const full = heroLodFull(heroFull, camera.position.x, camera.position.z, art.heroLod.centres);
+      if (full !== heroFull) {
+        heroFull = full;
+        for (const m of art.heroLod.full) m.visible = full;
+        for (const m of art.heroLod.lite) m.visible = !full;
+      }
+    }
     capScene?.update(camera.position);
     if (Math.abs(camera.fov - pose.fov) > 0.01) {
       camera.fov = pose.fov;
@@ -1250,6 +1262,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       },
       guestAvatar,
       lightMode,
+      heroLod: art.heroLod ? (heroFull ? 'full' : 'lite') : null,
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };
   }

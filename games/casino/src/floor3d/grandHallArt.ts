@@ -244,6 +244,23 @@ export function liteCabinet(src: THREE.Object3D, cache: Map<string, THREE.Buffer
   return copy;
 }
 
+/** The hero parts the game drives (artScene's interactive parts); a hero's far twin leaves them out. */
+const HERO_DRIVEN_PART = /^(REEL_\d+_\d+_SWAP_TEXTURE|spin_button|marquee_world_texture_target)$/;
+
+/** Within this horizontal distance (m) of any hero cabinet, the heroes draw in full detail (VA-0305). */
+export const HERO_LOD_NEAR_M = 8;
+/** Hysteresis so walking along the boundary doesn't flicker between the two (m). */
+export const HERO_LOD_HYSTERESIS_M = 0.5;
+
+/**
+ * Whether the hero cabinets should be in full detail for a camera at (x, z): near any of the
+ * `centres` (closer than HERO_LOD_NEAR_M, or a little farther if they already are).
+ */
+export function heroLodFull(prev: boolean, x: number, z: number, centres: readonly { x: number; z: number }[]): boolean {
+  const limit = HERO_LOD_NEAR_M + (prev ? HERO_LOD_HYSTERESIS_M : -HERO_LOD_HYSTERESIS_M);
+  return centres.some((c) => Math.hypot(c.x - x, c.z - z) < limit);
+}
+
 export const CHAIR_STORAGE_KEY = 'va3d.chair';
 export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'swivel', swivel: 'tub', tub: 'casino', casino: 'velvet' };
 /**
@@ -309,7 +326,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -376,6 +393,7 @@ export function composeGrandHall(
 
   // machines: one hero per theme, interactive, on the end wall; then copies along the side walls
   const machineDetail = opts.machineDetail ?? readMachineDetail();
+  // (declared before the heroes: their far twins share the copies' lite geometry)
   const liteGeos = new Map<string, THREE.BufferGeometry>();
   const heroes: THREE.Object3D[] = [];
   const heroTextures: THREE.Texture[] = [];
@@ -392,6 +410,23 @@ export function composeGrandHall(
     root.add(slot);
     heroes.push(hero);
     byTheme.set(s.id, hero);
+    if (opts.heroLod) {
+      // its far twin (VA-0305): the same cabinet with the copies' lighter tessellation, minus the
+      // parts the game drives (reels, spin button, marquee), which stay the hero's own at every
+      // distance. artScene batches the two apart and world.ts shows one or the other by distance.
+      slot.userData.heroLod = 'full';
+      const twin = new THREE.Group();
+      twin.name = `slotlod_${s.id}`;
+      twin.userData.heroLod = 'lite';
+      twin.position.copy(slot.position);
+      twin.rotation.copy(slot.rotation);
+      const lite = liteCabinet(hero, liteGeos);
+      const drop: THREE.Object3D[] = [];
+      lite.traverse((o) => { if ((o as THREE.Mesh).isMesh && HERO_DRIVEN_PART.test(o.name)) drop.push(o); });
+      for (const o of drop) o.removeFromParent();
+      twin.add(lite);
+      root.add(twin);
+    }
   }
   layout.decor.slots.forEach((s, i) => {
     const src = byTheme.get(s.id);

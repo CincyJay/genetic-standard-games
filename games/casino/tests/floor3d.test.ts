@@ -1386,6 +1386,50 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const copyReel = root.getObjectByName('slotcopy_sevens_1')!.getObjectByName('REEL_0_0_SWAP_TEXTURE') as import('three').Mesh;
     expect(copyReel.geometry).toBe(hero.geometry);
   });
+  it('gives the end-wall heroes a lighter far twin, batched apart, driven parts untouched (VA-0305)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { heroLodFull, HERO_LOD_NEAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const off = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers' });
+    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true });
+    expect(off.heroLod).toBeNull();
+    const lod = on.heroLod!;
+    // one centre per hero, where the layout puts it
+    expect(lod.centres.map((c) => [+c.x.toFixed(2), +c.z.toFixed(2)])).toEqual(g.slots.map((s) => [+s.x.toFixed(2), +s.z.toFixed(2)]));
+    // the far twins start hidden; the full set is what was drawn before
+    expect(lod.lite.length).toBeGreaterThan(0);
+    expect(lod.lite.every((m) => !m.visible)).toBe(true);
+    expect(lod.full.every((m) => m.visible)).toBe(true);
+    // the far set costs well under a third of the full set's triangles
+    const full = tris(lod.full), lite = tris(lod.lite);
+    expect(full).toBeGreaterThan(100_000);
+    expect(lite).toBeLessThan(full * 0.33);
+    // the whole batched scene: the same triangles as without the LOD when the full set shows
+    const visible = (a: typeof on) => tris(a.root.children.filter((m) => m.visible && !a.whole.combined.includes(m as import('three').Mesh)) as import('three').Mesh[]);
+    expect(Math.abs(visible(on) - visible(off))).toBeLessThan(1);
+    // reels, spin buttons and marquees: the hero's own, once, at every distance
+    expect([...on.interactive.keys()].sort()).toEqual([...off.interactive.keys()].sort());
+    expect([...on.reelCopies.keys()].sort()).toEqual([...off.reelCopies.keys()].sort());
+    for (const m of [...lod.full, ...lod.lite]) expect(m.name).toMatch(/^art:lod:(full|lite)#/);
+    // no lights or other non-mesh extras came along with the twins
+    let lightsOn = 0, lightsOff = 0;
+    on.root.traverse((o) => { if ((o as import('three').Light).isLight) lightsOn++; });
+    off.root.traverse((o) => { if ((o as import('three').Light).isLight) lightsOff++; });
+    expect(lightsOn).toBe(lightsOff);
+    // draw cost: the heroes no longer share batches with the side-wall copies; bounded growth
+    expect(lod.full.length).toBeLessThanOrEqual(12);
+    expect(on.batches - off.batches).toBeLessThanOrEqual(lod.full.length + lod.lite.length);
+    expect(lod.lite.length).toBeLessThanOrEqual(lod.full.length);
+    // distance switch with hysteresis: full detail near any hero, lite from the far end of the hall
+    const c = lod.centres[0];
+    expect(heroLodFull(false, c.x, c.z + HERO_LOD_NEAR_M - 1, lod.centres)).toBe(true);
+    expect(heroLodFull(true, 0, g.spawn.z, lod.centres)).toBe(false);
+    const edge = HERO_LOD_NEAR_M + HERO_LOD_HYSTERESIS_M / 2;
+    expect(heroLodFull(true, c.x, c.z + edge, [c])).toBe(true);
+    expect(heroLodFull(false, c.x, c.z + edge, [c])).toBe(false);
+    void THREE;
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {

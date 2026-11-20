@@ -89,6 +89,12 @@ export interface ArtScene {
    * every wall and the whole ceiling would be shown anyway; otherwise the reverse.
    */
   whole: { combined: THREE.Mesh[]; replaced: THREE.Mesh[] };
+  /**
+   * Grand hall hero LOD (VA-0305): the end-wall heroes' batches in full detail and their lighter
+   * twins', and where each hero stands. Show one set at a time (heroLodFull in grandHallArt.ts);
+   * `lite` starts hidden. Null unless the hall was composed with `heroLod`.
+   */
+  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; centres: { x: number; z: number }[] } | null;
   /** How many meshes the factories built, and how many draw batches they became. */
   meshesAuthored: number;
   batches: number;
@@ -152,6 +158,11 @@ function copyCabinetOf(o: THREE.Object3D): string | null {
     const m = /^slotcopy_(.+)_\d+$/.exec(p.name);
     if (m) return `slotcopy_${m[1]}`;
   }
+  return null;
+}
+/** A grand-hall hero's detail level ('full' or 'lite', VA-0305), or null outside the hero LOD. */
+function heroLodOf(o: THREE.Object3D): string | null {
+  for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) if (typeof p.userData.heroLod === 'string') return p.userData.heroLod;
   return null;
 }
 function cabinetOf(o: THREE.Object3D): string | null {
@@ -358,6 +369,8 @@ export interface ArtOptions {
   slimLod?: boolean;
   /** Grand hall only: its own ceiling, or ChatGPT's gold coffers and chandeliers (VA-0175). */
   ceiling?: CeilingStyle;
+  /** Grand hall only: give the end-wall heroes a lighter far twin (VA-0305; see ArtScene.heroLod). */
+  heroLod?: boolean;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -464,7 +477,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
-    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling });
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines });
     art = grand.root;
     art.updateMatrixWorld(true);
     art.traverse((o) => {
@@ -521,7 +534,14 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   }
   art.updateMatrixWorld(true);
 
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number; glow: boolean; fade: string | null }>();
+  const wpLod = new THREE.Vector3();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number; glow: boolean; fade: string | null; lod: string | null }>();
+  const lodCentres: { x: number; z: number }[] = [];
+  art.traverse((o) => {
+    if (o.userData.heroLod !== 'full') return;
+    o.getWorldPosition(wpLod);
+    lodCentres.push({ x: wpLod.x, z: wpLod.z });
+  });
   const allMaterials = new Set<THREE.Material>();
   const wp = new THREE.Vector3();
   let meshesAuthored = 0;
@@ -539,10 +559,11 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     // batched mesh can carry the tag for the bloom pass
     const glow = mesh.userData.glow === true;
     const fade = part ? null : fadeGroupOf(mesh);
-    const key = part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
+    const lod = part || fade ? null : heroLodOf(mesh);
+    const key = part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : lod ? `lod:${lod}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
     let b = buckets.get(key);
     if (!b) {
-      b = { material, geos: [], colours: [], emissives: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false, fade };
+      b = { material, geos: [], colours: [], emissives: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false, fade, lod };
       buckets.set(key, b);
     }
     // merging needs one layout: unindexed, with position / normal / uv only
@@ -568,12 +589,13 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const reelCopies = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
   const fadeable = new Map<string, THREE.Mesh[]>();
+  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], centres: lodCentres } : null;
   let colourBatches = 0;
   // whole-view batches (VA-0052): buckets that differ only by wall / ceiling side, per material
   const sideless = (key: string) => key.slice(key.indexOf('#'));
   const byMaterial = new Map<string, string[]>();
   for (const [key, b] of buckets) {
-    if (b.part || b.fade || b.side === 'exterior') continue;
+    if (b.part || b.fade || b.lod || b.side === 'exterior') continue;
     const list = byMaterial.get(sideless(key)) ?? [];
     list.push(key);
     byMaterial.set(sideless(key), list);
@@ -618,6 +640,11 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
       if (key.startsWith('slotcopy_')) reelCopies.set(key.slice('slotcopy_'.length, -'/reels'.length), mesh);
       else interactive.set(key, mesh);
     }
+    if (heroLod && b.lod === 'full') heroLod.full.push(mesh);
+    else if (heroLod && b.lod === 'lite') {
+      mesh.visible = false;
+      heroLod.lite.push(mesh);
+    }
     if (b.fade) {
       const list = fadeable.get(b.fade) ?? [];
       list.push(mesh);
@@ -634,5 +661,5 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
   if (svelteLod) root.add(svelteLod.root);
-  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, chairPoses, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, svelteLod, whole, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, chairPoses, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, svelteLod, whole, heroLod, meshesAuthored, batches: buckets.size, colourBatches };
 }
