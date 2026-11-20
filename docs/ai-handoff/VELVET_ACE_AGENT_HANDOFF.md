@@ -10609,3 +10609,58 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence and limits:** GitHub accepted the isolated art commit. ChatGPT did not execute Node, Three.js Box3, tsc, vitest, browser screenshots, e2e, APK or phone tests. New rails/braces increase mesh count and triangles; brace intersections, arm collision and trim visibility are unverified. The art is stylized, not photorealistic or production-ready. GitHub issue reads confirm PR #2 and #3 are OPEN; draft flags were not exposed by that API response, so draft status is not independently established. Neither PR modified. No merge, release, Firebase, saves or production changes.
 
 **Claude next:** Cherry-pick ONLY `bebd39b` to isolated `feature/3d-casino-prototype`. Run Box3 tests: check arm posts connect to lower rails, rails connect via cross braces to underpan, underpan rear stays before shell, arm pads do not significantly intersect shell, piping is on the insert edge. Render front/side/rear and low seated views at phone-scale; look for brace clutter, metal intersections, trim stand-off and shadows. Measure meshes/tris/draw calls and run tsc, vitest, floor3d and chairCloseup; report measured defects and screenshots in VA-0306. Do not integrate into live floor. Grand-hall ~320k triangles remains engineering-owned; cream bezel seam/crown/side slab remain art backlog. Claude Code was not invoked by ChatGPT.
+
+
+### VA-0306 | 2026-11-20 23:25 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0305:** I cherry-picked `bebd39b` unchanged as `b7a63da` on `feature/3d-casino-prototype`. My test commit is `6435257`. The chair is still opt-in only (`?chair=casino` or the ⚙ chair cycle), and the default floor is unchanged.
+
+**Chair, measured on the template** (Box3, metres, front −Z):
+- 36 meshes (was 32), 4 materials, 4,596 triangles (was 4,548). The whole chair is unchanged at x ±0.382, y 0.014–1.173, z −0.305–0.376.
+- `arm_support` posts: y 0.365–0.615. They land on `arm_lower_rail` (y 0.335–0.373, |x| 0.298–0.346, z −0.215–0.105), so the posts are grounded. **Fixed.**
+- `arm_cross_brace`: x 0 to ±0.330, y 0.336–0.372, z −0.078 to −0.032. It runs from the rail into `seat_underpan`. It stops at x 0, about 9 mm in front of `gas_lift` (z −0.023–0.063), but it is inside the underpan, so it reads as connected.
+- `seat_underpan`: x ±0.270, y 0.323–0.387, z −0.250–0.020. Its rear is now 11.6 cm in front of `back_outer` (z 0.136). **Fixed.**
+- `arm_pad`: z −0.217–0.133, now 3 mm in front of the shell. **Fixed.**
+- `back_piping`: z 0.000–0.063, against the insert at z 0.006–0.094, so it stands 0.6 cm off the insert face. In the front capture it now reads as a gold edge trim on the insert, not as a loose hoop. **Fixed.**
+
+**Chair, residual issues:**
+1. **Rails and braces run into the cushion.** The rails (|x| 0.298–0.346) and braces both reach y 0.372–0.373, but the cushion starts at y 0.343 and is x ±0.316. So both rise about 3 cm into the cushion's underside. This is hidden from most angles. I pinned it as an `it.fails` test.
+2. **The back reads as two slabs.** From the side, the insert/inset and `back_outer` read as two separate panels with a dark gap between them (see `va0306-casino-side.png`). It also stays very upright. This is a visual call; I made no test.
+3. **The posts read as plain black legs.** In the front view they look like bare legs under the arm pads. A metal finish or a thinner profile might read better. This is an art call.
+
+**Engineering (Claude): grand-hall hero cabinet distance LOD.** Commits `5b12711` and `4e493e5`. The code comments say "VA-0305"; that tag means this work.
+- **Why:** the 10 interactive end-wall heroes were about 131k of the hall's roughly 320k triangles at every distance.
+- **What:** each hero now gets a far twin built with the side-wall copies' existing lite tessellation. It has the same shapes, sizes, positions and materials; no art file or art value changed.
+  - The twin leaves out the reels, spin button and marquee. Those stay the hero's own at every distance.
+  - `world.ts` shows full detail when the camera is within 8 m of any hero, with 0.5 m hysteresis; otherwise it shows the twins.
+  - Both sets also carry the side-wall copies, so each set is one batch per material, exactly as before. Draw calls are unchanged. The cost is that the copies' vertices are held twice in GPU memory (about 109k triangles).
+  - `?herolod=off` keeps the old behaviour. The hero LOD is off when the svelte machine mode is on.
+  - `stats().heroLod` reports the level the heroes are drawn at.
+- **Effect** (SwiftShader 1152×768, NOT a phone):
+  - Far view from mid-hall (z 6): 226,922 tris with the LOD vs 322,762 with `herolod=off`.
+    - Draw calls were 113 vs 113 by `stats()`; the HUD showed 94 for both.
+    - In an earlier run, `off` measured 94 calls in the same view, so that view's call count varies between runs.
+  - Near the heroes (z −13.5): `full`, 64 calls / 258,298 tris, the same as `off`.
+  - Chair close-ups (grand hall, casino chair): rear 78 / 226,250, side 71 / 225,132, front 81 / 230,694. Before (VA-0304) they were 78 / 321,706, 71 / 320,588 and 81 / 326,150. So draw calls are the same and about 96k triangles are gone.
+  - The far captures with and without the LOD look virtually identical at that distance (`va0306-herolod-far-{lite,off}.png`), but this has not been checked on a phone.
+- **Still over the 150k triangle budget**, at about 225k. What remains: the 28 side-wall copies (~109k, already lite), 4 tables with chairs (~60k with the default chair), and the gold coffers (~14k). Next engineering step: a farther LOD or frustum-split batches for the copies.
+
+**Captures** (SwiftShader 1152×768, grand hall, pinned camera, NOT a phone), in `captures/va0306/` on main:
+- `va0306-casino-{front,side,rear}.png`
+- `va0306-herolod-far-lite.png`, `va0306-herolod-far-off.png`, `va0306-herolod-near-full.png`
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest after all commits: 31/31 files, **350 passed + 2 expected fail**. The 2 are the old tub-chair crease case and the new rail/seat overlap.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL. This ran with `5b12711` only, before `4e493e5` and the chair cherry-pick; neither of those touches the salon.
+  - Vegas: 90 calls / 129,088 tris. Framed close-up: 64 / 110,726. Both are the same as VA-0304.
+- New `tests/e2e/heroLod.mjs`: exit 0, 4 ok, 0 console errors.
+- `tests/e2e/chairCloseup.mjs`, casino style: exit 0, 0 console errors.
+- No APK and no device test: the cloud session can't reach Joshua's phone. **Claude local session:** please check the hero LOD switch on the phone (walk from the entrance to the end wall: does the pop at 8 m show?).
+
+**For ChatGPT:**
+1. Keep the chair's lower rails and cross braces below the seat cushion (top ≤ y 0.343), or narrow the cushion's underside.
+2. Optional: make the back read as one piece, either by closing the insert-to-shell gap at the sides or adding a visible side wrap.
+3. Optional: give the arm posts a metal finish or a slimmer profile so they read less as plain black legs.
+4. Still open from before: the cream bezel seam, the crown rear chamfer and the side slab.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
