@@ -1,5 +1,5 @@
 /**
- * Velvet Ace | portrait triple-display slot cabinet study, v2.
+ * Velvet Ace | portrait triple-display slot cabinet study, v3.
  * Isolated original geometry. No production import, no gameplay or textures fetched.
  * Usage: const cabinet = createVelvetTripleSlotCabinet(THREE); scene.add(cabinet);
  * Origin: floor center. Front faces +Z. Dimensions approx 0.88 W x 2.42 H x 0.86 D (m).
@@ -35,7 +35,36 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   // Sculpted silhouette: narrow upper tower, wider player console, deep weighted foot.
   box('VA_weighted_plinth',0.82,0.14,0.78,0,0.070,0,black);
   roundedPanel('VA_burgundy_base',0.77,0.59,0.10,0.61,burgundy,0,0.438,-0.32);
-  roundedPanel('VA_tapered_tower',0.70,1.71,0.13,0.35,metal,0,1.43,-0.25);
+  // Continuous swept body: rounded shoulders and a subtle concave waist, not a flat slab.
+  // Eight longitudinal sections, closed side walls; front remains behind all screen bezels.
+  const sections=[
+    [0.72,0.37,-0.33,0.040],[0.88,0.36,-0.33,0.065],
+    [1.12,0.345,-0.30,0.085],[1.38,0.338,-0.285,0.100],
+    [1.64,0.340,-0.28,0.102],[1.88,0.348,-0.285,0.095],
+    [2.14,0.355,-0.30,0.090],[2.28,0.365,-0.32,0.075]
+  ];
+  const vertices=[], indices=[];
+  for(const [y,halfWidth,rear,front] of sections){
+    vertices.push(-halfWidth,y,front, halfWidth,y,front,
+                  halfWidth,y,rear, -halfWidth,y,rear);
+  }
+  for(let j=0;j<sections.length-1;j++){
+    const a=j*4,b=(j+1)*4;
+    for(let k=0;k<4;k++){
+      const next=(k+1)%4;
+      indices.push(a+k,a+next,b+next,a+k,b+next,b+k);
+    }
+  }
+  indices.push(0,3,2,0,2,1);
+  const last=(sections.length-1)*4;
+  indices.push(last,last+1,last+2,last,last+2,last+3);
+  const bodyGeometry=new THREE.BufferGeometry();
+  bodyGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+  bodyGeometry.setIndex(indices);
+  bodyGeometry.computeVertexNormals();
+  const tower=new THREE.Mesh(bodyGeometry,metal);
+  tower.name='VA_curved_tapered_tower';
+  root.add(tower);
   roundedPanel('VA_upper_crown',0.78,0.21,0.10,0.37,brass,0,2.29,-0.26);
   // Two stacked upper displays plus main 5x5-style reel display; no fake game art.
   const surfaces=[];
@@ -52,25 +81,27 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   // Player console and physically separate buttons. A screen texture is not a cabinet.
   // Cantilevered physical button deck, placed ahead of the base front (z ~0.30).
   // The front edge is lower than the rear edge, inviting seated play.
-  const deck=box('VA_console_ledge',0.72,0.055,0.32,0,0.795,0.382,black);
-  deck.rotation.x=-0.14;
-  box('VA_console_gold_lip',0.70,0.018,0.024,0,0.760,0.548,brass);
+  const deck=box('VA_console_ledge',0.72,0.055,0.39,0,0.755,0.348,burgundy);
+  deck.rotation.x=0.14;
+  box('VA_console_gold_lip',0.70,0.018,0.024,0,0.722,0.548,brass);
   for(const side of [-1,1]){
     const bracket=box('VA_console_support_'+side,0.035,0.14,0.23,side*0.28,0.716,0.315,metal);
-    bracket.rotation.x=-0.14;
+    bracket.rotation.x=0.14;
   }
   for(let i=0;i<5;i++){
     const button=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.038,0.018,20),i===4?light:brass);
     button.name='VA_player_button_'+(i+1);
-    button.position.set((i-2)*0.115,0.837,0.395);root.add(button);
+    button.position.set((i-2)*0.115,0.803,0.395);root.add(button);
   }
-  // Twin narrow light channels and recessed side cheeks.
+  // Slim integrated illuminated edge rails follow the swept body, avoiding flat cheek boards.
   for(const side of [-1,1]){
-    roundedPanel('VA_side_cheek_'+side,0.055,1.58,0.024,0.15,burgundy,side*0.36,1.43,-0.018);
-    box('VA_vertical_light_'+side,0.014,1.37,0.012,side*0.336,1.43,0.162,light);
+    const points=sections.slice(1,-1).map(([y,halfWidth,rear,front])=>
+      new THREE.Vector3(side*(halfWidth-0.009),y,front+0.008));
+    const rail=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),24,0.008,5,false),light);
+    rail.name='VA_contoured_light_rail_'+side;root.add(rail);
   }
   root.userData.screenSurfaces=surfaces;
-  root.userData.console={deck,buttonTopY:0.846,frontZ:0.542};
+  root.userData.console={deck,buttonTopY:0.812,frontZ:0.548};
   root.userData.materials={metal,black,brass,burgundy,glass,light};
   root.userData.integration='Prototype only: use opt-in flag, map game canvases to screenSurfaces, benchmark calls/tris and capture side/front views before approval.';
   return root;
