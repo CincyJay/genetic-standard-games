@@ -415,14 +415,21 @@ describe('Svelte machines switch (prototype)', () => {
     expect(buckets.length).toBeLessThanOrEqual(level === 'mid' ? 6 : 5);
   });
 
-  it('islands (VA-0197): the grand hall side banks stand back to back, caps and stools all fit, every machine reachable', async () => {
+  it.each([
+    ['along', 18, 0], // VA-0197: 4 islands × 2 rows × 2 ends, plus the end-wall row's 2
+    ['across', 34, 1], // Joshua 2026-11-19 "Turn them crosswise": 8 islands × 2 rows × 2 ends, plus 2
+  ] as const)('islands (%s): the grand hall side banks stand back to back, caps and stools all fit, every machine reachable', async (islandDir, capCount, rowAxisX) => {
     const { grandHallLayout, GRAND_SPEC, ISLAND_HALF, obstacleOverlaps } = await import('../src/floor3d/grandHall.ts');
-    const g = layoutFor('grand', true, true, { islands: true });
-    const l = grandHallLayout({ ...GRAND_SPEC, islands: true });
+    const g = layoutFor('grand', true, true, { islands: true, islandDir });
+    const l = grandHallLayout({ ...GRAND_SPEC, islands: true, islandDir });
     const side = l.slots.filter((s) => !s.id.startsWith('end-'));
-    // every side spot has a twin on the same line facing the other way, backs ISLAND_HALF off a shared centre line
+    const facing = (s: { rotationY: number }) => ({ x: Math.round(Math.sin(s.rotationY)), z: Math.round(Math.cos(s.rotationY)) });
+    // every side spot has a twin 2 × ISLAND_HALF behind it facing the other way (a shared centre line)
     for (const s of side) {
-      const twin = side.find((t) => t !== s && Math.abs(t.z - s.z) < 1e-6 && Math.abs(Math.abs(t.x - s.x) - 2 * ISLAND_HALF) < 1e-6);
+      const f = facing(s);
+      // rows run along X when crosswise (machines face up and down the hall), along Z otherwise
+      expect(Math.abs(f.z), s.id).toBe(rowAxisX);
+      const twin = side.find((t) => Math.hypot(t.x - (s.x - f.x * 2 * ISLAND_HALF), t.z - (s.z - f.z * 2 * ISLAND_HALF)) < 1e-6);
       expect(twin, s.id).toBeTruthy();
       expect(Math.cos(twin!.rotationY - s.rotationY)).toBeCloseTo(-1);
     }
@@ -431,7 +438,7 @@ describe('Svelte machines switch (prototype)', () => {
     const wallLine = { ...g.room, z0: -g.hallSpec!.length / 2 + 0.2 };
     const plan = planBanks([...g.slots, ...g.decor.slots], g.obstacles, g.room, wallLine);
     expect(plan.capsDropped).toBe(0);
-    expect(plan.caps).toHaveLength(18); // 4 islands × 2 rows × 2 ends, plus the end-wall row's 2
+    expect(plan.caps).toHaveLength(capCount);
     expect(plan.stoolsDropped).toBe(0);
     // the promenade stays clear (past the end-wall row's own stools, which stand in it as before)
     const lane = { x0: l.aisle.x0, x1: l.aisle.x1, z0: l.bounds.z0 + 1, z1: l.bounds.z1 };
@@ -443,8 +450,11 @@ describe('Svelte machines switch (prototype)', () => {
       for (const s of g.seats) expect(nav.walkableAt(s.approach), s.id).toBe(true);
       // a player can stand behind every stool, on both faces of every island
       for (const s of side) {
-        const face = Math.sign(Math.sin(s.rotationY));
-        expect(nav.walkableAt({ x: s.x + face * 1.55, z: s.z }), s.id).toBe(true);
+        const f = facing(s);
+        for (const off of [-0.32, 0.32]) {
+          const along = { x: f.z, z: f.x }; // across the facing: along the row
+          expect(nav.walkableAt({ x: s.x + f.x * 1.55 + along.x * off, z: s.z + f.z * 1.55 + along.z * off }), s.id).toBe(true);
+        }
       }
     } finally {
       useRoom(SALON_ROOM);
@@ -453,7 +463,12 @@ describe('Svelte machines switch (prototype)', () => {
 
   it('island seam topper (96e9670, VA-0201): one run per island on the shared centre line, inside the caps, 2 draw calls', async () => {
     const { ISLAND_FROM_EDGE } = await import('../src/floor3d/grandHall.ts');
-    const g = layoutFor('grand', true, true, { islands: true });
+    // the topper study was made on the long VA-0197 islands; crosswise ones get one seam each too
+    const cross = layoutFor('grand', true, true, { islands: true });
+    const crossSeams = islandSeams(planBanks([...cross.slots, ...cross.decor.slots], cross.obstacles, cross.room, { ...cross.room, z0: -cross.hallSpec!.length / 2 + 0.2 }));
+    expect(crossSeams).toHaveLength(8);
+    for (const s of crossSeams) expect(Math.abs(Math.cos(s.rotationY))).toBeCloseTo(0, 5); // runs across the hall (X)
+    const g = layoutFor('grand', true, true, { islands: true, islandDir: 'along' });
     const plan = planBanks([...g.slots, ...g.decor.slots], g.obstacles, g.room, { ...g.room, z0: -g.hallSpec!.length / 2 + 0.2 });
     const seams = islandSeams(plan);
     expect(seams).toHaveLength(4);

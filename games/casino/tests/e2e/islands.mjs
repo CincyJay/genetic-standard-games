@@ -9,6 +9,7 @@
  * `carpetart` puts ChatGPT's woven medallion carpet texture on the hall floor (`?carpetart=on`, 436ef01, VA-0234).
  * `carpetvine` puts the woven-vine overlay version on it instead (`?carpetart=vine`, ca3a8ec, VA-0236).
  * `carpetdamask2` puts the interlaced damask (no medallion grid) on it (`?carpetart=damask2`, 5c65389, VA-0238).
+ * `along` keeps the VA-0197 long islands (`?islands=along`); the default is crosswise since 2026-11-19.
  * `topper` adds ChatGPT's island seam topper (`?topper=on`, VA-0201).
  * Usage: node tests/e2e/islands.mjs [url] [outDir] [tag] [machineStyle] [variants, default islands,walls]
  */
@@ -22,7 +23,7 @@ const base = process.argv[2] ?? 'http://localhost:5175/';
 const out = process.argv[3] ?? fileURLToPath(new URL('../../screenshots/', import.meta.url));
 const tag = process.argv[4] ?? 'islands';
 const style = process.argv[5] ?? 'svelte-lod';
-const VARIANTS = { islands: '', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art', slimcab: '&nearcab=slim', slimlod: '&slimlod=on', slimbulbs: '&slimlod=on&capbulbs=lod', bulbs: '&capbulbs=lod', carpetart: '&carpetart=on', carpetvine: '&carpetart=vine', carpetdamask2: '&carpetart=damask2' };
+const VARIANTS = { islands: '', along: '&islands=along', walls: '&islands=off', topper: '&topper=on', artstool: '&farstool=art', slimcab: '&nearcab=slim', slimlod: '&slimlod=on', slimbulbs: '&slimlod=on&capbulbs=lod', bulbs: '&capbulbs=lod', carpetart: '&carpetart=on', carpetvine: '&carpetart=vine', carpetdamask2: '&carpetart=damask2' };
 const variants = (process.argv[6] ?? 'islands,walls').split(',').map((v) => [v, VARIANTS[v]]);
 mkdirSync(out, { recursive: true });
 // the west islands: centre line x -8.6, back third z -15..-6.6

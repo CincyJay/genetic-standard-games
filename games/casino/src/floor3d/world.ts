@@ -298,7 +298,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // in the grand hall they stand in back-to-back islands (Joshua, VA-0197)
   const machineStyle = import.meta.env.MODE === 'proto' || import.meta.env.DEV ? readMachineStyle() : 'classic';
   const svelteMachines = machineStyle !== 'classic';
-  const layout = layoutFor(hall, pilot05, blackjackHero, { islands: svelteMachines && new URLSearchParams(location.search).get('islands') !== 'off' });
+  // crosswise since Joshua's 2026-11-19 "Turn them crosswise"; `?islands=along` keeps the VA-0197 long islands
+  const islandsParam = new URLSearchParams(location.search).get('islands');
+  const layout = layoutFor(hall, pilot05, blackjackHero, { islands: svelteMachines && islandsParam !== 'off', islandDir: islandsParam === 'along' ? 'along' : 'across' });
   useRoom(layout.room);
   // the grand hall has no exterior yet: its overview stays between the side walls, and the
   // ground beyond the hall is dark rather than the salon's purple
