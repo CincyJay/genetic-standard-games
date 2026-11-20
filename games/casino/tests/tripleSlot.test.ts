@@ -25,10 +25,11 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     expect(report.bounds.max[2]).toBeLessThan(0.6);
   });
 
-  // 6b39809 (VA-0273) added a 7th material, sideInset, for the recessed tower side skins
-  it('is cheap: under 6k triangles, 7 authored materials', () => {
+  // 6b39809 (VA-0273) added a 7th material, sideInset, for the recessed tower side skins;
+  // 2c4223f (VA-0279) added an 8th, channelRecess, for the dark backing behind the amber ribbons
+  it('is cheap: under 6k triangles, 8 authored materials', () => {
     expect(report.triangles).toBeLessThan(6000);
-    expect(report.materials).toBe(7);
+    expect(report.materials).toBe(8);
   });
 
   it('glass is in front of its bezel, and both in front of the tower', () => {
@@ -103,10 +104,51 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     expect(crown.max.z).toBeGreaterThan(bezel.min.z);
     expect(crown.max.z).toBeLessThan(bezel.max.z);
     expect(crown.max.z).toBeLessThan(box('VA_top_marquee_glass').min.z);
-    // 6b39809 (VA-0273) extended the crown back to z -0.343 so the tower top (rear z -0.330) is capped,
-    // and narrowed it to within 10 mm of the tower half-width
-    expect(crown.min.z).toBeLessThanOrEqual(tower.min.z);
+    // 6b39809 (VA-0273) extended the crown back to cap the tower top; 2c4223f (VA-0279) shortened
+    // the gold crown to 0.30 m and caps the rear of the tower top with a separate dark box instead.
     expect(crown.max.x).toBeLessThan(tower.max.x + 0.01);
+    const cap = box('VA_rear_tower_top_cap');
+    expect(crown.min.z).toBeGreaterThan(-0.2); // no longer a full-depth slab
+    expect(cap.min.z).toBeLessThanOrEqual(tower.min.z); // cap reaches the tower rear
+    expect(cap.max.z).toBeGreaterThan(crown.min.z); // and overlaps the crown: no gap on top
+    expect(cap.min.y).toBeLessThan(tower.max.y); // seated into the tower top, not floating
+    expect(cap.max.y).toBeGreaterThan(tower.max.y);
+    expect(cap.max.y - tower.max.y).toBeLessThan(0.005);
+    expect(cap.max.x).toBeLessThan(tower.max.x);
+  });
+
+  // 2c4223f (VA-0279): a 22 mm dark backing sits 2 mm inboard of each 12 mm amber ribbon
+  it('dark ribbon backings are 22 mm wide, 2 mm inboard of the ribbon and wound outward', () => {
+    cab.updateMatrixWorld(true);
+    for (const [side, sign] of [['left', -1], ['right', 1]] as const) {
+      const back = cab.getObjectByName(`VA_recessed_light_backing_${side}`) as THREE.Mesh;
+      const rib = cab.getObjectByName(`VA_inset_light_channel_${side}`) as THREE.Mesh;
+      const skin = cab.getObjectByName(`VA_sculpted_side_inset_${side}`) as THREE.Mesh;
+      const bp = back.geometry.getAttribute('position'), rp = rib.geometry.getAttribute('position');
+      const sp = skin.geometry.getAttribute('position');
+      expect(bp.count).toBe(rp.count);
+      for (let i = 0; i < bp.count; i += 2) {
+        expect(bp.getZ(i + 1) - bp.getZ(i)).toBeCloseTo(0.022, 4);
+        // ribbon is 2 mm further out than the backing, and both are outside the skin
+        expect((rp.getX(i) - bp.getX(i)) * sign).toBeCloseTo(0.002, 4);
+        expect((bp.getX(i) - sp.getX(i)) * sign).toBeCloseTo(0.005, 4);
+        // the ribbon lies within the backing in z
+        expect(rp.getZ(i)).toBeGreaterThan(bp.getZ(i));
+        expect(rp.getZ(i + 1)).toBeLessThan(bp.getZ(i + 1));
+      }
+      const m = back.material as THREE.MeshStandardMaterial;
+      expect(m.color.getHSL({ h: 0, s: 0, l: 0 }).l).toBeLessThan(0.1);
+      const l = rib.material as THREE.MeshStandardMaterial;
+      expect(l.emissiveIntensity).toBeGreaterThan(1);
+      const idx = back.geometry.getIndex()!;
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+      for (let i = 0; i < idx.count; i += 3) {
+        a.fromBufferAttribute(bp, idx.getX(i)); b.fromBufferAttribute(bp, idx.getX(i + 1)); c.fromBufferAttribute(bp, idx.getX(i + 2));
+        n.subVectors(c, b).cross(a.clone().sub(b));
+        if (n.lengthSq() < 1e-12) continue;
+        expect(Math.sign(n.x)).toBe(sign);
+      }
+    }
   });
 
   // 6b39809 (VA-0273): dark side skins 3 mm proud of each tower side, so they read as separate panels
