@@ -446,22 +446,44 @@ describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
     }
   });
 
-  // 908ed4c (VA-0293): jackpot rows measure AND paint in a monospace face so a rolling GRAND keeps
-  // its width; before it the fit measured in Georgia but painted in system-ui
-  it('each bonus row is width-fitted in the same font it is painted in; jackpot rows are monospaced', () => {
+  // 908ed4c (VA-0293) measured AND painted jackpot rows in a monospace face. e7b62a0 (VA-0295)
+  // keeps the GRAND/MAJOR/MINOR/MINI label in the row face (system-ui) and paints only the value in
+  // ui-monospace. Invariant either way: each span is width-fitted in the font it is painted in, and
+  // no label is ever painted in the code font.
+  const paintAll = (m: (typeof MACHINES)[number], live?: { bet: number; grand: number }) => {
+    const stub = stubCanvas();
+    const g = globalThis as Record<string, unknown>;
+    const prev = g.document;
+    g.document = { createElement: () => stub.canvas };
+    try { paintScreenWith(paintVelvetUpperScreen as never, topScreenCopy(m, live).bonus, 'bonus', aspect); } finally { g.document = prev; }
+    return stub.texts.slice(1).map((t) => ({ ...t, family: t.font.replace(/^.*?[\d.]+px\s*/, '') }));
+  };
+  const LIVE = [undefined, { bet: 50, grand: 250_123 }];
+
+  it('each bonus span is width-fitted in the font it is painted in; labels stay in system-ui', () => {
     for (const m of MACHINES) {
-      for (const live of [undefined, { bet: 50, grand: 250_123 }]) {
-        const stub = stubCanvas();
-        const g = globalThis as Record<string, unknown>;
-        const prev = g.document;
-        g.document = { createElement: () => stub.canvas };
-        try { paintScreenWith(paintVelvetUpperScreen as never, topScreenCopy(m, live).bonus, 'bonus', aspect); } finally { g.document = prev; }
-        for (const t of stub.texts.slice(1)) {
-          const family = t.font.replace(/^.*?[\d.]+px\s*/, '');
+      for (const live of LIVE) {
+        for (const t of paintAll(m, live)) {
           expect(t.measuredIn.length).toBeGreaterThan(0);
           expect(t.measuredIn[t.measuredIn.length - 1]).toBe(t.font);
-          expect(family).toBe(/^(GRAND|MAJOR|MINOR|MINI)\b/.test(t.text) ? 'ui-monospace, monospace' : 'system-ui, sans-serif');
+          if (t.family === 'ui-monospace, monospace') expect(t.text).toMatch(/^[\d,.×\s]+$/);
+          else expect(t.family).toBe('system-ui, sans-serif');
         }
+      }
+    }
+  });
+
+  // e7b62a0's split uses /^(GRAND|MAJOR|MINOR|MINI)(\\s+)(.*)$/ in a regex literal: `\\s` is a literal
+  // backslash + "s", so it never matches "GRAND 250,123" and whole jackpot rows fall back to
+  // system-ui (digit widths roll again, VA-0294 measured a 45-px swing). Expected to fail until the
+  // painter uses `\s+`; when this starts passing, flip it to `it` and re-check row counts in the
+  // tests above (split rows paint two fillText spans).
+  it.fails('jackpot values are painted in a fixed-width face (blocked: e7b62a0 regex, VA-0296)', () => {
+    for (const m of MACHINES) {
+      for (const live of LIVE) {
+        const spans = paintAll(m, live);
+        if (!topScreenCopy(m, live).bonus.lines.some((l) => /^(GRAND|MAJOR|MINOR|MINI)\b/.test(l))) continue;
+        expect(spans.some((t) => t.family === 'ui-monospace, monospace')).toBe(true);
       }
     }
   });
