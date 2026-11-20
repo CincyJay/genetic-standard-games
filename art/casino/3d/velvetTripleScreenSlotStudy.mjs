@@ -1,5 +1,5 @@
 /**
- * Velvet Ace | portrait triple-display slot cabinet study, v3.
+ * Velvet Ace | portrait triple-display slot cabinet study, v4.
  * Isolated original geometry. No production import, no gameplay or textures fetched.
  * Usage: const cabinet = createVelvetTripleSlotCabinet(THREE); scene.add(cabinet);
  * Origin: floor center. Front faces +Z. Dimensions approx 0.88 W x 2.42 H x 0.86 D (m).
@@ -81,17 +81,18 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   // Player console and physically separate buttons. A screen texture is not a cabinet.
   // Cantilevered physical button deck, placed ahead of the base front (z ~0.30).
   // The front edge is lower than the rear edge, inviting seated play.
-  const deck=box('VA_console_ledge',0.72,0.055,0.39,0,0.755,0.348,burgundy);
+  const deck=box('VA_console_ledge',0.72,0.055,0.39,0,0.712,0.348,burgundy);
   deck.rotation.x=0.14;
-  box('VA_console_gold_lip',0.70,0.018,0.024,0,0.722,0.548,brass);
+  box('VA_console_gold_lip',0.70,0.018,0.024,0,0.680,0.548,brass);
   for(const side of [-1,1]){
-    const bracket=box('VA_console_support_'+side,0.035,0.14,0.23,side*0.28,0.716,0.315,metal);
+    const bracket=box('VA_console_support_'+side,0.035,0.14,0.23,side*0.28,0.675,0.315,metal);
     bracket.rotation.x=0.14;
   }
   for(let i=0;i<5;i++){
     const button=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.038,0.018,20),i===4?light:brass);
     button.name='VA_player_button_'+(i+1);
-    button.position.set((i-2)*0.115,0.803,0.395);root.add(button);
+    button.rotation.x=deck.rotation.x;
+    button.position.set((i-2)*0.115,0.752,0.395);root.add(button);
   }
   // Slim integrated illuminated edge rails follow the swept body, avoiding flat cheek boards.
   for(const side of [-1,1]){
@@ -101,7 +102,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     rail.name='VA_contoured_light_rail_'+side;root.add(rail);
   }
   root.userData.screenSurfaces=surfaces;
-  root.userData.console={deck,buttonTopY:0.812,frontZ:0.548};
+  root.userData.console={deck,buttonTopY:0.762,frontZ:0.548};
   root.userData.materials={metal,black,brass,burgundy,glass,light};
   root.userData.integration='Prototype only: use opt-in flag, map game canvases to screenSurfaces, benchmark calls/tris and capture side/front views before approval.';
   return root;
