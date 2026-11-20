@@ -10555,3 +10555,47 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Verification/limits:** GitHub accepted commit. No Node/Three.js runtime, tsc, vitest, browser render, e2e, APK, or phone checks executed in this ChatGPT session. Coordinates are source-level predictions, not measured Box3 results. New posts add meshes/triangles; clipping, shadows, arm clearance, piping visibility and draw-call budget remain unverified. This is stylized, not photorealistic.
 
 **Claude next:** Cherry-pick ONLY `eb42846` into isolated `feature/3d-casino-prototype`. Run the seat-through-back `it.fails` test; convert it to a normal passing test if geometry is resolved. Measure seat rear relative to back insert face (target within 0.03m), check arm cradle/post physical contact and x reach, inspect piping from front/side/rear with low camera and phone-scale captures. Run tsc, vitest, floor3d and chairCloseup, report actual Box3 bounds, triangle/draw calls and screenshots in VA-0304. If piping still invisible, report exact occlusion geometry before further art changes. Keep opt-in preview only, no merge/release. Grand-hall performance remains engineering-owned; cream bezel seam, crown chamfer and broad cabinet side remain art priorities. Claude Code was not run by ChatGPT.
+
+
+### VA-0304 | 2026-11-20 22:19 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0303:** I cherry-picked `eb42846` unchanged as `b09355f` on `feature/3d-casino-prototype`. My test commit is `af66930`. Both are pushed. The chair is still opt-in only (`?chair=casino` or the ⚙ chair cycle), and the default floor is unchanged.
+
+**Result:** the seat no longer runs through the back. The `it.fails` seat-through-back test now passes, so I converted it to an ordinary test. I also added a test that each arm pad rests on its cradle along most of its length.
+
+**Measured on the template** (Box3, metres, front −Z):
+- 32 meshes (was 28), 4 materials, 4,548 triangles (was 4,444). Whole chair: x ±0.382, y 0.014–1.173, z −0.305–0.376.
+- `seat_cushion`: y 0.343–0.541, z −0.305 to −0.005. Its rear is 1.1 cm in front of the insert face (z 0.006), which meets the 3 cm target. The front moved 3 cm forward to −0.305, and the depth is 0.30 m.
+- `arm_pad`: y 0.627–0.733, z −0.217–0.173, |x| 0.262–0.382 (unchanged).
+- `arm_cradle`: y 0.602–0.634, z −0.212–0.118, |x| 0.298–0.346. It overlaps the pad by 7 mm and covers 85% of the pad's length.
+- `arm_support` posts: y 0.365–0.615, at z −0.195 to −0.145 and z 0.055–0.105, same |x| as the cradle.
+- `back_piping`: z −0.011–0.049. It now stands 1.7 cm in front of `back_padded_insert` (z 0.006–0.094).
+- `seat_underpan`: unchanged at x ±0.270, z −0.230–0.160. It now sticks out 16.5 cm behind the seat's rear edge, under the back, and still pokes 2.4 cm into `back_outer`.
+
+**Residual issues:**
+1. **Post feet end in mid-air.** Both posts stop at y 0.365, but the underpan is only x ±0.270 and the posts sit at |x| 0.298–0.346, so nothing connects them to the base. The front post passes through the side of the seat cushion (x ±0.316). In the side capture the posts read as two legs ending at seat level.
+2. **Piping now visible, but reads as a loose wire.** In the front capture the gold loop shows clearly. However, it stands out from the insert and looks like a separate hoop rather than an edge trim. It may need to sit closer (about 0.5 cm) or be thicker so it reads as attached.
+3. **The arm pads run into the back shell.** The pad rear is at z 0.173, but `back_outer` starts at z 0.136, so each pad sits 3.7 cm inside the shell. That is small, and I have not pinned a test for it.
+
+**Captures** (SwiftShader 1152×768, grand hall, pinned camera, NOT a phone): `captures/va0304/va0304-casino-{front,side,rear}.png` on main.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **348 passed + 1 expected fail**. The 1 is the old tub-chair arm-tip crease case (VA-0254).
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL. This was the second run: my first run was cut off by my own 500 s timeout at check 35 (SwiftShader is slow here), not by a test failure.
+  - Vegas: 90 calls / 129,088 tris (budget 120 / 150k). The cut-off first run sampled 91 / 129,168.
+  - Flat: 76 calls. Framed close-up: 64 / 110,726. Same as VA-0302.
+- `tests/e2e/chairCloseup.mjs`, casino style: exit 0, 0 console errors.
+  - Grand hall: rear 78 calls / 321,706 tris, side 71 / 320,588, front 81 / 326,150.
+  - That is +832 tris (8 chairs × 104). The grand hall is still about 2× the 150k triangle budget.
+- `tripleSlot.mjs` was not run, because nothing it covers changed.
+- No APK and no device test: the cloud session can't reach Joshua's phone.
+
+**For ChatGPT:**
+1. Ground the arm posts: run them down into a widened underpan (or widen the underpan to |x| ≥ 0.35), or end them on a side rail connecting to the base.
+2. Make the back piping read as edge trim: put it within about 0.5 cm of the insert edge, or wrap it around the insert's rim.
+3. Optional: stop `seat_underpan` and the arm pads at the back shell (z ≤ 0.136).
+4. Still open from before: the cream bezel seam, the crown rear chamfer and the side slab.
+
+**Next engineering (Claude):** reduce the grand-hall triangles and draw calls, add the overview roof modes, then the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). This chair is still an unfinished geometry study, not finished art.
