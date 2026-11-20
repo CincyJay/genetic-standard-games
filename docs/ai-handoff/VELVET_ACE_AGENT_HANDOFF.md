@@ -10373,3 +10373,31 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence and limitations:** GitHub accepted the isolated art commit. No local Node, browser/canvas render, tsc, vitest, e2e, APK or device tests executed in this ChatGPT run. A new risk is text fitting at the 13px minimum and Android font fallback; neither is verified. GitHub issue search returned empty results for PR #2 and #3, so their present draft status was NOT independently confirmed; neither was touched. Claude Code was not executed.
 
 **Claude next:** Cherry-pick ONLY `e7b62a0` to isolated `feature/3d-casino-prototype`. Verify real-font widths of all ten machines in static and live modes, especially GRAND transitions 999,999→1,000,000, label/value spacing, center alignment, and Android font fallback. Compare screenshot typography against VA-0294 at 384 CSS px in front/three/side/seated views. Check row width <= 486.4 canvas px, no clipping, dense ladder >=35 px if feasible. Run tsc, vitest, tripleSlot and floor3d e2e; keep cabinet off production floor. Further visual priorities remain cream bezel seam, rear crown chamfer, broad side slab and grand-hall high-geometry mode. No merge, release, payments or production writes authorized.
+
+
+### VA-0296 | 2026-11-20 18:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0295: I cherry-picked ONLY `e7b62a0`, unchanged, as `83f522f` on `feature/3d-casino-prototype`, plus `9731425` (tests only). The intended label/value split never runs because of a one-character bug.**
+
+**Bug (art file, please fix, I did not edit it):** in `art/casino/3d/velvetUpperScreenPainter.mjs` line 95, `/^(GRAND|MAJOR|MINOR|MINI)(\\s+)(.*)$/i` is a regex *literal*. There, `\\s` means a literal backslash followed by "s", so the pattern never matches "GRAND 250,123". `match` is always null, and every jackpot row falls back to whole-row `system-ui` through `fitText`. The fix is `(\s+)` (one backslash). I checked locally, without committing: with `\s+` the split runs (spans "GRAND " in system-ui and "1,000×" in monospace).
+- **Effect observed in real headless Chromium (cloud, Linux fonts), 640×395 bonus canvas:** the GRAND row is all system-ui and is re-fitted for each value.
+  - Font size jumps as the jackpot rolls: 250,111 → 65.6 px, 250,188 → 61.6 px, 249,999 → 59.6 px, 999,999 → 59.6 px, 1,000,000 → 53.6 px. All rows measure 478–481 px wide, under 486.4, so nothing clips.
+  - In effect this undoes 908ed4c's digit stabilisation: the GRAND row visibly changes size while it rolls. The code-font label from VA-0294 is gone, but so are the fixed-width digits.
+- I could not work around this in engineering code without editing art or monkey-patching the canvas context. `topScreenCopy` can't produce a string that matches the broken pattern without painting a backslash.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **339 passed + 2 expected fails**: the known tub-chair case, plus a new `it.fails` "jackpot values are painted in a fixed-width face (blocked: e7b62a0 regex, VA-0296)".
+- I rewrote the VA-0293 font test as an invariant: every span is fitted in the font it is painted in, monospace is only ever used for numeric values, and labels are always system-ui.
+- When the regex is fixed, the it.fails test will turn red (intended). Two row-count tests will also need updating, because a split row paints two fillText spans. I'll do that the cycle after your fix lands.
+- `tests/e2e/tripleSlot.mjs`: exit 0. Front: 4,310 tris / 34 calls. Seated: 3,342 / 25. Live GRAND 250,061 → 250,187 in 3.14 s, 8 repaints. All unchanged.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL. Vegas: 90 calls / 129,088 tris (budget 120 / 150k). Flat: 76. Framed close-up: 64 / 110,726. All unchanged; the cabinet is still not on the floor.
+- No APK and no device test (the cloud session can't reach Joshua's phone). I did not take 384-CSS-px screenshot comparisons this cycle, because with the split inactive the frames would just show the system-ui fallback.
+
+**For ChatGPT:**
+1. Change `(\\s+)` to `(\s+)` on line 95 (nothing else is needed for the split to run).
+2. Android: `ui-monospace` is unsupported, so the value falls back to the device `monospace` (likely Droid Sans Mono / Noto Mono). Mixing that with system-ui (Roboto) is still untested on a device. A fixed per-digit advance in the row face would avoid a second family entirely, if you prefer that.
+3. Still open: the cream bezel seam, the crown rear chamfer, the side slab, and the grand-hall triangle count (~328k vs the 150k budget).
+
+**Next engineering (Claude):** adopt the split in the tests after the fix, then grand-hall draw calls, overview roof modes and the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). This is a typography study, not finished art; Joshua should judge it from phone screenshots.
