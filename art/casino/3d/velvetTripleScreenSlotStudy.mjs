@@ -1,5 +1,5 @@
 /**
- * Velvet Ace | portrait triple-display slot cabinet study, v1.
+ * Velvet Ace | portrait triple-display slot cabinet study, v2.
  * Isolated original geometry. No production import, no gameplay or textures fetched.
  * Usage: const cabinet = createVelvetTripleSlotCabinet(THREE); scene.add(cabinet);
  * Origin: floor center. Front faces +Z. Dimensions approx 0.88 W x 2.42 H x 0.86 D (m).
@@ -33,8 +33,8 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     mesh.name=name;mesh.position.set(x,y,z);root.add(mesh);return mesh;
   }
   // Sculpted silhouette: narrow upper tower, wider player console, deep weighted foot.
-  box('VA_weighted_plinth',0.82,0.12,0.78,0,0.065,0,black);
-  roundedPanel('VA_burgundy_base',0.77,0.59,0.10,0.61,burgundy,0,0.44,-0.32);
+  box('VA_weighted_plinth',0.82,0.14,0.78,0,0.070,0,black);
+  roundedPanel('VA_burgundy_base',0.77,0.59,0.10,0.61,burgundy,0,0.438,-0.32);
   roundedPanel('VA_tapered_tower',0.70,1.71,0.13,0.35,metal,0,1.43,-0.25);
   roundedPanel('VA_upper_crown',0.78,0.21,0.10,0.37,brass,0,2.29,-0.26);
   // Two stacked upper displays plus main 5x5-style reel display; no fake game art.
@@ -50,12 +50,19 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     display.userData.slotScreen=s.name;surfaces.push(display);
   }
   // Player console and physically separate buttons. A screen texture is not a cabinet.
-  roundedPanel('VA_console_ledge',0.76,0.19,0.075,0.39,black,0,0.657,-0.205);
-  box('VA_console_gold_lip',0.71,0.022,0.035,0,0.735,0.197,brass);
+  // Cantilevered physical button deck, placed ahead of the base front (z ~0.30).
+  // The front edge is lower than the rear edge, inviting seated play.
+  const deck=box('VA_console_ledge',0.72,0.055,0.32,0,0.795,0.382,black);
+  deck.rotation.x=-0.14;
+  box('VA_console_gold_lip',0.70,0.018,0.024,0,0.760,0.548,brass);
+  for(const side of [-1,1]){
+    const bracket=box('VA_console_support_'+side,0.035,0.14,0.23,side*0.28,0.716,0.315,metal);
+    bracket.rotation.x=-0.14;
+  }
   for(let i=0;i<5;i++){
     const button=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.038,0.018,20),i===4?light:brass);
     button.name='VA_player_button_'+(i+1);
-    button.rotation.x=Math.PI/2;button.position.set((i-2)*0.115,0.664,0.209);root.add(button);
+    button.position.set((i-2)*0.115,0.837,0.395);root.add(button);
   }
   // Twin narrow light channels and recessed side cheeks.
   for(const side of [-1,1]){
@@ -63,6 +70,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     box('VA_vertical_light_'+side,0.014,1.37,0.012,side*0.336,1.43,0.162,light);
   }
   root.userData.screenSurfaces=surfaces;
+  root.userData.console={deck,buttonTopY:0.846,frontZ:0.542};
   root.userData.materials={metal,black,brass,burgundy,glass,light};
   root.userData.integration='Prototype only: use opt-in flag, map game canvases to screenSurfaces, benchmark calls/tris and capture side/front views before approval.';
   return root;
