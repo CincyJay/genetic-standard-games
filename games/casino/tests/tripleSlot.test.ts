@@ -323,13 +323,18 @@ describe('triple-slot rails and upper-screen copy (671fd2e, VA-0283)', () => {
 
 /** Minimal recording 2D canvas for node: measureText ~0.55 em per character. */
 function stubCanvas() {
-  const texts: { text: string; x: number; y: number; px: number; maxWidth?: number }[] = [];
+  const texts: { text: string; x: number; y: number; px: number; maxWidth?: number; font: string; measuredIn: string[] }[] = [];
+  const measured = new Map<string, string[]>();
   const curves: { cy: number; y: number; x: number }[] = [];
   let font = '10px serif';
   const ctx = new Proxy({} as Record<string, unknown>, {
     get(_t, k) {
-      if (k === 'measureText') return (t: string) => ({ width: t.length * 0.55 * parseFloat(/([\d.]+)px/.exec(font)![1]) });
-      if (k === 'fillText') return (text: string, x: number, y: number, maxWidth?: number) => texts.push({ text, x, y, px: parseFloat(/([\d.]+)px/.exec(font)![1]), maxWidth });
+      if (k === 'measureText') return (t: string) => {
+        measured.set(t, [...(measured.get(t) ?? []), font]);
+        return { width: t.length * 0.55 * parseFloat(/([\d.]+)px/.exec(font)![1]) };
+      };
+      if (k === 'fillText') return (text: string, x: number, y: number, maxWidth?: number) =>
+        texts.push({ text, x, y, px: parseFloat(/([\d.]+)px/.exec(font)![1]), maxWidth, font, measuredIn: measured.get(text) ?? [] });
       if (k === 'quadraticCurveTo') return (_cx: number, cy: number, x: number, y: number) => curves.push({ cy, y, x });
       if (k === 'createLinearGradient') return () => ({ addColorStop() {} });
       if (k === 'font') return font;
@@ -438,6 +443,26 @@ describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
       const { texts } = paintBonus(m);
       if (texts.length - 1 > 2) continue;
       for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(45);
+    }
+  });
+
+  // 908ed4c (VA-0293): jackpot rows measure AND paint in a monospace face so a rolling GRAND keeps
+  // its width; before it the fit measured in Georgia but painted in system-ui
+  it('each bonus row is width-fitted in the same font it is painted in; jackpot rows are monospaced', () => {
+    for (const m of MACHINES) {
+      for (const live of [undefined, { bet: 50, grand: 250_123 }]) {
+        const stub = stubCanvas();
+        const g = globalThis as Record<string, unknown>;
+        const prev = g.document;
+        g.document = { createElement: () => stub.canvas };
+        try { paintScreenWith(paintVelvetUpperScreen as never, topScreenCopy(m, live).bonus, 'bonus', aspect); } finally { g.document = prev; }
+        for (const t of stub.texts.slice(1)) {
+          const family = t.font.replace(/^.*?[\d.]+px\s*/, '');
+          expect(t.measuredIn.length).toBeGreaterThan(0);
+          expect(t.measuredIn[t.measuredIn.length - 1]).toBe(t.font);
+          expect(family).toBe(/^(GRAND|MAJOR|MINOR|MINI)\b/.test(t.text) ? 'ui-monospace, monospace' : 'system-ui, sans-serif');
+        }
+      }
     }
   });
 
