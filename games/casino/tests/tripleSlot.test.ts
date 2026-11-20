@@ -127,6 +127,44 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     }
   });
 
+  // 3f7c7bb (VA-0275): the right skin's winding was reversed so both skins face outward by geometry
+  // alone, i.e. they would still shade correctly if sideInset became FrontSide.
+  it('side inset face normals point outward on both sides (winding, not DoubleSide)', () => {
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+    for (const side of ['left', 'right'] as const) {
+      const skin = cab.getObjectByName(`VA_sculpted_side_inset_${side}`) as THREE.Mesh;
+      skin.updateWorldMatrix(true, false);
+      const pos = skin.geometry.getAttribute('position');
+      const idx = skin.geometry.getIndex()!;
+      const sign = side === 'left' ? -1 : 1;
+      let tris = 0;
+      for (let i = 0; i < idx.count; i += 3) {
+        a.fromBufferAttribute(pos, idx.getX(i)).applyMatrix4(skin.matrixWorld);
+        b.fromBufferAttribute(pos, idx.getX(i + 1)).applyMatrix4(skin.matrixWorld);
+        c.fromBufferAttribute(pos, idx.getX(i + 2)).applyMatrix4(skin.matrixWorld);
+        n.subVectors(c, b).cross(a.clone().sub(b));
+        if (n.lengthSq() < 1e-12) continue;
+        expect(Math.sign(n.x)).toBe(sign);
+        tris++;
+      }
+      expect(tris).toBeGreaterThan(0);
+    }
+  });
+
+  // 3f7c7bb (VA-0275): a thin emissive light channel along each inset's front edge, within the envelope
+  it('has a front-edge light channel on each side inside the collision half-width', () => {
+    const tower = new THREE.Box3().setFromObject(cab.getObjectByName('VA_curved_tapered_tower')!);
+    for (const side of ['left', 'right'] as const) {
+      const ch = cab.getObjectByName(`VA_inset_light_channel_${side}`) as THREE.Mesh;
+      expect(ch).toBeTruthy();
+      const b = new THREE.Box3().setFromObject(ch);
+      const outer = side === 'left' ? -b.min.x : b.max.x;
+      expect(outer).toBeLessThan(0.45);
+      expect(b.max.z).toBeLessThan(tower.max.z);
+      expect(b.max.y - b.min.y).toBeGreaterThan(1.0);
+    }
+  });
+
   // VA-0264: the deck's rear-top edge (y 0.809, z 0.159) sat inside the main glass slab (z 0.151-0.171,
   // bottom y 0.775). 4740660 (VA-0265) lowered it to y 0.766, 9 mm below the glass.
   it('deck rear edge stays below the main reel glass', () => {
