@@ -1,5 +1,5 @@
 /**
- * Velvet Ace | portrait triple-display slot cabinet study, v4.
+ * Velvet Ace | portrait triple-display slot cabinet study, v5.
  * Isolated original geometry. No production import, no gameplay or textures fetched.
  * Usage: const cabinet = createVelvetTripleSlotCabinet(THREE); scene.add(cabinet);
  * Origin: floor center. Front faces +Z. Dimensions approx 0.88 W x 2.42 H x 0.86 D (m).
@@ -61,11 +61,11 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   const bodyGeometry=new THREE.BufferGeometry();
   bodyGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
   bodyGeometry.setIndex(indices);
-  bodyGeometry.computeVertexNormals();
-  const tower=new THREE.Mesh(bodyGeometry,metal);
+  // Faceted panel normals: separate each quad so front/side/back do not\n  // interpolate into the glossy pillow effect reported in VA-0266.\n  const panelGeometry=bodyGeometry.toNonIndexed();\n  panelGeometry.computeVertexNormals();
+  const tower=new THREE.Mesh(panelGeometry,metal);
   tower.name='VA_curved_tapered_tower';
   root.add(tower);
-  roundedPanel('VA_upper_crown',0.78,0.21,0.10,0.37,brass,0,2.29,-0.26);
+  // Arched crown: a shallow curved upper outline instead of a rectangular cap.\n  const crownShape=new THREE.Shape();\n  crownShape.moveTo(-0.385,2.19);\n  crownShape.lineTo(-0.385,2.28);\n  crownShape.bezierCurveTo(-0.29,2.43,0.29,2.43,0.385,2.28);\n  crownShape.lineTo(0.385,2.19);\n  crownShape.closePath();\n  const crown=new THREE.Mesh(new THREE.ExtrudeGeometry(crownShape,{depth:0.27,bevelEnabled:true,bevelSize:0.009,bevelThickness:0.008,bevelSegments:2,curveSegments:12}),brass);\n  crown.name='VA_arched_marquee_crown';crown.position.z=-0.26;root.add(crown);
   // Two stacked upper displays plus main 5x5-style reel display; no fake game art.
   const surfaces=[];
   const screens=[
@@ -92,7 +92,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     const button=new THREE.Mesh(new THREE.CylinderGeometry(0.035,0.038,0.018,20),i===4?light:brass);
     button.name='VA_player_button_'+(i+1);
     button.rotation.x=deck.rotation.x;
-    button.position.set((i-2)*0.115,0.752,0.395);root.add(button);
+    button.position.set((i-2)*0.115,0.7424,0.3964);root.add(button);
   }
   // Slim integrated illuminated edge rails follow the swept body, avoiding flat cheek boards.
   for(const side of [-1,1]){
@@ -102,7 +102,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
     rail.name='VA_contoured_light_rail_'+side;root.add(rail);
   }
   root.userData.screenSurfaces=surfaces;
-  root.userData.console={deck,buttonTopY:0.762,frontZ:0.548};
+  root.userData.console={deck,buttonTopY:0.7524,frontZ:0.548};
   root.userData.materials={metal,black,brass,burgundy,glass,light};
   root.userData.integration='Prototype only: use opt-in flag, map game canvases to screenSurfaces, benchmark calls/tris and capture side/front views before approval.';
   return root;
