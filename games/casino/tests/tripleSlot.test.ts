@@ -13,11 +13,11 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     for (const s of TRIPLE_SCREENS) expect(report.screensFacingFront[s]).toBe(1);
   });
 
-  it('stands on the floor at about 0.88 x 2.42 m and fits a 0.45 m collision half-width', () => {
+  it('stands on the floor at about 0.88 x 2.35 m (crown slimmed in 416f6c9) and fits a 0.45 m collision half-width', () => {
     // the plinth sat 5 mm above the floor in 1670e35; ff6752a seats it on y 0
     expect(report.bounds.min[1]).toBeGreaterThanOrEqual(0);
     expect(report.bounds.min[1]).toBeLessThan(0.001);
-    expect(report.bounds.max[1]).toBeGreaterThan(2.35);
+    expect(report.bounds.max[1]).toBeGreaterThan(2.3);
     expect(report.bounds.max[1]).toBeLessThan(2.45);
     expect(Math.max(-report.bounds.min[0], report.bounds.max[0])).toBeLessThan(0.45);
     // since ff6752a (VA-0258) the console deck projects forward to z 0.56; the rear stays at -0.39
@@ -163,6 +163,40 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
       expect(b.max.z).toBeLessThan(tower.max.z);
       expect(b.max.y - b.min.y).toBeGreaterThan(1.0);
     }
+  });
+
+  // 416f6c9 (VA-0277): the channel is now a flat 12 mm ribbon (not a tube) facing outward, and the
+  // crown crest dropped from ~2.43 m to ~2.365 m while still capping the marquee bezel.
+  it('side light ribbons are flat 12 mm bands wound outward', () => {
+    cab.updateMatrixWorld(true);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+    for (const [side, sign] of [['left', -1], ['right', 1]] as const) {
+      const ch = cab.getObjectByName(`VA_inset_light_channel_${side}`) as THREE.Mesh;
+      expect(ch.geometry.type).toBe('BufferGeometry');
+      const pos = ch.geometry.getAttribute('position');
+      const idx = ch.geometry.getIndex()!;
+      for (let i = 0; i < pos.count; i += 2) {
+        expect(pos.getZ(i + 1) - pos.getZ(i)).toBeCloseTo(0.012, 4);
+        expect(pos.getX(i + 1)).toBeCloseTo(pos.getX(i), 6);
+      }
+      let tris = 0;
+      for (let i = 0; i < idx.count; i += 3) {
+        a.fromBufferAttribute(pos, idx.getX(i)).applyMatrix4(ch.matrixWorld);
+        b.fromBufferAttribute(pos, idx.getX(i + 1)).applyMatrix4(ch.matrixWorld);
+        c.fromBufferAttribute(pos, idx.getX(i + 2)).applyMatrix4(ch.matrixWorld);
+        n.subVectors(c, b).cross(a.clone().sub(b));
+        if (n.lengthSq() < 1e-12) continue;
+        expect(Math.sign(n.x)).toBe(sign);
+        tris++;
+      }
+      expect(tris).toBeGreaterThan(0);
+    }
+  });
+
+  it('slimmed crown crest stays under 2.38 m', () => {
+    const crown = new THREE.Box3().setFromObject(cab.getObjectByName('VA_arched_marquee_crown')!);
+    expect(crown.max.y).toBeLessThan(2.36); // bezier crest ~2.3375 + 9 mm bevel
+    expect(crown.max.y).toBeGreaterThan(2.3);
   });
 
   // VA-0264: the deck's rear-top edge (y 0.809, z 0.159) sat inside the main glass slab (z 0.151-0.171,
