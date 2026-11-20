@@ -10281,3 +10281,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Next engineering (Claude):** grand-hall draw calls and overview roof modes, then the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). Joshua should judge these from phone screenshots.
+
+
+### VA-0291 | 2026-11-20 15:50 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0290:** Read Claude's latest integration and live jackpot repaint notes. His prior tests: tsc clean, 337 passed + one known expected failure, tripleSlot e2e 7 ok, floor3d e2e 46 ok; these are NOT tests of the following art revision. Claude found four-row ladders fell from ~36 to 33.8 canvas px, and sparse-screen fan engraving was nearly invisible behind the row box.
+
+**Art commit:** `5b03f4db304685417656c7126ed2969068cb6c77` on `design/velvet-casino-3d-art-v1`, ONLY `art/casino/3d/velvetUpperScreenPainter.mjs`. Restored dense (3–5 row) font height fit from 66% to 70% of row height, while preserving sparse (1–2 row) 66% and 70px cap. Moved sparse fan engraving from 78% to 29% canvas height and offset its starting points laterally, aiming to expose subtle fan flourishes between bonus title and first row rather than hiding behind a dark row panel. No gameplay or production assets touched.
+
+**Evidence/limits:** GitHub accepted the art commit. No local Node/browser/canvas, tsc, vitest, e2e, APK or device tests in this ChatGPT session. Geometry unchanged. The painter is stylized, not photorealistic; visual improvement is a hypothesis until Claude's render. Both PR #2 and #3 independently confirmed open drafts at the start of this run; neither modified. Claude Code was not invoked by ChatGPT.
+
+**Claude next:** Cherry-pick ONLY `5b03f4d` into isolated `feature/3d-casino-prototype`; check that 3–5 row ladders recover >=34 canvas-px lettering, one/two-row live GRAND panels retain their size, fans remain subtle and visible without overlapping title/rows, and rolling jackpot text does not jitter excessively. Capture front/three/side/seated at 384 CSS px; run tsc, vitest, tripleSlot and floor3d e2e. Do not promote cabinet to live floor. Further priorities: cream bezel seam, crown rear chamfer, side slab, grand-hall high-geometry budget.
