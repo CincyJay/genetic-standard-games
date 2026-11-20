@@ -91,7 +91,8 @@ export interface ArtScene {
   whole: { combined: THREE.Mesh[]; replaced: THREE.Mesh[] };
   /**
    * Grand hall hero LOD (VA-0305): the end-wall heroes' batches in full detail and their lighter
-   * twins', and where each hero stands. Show one set at a time (heroLodFull in grandHallArt.ts);
+   * twins' (each set also carries the side-wall copies, so a set is one batch per material), and
+   * where each hero stands. Show one set at a time (heroLodFull in grandHallArt.ts);
    * `lite` starts hidden. Null unless the hall was composed with `heroLod`.
    */
   heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; centres: { x: number; z: number }[] } | null;
@@ -560,24 +561,31 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     const glow = mesh.userData.glow === true;
     const fade = part ? null : fadeGroupOf(mesh);
     const lod = part || fade ? null : heroLodOf(mesh);
-    const key = part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : lod ? `lod:${lod}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
-    let b = buckets.get(key);
-    if (!b) {
-      b = { material, geos: [], colours: [], emissives: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false, fade, lod };
-      buckets.set(key, b);
-    }
+    // with the hero LOD on, the side-wall copies go into both hero sets (VA-0305), so each set
+    // stays one batch per material, as the copies and heroes were before: no extra draw calls,
+    // at the cost of the copies' vertices being held twice
+    const lods: (string | null)[] = lod ? [lod] : lodCentres.length && !part && !fade && !side && copyCabinetOf(mesh) ? ['full', 'lite'] : [null];
     // merging needs one layout: unindexed, with position / normal / uv only
     const src = mesh.geometry;
     // an instanced mesh (the hero table's chip stacks) becomes one piece per instance
-    for (const g of bakedPieces(mesh)) {
-      b.geos.push(g);
-      b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
-      b.emissives.push(emissiveOf(material));
-      b.names.push(mesh.name);
-    }
-    if (glow) b.glow = true;
-    // e.g. the contact-shadow decals draw after the floor
-    b.renderOrder = Math.max(b.renderOrder, mesh.renderOrder);
+    const pieces = bakedPieces(mesh);
+    lods.forEach((l, li) => {
+      const key = part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : l ? `lod:${l}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
+      let b = buckets.get(key);
+      if (!b) {
+        b = { material, geos: [], colours: [], emissives: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false, fade, lod: l };
+        buckets.set(key, b);
+      }
+      for (const g of pieces) {
+        b.geos.push(li === 0 ? g : g.clone());
+        b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
+        b.emissives.push(emissiveOf(material));
+        b.names.push(mesh.name);
+      }
+      if (glow) b.glow = true;
+      // e.g. the contact-shadow decals draw after the floor
+      b.renderOrder = Math.max(b.renderOrder, mesh.renderOrder);
+    });
     src.dispose();
   });
   

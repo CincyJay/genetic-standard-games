@@ -1401,10 +1401,10 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(lod.lite.length).toBeGreaterThan(0);
     expect(lod.lite.every((m) => !m.visible)).toBe(true);
     expect(lod.full.every((m) => m.visible)).toBe(true);
-    // the far set costs well under a third of the full set's triangles
+    // both sets carry the side-wall copies; the far set saves the heroes' detail (~95k triangles)
     const full = tris(lod.full), lite = tris(lod.lite);
-    expect(full).toBeGreaterThan(100_000);
-    expect(lite).toBeLessThan(full * 0.33);
+    expect(full).toBeGreaterThan(200_000);
+    expect(full - lite).toBeGreaterThan(90_000);
     // the whole batched scene: the same triangles as without the LOD when the full set shows
     const visible = (a: typeof on) => tris(a.root.children.filter((m) => m.visible && !a.whole.combined.includes(m as import('three').Mesh)) as import('three').Mesh[]);
     expect(Math.abs(visible(on) - visible(off))).toBeLessThan(1);
@@ -1417,10 +1417,10 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     on.root.traverse((o) => { if ((o as import('three').Light).isLight) lightsOn++; });
     off.root.traverse((o) => { if ((o as import('three').Light).isLight) lightsOff++; });
     expect(lightsOn).toBe(lightsOff);
-    // draw cost: the heroes no longer share batches with the side-wall copies; bounded growth
-    expect(lod.full.length).toBeLessThanOrEqual(12);
-    expect(on.batches - off.batches).toBeLessThanOrEqual(lod.full.length + lod.lite.length);
-    expect(lod.lite.length).toBeLessThanOrEqual(lod.full.length);
+    // draw cost: either set is as many batches as the heroes and copies shared before
+    const shown = (a: typeof on) => a.root.children.filter((m) => m.visible).length;
+    expect(shown(on)).toBe(shown(off));
+    expect(lod.lite.length).toBe(lod.full.length);
     // distance switch with hysteresis: full detail near any hero, lite from the far end of the hall
     const c = lod.centres[0];
     expect(heroLodFull(false, c.x, c.z + HERO_LOD_NEAR_M - 1, lod.centres)).toBe(true);
