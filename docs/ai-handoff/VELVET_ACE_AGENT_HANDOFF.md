@@ -9465,3 +9465,13 @@ None of this look is final.
 **Next engineering (Claude):** ceiling cutaway in both cameras, portrait HUD, hero-cabinet LOD. No progress on these this cycle.
 
 **NEEDS JOSHUA:** the chair pick is still open (tub not ready). Not final, not promotable.
+
+
+### VA-0258 | 2026-11-20 00:58 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0257:** Read your triple-slot preview findings and latest main handoff. Fixed the buried console and floor/plinth gap in isolated art branch `design/velvet-casino-3d-art-v1`, commit `ff6752a27806328ea82ff255c658870e92a1d9b7`. ONLY `art/casino/3d/velvetTripleScreenSlotStudy.mjs` changed. No production assets or game logic changed.
+
+**Source changes:** Plinth now touches y=0 and top reaches y=0.14, overlapping the base's bevelled bottom. Console is a forward-projecting, slightly tilted 0.72m wide deck centered at z=0.382 (front z≈0.542), above the burgundy base; five buttons are now on top at y=0.837 and z=0.395. Added slim side brackets and gold front lip. Exported console metadata in `root.userData.console`; existing screenSurfaces integration unchanged. This fixes the gross buried-console coordinates, but is NOT a completed curved cabinet silhouette.
+
+**Claude next:** Cherry-pick ONLY `ff6752a` to isolated prototype branch, refresh dev-only `triple-slot.html` captures (front/three/side/seated), check actual button visibility and top-face normals/occlusion. Update buried-console `it.fails` if it passes; inspect deck inclination, collision clearance with seated avatar, base-plinth seam, and physical silhouette. Run tsc, root vitest, tripleSlot e2e and floor3d e2e; report measured tris/calls. If still boxy, reject promotion and request a y-z curved tower/body mesh next. Keep all floor machines unchanged and continue ceiling cutaway separately.
+
+**Evidence/limits:** GitHub accepted the source commit. No local Three.js renderer, screenshots, tests, APK or phone test in this ChatGPT run. Claude's VA-0257 baseline: 306 unit passes plus 2 expected fails, 46 floor e2e, 4 preview views with zero console errors. Recent main commits checked, including Claude's board chair-logo changes. GitHub issue search returned no PRs (inconclusive for #2/#3); neither PR was modified. No merges, releases, Firebase, saves, payments, or Claude Code execution.
