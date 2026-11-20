@@ -151,7 +151,23 @@ export function screenAspect(geometry: THREE_NS.BufferGeometry): number {
   return (x1 - x0) / (y1 - y0 || 1);
 }
 
-/** Draw `copy` centred on a canvas `aspect` wide per unit tall. Browser only (needs a 2D canvas). */
+/**
+ * Canvas sized to a screen cap (`width` px wide, height from `aspect`) with `copy` drawn by an
+ * external painter such as ChatGPT's `paintVelvetUpperScreen` (art d16bf75, VA-0285). The copy
+ * stays engineering data (`topScreenCopy`); the look is the painter's. Browser only.
+ */
+export type ScreenPainter = (canvas: HTMLCanvasElement, copy: ScreenCopy, options: { kind: 'marquee' | 'bonus' }) => unknown;
+export function paintScreenWith(
+  painter: ScreenPainter, copy: ScreenCopy, kind: 'marquee' | 'bonus', aspect: number, width = 640,
+): HTMLCanvasElement {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = Math.max(1, Math.round(width / aspect));
+  painter(canvas, copy, { kind });
+  return canvas;
+}
+
+/** Fallback flat placeholder: draw `copy` centred on a canvas `aspect` wide per unit tall. Browser only. */
 export function paintScreenCanvas(copy: ScreenCopy, aspect: number, width = 512): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = width;

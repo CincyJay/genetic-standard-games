@@ -3,7 +3,8 @@
  * ChatGPT's triple-screen cabinet study (art 1670e35, VA-0256) exactly as authored, on a plain
  * floor, lit like slot-pilot.html. With `screens=game` (default) the main 5x5 screen shows the
  * machine's real reel atlas (reelDisplayArt.mjs, the same art the floor uses); the marquee and
- * bonus screens show engineering placeholder copy from the machine data (topScreenCopy, VA-0282).
+ * bonus screens show copy from the machine data (topScreenCopy, VA-0282) painted by ChatGPT's
+ * paintVelvetUpperScreen (art d16bf75, VA-0285); `&topart=flat` restores the flat placeholder.
  * For review captures only.
  * Hooks: globalThis.__tripleSlot = { ready, view, stats, rects }.
  */
@@ -12,12 +13,15 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import { createVelvetTripleSlotCabinet } from '../../../../art/casino/3d/velvetTripleScreenSlotStudy.mjs';
 import { createVelvetReelArt } from '../../../../art/casino/3d/reelDisplayArt.mjs';
 import { MACHINES } from '../logic/slots.ts';
-import { cabinetReport, mountScreenTexture, paintScreenCanvas, screenAspect, topScreenCopy } from './tripleSlot.ts';
+import { paintVelvetUpperScreen } from '../../../../art/casino/3d/velvetUpperScreenPainter.mjs';
+import { cabinetReport, mountScreenTexture, paintScreenCanvas, paintScreenWith, screenAspect, topScreenCopy } from './tripleSlot.ts';
 
 const params = new URLSearchParams(location.search);
 const view = params.get('view') ?? 'front';
 const machineId = params.get('machine') ?? 'dragon';
 const screens = params.get('screens') ?? 'game';
+/** `topart=flat` shows the old engineering placeholder instead of ChatGPT's painter, for comparison. */
+const topArt = params.get('topart') ?? 'velvet';
 const EYE = 1.6;
 /** Cabinet at the origin facing +Z; a seated player's eyes ~1.2 m, ~0.75 m from the screen. */
 const VIEWS: Record<string, { pos: [number, number, number]; look: [number, number, number] }> = {
@@ -80,9 +84,11 @@ async function main(): Promise<void> {
     const glass = cabinet.getObjectByName('VA_main_reels_5x5_glass') as THREE.Mesh;
     mountScreenTexture(THREE, glass, reel.texture);
     const copy = topScreenCopy(m);
-    for (const [name, c] of [['VA_top_marquee_glass', copy.marquee], ['VA_bonus_display_glass', copy.bonus]] as const) {
+    for (const [name, c, kind] of [['VA_top_marquee_glass', copy.marquee, 'marquee'], ['VA_bonus_display_glass', copy.bonus, 'bonus']] as const) {
       const screen = cabinet.getObjectByName(name) as THREE.Mesh;
-      const tex = new THREE.CanvasTexture(paintScreenCanvas(c, screenAspect(screen.geometry)));
+      const aspect = screenAspect(screen.geometry);
+      const canvas = topArt === 'flat' ? paintScreenCanvas(c, aspect) : paintScreenWith(paintVelvetUpperScreen, c, kind, aspect);
+      const tex = new THREE.CanvasTexture(canvas);
       tex.colorSpace = THREE.SRGBColorSpace;
       tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
       mountScreenTexture(THREE, screen, tex);

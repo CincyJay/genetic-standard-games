@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createVelvetTripleSlotCabinet } from '../../../art/casino/3d/velvetTripleScreenSlotStudy.mjs';
-import { TRIPLE_SCREENS, cabinetReport, fitScreenUvs, mountScreenTexture, screenAspect, topScreenCopy } from '../src/floor3d/tripleSlot.ts';
+import { paintVelvetUpperScreen } from '../../../art/casino/3d/velvetUpperScreenPainter.mjs';
+import { TRIPLE_SCREENS, cabinetReport, fitScreenUvs, mountScreenTexture, paintScreenWith, screenAspect, topScreenCopy } from '../src/floor3d/tripleSlot.ts';
 import { MACHINES } from '../src/logic/slots.ts';
 
 describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
@@ -317,5 +318,63 @@ describe('triple-slot rails and upper-screen copy (671fd2e, VA-0283)', () => {
       expect(a).toBeGreaterThan(1.5);
       expect(a).toBeLessThan(1.9);
     }
+  });
+});
+
+/** Minimal recording 2D canvas for node: measureText ~0.55 em per character. */
+function stubCanvas() {
+  const texts: { text: string; x: number; y: number; px: number; maxWidth?: number }[] = [];
+  let font = '10px serif';
+  const ctx = new Proxy({} as Record<string, unknown>, {
+    get(_t, k) {
+      if (k === 'measureText') return (t: string) => ({ width: t.length * 0.55 * parseFloat(/([\d.]+)px/.exec(font)![1]) });
+      if (k === 'fillText') return (text: string, x: number, y: number, maxWidth?: number) => texts.push({ text, x, y, px: parseFloat(/([\d.]+)px/.exec(font)![1]), maxWidth });
+      if (k === 'createLinearGradient') return () => ({ addColorStop() {} });
+      if (k === 'font') return font;
+      return () => {};
+    },
+    set(_t, k, v) { if (k === 'font') font = v; return true; },
+  });
+  const canvas = { width: 0, height: 0, getContext: () => ctx };
+  return { canvas, texts };
+}
+
+describe('upper-screen painter integration (art d16bf75, VA-0285)', () => {
+  const cab = createVelvetTripleSlotCabinet(THREE);
+  const aspectOf = (n: string) => screenAspect((cab.getObjectByName(n) as THREE.Mesh).geometry);
+  const withStubDocument = <T>(fn: (texts: ReturnType<typeof stubCanvas>['texts']) => T): T => {
+    const stub = stubCanvas();
+    const g = globalThis as Record<string, unknown>;
+    const prev = g.document;
+    g.document = { createElement: () => stub.canvas };
+    try { return fn(stub.texts); } finally { g.document = prev; }
+  };
+
+  it('paints every machine\'s marquee and bonus copy inside the canvas at the cap aspect', () => {
+    for (const m of MACHINES) {
+      const copy = topScreenCopy(m);
+      for (const [kind, c, name] of [['marquee', copy.marquee, 'VA_top_marquee_glass'], ['bonus', copy.bonus, 'VA_bonus_display_glass']] as const) {
+        withStubDocument((texts) => {
+          const canvas = paintScreenWith(paintVelvetUpperScreen as never, c, kind, aspectOf(name));
+          expect(canvas.width).toBe(640);
+          expect(Math.abs(canvas.width / canvas.height - aspectOf(name))).toBeLessThan(0.01);
+          expect(texts.map((t) => t.text)).toEqual([c.title, ...(kind === 'bonus' ? c.lines : [])]);
+          for (const t of texts) {
+            expect(t.y).toBeGreaterThan(0);
+            expect(t.y).toBeLessThan(canvas.height);
+            expect(t.maxWidth).toBeLessThan(canvas.width);
+          }
+        });
+      }
+    }
+  });
+
+  it('bonus rows stay at least 13 canvas px (scaled) so the jackpot ladder remains legible', () => {
+    const m = MACHINES.find((x) => x.holdSpin)!;
+    withStubDocument((texts) => {
+      const canvas = paintScreenWith(paintVelvetUpperScreen as never, topScreenCopy(m).bonus, 'bonus', aspectOf('VA_bonus_display_glass'));
+      const scale = Math.min(canvas.width / 640, canvas.height / 360);
+      for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(13 * scale - 1e-6);
+    });
   });
 });
