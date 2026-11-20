@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createVelvetTripleSlotCabinet } from '../../../art/casino/3d/velvetTripleScreenSlotStudy.mjs';
 import { paintVelvetUpperScreen } from '../../../art/casino/3d/velvetUpperScreenPainter.mjs';
-import { TRIPLE_SCREENS, cabinetReport, fitScreenUvs, mountScreenTexture, paintScreenWith, screenAspect, topScreenCopy } from '../src/floor3d/tripleSlot.ts';
+import { TOP_LINE_MAX, TRIPLE_SCREENS, cabinetReport, fitScreenUvs, mountScreenTexture, paintScreenWith, screenAspect, topScreenCopy } from '../src/floor3d/tripleSlot.ts';
 import { MACHINES } from '../src/logic/slots.ts';
 
 describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
@@ -376,5 +376,53 @@ describe('upper-screen painter integration (art d16bf75, VA-0285)', () => {
       const scale = Math.min(canvas.width / 640, canvas.height / 360);
       for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(13 * scale - 1e-6);
     });
+  });
+});
+
+describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
+  const cab = createVelvetTripleSlotCabinet(THREE);
+  const aspect = screenAspect((cab.getObjectByName('VA_bonus_display_glass') as THREE.Mesh).geometry);
+  const paintBonus = (m: (typeof MACHINES)[number]) => {
+    const stub = stubCanvas();
+    const g = globalThis as Record<string, unknown>;
+    const prev = g.document;
+    g.document = { createElement: () => stub.canvas };
+    try {
+      const canvas = paintScreenWith(paintVelvetUpperScreen as never, topScreenCopy(m).bonus, 'bonus', aspect);
+      return { canvas, texts: stub.texts };
+    } finally { g.document = prev; }
+  };
+
+  it('every machine has at most 5 bonus lines (the painter shows only the first 5)', () => {
+    for (const m of MACHINES) expect(topScreenCopy(m).bonus.lines.length).toBeLessThanOrEqual(5);
+  });
+
+  it(`bonus lines are short labels (<= ${TOP_LINE_MAX} chars), not paytable sentences`, () => {
+    for (const m of MACHINES) for (const l of topScreenCopy(m).bonus.lines) expect(l.length).toBeLessThanOrEqual(TOP_LINE_MAX);
+    const lucky = MACHINES.find((m) => m.freeSpins && !m.holdSpin)!;
+    expect(topScreenCopy(lucky).bonus.lines[0]).toBe(`${lucky.freeSpins!.join(' · ')} SPINS`);
+  });
+
+  it('every bonus row glyph is at least 34 canvas px on a 640-px canvas (VA-0286 measured ~25 px)', () => {
+    for (const m of MACHINES) {
+      const { canvas, texts } = paintBonus(m);
+      expect(canvas.width).toBe(640);
+      for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(34);
+    }
+  });
+
+  it('rows sit below the title and inside the canvas without overlapping each other', () => {
+    for (const m of MACHINES) {
+      const { canvas, texts } = paintBonus(m);
+      const [title, ...rows] = texts;
+      if (!rows.length) continue;
+      // centred (middle-baseline) text: half the glyph height above/below y
+      expect(rows[0].y - rows[0].px / 2).toBeGreaterThan(title.y + title.px / 2);
+      for (let i = 1; i < rows.length; i++) {
+        expect(rows[i].y - rows[i].px / 2).toBeGreaterThan(rows[i - 1].y + rows[i - 1].px / 2);
+      }
+      const last = rows[rows.length - 1];
+      expect(last.y + last.px / 2).toBeLessThan(canvas.height);
+    }
   });
 });

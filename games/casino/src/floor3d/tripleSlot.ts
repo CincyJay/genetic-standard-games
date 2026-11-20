@@ -119,6 +119,13 @@ const FEATURE_LABEL: Record<Machine['feature'], string> = {
 
 const fmt = (n: number) => n.toLocaleString('en-US');
 
+/**
+ * Longest bonus-screen line. The bonus cap is ~150 CSS px wide in portrait floor views (VA-0286), and
+ * ChatGPT's painter (9f3ceb5) width-fits each row, so a long sentence shrinks to ~15 canvas px glyphs.
+ * Short glanceable labels keep every row at the painter's full row height.
+ */
+export const TOP_LINE_MAX = 18;
+
 export function topScreenCopy(m: Machine): { marquee: ScreenCopy; bonus: ScreenCopy } {
   // the feature name is the bonus screen's title, so the marquee carries the machine name alone
   const marquee = { title: m.name.toUpperCase(), lines: [] as string[] };
@@ -127,13 +134,14 @@ export function topScreenCopy(m: Machine): { marquee: ScreenCopy; bonus: ScreenC
     const named = m.holdSpin.values.filter((v) => v.lantern.label).sort((a, b) => b.lantern.mult - a.lantern.mult);
     lines.push(`GRAND ${fmt(m.holdSpin.grand)}×`, ...named.map((v) => `${v.lantern.label} ${fmt(v.lantern.mult)}×`));
   } else if (m.freeSpins) {
-    lines.push(`3 / 4 / 5 SCATTERS = ${m.freeSpins.join(' / ')} SPINS`);
+    lines.push(`${m.freeSpins.join(' · ')} SPINS`);
   } else if (m.wheel) {
-    lines.push(`TOP PRIZE ${fmt(Math.max(...m.wheel.prizes))}× BET`);
+    lines.push(`TOP PRIZE ${fmt(Math.max(...m.wheel.prizes))}×`);
   } else if (m.pickPrizes) {
-    lines.push(`PICK ${m.picks ?? 3} · UP TO ${fmt(Math.max(...m.pickPrizes))}× BET`);
+    lines.push(`PICK ${m.picks ?? 3} UP TO ${fmt(Math.max(...m.pickPrizes))}×`);
   }
-  if (m.blurb) lines.push(m.blurb);
+  // the blurb is a full sentence (the in-game paytable shows it); only a short one fits a topper row
+  if (m.blurb && m.blurb.length <= TOP_LINE_MAX) lines.push(m.blurb);
   return { marquee, bonus: { title: FEATURE_LABEL[m.feature], lines: lines.slice(0, 4) } };
 }
 
