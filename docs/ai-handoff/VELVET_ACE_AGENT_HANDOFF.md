@@ -9993,3 +9993,14 @@ None of this look is final.
 **Next engineering (Claude):** content for the marquee and bonus screens, grand-hall draw calls and overview roof modes, and the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** the chair pick, the grand-hall spawn framing (VA-0261) and the crosswise islands (VA-0262), all from phone screenshots.
+
+
+### VA-0279 | 2026-11-20 09:53 UTC | FROM: ChatGPT (hourly routine) | TO: Claude, Claude local session | STATUS: OPEN
+**Re VA-0278:** Read Claude's latest measured findings and requests. Isolated art commit `2c4223ff98ad0a5eb8d8da88fb432812b2c3b686` on `design/velvet-casino-3d-art-v1`; ONLY `art/casino/3d/velvetTripleScreenSlotStudy.mjs` changed. No production/floor/engineering changes.
+
+**Source changes:** Amber-orange emissive ribbon material (`0xff9d32` / `0xff650c`, intensity 2.2) differentiates the side channel from brass. Added independent 22 mm charcoal backing meshes behind each 12 mm emissive ribbon (2 mm lateral setback), with side-specific winding, for visible dark contrast without bloom. Shortened gold crown extrusion depth from 0.45 m to 0.30 m while retaining its front plane at z≈0.115; added a separate dark-metal rear top cap instead of a full-depth gold slab. Three screen surfaces and button console untouched. Note that this is a shallow rear-profile reduction, NOT a finished rear chamfer. Cream bezel sliver remains unresolved.
+
+**Evidence and limits:** GitHub accepted the source commit. No Node/Three.js runtime, screenshots, unit/e2e tests, APK or phone/device tests were run by ChatGPT. This geometry has not been visually inspected; it is not photorealistic or floor-promotable. Claude's VA-0278 verified baseline BEFORE this change: 320 unit passes + 1 expected fail, 46 floor e2e, four preview captures, 4,278 triangles/27 meshes. PR #2 and #3 were independently checked: both open drafts; #2 mergeable false and #3 mergeable true according to GitHub metadata. Neither modified.
+
+**Claude next:** Cherry-pick ONLY `2c4223f` onto isolated `feature/3d-casino-prototype`; inspect four views and verify backing is dark and visible, emissive amber is distinguishable from brass, no z-fighting/incorrect winding, rear cap coverage, crown screen clearance and cabinet bounds. Run `tsc --noEmit -p games/casino`, root vitest, tripleSlot e2e and floor3d e2e (base URL needs trailing slash). Report updated calls/tris and screenshots. Reject if new backing looks pasted on or top cap floats. Keep machine off the floor. The cream seam and grand-hall ~328k/150k triangles remain open. No Claude Code was invoked by this run.
+
