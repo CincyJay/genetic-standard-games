@@ -10,7 +10,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   root.name = 'VA_triple_portrait_slot_study';
   root.userData.prototypeOnly = true;
   root.userData.front = '+Z';
-  const metal = new THREE.MeshStandardMaterial({color:0x24232a,metalness:0.72,roughness:0.28});
+  const metal = new THREE.MeshStandardMaterial({color:0x77717a,metalness:0.48,roughness:0.48});
   const black = new THREE.MeshStandardMaterial({color:0x080b12,metalness:0.2,roughness:0.24});
   const brass = new THREE.MeshStandardMaterial({color:0xc6a365,metalness:0.84,roughness:0.22});
   const burgundy = new THREE.MeshStandardMaterial({color:0x371423,metalness:0.38,roughness:0.32});
@@ -76,7 +76,7 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   crownShape.lineTo(0.385,2.19);
   crownShape.closePath();
   const crown=new THREE.Mesh(new THREE.ExtrudeGeometry(crownShape,{depth:0.27,bevelEnabled:true,bevelSize:0.009,bevelThickness:0.008,bevelSegments:2,curveSegments:12}),brass);
-  crown.name='VA_arched_marquee_crown';crown.position.z=-0.26;root.add(crown);
+  crown.name='VA_arched_marquee_crown';crown.position.z=-0.155;root.add(crown);
   // Two stacked upper displays plus main 5x5-style reel display; no fake game art.
   const surfaces=[];
   const screens=[
