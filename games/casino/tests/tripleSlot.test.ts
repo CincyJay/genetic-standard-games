@@ -324,11 +324,13 @@ describe('triple-slot rails and upper-screen copy (671fd2e, VA-0283)', () => {
 /** Minimal recording 2D canvas for node: measureText ~0.55 em per character. */
 function stubCanvas() {
   const texts: { text: string; x: number; y: number; px: number; maxWidth?: number }[] = [];
+  const curves: { cy: number; y: number; x: number }[] = [];
   let font = '10px serif';
   const ctx = new Proxy({} as Record<string, unknown>, {
     get(_t, k) {
       if (k === 'measureText') return (t: string) => ({ width: t.length * 0.55 * parseFloat(/([\d.]+)px/.exec(font)![1]) });
       if (k === 'fillText') return (text: string, x: number, y: number, maxWidth?: number) => texts.push({ text, x, y, px: parseFloat(/([\d.]+)px/.exec(font)![1]), maxWidth });
+      if (k === 'quadraticCurveTo') return (_cx: number, cy: number, x: number, y: number) => curves.push({ cy, y, x });
       if (k === 'createLinearGradient') return () => ({ addColorStop() {} });
       if (k === 'font') return font;
       return () => {};
@@ -336,7 +338,7 @@ function stubCanvas() {
     set(_t, k, v) { if (k === 'font') font = v; return true; },
   });
   const canvas = { width: 0, height: 0, getContext: () => ctx };
-  return { canvas, texts };
+  return { canvas, texts, curves };
 }
 
 describe('upper-screen painter integration (art d16bf75, VA-0285)', () => {
@@ -389,7 +391,7 @@ describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
     g.document = { createElement: () => stub.canvas };
     try {
       const canvas = paintScreenWith(paintVelvetUpperScreen as never, topScreenCopy(m).bonus, 'bonus', aspect);
-      return { canvas, texts: stub.texts };
+      return { canvas, texts: stub.texts, curves: stub.curves };
     } finally { g.document = prev; }
   };
 
@@ -403,12 +405,31 @@ describe('enlarged bonus jackpot rows (art 9f3ceb5, VA-0287)', () => {
     expect(topScreenCopy(lucky).bonus.lines[0]).toBe(`${lucky.freeSpins!.join(' · ')} SPINS`);
   });
 
-  // b8ea9af (VA-0289) fits rows to 66% of row height (was 70%): four-row ladders paint ~33.8 px
-  it('every bonus row glyph is at least 33 canvas px on a 640-px canvas (VA-0286 measured ~25 px)', () => {
+  // 5b03f4d (VA-0291) restored the 70% fit for 3-5 row ladders: four-row ladders paint ~35.9 px
+  it('every bonus row glyph is at least 35 canvas px on a 640-px canvas (VA-0286 measured ~25 px)', () => {
     for (const m of MACHINES) {
       const { canvas, texts } = paintBonus(m);
       expect(canvas.width).toBe(640);
-      for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(33);
+      for (const t of texts.slice(1)) expect(t.px).toBeGreaterThanOrEqual(35);
+    }
+  });
+
+  it('sparse-screen fan engraving (5b03f4d) sits in the gap between the title and the first row box', () => {
+    for (const m of MACHINES) {
+      const { canvas, texts, curves } = paintBonus(m);
+      const [title, ...rows] = texts;
+      if (rows.length > 2) { expect(curves.length).toBe(0); continue; }
+      expect(curves.length).toBeGreaterThan(0);
+      const h = canvas.height;
+      const pitch = (h * 0.91 - h * 0.34) / rows.length;
+      const firstRowBoxTop = h * 0.34 + pitch / 2 - (pitch * 0.91) / 2;
+      for (const c of curves) {
+        const apex = (c.y + c.cy) / 2; // quadratic midpoint with equal end heights
+        expect(apex).toBeGreaterThan(title.y + title.px / 2); // below the title glyphs
+        expect(c.y).toBeLessThan(firstRowBoxTop); // above the first row panel
+        expect(c.x).toBeGreaterThan(0);
+        expect(c.x).toBeLessThan(canvas.width);
+      }
     }
   });
 
