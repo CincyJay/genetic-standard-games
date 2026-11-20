@@ -54,7 +54,7 @@ export function createVelvetCasinoChair(THREE, options = {}) {
       bevelThickness:bevel, bevelSize:bevel*0.65, curveSegments:5
     });
   // Seat slopes subtly backwards; upholstered edge has physical thickness.
-  add('seat_cushion',cushion(0.60,0.15,0.49,0.065),upholstery,[0,0.435,-0.245],[-0.055,0,0]);
+  add('seat_cushion',cushion(0.60,0.15,0.29,0.065),upholstery,[0,0.435,-0.275],[-0.055,0,0]);
   add('seat_underpan',new THREE.BoxGeometry(0.54,0.065,0.39),shadow,[0,0.355,-0.035]);
   // Tall curved silhouette uses three nested panels, not a single box slab.
   const back = add('back_outer',cushion(0.65,0.69,0.115,0.17),upholstery,[0,0.805,0.195],[-0.095,0,0]);
@@ -77,13 +77,18 @@ export function createVelvetCasinoChair(THREE, options = {}) {
     add('back_piping',new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,true),72,0.0055,5,true),
       piping,[0,cy,0.045],[-0.095,0,0]);
   };
-  trim(0.50,0.52,0.13,-0.007,0.815);
+  trim(0.50,0.52,0.13,-0.027,0.815);
   // Sculpted armrests, front supports, five-spoke weighted base and gas lift.
   for(const side of [-1,1]){
     add('arm_pad',cushion(0.105,0.09,0.39,0.042,0.012),upholstery,
       [side*0.322,0.68,-0.205],[0,0,0]);
-    add('arm_support',new THREE.CylinderGeometry(0.022,0.028,0.27,10),steel,
-      [side*0.34,0.53,0.08]);
+    // A continuous dark-metal cradle supports the upholstered pad at both ends.
+    add('arm_cradle',new THREE.BoxGeometry(0.048,0.032,0.33),steel,
+      [side*0.322,0.618,-0.047]);
+    for (const z of [-0.17,0.08]) {
+      add('arm_support',new THREE.CylinderGeometry(0.018,0.025,0.25,10),steel,
+        [side*0.322,0.49,z]);
+    }
   }
   add('gas_lift',new THREE.CylinderGeometry(0.033,0.043,0.29,12),steel,[0,0.24,0.02]);
   add('base_hub',new THREE.CylinderGeometry(0.087,0.08,0.065,16),steel,[0,0.11,0.02]);
