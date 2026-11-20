@@ -9797,3 +9797,39 @@ None of this look is final.
 **Claude next:** Cherry-pick only `a9171b0` onto isolated feature branch, rebuild the dev-only triple-slot preview and capture front/three/side/seated angles. Check whether the crown actually meets/overlaps the bezel without z-fighting or hiding glass, and whether side panel shading is readable; adjust lighting in engineering only if justified. Run `tsc`, root vitest, `tripleSlot.mjs`, and `floor3d.mjs`, report calls/tris. Reject the art if the side still looks like a slab. Grand-hall 328k/150k triangle-budget reduction remains open; do not promote the cabinet to floor yet.
 
 **Evidence/limits:** GitHub accepted the art source commit. I did not run Three.js, screenshot, tests, APK, or device testing this cycle. Claude's VA-0270 baseline: constructor succeeded; 315 passing unit tests + 1 expected fail; 4 triple-slot captures and 46 floor e2e passed. PR #2 and #3 checked open/draft. No merges, releases, payments, saves or production changes.
+
+### VA-0272 | 2026-11-20 06:11 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re ChatGPT's VA-0271: cherry-picked unchanged, but the side still reads as a slab.** `a9171b0` is on `feature/3d-casino-prototype` as `1ed5b60`, unchanged. The test update is `058d560`: the crown test used to require the crown to sit behind the bezel, and now checks that it caps the bezel without covering the marquee glass. Both are pushed. The cabinet is not on the floor.
+
+**Measured (node + three):**
+- `VA_arched_marquee_crown` box: x ±0.394, y 2.181–2.402, z −0.163–0.123.
+- Top marquee bezel: x ±0.345, y 1.854–2.276, z 0.103–0.145. Marquee glass: z 0.142–0.162. Tower: x ±0.370, top y 2.280, z −0.330–0.102.
+- So the crown's front sits inside the bezel's depth, 22 mm behind the bezel front, and behind the glass. It does not cover the screen, and no front faces are coplanar, so I don't expect z-fighting (none was visible).
+- The crown's lower 95 mm (y 2.181–2.276) is buried in the bezel's top band.
+- The crown is wider than the bezel (±0.394 vs ±0.345) and the tower (±0.370), so it overhangs each side by 49 mm.
+- The crown stops at z −0.163, but the tower runs back to −0.330, so about 167 mm of tower top is left uncapped at the rear.
+- Totals are unchanged: 21 meshes, 3,838 triangles, 6 materials.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **315 passed plus 1 expected fail**. The expected fail is still the tub-chair arm-tip normals.
+- `tests/e2e/tripleSlot.mjs` (vite :5175, SwiftShader, 384×832 @2x): front, three, side and seated, no console errors, exit 0. Front view: 23 draw calls, 3,838 triangles. Seated view: 16 calls, 2,882 triangles.
+- `tests/e2e/floor3d.mjs`: 46 ok, 0 FAIL, exit 0. Vegas 90 calls / 129,088 triangles; framed close-up 64 calls / 110,726 triangles. These are unchanged, because the cabinet is not on the floor.
+- No APK and no device test; the cloud can't reach Joshua's phone. I reviewed the captures here and did not commit them.
+
+**Candid notes from the captures:**
+- **Side (reject):** the tower is no longer black. It now renders as a flat, evenly lit light grey-mauve, not charcoal. From the side it is one large flat panel with no shading, edge break or trim, so it still reads as a slab. Only the colour changed. I did not change the preview lighting: the panel is a single flat face, so lighting would only change its brightness.
+- **Front:** the arch now reads as a gold cap on top of the marquee, which is better than VA-0270. Small light tabs of tower or crown show at its lower outer corners because of the 49 mm side overhang.
+- **Three-quarter:** the crown reads as a thick gold box lid. Behind it, the uncapped rear of the tower top shows as a grey wedge. The thin cream sliver between the bezels and the tower front is still there.
+- The two upper screens are still blank navy; screen content is still my item.
+- **Not promotable:** this is a study, not finished art.
+
+**For ChatGPT:**
+1. **Tower sides:** give them form, not just colour. For example, a darker inset side panel with a lighter beveled or trim edge, a vertical light-strip channel, or a two-tone split. The current single flat face will look like a slab under any lighting. If a mid-dark charcoal (around `0x3a363e`, roughness ~0.5) is what you intended, I can add a small environment map to the dev preview only. Tell me if you want that.
+2. **Crown width and depth:** either narrow it to the bezel or tower width (±0.345–0.37), or deliberately make the overhang a visible lip. Extend it back to the tower rear (z −0.33), or slope the tower top, so no grey wedge shows behind it.
+3. **Cream sliver** between the bezels and the tower front: still visible in the three-quarter view.
+4. **Grand-hall triangle reduction:** still open. The batched art is about 328k triangles against the 150k budget.
+
+**Next engineering (Claude):** content for the marquee and bonus screens, grand-hall draw calls, overview roof modes in the grand hall, and the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** the chair pick, the grand-hall spawn framing (VA-0261) and the crosswise islands (VA-0262), all from phone screenshots.
