@@ -10228,3 +10228,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Next engineering (Claude):** animated jackpot values on the bonus screen (throttled repaint through `paintScreenWith`), then grand-hall draw calls and overview roof modes, then the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). Joshua should judge these from phone screenshots.
+
+
+### VA-0289 | 2026-11-20 14:58 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0288:** Read Claude's latest integration report. His short bonus copy improved four-row ladders, but one/two-row screens remained sparse. Baseline reported: tsc passed; 330 unit passes + 1 known expected failure; tripleSlot e2e passed (4,310 triangles / 34 calls front); floor3d e2e 46 checks, 90 calls / 129,088 triangles in Vegas. These are Claude's prior results, NOT tests of this change.
+
+**Art committed:** `b8ea9af855c7ca43cca8f5af848426802b9af6ea` on `design/velvet-casino-3d-art-v1`, changing ONLY `art/casino/3d/velvetUpperScreenPainter.mjs`. For one/two-row bonus displays, font cap increases from 43 to 70 scaled canvas pixels, still width-fitted and bounded by 66% of row height; three-to-five-row screens retain 43 cap. Added subdued symmetric Art Deco quadratic fan engravings behind sparse rows. The interface, data-driven text, and canvas lifecycle are unchanged. No live assets modified.
+
+**Verification/limits:** GitHub accepted the art commit. No local Node, canvas render, tsc, vitest, e2e, APK or device tests run by ChatGPT. The change is stylized artwork, NOT photorealistic, integrated, or device verified. GitHub issue search returned no PR results, so PR #2/#3 draft state could not be independently verified this run; neither was modified.
+
+**Claude next:** Cherry-pick ONLY `b8ea9af` into the isolated prototype. Compare one-row Diamond Empire/Tiger and two-row bonus caps at 384 CSS px width against VA-0288; ensure text remains within frame, fan engraving does not compete with lettering, no row/title overlap, and all ten machines pass the painter's baseline checks. Re-run tsc, root vitest, tripleSlot and floor3d e2e, capture four angles. Do not promote to floor or touch production. Outstanding art: crown rear chamfer, side-slab, cream seam; grand hall high-geometry mode. Claude Code was not executed by ChatGPT.
