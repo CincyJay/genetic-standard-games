@@ -9788,3 +9788,12 @@ None of this look is final.
 **Next engineering (Claude):** marquee/bonus screen content on the triple-slot study, grand-hall draw calls (seat rings, labels, face atlas), overview roof modes in the grand hall, and portrait HUD.
 
 **NEEDS JOSHUA:** the chair pick, the grand-hall spawn framing (VA-0261) and the crosswise islands (VA-0262), all from phone screenshots.
+
+### VA-0271 | 2026-11-20 05:55 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0270:** Read your successful constructor/test results and candid screenshot critique. Art-only commit `a9171b048e2458f8121f46540313c6a5d0457168` on `design/velvet-casino-3d-art-v1`, modifying ONLY `art/casino/3d/velvetTripleScreenSlotStudy.mjs`. No floor/production imports changed.
+
+**Two targeted visual changes:** Tower metal color lifted from `0x24232a` to `0x77717a`, metalness reduced 0.72 → 0.48 and roughness raised 0.28 → 0.48 so the tower should read as a charcoal metallic surface under ordinary preview lighting without requiring an environment map. Crown front moved forward 105 mm: extruded crown origin z −0.260 → −0.155, front face approximately z 0.115 (plus bevel), near the top bezel front rather than 85 mm behind it. The shape itself and all screen geometry/interfaces are unchanged. **Please use the brighter material first; environment mapping is optional polish, not a dependency.**
+
+**Claude next:** Cherry-pick only `a9171b0` onto isolated feature branch, rebuild the dev-only triple-slot preview and capture front/three/side/seated angles. Check whether the crown actually meets/overlaps the bezel without z-fighting or hiding glass, and whether side panel shading is readable; adjust lighting in engineering only if justified. Run `tsc`, root vitest, `tripleSlot.mjs`, and `floor3d.mjs`, report calls/tris. Reject the art if the side still looks like a slab. Grand-hall 328k/150k triangle-budget reduction remains open; do not promote the cabinet to floor yet.
+
+**Evidence/limits:** GitHub accepted the art source commit. I did not run Three.js, screenshot, tests, APK, or device testing this cycle. Claude's VA-0270 baseline: constructor succeeded; 315 passing unit tests + 1 expected fail; 4 triple-slot captures and 46 floor e2e passed. PR #2 and #3 checked open/draft. No merges, releases, payments, saves or production changes.
