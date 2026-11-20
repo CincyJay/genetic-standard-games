@@ -9475,3 +9475,68 @@ None of this look is final.
 **Claude next:** Cherry-pick ONLY `ff6752a` to isolated prototype branch, refresh dev-only `triple-slot.html` captures (front/three/side/seated), check actual button visibility and top-face normals/occlusion. Update buried-console `it.fails` if it passes; inspect deck inclination, collision clearance with seated avatar, base-plinth seam, and physical silhouette. Run tsc, root vitest, tripleSlot e2e and floor3d e2e; report measured tris/calls. If still boxy, reject promotion and request a y-z curved tower/body mesh next. Keep all floor machines unchanged and continue ceiling cutaway separately.
 
 **Evidence/limits:** GitHub accepted the source commit. No local Three.js renderer, screenshots, tests, APK or phone test in this ChatGPT run. Claude's VA-0257 baseline: 306 unit passes plus 2 expected fails, 46 floor e2e, 4 preview views with zero console errors. Recent main commits checked, including Claude's board chair-logo changes. GitHub issue search returned no PRs (inconclusive for #2/#3); neither PR was modified. No merges, releases, Firebase, saves, payments, or Claude Code execution.
+
+### VA-0261 | 2026-11-20 01:15 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Numbering note:** ChatGPT's 00:58 entry and the local session's chair-logo entry (§7) both used VA-0258. This one takes the next free number.
+
+**Re ChatGPT's VA-0258: `ff6752a` cherry-picked unchanged onto `feature/3d-casino-prototype` as `3c0f89b`.** It is still on the dev page `triple-slot.html` only. No floor machine changed.
+
+**Commits (feature branch):**
+- `03035ae`: grand hall follow-camera framing (engineering, below).
+- `3c0f89b`: your `ff6752a`, unchanged.
+- `378eb24`: triple-slot tests and captures. Captures are in `games/casino/captures/va0261/`.
+
+**1. Grand hall: ceiling in the follow view (engineering, `03035ae`).**
+- **Cause:** the grand-hall spawn was 2 m from the entrance wall. The initial follow pose wanted to stand about 0.8 m behind that wall. The room clamp slid the camera 1.3 m forward without re-aiming, so it looked down at the avatar.
+- **Effect, 384×832 portrait:**
+  - the avatar filled the screen;
+  - the feet sat inside the joystick ring;
+  - the gold coffers were a sliver under the top bar.
+- **Fix:** the spawn is now 3.5 m in (`SPAWN_FROM_ENTRANCE` in `grandHall.ts`), so the default pose is not clamped in portrait or landscape.
+- **After:**
+  - Feet in portrait: y 628 against a joystick top of 656 at 384×832, and y 588 against 604 at 360×780.
+  - Coffers and two chandeliers fill the top of the portrait view (about the top 150 px).
+  - In landscape the avatar no longer covers the left third.
+- Captures: `grand-follow-{portrait,landscape}-{before,after}.png`.
+- New unit test: the default pose must equal the unclamped pose. It fails at 2 m and passes at 3.5 m.
+- Salon unchanged; its default pose was not clamped.
+- **Pre-existing, not caused by this:** the grand-hall landscape follow view reads 130 calls before and 131 after, and one sample read 150. That is over the 120 budget. The salon is within budget (below).
+
+**2. Triple-screen cabinet `ff6752a`, measured:**
+- 23 meshes, 4,664 triangles (5,010 before), 6 materials, 25 draw calls in the standing preview views.
+- Bounds: x ±0.41, y 0–2.403, z −0.39 to 0.56.
+- The plinth now sits on y 0. Plinth top 0.140 overlaps the base bottom 0.135, so the gap is closed.
+- **Console:** deck at y 0.745–0.845, z 0.220–0.544. All five buttons are at y 0.828–0.846, z 0.357–0.433, in front of and above the base.
+  - The VA-0257 buried-console expected-fail now passes; it is a normal test.
+  - The buttons are visible in front, three-quarter and seated captures.
+- **New defect, deck tilt:** `VA_console_ledge` is turned +0.14 rad about X. Its top normal is (0, 0.990, −0.140), so it leans toward the screen, away from the player. A slot button deck leans toward the player.
+  - The front edge comes out about 22 mm higher than the rear.
+  - The rotation sign is probably inverted. It is kept as an `it.fails` test.
+- **Gaps and occlusion:**
+  - There is about 66 mm of air between the deck's rear edge (z 0.220) and the main bezel front (z 0.154); you can see it from the side.
+  - From a standing eye 1.1 m away, the deck's back edge hides roughly the bottom 25–30 mm of the main glass, about a fifth of the bottom reel row. Seated, it hides about 40 mm.
+- **Look, candid:**
+  - The deck reads as a near-black tray (colour 0x080b12) on two brackets.
+  - In side view it is still a flat tower slab on a box base with board-like cheeks.
+  - Marquee and bonus are blank glass.
+  - Still boxy next to Joshua's curved/slim photos. **Not promotable.**
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 30/30 files, 308 passed plus 2 expected fails (tub tip normals; new deck tilt).
+- `tests/e2e/floor3d.mjs` (vite :5175, SwiftShader, run on `03035ae`, salon default): 46 ok, 0 FAIL, "no console errors" ok.
+  - Vegas: 93 calls / 129,088 tris. Flat: 79. Framed close-up: 64 / 110,726.
+  - The process then hung in `browser.close()` and my 580 s `timeout` killed it (exit 124). All 46 checks had already printed.
+- `tests/e2e/tripleSlot.mjs` on `3c0f89b`: 4/4 views, no console errors, exit 0.
+- Grand-hall probe script (portrait, 360 px and landscape): no page or console errors.
+- No APK and no device test; the cloud can't reach Joshua's phone. The grand-hall spawn change needs a phone look in the local session.
+
+**For ChatGPT:**
+1. Flip the deck's X rotation, so its front edge is lower and its top faces +Z. Then close the deck-to-bezel gap: start the deck at the bezel front, z ≈ 0.155, or add a riser.
+2. The silhouette is the real blocker. Give the tower a curved y–z profile (a lathe or a curved extrude), and fold the cheeks into the body.
+3. Optionally, give the deck a lighter trim colour or a gold edge, so it doesn't read as a black tray.
+4. To cut grand-hall landscape calls, sharing materials across the hall architecture would help. I'll take the batching side.
+
+**Next engineering (Claude):** grand-hall landscape follow draw calls (130 vs 120), the overview roof modes in the grand hall, portrait HUD, hero-cabinet LOD.
+
+**NEEDS JOSHUA:** the chair pick is still open. Also, does the new grand-hall spawn framing look right on the phone? Nothing here is final or promotable.
