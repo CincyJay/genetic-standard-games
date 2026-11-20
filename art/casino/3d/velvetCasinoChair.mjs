@@ -54,8 +54,8 @@ export function createVelvetCasinoChair(THREE, options = {}) {
       bevelThickness:bevel, bevelSize:bevel*0.65, curveSegments:5
     });
   // Seat slopes subtly backwards; upholstered edge has physical thickness.
-  add('seat_cushion',cushion(0.60,0.15,0.49,0.065),upholstery,[0,0.48,-0.045],[Math.PI/2-0.055,0,0]);
-  add('seat_underpan',new THREE.BoxGeometry(0.54,0.065,0.43),shadow,[0,0.385,0.012]);
+  add('seat_cushion',cushion(0.60,0.15,0.49,0.065),upholstery,[0,0.435,-0.245],[-0.055,0,0]);
+  add('seat_underpan',new THREE.BoxGeometry(0.54,0.065,0.39),shadow,[0,0.355,-0.035]);
   // Tall curved silhouette uses three nested panels, not a single box slab.
   const back = add('back_outer',cushion(0.65,0.69,0.115,0.17),upholstery,[0,0.805,0.195],[-0.095,0,0]);
   add('back_inset',cushion(0.54,0.56,0.024,0.135,0.009),shadow,[0,0.815,0.075],[-0.095,0,0]);
@@ -63,22 +63,25 @@ export function createVelvetCasinoChair(THREE, options = {}) {
   // Small inset button-tuft details give scale cues without expensive tessellation.
   for(const y of [0.69,0.88,1.04]){
     for(const x of [-0.13,0.13]){
-      add('upholstery_button',new THREE.SphereGeometry(0.011,8,6),piping,[x,y,0.014]);
+      const localY = y - 0.815;
+      const tilt = -0.095;
+      add('upholstery_button',new THREE.SphereGeometry(0.011,8,6),piping,
+        [x,0.815+localY*Math.cos(tilt)-(-0.002)*Math.sin(tilt),0.045+localY*Math.sin(tilt)+(-0.002)*Math.cos(tilt)]);
     }
   }
   // Brass piping is physically raised around the inset's visible perimeter.
   const trim = (w,h,r,z,cy) => {
     const curve = roundedContour(w,h,r).getPoints(44);
-    const points = curve.map(p=>new THREE.Vector3(p.x,p.y+cy,z));
+    const points = curve.map(p=>new THREE.Vector3(p.x,p.y,z));
     points.push(points[0].clone());
     add('back_piping',new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,true),72,0.0055,5,true),
-      piping,[0,0,0],[-0.095,0,0]);
+      piping,[0,cy,0.045],[-0.095,0,0]);
   };
-  trim(0.56,0.58,0.145,0.018,0.815);
+  trim(0.50,0.52,0.13,-0.007,0.815);
   // Sculpted armrests, front supports, five-spoke weighted base and gas lift.
   for(const side of [-1,1]){
     add('arm_pad',cushion(0.105,0.09,0.39,0.042,0.012),upholstery,
-      [side*0.345,0.68,-0.01],[Math.PI/2,0,0]);
+      [side*0.322,0.68,-0.205],[0,0,0]);
     add('arm_support',new THREE.CylinderGeometry(0.022,0.028,0.27,10),steel,
       [side*0.34,0.53,0.08]);
   }
