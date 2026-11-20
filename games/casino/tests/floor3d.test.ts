@@ -1138,7 +1138,8 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const mats = new Set<string>();
     tpl.traverse((o) => { const m = o as import('three').Mesh; if (!m.isMesh) return; tris += (m.geometry.index?.count ?? m.geometry.attributes.position.count) / 3; mats.add((m.material as import('three').Material).uuid); });
     // eb42846 (VA-0303) adds an arm cradle and a second post per side: 28 -> 32 meshes, 4,444 -> 4,548 tris
-    expect(tris).toBe(4548);
+    // bebd39b (VA-0305) adds a lower rail and a cross brace per side: 32 -> 36 meshes, 4,596 tris
+    expect(tris).toBe(4596);
     expect(mats.size).toBe(4);
     const all = new THREE.Box3().setFromObject(tpl);
     expect(all.min.y).toBeGreaterThan(0);
@@ -1207,6 +1208,42 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(cradle.max.y).toBeGreaterThanOrEqual(pad.min.y);
     expect(cradle.max.y - pad.min.y).toBeLessThan(0.02);
     expect(cradle.max.z - cradle.min.z).toBeGreaterThan(0.75 * (pad.max.z - pad.min.z));
+  });
+  it('casino chair (bebd39b): arm posts stand on rails braced to the centre; underpan and pads stop before the shell (VA-0305)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const boxes = (name: string) => { const r: import('three').Box3[] = []; tpl.traverse((o) => { if (o.name === name) r.push(new THREE.Box3().setFromObject(o)); }); return r; };
+    const rails = boxes('arm_lower_rail'), braces = boxes('arm_cross_brace'), posts = boxes('arm_support');
+    expect(rails.length).toBe(2);
+    expect(braces.length).toBe(2);
+    // every post's foot lands on a rail under it (within 1 cm vertically, overlapping in plan)
+    for (const p of posts) expect(rails.some((r) => p.min.y >= r.min.y - 0.01 && p.min.y <= r.max.y + 0.01 && p.min.x < r.max.x && p.max.x > r.min.x && p.min.z < r.max.z && p.max.z > r.min.z)).toBe(true);
+    // each brace runs from its rail into the seat underpan (it ends at x 0, ~9 mm in front of the gas lift)
+    const pan = new THREE.Box3().setFromObject(tpl.getObjectByName('seat_underpan')!);
+    for (const b of braces) {
+      expect(rails.some((r) => r.intersectsBox(b))).toBe(true);
+      expect(b.intersectsBox(pan)).toBe(true);
+    }
+    // nothing upholstered or structural pokes into the back shell any more
+    const shellFront = new THREE.Box3().setFromObject(tpl.getObjectByName('back_outer')!).min.z;
+    expect(new THREE.Box3().setFromObject(tpl.getObjectByName('seat_underpan')!).max.z).toBeLessThan(shellFront);
+    for (const pad of boxes('arm_pad')) expect(pad.max.z).toBeLessThan(shellFront);
+  });
+  // measured on bebd39b: the lower rails (y 0.335-0.373, |x| 0.298-0.346) and braces (y 0.336-0.372) rise ~3 cm
+  // into the seat cushion's underside (y from 0.343, |x| <= 0.316); hidden from most angles, pinned here
+  it.fails('casino chair (bebd39b): lower rails and braces stay below the seat cushion (VA-0305)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat_cushion')!);
+    tpl.traverse((o) => {
+      if (o.name !== 'arm_lower_rail' && o.name !== 'arm_cross_brace') return;
+      const b = new THREE.Box3().setFromObject(o);
+      if (b.min.x < seat.max.x && b.max.x > seat.min.x && b.min.z < seat.max.z && b.max.z > seat.min.z) expect(b.max.y).toBeLessThanOrEqual(seat.min.y + 0.005);
+    });
   });
   // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
   // Measured (18 segments): arm tips |x| 0.255..0.268 (was 0.113..0.126); nearest shell point in front of the back
