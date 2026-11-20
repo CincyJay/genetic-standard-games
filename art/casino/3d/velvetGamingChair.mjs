@@ -13,6 +13,8 @@
  * Origin at the floor under the seat centre; the sitter faces +Z (userData.forward). Cushion top at
  * 0.65 m (the engine's SEAT_HEIGHT), back top about 1.12 m, footprint radius about 0.37 m.
  */
+import { velvetAceLogoMaterial } from './velvetAceLogo.mjs';
+
 export function createVelvetGamingChair(THREE, { logoText = 'Velvet Ace' } = {}) {
   const group = new THREE.Group();
   group.name = 'VA_GAMING_CHAIR';
@@ -122,74 +124,12 @@ export function createVelvetGamingChair(THREE, { logoText = 'Velvet Ace' } = {})
   bracket.rotation.x = -0.13;
 
   // ---- the game's name on the back's rear face
-  if (typeof document !== 'undefined') {
-    const c = document.createElement('canvas');
-    c.width = 1024;
-    c.height = 640;
-    const g = c.getContext('2d');
-    if (g) {
-      // drawn in a 512x320 design space at 2x; a dark outline under heavy gold so it reads from
-      // walking distance against the burgundy leather (Joshua: bigger logo, 2026-11-19)
-      g.scale(2, 2);
-      const grad = g.createLinearGradient(0, 30, 0, 270);
-      grad.addColorStop(0, '#fff0b8');
-      grad.addColorStop(0.5, '#e2bd6c');
-      grad.addColorStop(1, '#a87c36');
-      const ink = '#24050d';
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.lineJoin = 'round';
-      // spade
-      g.save();
-      g.translate(256, 62);
-      g.scale(1.15, 1.15);
-      g.beginPath();
-      g.moveTo(0, -38);
-      g.bezierCurveTo(30, -10, 44, 8, 26, 24);
-      g.bezierCurveTo(14, 34, 4, 26, 3, 18);
-      g.lineTo(10, 40);
-      g.lineTo(-10, 40);
-      g.lineTo(-3, 18);
-      g.bezierCurveTo(-4, 26, -14, 34, -26, 24);
-      g.bezierCurveTo(-44, 8, -30, -10, 0, -38);
-      g.closePath();
-      g.strokeStyle = ink;
-      g.lineWidth = 8;
-      g.stroke();
-      g.fillStyle = grad;
-      g.fill();
-      g.restore();
-      const heavy = (text, y, maxW, outline, thicken) => {
-        g.strokeStyle = ink;
-        g.lineWidth = outline;
-        g.strokeText(text, 256, y, maxW);
-        g.fillStyle = grad;
-        g.fillText(text, 256, y, maxW);
-        g.strokeStyle = grad;
-        g.lineWidth = thicken;
-        g.strokeText(text, 256, y, maxW);
-      };
-      g.font = 'italic 700 112px "Brush Script MT", "Segoe Script", cursive, Georgia, serif';
-      heavy(logoText, 168, 496, 12, 3.5);
-      g.font = '700 40px Georgia, "Times New Roman", serif';
-      heavy('C A S I N O', 252, 320, 8, 1.5);
-      g.strokeStyle = ink;
-      g.lineWidth = 9;
-      g.beginPath();
-      g.moveTo(116, 290);
-      g.lineTo(396, 290);
-      g.stroke();
-      g.fillStyle = grad;
-      g.fillRect(116, 288, 280, 4);
-      const map = new THREE.CanvasTexture(c);
-      map.colorSpace = THREE.SRGBColorSpace ?? map.colorSpace;
-      map.anisotropy = 8;
-      const logoMat = new THREE.MeshStandardMaterial({ name: 'VA_CHAIR_BACK_LOGO', map, transparent: true, alphaTest: 0.08, roughness: 0.3, metalness: 0.75, depthWrite: false });
-      const logo = add(back, 'chair_back_logo', new THREE.PlaneGeometry(0.38, 0.2375), logoMat, 0, 0.235, -(BACK_DEPTH / 2 + BEVEL + 0.002));
-      logo.rotation.y = Math.PI; // faces out of the back (-Z)
-      logo.castShadow = false;
-      group.userData.createdTexture = map;
-    }
+  // shared with the slot stools' backs (velvetAceLogo.mjs); null without a DOM
+  const logoMat = velvetAceLogoMaterial(THREE, logoText);
+  if (logoMat) {
+    const logo = add(back, 'chair_back_logo', new THREE.PlaneGeometry(0.38, 0.2375), logoMat, 0, 0.235, -(BACK_DEPTH / 2 + BEVEL + 0.002));
+    logo.rotation.y = Math.PI; // faces out of the back (-Z)
+    logo.castShadow = false;
   }
 
   group.userData = { ...group.userData, author: 'Claude', artOnly: true, forward: '+Z', seatHeight: SEAT_TOP, footprintRadius: 0.37, note: 'preview gaming chair: burgundy, gold trim, Velvet Ace on the back' };

@@ -2,11 +2,13 @@
  * Velvet Ace slot stool (Claude, 2026-11-18, at Joshua's request to match his reference room):
  * a burgundy leather tub seat with a low rounded back, a gold ring under the cushion, a gold
  * pedestal with a foot ring, and a round gold base. Light enough to stand at every machine
- * (about 1.2k triangles); preview art, not a final asset.
+ * (about 1.2k triangles), with the Velvet Ace logo on the back of the tub; preview art, not a final asset.
  *
  * Origin at the floor under the pedestal; the seat's open front faces +Z (toward the machine
  * once the host turns it). Height 0.92 m at the back rim, seat top at 0.66 m.
  */
+import { velvetAceLogoMaterial } from './velvetAceLogo.mjs';
+
 export function createVelvetSlotStool(THREE, { seatRadius = 0.24 } = {}) {
   const group = new THREE.Group();
   group.name = 'VA_SLOT_STOOL';
@@ -69,6 +71,18 @@ export function createVelvetSlotStool(THREE, { seatRadius = 0.24 } = {}) {
   for (let i = 0; i < 5; i++) {
     const a = start + arc * (0.2 + 0.15 * i);
     add(`stool_back_button_${i}`, new THREE.SphereGeometry(0.009, 5, 3), gold, Math.sin(a) * (r - 0.02), 0.82, Math.cos(a) * (r - 0.02));
+  }
+
+  // the Velvet Ace logo (shared with the gaming chair) wrapped round the outside of the tub back,
+  // facing the aisle; a thin open band just proud of the shell, following its taper
+  const logoMat = velvetAceLogoMaterial(THREE);
+  if (logoMat) {
+    const LOGO_H = 0.2, LOGO_W = 0.32, Y_MID = 0.81, SHELL_BOTTOM = 0.68, SHELL_H = 0.26;
+    const radiusAt = (y) => r + 0.005 + 0.02 * ((y - SHELL_BOTTOM) / SHELL_H) + 0.004;
+    const span = LOGO_W / radiusAt(Y_MID);
+    // u runs with the cylinder angle, which crosses the back (-Z) from +X to -X: left to right seen from behind
+    const band = new THREE.CylinderGeometry(radiusAt(Y_MID + LOGO_H / 2), radiusAt(Y_MID - LOGO_H / 2), LOGO_H, 12, 1, true, Math.PI - span / 2, span);
+    add('stool_back_logo', band, logoMat, 0, Y_MID, 0).castShadow = false;
   }
 
   group.userData = { author: 'Claude', artOnly: true, note: 'preview slot stool for the reference room; front +Z', seatHeight: 0.66, footprintRadius: 0.27 };
