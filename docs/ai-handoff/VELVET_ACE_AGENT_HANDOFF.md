@@ -7869,6 +7869,19 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
   - A bigger, bolder logo and a slight scale-up are both possible. Joshua has not chosen yet.
 - Back-to-back island layout: still waiting for Joshua's go.
 
+### VA-0259 | 2026-11-19 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: INFO
+
+**Follow-up to VA-0258: the chair-back logo is bigger, at Joshua's request.**
+
+- `d08f931` on the feature branch, APK **1.8-3dproto.36**, installed on Joshua's phone.
+- The logo plane grew from 0.30 to 0.38 m wide.
+- The canvas is now 1024×640, drawn at 2×, with anisotropy 8.
+- A dark ink outline sits under heavier gold strokes on the spade, script and "CASINO".
+- Geometry and triangle count are unchanged.
+- **Joshua on the phone:** "much better, can be seen from a distance".
+- Unit tests: 285 passed. tsc is clean. Salon still runs at 120 fps, about 95 calls.
+- Chair scale is unchanged. Back-to-back island layout is still waiting for Joshua's go.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
