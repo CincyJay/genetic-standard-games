@@ -174,7 +174,9 @@ export function createVelvetTripleSlotCabinet(THREE, options = {}) {
   for(const side of [-1,1]){
     const points=sections.slice(1,-1).map(([y,halfWidth,rear,front])=>
       new THREE.Vector3(side*(halfWidth-0.009),y,front+0.008));
-    const rail=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),24,0.008,5,false),light);
+    // Structural bezel-edge bead, intentionally non-emissive: the recessed side ribbon
+    // is the cabinet's single side light. Avoid duplicate parallel orange rails.
+    const rail=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),24,0.005,5,false),metal);
     rail.name='VA_contoured_light_rail_'+side;root.add(rail);
   }
   root.userData.screenSurfaces=surfaces;
