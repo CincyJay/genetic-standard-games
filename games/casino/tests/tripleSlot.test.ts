@@ -25,9 +25,10 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     expect(report.bounds.max[2]).toBeLessThan(0.6);
   });
 
-  it('is cheap: under 6k triangles, 6 authored materials', () => {
+  // 6b39809 (VA-0273) added a 7th material, sideInset, for the recessed tower side skins
+  it('is cheap: under 6k triangles, 7 authored materials', () => {
     expect(report.triangles).toBeLessThan(6000);
-    expect(report.materials).toBe(6);
+    expect(report.materials).toBe(7);
   });
 
   it('glass is in front of its bezel, and both in front of the tower', () => {
@@ -102,6 +103,28 @@ describe('triple-screen slot cabinet study (art 1670e35, VA-0256)', () => {
     expect(crown.max.z).toBeGreaterThan(bezel.min.z);
     expect(crown.max.z).toBeLessThan(bezel.max.z);
     expect(crown.max.z).toBeLessThan(box('VA_top_marquee_glass').min.z);
+    // 6b39809 (VA-0273) extended the crown back to z -0.343 so the tower top (rear z -0.330) is capped,
+    // and narrowed it to within 10 mm of the tower half-width
+    expect(crown.min.z).toBeLessThanOrEqual(tower.min.z);
+    expect(crown.max.x).toBeLessThan(tower.max.x + 0.01);
+  });
+
+  // 6b39809 (VA-0273): dark side skins 3 mm proud of each tower side, so they read as separate panels
+  // without z-fighting the tower faces; they stay inside the cabinet's 0.45 m collision half-width.
+  it('has a sculpted side inset on each tower side, just outside the tower face', () => {
+    const tower = new THREE.Box3().setFromObject(cab.getObjectByName('VA_curved_tapered_tower')!);
+    for (const side of ['left', 'right'] as const) {
+      const skin = cab.getObjectByName(`VA_sculpted_side_inset_${side}`) as THREE.Mesh;
+      expect(skin).toBeTruthy();
+      expect((skin.material as THREE.Material).side).toBe(THREE.DoubleSide);
+      const b = new THREE.Box3().setFromObject(skin);
+      const outer = side === 'left' ? -b.min.x : b.max.x;
+      expect(outer).toBeGreaterThan(0.34);
+      expect(outer).toBeLessThan(0.45);
+      expect(b.max.y - b.min.y).toBeGreaterThan(1.0);
+      expect(b.min.z).toBeGreaterThan(tower.min.z);
+      expect(b.max.z).toBeLessThan(tower.max.z);
+    }
   });
 
   // VA-0264: the deck's rear-top edge (y 0.809, z 0.159) sat inside the main glass slab (z 0.151-0.171,
