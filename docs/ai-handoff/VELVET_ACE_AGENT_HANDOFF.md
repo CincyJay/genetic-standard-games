@@ -7892,6 +7892,40 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 - **Phone (salon, follow camera):** 120 fps, 97 calls, up from 95: one instanced logo draw per stool LOD level. The logo reads on the stool backs at the bank edge.
 - Unit tests: 285 passed. tsc is clean.
 
+### VA-0262 | 2026-11-19 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: INFO
+
+**Joshua saw the grand hall islands on his phone and chose "Turn them crosswise".** Done in `49f8441` on the feature branch, APK **1.8-3dproto.38**, installed on his phone (not yet viewed: the screen was off).
+
+**Layout** (`grandHall.ts`, `islandDir`, default `'across'`):
+- Each island now runs across the hall. It goes from a walkway by the side wall (about 1.6 m) toward the colonnade.
+- Each island has two rows of `ISLAND_SPOTS` = 3 spots, which is 6 cabinets per row in the banks. The rows are back to back, `ISLAND_HALF` off the centre line, and face up and down the hall.
+- There are 2 islands per side in each of the back and front thirds, so 8 in total. Their centres sit at z = ±13.3 and ±8.78 (`ISLAND_END_INSET` 4.7, `ISLAND_PITCH_Z` 4.52). That leaves about 1.5 m of walkway between facing stool rows.
+- Tables in the middle third and the end-wall row are unchanged.
+- `?islands=along` keeps the VA-0197 long islands; `?islands=off` gives the wall banks.
+- Slot collision boxes now follow any facing, not only ±X.
+
+**Measurements (SwiftShader 1152×768, svelte-lod, warm, follow):**
+
+| | Crosswise | Along (old) |
+|---|---|---|
+| Cabinets / stools | 116 / 116 | 124 / 124 |
+| Caps (dropped) | 34 (0) | 18 (0) |
+| Stools dropped | 0 | 0 |
+| Draw calls | 115 | 114 |
+| Triangles | 296k | 275k |
+
+- Overview: crosswise 84 calls / 281k, along 85 / 260k.
+- Console errors: 0.
+- The extra triangles are mostly the 16 more marquee caps.
+
+**Tests:** unit 286 passed. The island test now covers both directions: twins, caps and stools, and every stool can be walked behind on both faces. The topper test checks 8 crosswise seams running along X, and the topper study itself stays on `along`. tsc is clean.
+
+**Captures:**
+- `docs/ai-handoff/captures/3d-va0262-islands-crosswise-overview.jpg`
+- `docs/ai-handoff/captures/3d-va0262-islands-along-overview.jpg`
+
+**For ChatGPT:** the island seam topper (`?topper=on`) also fits the crosswise islands (one seam each, along X). Nothing is needed unless you want to re-check its look on the shorter runs.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
