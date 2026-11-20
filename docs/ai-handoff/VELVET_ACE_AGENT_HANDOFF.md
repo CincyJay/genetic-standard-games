@@ -10186,3 +10186,45 @@ None of this look is final.
 **Verification:** GitHub accepted the art commit. No local browser/canvas render, Node test, tsc, vitest, e2e, APK, or device test executed in this ChatGPT run. Size is an intended improvement, NOT a verified phone result; this is stylized canvas artwork, not photorealistic. Main was re-read before this append. PR #2/#3 state could not be independently established by the GitHub issue search (empty response), so do not infer their status.
 
 **Claude next:** Cherry-pick ONLY `9f3ceb5` into isolated `feature/3d-casino-prototype`. Keep the same 640px texture canvas and dynamic `topScreenCopy`. Capture front/three/side/seated at 384 CSS px and compare bonus glyph height against VA-0286; check all 10 machines and five-row overflow, row text order, baseline bounds, min font 13*scale, screen ratios, and no overlap with border/title. Run tsc, root vitest, tripleSlot and floor3d e2e. Do not promote to floor or touch production. Other open art: rear crown chamfer, side slab treatment, cream bezel seam; grand-hall batched geometry ~328k vs 150k budget. Claude Code was not executed by ChatGPT.
+
+
+### VA-0288 | 2026-11-20 14:15 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0287: I cherry-picked ONLY `9f3ceb5`, unchanged, as `d0acb57` on `feature/3d-casino-prototype`. The engineering follow-up is `ee5f465`. Both are pushed. The cabinet still stays off the casino floor.**
+
+**What I found:** your enlargement works for the hold-and-spin ladder. With the 640-px canvas, the GRAND/MAJOR/MINOR/MINI rows went from ~25 to ~36 canvas px. The other machines did not benefit. Your painter width-fits each row, and my copy was long. "3 / 4 / 5 SCATTERS = 8 / 12 / 20 SPINS" painted at 21–23 px, and the blurb sentences painted at 15–19 px (Thunder Peak 15, Diamond Empire 17, Tiger 19).
+
+**Engineering fix (`ee5f465`, `src/floor3d/tripleSlot.ts`):** `topScreenCopy` now emits short labels of at most `TOP_LINE_MAX` = 18 characters:
+- free spins: `8 · 12 · 20 SPINS`
+- wheel: `TOP PRIZE 200×`
+- pick: `PICK 4 UP TO 100×`
+- jackpot ladder: unchanged
+
+It drops any blurb longer than 18 characters, because the paytable already shows the blurb. I did not touch your painter. New tests check, for all 10 machines:
+- at most 5 lines
+- each line is 18 characters or fewer
+- every bonus row paints at **≥ 34 canvas px**
+- rows sit below the title and do not overlap each other
+- the last row stays inside the canvas
+
+The text measurement comes from a node stub at 0.55 em per character, not real fonts.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **330 passed + 1 expected fail** (the known tub-chair arm-tip normals case).
+- `tests/e2e/tripleSlot.mjs` (vite :5175, SwiftShader): exit 0. front/three/side/seated each logged "no console errors". Front: 4,310 tris / 34 draw calls. Seated: 3,342 / 25. Both are unchanged.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 `ok` lines, 0 FAIL lines. Vegas: 90 calls / 129,088 tris (budget 120 / 150k). Framed close-up: 64 / 110,726. The run was slow; it sat a long time on the landscape-hero-framed screenshot under SwiftShader, but it finished cleanly.
+- I built no APK and did no device testing; the cloud session cannot reach Joshua's phone. I looked at the captures here but did not commit them.
+
+**Candid notes from the captures (384 CSS px wide, DPR 2):**
+- **Dragon front view:** all four ladder rows now read without squinting at preview scale. Glyphs are ~7 CSS px tall, up from ~6, so the gain on screen is real but modest. Each row box is only ~13 CSS px tall at that distance, so this is still small on a phone floor view.
+- **Diamond Empire / Tiger's Treasure:** each shows one row (`10 · 15 · 25 SPINS`, `PICK 4 UP TO 100×`) in a big framed box. The text is capped at 43*scale, so it fills only ~60% of the box height, and the screen looks sparse and empty rather than busy.
+- No overflow, border overlap or title overlap was seen. This is still a dev study, not a finished or premium cabinet.
+
+**For ChatGPT:**
+1. Single-row and two-row bonus screens: consider letting the glyph cap grow with row height when there are few rows (for example, `min(rowHeight*0.6, 70*scale)`), or adding a decorative element so one row doesn't float in a large empty frame.
+2. Keep the per-row width fit: engineering now guarantees lines of 18 characters or fewer.
+3. Still open: the crown rear chamfer, the broad side slab, the cream seam, and the grand-hall triangle count (~328k batched vs the 150k budget).
+
+**Next engineering (Claude):** animated jackpot values on the bonus screen (throttled repaint through `paintScreenWith`), then grand-hall draw calls and overview roof modes, then the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). Joshua should judge these from phone screenshots.
