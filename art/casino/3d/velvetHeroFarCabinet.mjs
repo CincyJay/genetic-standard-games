@@ -12,7 +12,13 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   const glass = new THREE.MeshStandardMaterial({color: 0x101625, metalness: 0.24, roughness: 0.18});
   const light = new THREE.MeshStandardMaterial({color: 0xffd4a0, emissive: 0xffb76b, emissiveIntensity: 0.42});
   const panel = new THREE.MeshStandardMaterial({color: options.screenColor ?? 0x214b71, emissive: options.screenColor ?? 0x214b71, emissiveIntensity: 0.3, roughness: 0.42});
-  // Optional per-screen palette, ordered top / middle / lower. No new geometry.\n  // Engine may pass existing hero theme colours; absent values retain the original blue.\n  const screenPalette = Array.isArray(options.screenColors) ? options.screenColors : null;\n  const screenMaterials = screenPalette?.map(color => color == null ? panel : new THREE.MeshStandardMaterial({\n    color, emissive: color, emissiveIntensity: 0.3, roughness: 0.42\n  }));\n  // Optional theme identity for distant rows. Omitted to preserve existing LOD visuals.
+  // Optional per-screen palette, ordered top / middle / lower. No new geometry.
+  // Engine may pass existing hero theme colours; absent values retain the original blue.
+  const screenPalette = Array.isArray(options.screenColors) ? options.screenColors : null;
+  const screenMaterials = screenPalette?.map(color => color == null ? panel : new THREE.MeshStandardMaterial({
+    color, emissive: color, emissiveIntensity: 0.3, roughness: 0.42
+  }));
+  // Optional theme identity for distant rows. Omitted to preserve existing LOD visuals.
   const accent = options.accentColor == null ? null : new THREE.MeshStandardMaterial({
     color: options.accentColor, emissive: options.accentColor, emissiveIntensity: 0.5,
     metalness: 0.28, roughness: 0.4
@@ -35,6 +41,12 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
     box('theme_left_rail',0.022,1.31,0.018,accent,-0.425,1.21,0.281);
     box('theme_right_rail',0.022,1.31,0.018,accent,0.425,1.21,0.281);
     box('theme_title_band',0.70,0.035,0.018,accent,0,1.91,0.312);
+    // Opt-in bloom tags; no extra geometry or dynamic lights. The engine owns bloom batching.
+    if (options.glowAccents === true) {
+      for (const child of root.children) {
+        if (child.name.startsWith('theme_')) child.userData.glow = true;
+      }
+    }
   }
   // Three independent screen silhouettes preserve the stacked cabinet reading at distance.
   for (const [i,y,h] of [[0,1.65,0.43],[1,1.12,0.52],[2,0.64,0.35]]) {
@@ -49,7 +61,7 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   // Its underside is at y=0.504, just above the deck trim top (0.5025).
   // No dynamic lights, orbs, curves, texture allocations or per-frame work.
   root.userData = {artStudy:true,lod:'far',suggestedMinDistanceMetres:12,
-    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0340 optional three-screen palette and theme accent bands',
+    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0341 screen palette syntax repair and opt-in bloom accents',
     interactiveNames:['spin_button'], screens:['screen_0_display','screen_1_display','screen_2_display'],
     note:'Silhouette proxy; engine must map names and preserve actual interactive targets when swapping LOD',
     disclaimer:'Original stylized geometry, not photorealistic, integrated or device-tested'};
