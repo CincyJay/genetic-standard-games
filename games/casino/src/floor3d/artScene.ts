@@ -402,6 +402,8 @@ export interface ArtOptions {
   heroFarAccent?: boolean;
   /** With `heroFar`: accent bands tagged for bloom plus per-theme screen colours (`?herofar=theme`, VA-0341). */
   heroFarTheme?: boolean;
+  /** With `heroFarTheme`: the study's screenBrightness (0..1) for the far screens (`?farscreen=0.55`, 9cf9505). */
+  heroFarScreen?: number;
   /** With `heroFar`: the north side-wall copies get a far cabinet too, for the 'distant' level (`?copyfar=on`, VA-0340). */
   copyFar?: boolean;
 }
@@ -510,7 +512,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
-    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, heroFarTheme: opts.heroFarTheme, copyFar: opts.copyFar });
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, heroFarTheme: opts.heroFarTheme, heroFarScreen: opts.heroFarScreen, copyFar: opts.copyFar });
     art = grand.root;
     art.updateMatrixWorld(true);
     art.traverse((o) => {

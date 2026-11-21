@@ -1735,6 +1735,35 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     for (const k of ['full', 'lite', 'south'] as const) expect(th[k].length).toBe(acc[k].length);
     console.log(`herofar=theme: far batches ${acc.far.length} -> ${th.far.length}, tris ${tris(acc.far)} -> ${tris(th.far)}`);
   });
+  it('makes ?herofar=theme accents HDR and dims far screens with ?farscreen (9cf9505)', async () => {
+    const { composeGrandHall, farHeroStyle } = await import('../src/floor3d/grandHallArt.ts');
+    const { HERO_THEMES } = await import('../../../art/casino/3d/heroSlotCabinet.mjs');
+    const THREE = await import('three');
+    const themes = HERO_THEMES as Record<string, { accent: number; secondary: number }>;
+    expect(farHeroStyle('sevens', false, true, 0.5)!.screenBrightness).toBe(0.5);
+    expect('screenBrightness' in farHeroStyle('sevens', false, true)!).toBe(false);
+    expect('screenBrightness' in farHeroStyle('sevens', false, true, Number('x'))!).toBe(false);
+    expect(farHeroStyle('sevens', true, false, 0.5)).toEqual({ accentColor: themes.sevens.accent });
+    const full = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarTheme: true }).root;
+    const dim = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarTheme: true, heroFarScreen: 0.5 }).root;
+    const acc = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarAccent: true }).root;
+    for (const s of g.slots) {
+      const band = (r: import('three').Object3D) => {
+        let m: import('three').Mesh | undefined;
+        r.getObjectByName(`slotfar_${s.id}`)!.traverse((o) => { if (!m && o.name.startsWith('theme_')) m = o as import('three').Mesh; });
+        return (m!.material as import('three').MeshStandardMaterial).emissiveIntensity;
+      };
+      // above the Vegas bloom threshold (~2.6) only when glow is on
+      expect(band(full)).toBeGreaterThanOrEqual(2.6);
+      expect(band(acc)).toBeLessThan(1);
+      const scr = (r: import('three').Object3D) => (r.getObjectByName(`slotfar_${s.id}`)!.getObjectByName('screen_1_display') as import('three').Mesh).material as import('three').MeshStandardMaterial;
+      const want = new THREE.Color(themes[s.id].secondary).multiplyScalar(0.5);
+      expect(scr(dim).color.r).toBeCloseTo(want.r, 5);
+      expect(scr(dim).color.g).toBeCloseTo(want.g, 5);
+      expect(scr(dim).color.b).toBeCloseTo(want.b, 5);
+      expect(scr(full).color.getHex()).toBe(themes[s.id].secondary);
+    }
+  });
   it('draws the north side-wall copies as the far cabinet at a distant level behind ?copyfar=on (VA-0340)', async () => {
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { composeGrandHall, heroLodLevel, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
