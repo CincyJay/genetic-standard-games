@@ -49,9 +49,8 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
   ring(width-0.42,depth-0.42,width-0.47,depth-0.47,0.012,'coffer_light_diffuser',glow,0.032);
   // Original fluted bronze corner medallions, with low-cost radial geometry.
   for (const sx of [-1,1]) for (const sz of [-1,1]) {
-    const disk = add('corner_rosette',new THREE.CylinderGeometry(0.075,0.075,0.013,12),bronze,
+    add('corner_rosette',new THREE.CylinderGeometry(0.075,0.075,0.013,12),bronze,
       sx*(width/2-0.19),0.015,sz*(depth/2-0.19));
-    disk.rotation.z = Math.PI/2;
   }
   // Emissive surfaces are decorative, not real light sources; engine owns lighting.
   root.userData = {
