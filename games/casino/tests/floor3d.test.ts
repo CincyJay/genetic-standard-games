@@ -1793,6 +1793,63 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       expect(band(tuned).color.getHex()).toBe(themes[s.id].accent);
     }
   });
+  it('puts ChatGPT\'s 5x5 far screen texture on the far cabinets behind ?farscreentex=on (83619b2)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { composeGrandHall, FAR_SCREEN_TEX_BANDS } = await import('../src/floor3d/grandHallArt.ts');
+    const { HERO_THEMES } = await import('../../../art/casino/3d/heroSlotCabinet.mjs');
+    const themes = HERO_THEMES as Record<string, { accent: number; secondary: number }>;
+    const ctx = new Proxy({} as Record<string, unknown>, { get: (t, k) => (k in t ? t[k as string] : () => ({ addColorStop: () => {} })), set: (t, k, v) => ((t[k as string] = v), true) });
+    let canvases = 0;
+    const screenCanvas = () => (canvases++, { width: 0, height: 0, getContext: () => ctx });
+    const screen = (r: import('three').Object3D, name: string, i: number) => r.getObjectByName(name)!.getObjectByName(`screen_${i}_display`) as import('three').Mesh;
+    // off by default, and off without a canvas
+    const off = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, copyFar: true }).root;
+    expect((screen(off, `slotfar_${g.slots[0].id}`, 1).material as import('three').MeshStandardMaterial).map).toBeFalsy();
+    // plain ?herofar=on: one shared texture for every far cabinet
+    const on = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarScreenTex: true, screenCanvas }).root;
+    expect(canvases).toBe(1);
+    const mats = new Set<import('three').Material>();
+    for (const s of g.slots) for (const i of [0, 1, 2]) {
+      const m = screen(on, `slotfar_${s.id}`, i);
+      const mat = m.material as import('three').MeshStandardMaterial;
+      expect(mat.map).toBeInstanceOf(THREE.CanvasTexture);
+      expect(mat.emissiveMap).toBe(mat.map);
+      mats.add(mat);
+      // the front face (+z, vertices 16..19) spans this screen's band of the canvas
+      const uv = m.geometry.attributes.uv;
+      const vs = [16, 17, 18, 19].map((k) => uv.getY(k));
+      const [top, bottom] = FAR_SCREEN_TEX_BANDS[i];
+      expect(Math.max(...vs)).toBeCloseTo(1 - top / 512, 5);
+      expect(Math.min(...vs)).toBeCloseTo(1 - bottom / 512, 5);
+    }
+    expect(mats.size).toBe(1);
+    // ?herofar=theme: one texture per theme accent, shared by the heroes and the north copies
+    canvases = 0;
+    const th = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarTheme: true, copyFar: true, heroFarScreenTex: true, screenCanvas, heroFarScreen: 0.5 }).root;
+    expect(canvases).toBe(new Set(g.slots.map((s) => themes[s.id].accent)).size);
+    th.traverse((o) => {
+      if (!o.name.startsWith('slotcopyfar_')) return;
+      const id = o.name.split('_')[1];
+      const hero = screen(th, `slotfar_${id}`, 1).material as import('three').MeshStandardMaterial;
+      expect((o.getObjectByName('screen_1_display') as import('three').Mesh).material).toBe(hero);
+      expect(hero.color.r).toBeCloseTo(0.5, 5);
+    });
+    // cost: same triangles; at most one far batch per texture over the untextured screens
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const base = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, heroFarTheme: true };
+    const a = buildArtScene(new Map(), base).heroLod!;
+    const b = buildArtScene(new Map(), { ...base, heroFarScreenTex: true, farScreenCanvas: screenCanvas }).heroLod!;
+    expect(tris(b.far)).toBe(tris(a.far));
+    // themed: one textured batch per accent (the untextured screens shared one vertex-coloured batch)
+    expect(b.far.length).toBeLessThanOrEqual(a.far.length + new Set(g.slots.map((s) => themes[s.id].accent)).size);
+    const plain = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true };
+    const c = buildArtScene(new Map(), plain).heroLod!;
+    const d = buildArtScene(new Map(), { ...plain, heroFarScreenTex: true, farScreenCanvas: screenCanvas }).heroLod!;
+    expect(tris(d.far)).toBe(tris(c.far));
+    expect(d.far.length).toBeLessThanOrEqual(c.far.length + 1);
+    console.log(`farscreentex: theme far batches ${a.far.length} -> ${b.far.length}, plain ${c.far.length} -> ${d.far.length}, tris ${tris(a.far)} -> ${tris(b.far)}`);
+  });
   it('draws the north side-wall copies as the far cabinet at a distant level behind ?copyfar=on (VA-0340)', async () => {
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { composeGrandHall, heroLodLevel, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');

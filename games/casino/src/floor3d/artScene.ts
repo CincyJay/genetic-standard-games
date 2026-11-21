@@ -406,6 +406,10 @@ export interface ArtOptions {
   heroFarScreen?: number;
   /** With `heroFarTheme`: the study's accentGlowIntensity / accentGlowTint (`?farglow=2&fartint=0.6`, 09fbed8). */
   heroFarGlow?: { intensity?: number; tint?: number };
+  /** `?farscreentex=on`: ChatGPT's 5x5 far screen texture (83619b2) on the far cabinets' three screens. */
+  heroFarScreenTex?: boolean;
+  /** Canvas factory for `heroFarScreenTex` outside a browser (tests); a browser uses document. */
+  farScreenCanvas?: () => unknown;
   /** With `heroFar`: the north side-wall copies get a far cabinet too, for the 'distant' level (`?copyfar=on`, VA-0340). */
   copyFar?: boolean;
 }
@@ -514,7 +518,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
-    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, heroFarTheme: opts.heroFarTheme, heroFarScreen: opts.heroFarScreen, heroFarGlow: opts.heroFarGlow, copyFar: opts.copyFar });
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, heroFarTheme: opts.heroFarTheme, heroFarScreen: opts.heroFarScreen, heroFarGlow: opts.heroFarGlow, copyFar: opts.copyFar, heroFarScreenTex: opts.heroFarScreenTex, screenCanvas: opts.farScreenCanvas });
     art = grand.root;
     art.updateMatrixWorld(true);
     art.traverse((o) => {

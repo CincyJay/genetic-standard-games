@@ -26,6 +26,7 @@ import { createVelvetLuxuryChairLOD } from '../../../../art/casino/3d/velvetLuxu
 import { createVelvetTubChair } from '../../../../art/casino/3d/velvetTubChairPrototype.mjs';
 import { createVelvetCasinoChair } from '../../../../art/casino/3d/velvetCasinoChair.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
+import { createFarCabinetScreenTexture } from '../../../../art/casino/3d/farCabinetScreenTexture.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
@@ -514,6 +515,63 @@ export function fittedFarHero(hero: THREE.Object3D, style?: number | FarHeroStyl
   return fit;
 }
 
+/**
+ * ChatGPT's 5x5 far screen texture (83619b2) is one 256x512 portrait canvas (title, reel grid,
+ * footer), but the far cabinet has three landscape screens. Engineering mapping, behind
+ * `?farscreentex=on`: each screen's front face shows one horizontal band of the canvas, as canvas
+ * rows [top, bottom) out of 512 — title on the top screen, the reel grid on the middle one, the
+ * footer on the lower one. Bands are squeezed to the screens' aspect (see the board).
+ */
+export const FAR_SCREEN_TEX_BANDS: readonly (readonly [number, number])[] = [[0, 108], [118, 390], [404, 512]];
+const FAR_SCREEN_TEX_H = 512;
+
+/**
+ * Puts `material` on the fitted far cabinet's three screen displays, remapping each display's
+ * front-face UVs to its band. The other faces sample a corner of the dark backdrop. Returns the
+ * number of displays changed. The study builds new geometry per cabinet, so editing UVs is local.
+ */
+export function applyFarScreenTexture(far: THREE.Object3D, material: THREE.Material): number {
+  let n = 0;
+  FAR_SCREEN_TEX_BANDS.forEach(([top, bottom], i) => {
+    const m = far.getObjectByName(`screen_${i}_display`) as THREE.Mesh | undefined;
+    if (!m?.isMesh) return;
+    const uv = m.geometry.attributes.uv as THREE.BufferAttribute;
+    const v0 = 1 - bottom / FAR_SCREEN_TEX_H;
+    const v1 = 1 - top / FAR_SCREEN_TEX_H;
+    // BoxGeometry face order is +x, -x, +y, -y, +z, -z with 4 vertices each: +z (the front) is 16..19
+    for (let k = 0; k < uv.count; k++) {
+      if (k >= 16 && k < 20) uv.setXY(k, uv.getX(k), v0 + uv.getY(k) * (v1 - v0));
+      else uv.setXY(k, 0.02, 0.98);
+    }
+    uv.needsUpdate = true;
+    m.material = material;
+    n++;
+  });
+  return n;
+}
+
+/**
+ * One screen material per texture accent, so every far cabinet of a theme (heroes and copies)
+ * shares it and batches. Mirrors the study's screen values (emissive 0.3, roughness 0.42) with the
+ * texture as map and emissive map; `brightness` is ?farscreen's 0..1 dimming.
+ */
+export function farScreenTexMaterials(makeCanvas: () => unknown, brightness?: number): (accent?: number) => THREE.MeshStandardMaterial {
+  const cache = new Map<string, THREE.MeshStandardMaterial>();
+  const b = brightness !== undefined && Number.isFinite(brightness) ? Math.max(0, Math.min(1, brightness)) : 1;
+  return (accent) => {
+    const key = accent === undefined ? 'default' : accent.toString(16).padStart(6, '0');
+    let mat = cache.get(key);
+    if (!mat) {
+      const tex = createFarCabinetScreenTexture(THREE, { canvas: makeCanvas(), ...(accent === undefined ? {} : { accent: `#${key}` }) }) as THREE.Texture;
+      const tint = new THREE.Color(0xffffff).multiplyScalar(b);
+      mat = new THREE.MeshStandardMaterial({ color: tint, map: tex, emissive: tint, emissiveMap: tex, emissiveIntensity: 0.3, roughness: 0.42 });
+      mat.name = `far_screen_tex_${key}`;
+      cache.set(key, mat);
+    }
+    return mat;
+  };
+}
+
 export const CHAIR_STORAGE_KEY = 'va3d.chair';
 export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'swivel', swivel: 'tub', tub: 'casino', casino: 'velvet' };
 /**
@@ -579,10 +637,20 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean; heroFarScreenTex?: boolean; screenCanvas?: () => unknown },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
+  // `?farscreentex=on` (83619b2): ChatGPT's 5x5 screen texture on the far cabinets' screens, in
+  // each theme's accent under ?herofar=accent/theme. Needs a canvas (a browser, or a test stub).
+  const screenCanvas = opts.screenCanvas ?? (typeof document !== 'undefined' ? () => document.createElement('canvas') : undefined);
+  const farScreenMat = opts.heroFarScreenTex && screenCanvas ? farScreenTexMaterials(screenCanvas, opts.heroFarScreen) : undefined;
+  const withFarScreenTex = (fit: THREE.Group, id: string): THREE.Group => {
+    if (!farScreenMat) return fit;
+    const t = (HERO_THEMES as Record<string, HeroTheme | undefined>)[id];
+    applyFarScreenTexture(fit, farScreenMat(opts.heroFarAccent || opts.heroFarTheme ? t?.accent : undefined));
+    return fit;
+  };
   const spec = layout.hallSpec ?? { width: 24, length: 36, height: 7.2, aisleWidth: 7.5, bayLength: 4 };
   // the whole hall's floor, wall to wall and end to end (the walkable room is smaller)
   const w = spec.width;
@@ -693,7 +761,7 @@ export function composeGrandHall(
         far.position.copy(slot.position);
         far.rotation.copy(slot.rotation);
         // with heroFarAccent each theme's far twin carries that hero's own accent colour (one batch per theme)
-        far.add(fittedFarHero(hero, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen, opts.heroFarGlow)));
+        far.add(withFarScreenTex(fittedFarHero(hero, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen, opts.heroFarGlow)), s.id));
         root.add(far);
       }
     }
@@ -718,7 +786,7 @@ export function composeGrandHall(
       far.userData.heroLod = 'distant';
       far.position.copy(copy.position);
       far.rotation.copy(copy.rotation);
-      far.add(fittedFarHero(src, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen, opts.heroFarGlow)));
+      far.add(withFarScreenTex(fittedFarHero(src, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen, opts.heroFarGlow)), s.id));
       root.add(far);
     }
   });
