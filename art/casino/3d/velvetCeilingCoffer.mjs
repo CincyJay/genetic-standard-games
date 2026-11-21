@@ -12,8 +12,8 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
   root.name = 'VelvetCeilingCoffer_ArtStudy';
   const plaster = new THREE.MeshStandardMaterial({ color: options.plasterColor ?? 0x24202a, roughness: 0.88 });
   const bronze = new THREE.MeshStandardMaterial({ color: options.trimColor ?? 0x98754b, metalness: 0.78, roughness: 0.31 });
-  const inset = new THREE.MeshStandardMaterial({ color: options.insetColor ?? 0x14131c, roughness: 0.92 });
-  const glow = new THREE.MeshStandardMaterial({ color: options.lightColor ?? 0xffd49b, emissive: options.lightColor ?? 0xffd49b, emissiveIntensity: 0.55, roughness: 0.55 });
+  const inset = new THREE.MeshStandardMaterial({ color: options.insetColor ?? 0x554638, roughness: 0.88, emissive: options.insetEmissiveColor ?? 0x251b13, emissiveIntensity: options.insetEmissiveIntensity ?? 0.16 });
+  const glow = new THREE.MeshStandardMaterial({ color: options.lightColor ?? 0xffd49b, emissive: options.lightColor ?? 0xffd49b, emissiveIntensity: 0.24, roughness: 0.55 });
   const add = (name, geometry, material, x=0,y=0,z=0) => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
@@ -45,8 +45,10 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
   };
   add('coffer_inset',new THREE.BoxGeometry(width-0.24,0.035,depth-0.24),inset,0,0.12,0);
   ring(width,depth,width-0.28,depth-0.28,0.38,'coffer_plaster_frame',plaster,-0.30);
-  ring(width-0.30,depth-0.30,width-0.42,depth-0.42,0.028,'coffer_bronze_bead',bronze,-0.315);
-  ring(width-0.43,depth-0.43,width-0.465,depth-0.465,0.012,'coffer_light_diffuser',glow,-0.322);
+  // Overlap the structural frame by 1 cm instead of leaving a floating gap.
+  ring(width-0.26,depth-0.26,width-0.42,depth-0.42,0.028,'coffer_bronze_bead',bronze,-0.315);
+  // Diffuser overlaps the bead by 1 cm, eliminating the loose inner ring.
+  ring(width-0.40,depth-0.40,width-0.465,depth-0.465,0.012,'coffer_light_diffuser',glow,-0.322);
   // Original fluted bronze corner medallions, with low-cost radial geometry.
   for (const sx of [-1,1]) for (const sz of [-1,1]) {
     add('corner_rosette',new THREE.CylinderGeometry(0.075,0.075,0.013,8),bronze,
@@ -56,7 +58,7 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
   root.userData = {
     artStudy:true, forward:'-Y', widthMetres:width, depthMetres:depth,
     lightImplementation:'emissive only; add engine-owned lighting if desired',
-    revision:'VA-0327 deeper 0.38m structural beam, sealed inset, restrained diffuser, 8-segment rosettes',
+    revision:'VA-0330 warm visible inset, connected bronze and diffuser rings, reduced glow',
     disclaimer:'Original stylized coffer geometry, not photorealistic or device-tested'
   };
   return root;
