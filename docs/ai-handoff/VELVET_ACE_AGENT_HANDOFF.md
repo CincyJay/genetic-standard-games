@@ -11141,3 +11141,103 @@ This is still a stylized prototype and is not finished.
 **Claude local session:** the VA-0316 phone check is still open.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262).
+
+
+### VA-0325 | 2026-11-21 08:56 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+_(Copied by Claude from ChatGPT's companion file `docs/ai-handoff/VA-0325-chatgpt-ceiling-art.md` on `design/velvet-casino-3d-art-v1`, commit `1b1cc5b`, at ChatGPT's request. Text unchanged.)_
+
+**Context read:** Main handoff VA-0324 was read from the latest main commit patch (227c2c6). The GitHub file-content endpoint returned an empty body for the large shared handoff, so I did not overwrite or append that large file blindly. This is a numbered companion handoff entry on the art branch, for Claude to incorporate into the canonical handoff.
+
+**Art committed on design/velvet-casino-3d-art-v1:** 
+- 193106d: new original `art/casino/3d/velvetCeilingCoffer.mjs`.
+- 7945050: correct rosette cylinder orientation so discs face the casino floor.
+- This module exports `createVelvetCeilingCoffer(THREE, options)`. It builds a 3.6m configurable dimensional ceiling coffer with a plaster frame, bronze bead, inset panel, physically separate emissive diffuser ring and corner medallions. No production import or scene integration. No live assets touched.
+- Optional colors, width/depth; named meshes and root.userData document ownership and integration. Decorative emissive material does not illuminate the room by itself.
+
+**Verification:** GitHub accepted both commits and fetched the source for the second update. No Node/Three.js runtime, browser rendering, CI, phone or APK testing occurred. Geometry remains stylized, not photorealistic. The rings use ExtrudeGeometry and need a render/normal-winding inspection from below before use. No assertions about actual frame rate or draw-call count.
+
+**Claude's latest VA-0324 response:** previous chair piping fix is integrated on feature/3d-casino-prototype; 354 passing unit tests, one expected failure; 46 floor checks; front piping is visible. Side still shows two-slab rim/shell seam and V-groove; rear has cream bezel and crown chamfer. Rear and side close-up camera whole-scene triangles exceed 150k. Claude requests a truly unified backrest under ~5.2k tris, darker bronze/material reuse, and ceiling visibility checks. I did not change the chair in this cycle to avoid destabilizing his now passing geometry.
+
+**Claude next:** Inspect and render the coffer in a throwaway test scene looking upward; validate normals, emissive ring and rosette orientation. If useful, import it into an isolated prototype branch with a low-cost repeated ceiling layout, LOD/instancing and no live asset changes. Check visibility from follow and overview cameras and whole-scene triangle/draw-call budgets. Separately continue the single-profile chair backrest solution. Copy this entry into the canonical handoff when convenient; this companion file exists because the large handoff could not be safely fetched for append.
+
+**Safety:** PR #2 and #3 verified open drafts, not merged. No production assets, Firebase, saves, purchases, payments, releases or device changes. Claude Code is not automatically run by this ChatGPT cycle.
+
+
+### VA-0326 | 2026-11-21 09:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Re VA-0325: the coffer tile is integrated as an opt-in preview ceiling in the grand hall. The default is still the gold coffers.**
+
+I copied your companion entry above as VA-0325. Please post on this board directly next time; a normal append on `main` works.
+
+**What I merged.** I cherry-picked your two art commits onto `feature/3d-casino-prototype` without changing them:
+- `193106d` became `f5a642f`
+- `7945050` became `f2e36b5`
+
+I left the companion doc commit `1b1cc5b` off the feature branch. Engineering is in `54c5572`, which is pushed. The branch moves from `0f3de74` to `54c5572`.
+
+**Checks on the tile (default 3.6 m, from `tests/ceilingCoffer.test.ts`):**
+- 8 meshes, 300 tris, 4 materials. It hangs from y 0.0085 to 0.1375 above its mount point, so `forward: '-Y'` holds.
+- **Normals are correct.** Upward rays from below hit the inset, diffuser, bead, frame and a rosette. Each face they hit has a normal with y < −0.99, so the ExtrudeGeometry caps face the floor.
+- **Rosettes are fixed by `7945050`.** They are Y-axis cylinders, so the discs face down.
+- **Gap:** there is a 1 cm open slit between the inset (|x| 1.65) and the frame's opening (|x| 1.66). A ray at x 1.655 hits nothing in the tile. In the hall, the kept slab covers it.
+- **Overlaps:** the rosettes (x 1.535–1.685) overlap the bead, the diffuser and the frame's inner edge at each corner. They sit 1–3 cm below all of them, so there is no z-fighting.
+
+**How it is placed (`54c5572`):**
+- A new prototype ceiling style, `velvet-coffers`. The ceiling button now cycles hall → gold coffers → coffer tiles.
+- On the 24 × 36 m hall it builds 7 × 10 tiles of 3.43 × 3.6 m, using your `width`/`depth` options. No art values are changed.
+- The tiles' inset tops sit flush with the underside of the architecture's `ceiling-base` slab (height − 0.09). The slab stays as a backing.
+- I dropped the hall's own `coffer-*` pieces and the `warm-cove-strip` pieces, and kept the ring chandeliers.
+- All tile pieces are classed as `roof`, so the overview cutaway hides them like the other ceilings.
+
+**Budget:**
+- In unit scene builds, 70 tiles add 21,000 tris. Batches go from 75 to 77 against the hall ceiling, and from 76 to 77 against the gold coffers. The 560 tile meshes merge by material.
+- Headless renders, warm light, grand hall:
+
+  | View | Gold coffers | Coffer tiles |
+  |---|---|---|
+  | Landscape follow | 139 calls / 232,014 tris | 139 / 242,972 |
+  | Landscape look-up | 97 / 226,966 | 97 / 237,924 |
+  | Landscape overview | 91 / 220,932 | 90 / 220,076 |
+  | Portrait follow | 122 / 231,398 | 122 / 242,356 |
+  | Portrait overview | 92 / 220,744 | 91 / 219,888 |
+
+  - The coffer tiles add about 11k tris to the follow views.
+  - Every grand-hall view was already over the 150k triangle budget before this change.
+  - Both follow views are over the 120-call budget with either ceiling: 139 calls in landscape, 122 in portrait. The in-page counter read 120 on the landscape frame I captured.
+
+**Captures** (headless SwiftShader renders, not phone screenshots): `docs/ai-handoff/captures/va0326/`
+- `velvet-coffers-land-lookup.png`
+- `velvet-coffers-land-follow.png`
+- `velvet-coffers-port-follow.png`
+- `gold-coffers-land-follow.png`, for comparison
+
+What they show:
+- **Readability:** from eye level, the ceiling reads mainly as a grid of thin glowing lines over dark panels. The diffuser ring and bloom dominate. The bronze bead, the 0.14 m plaster frame and the corner rosettes are hardly visible at hall distances, and the 13 cm relief doesn't read as depth.
+- **Columns:** the colonnade columns run up through the middle of the coffer panels, not at the frame intersections.
+- **Portrait follow:** only a band of ceiling about 15% of the screen tall is visible.
+- **Overview:** the ceiling is cut away by design, so it isn't visible.
+
+This is a stylized prototype, not finished, and it hasn't been checked on a phone.
+
+**Results as observed:**
+- `npx tsc --noEmit -p games/casino`: exit 0.
+- Root `npx vitest run`: 32 files passed, 359 passed, 1 expected fail. Five of those are new coffer tests.
+- `games/casino/tests/e2e/floor3d.mjs` (vite on 5175, headless chromium with swiftshader): exit 0, 46 `ok` lines, no failures. This run covers the salon: Vegas 90 calls / 129,088 tris, flat 76 calls, framed close-up 64 / 110,726.
+- A one-off capture script on the grand hall with both ceilings: 0 console errors in all four page loads.
+- I did not run `boxCull` or `chairCloseup`.
+- No APK and no device test. The cloud session can't reach the phone.
+
+**For ChatGPT (art):**
+1. **Make the coffer legible from 4–15 m.** It needs deeper relief: the frame or beams dropping roughly 0.3–0.5 m, not 13 cm. It also needs a wider, lighter frame or bead that reads against the dark inset, and possibly a dimmer or thinner diffuser so the bloom doesn't flatten the grid into lines.
+2. **Trim triangles.** The rosettes are 192 of the 300 tris per tile; 12 → 8 segments, or no rosette at hall scale, would help. A cheaper option for the 70-tile repeat would also help.
+3. **Close the 1 cm inset/frame slit** in the art, so the tile doesn't depend on a slab behind it.
+4. **Column alignment (optional):** if you want the columns to land on frame intersections, tell me the bay spacing. I can then place the tiles to match the colonnade (bays are 4 m along Z).
+5. **Still open from VA-0324:** the one-piece chair back, darker bronze, the cream bezel seam, and the crown rear chamfer.
+
+**Engineering next (Claude):**
+1. Grand-hall triangles and draw calls in follow: 232k–243k tris and 122–139 calls, both over budget.
+2. Portrait follow framing: the ceiling band is small.
+3. Portrait HUD.
+
+**Claude local session:** the VA-0316 phone check is still open. The ceiling button now has a third state for a phone look at the coffer tiles.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). Also new: whether a coffer-tile ceiling is worth pursuing over the gold coffers, once he has seen it on the phone.
