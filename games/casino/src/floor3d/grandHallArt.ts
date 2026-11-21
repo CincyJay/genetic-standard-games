@@ -59,8 +59,8 @@ export function readCeilingStyle(): CeilingStyle {
 export const REPLACED_BY_GOLD_COFFERS = /^(ceiling-base|coffer-.*|suspended-ring-chandelier|chandelier-suspension|warm-cove-strip)$/;
 /**
  * The architecture pieces the coffer-tile ceiling (VA-0325) replaces: its own coffers, beams and
- * cove strips. Its slab (`ceiling-base`) stays as the backing the tiles are mounted against, so
- * the 1 cm slit the art leaves between each tile's inset and frame shows slab, not sky; its ring
+ * cove strips. Its slab (`ceiling-base`) stays as the backing the tiles are mounted against (5e2e896
+ * closed the tile's own inset/frame slit, but the slab still backs the grid's outer edge); its ring
  * chandeliers stay too, hanging through the grid.
  */
 export const REPLACED_BY_VELVET_COFFERS = /^(coffer-.*|warm-cove-strip)$/;
@@ -70,29 +70,55 @@ export const VELVET_COFFER_RELIEF = 0.1375;
 /** The architecture slab's half thickness: its underside is this far under the hall height. */
 const SLAB_HALF = 0.09;
 
+/** Split [a, b] into whole tiles of about VELVET_COFFER_TILE; returns the cut lines including a and b. */
+function cuts(a: number, b: number): number[] {
+  const n = Math.max(1, Math.round((b - a) / VELVET_COFFER_TILE));
+  return Array.from({ length: n + 1 }, (_, i) => a + ((b - a) * i) / n);
+}
+
 /**
- * ChatGPT's dimensional coffer (193106d, rosettes 7945050) tiled across the hall: whole tiles of
- * about 3.6 m, stretched so they fill the width and length exactly (24 x 36 m is 7 x 10 tiles of
- * 3.43 x 3.6 m). Each tile's inset top touches the slab's underside. The art builds new
- * materials per tile; artScene batches by material properties, so the copies merge into one draw
- * per material.
+ * The coffer grid's frame lines (VA-0327 follow-up): in Z, one tile per colonnade bay, so every
+ * column stands under a cross beam; in X, cut at the colonnade lines (aisle / 2 + 1.15, as the
+ * art places its columns), so the columns land on frame intersections, not mid-panel. Without
+ * aisle and bay it falls back to an even grid of about 3.6 m.
  */
-export function velvetCofferCeiling(spec: { width: number; length: number; height: number }): THREE.Group {
-  const nx = Math.max(1, Math.round(spec.width / VELVET_COFFER_TILE));
-  const nz = Math.max(1, Math.round(spec.length / VELVET_COFFER_TILE));
-  const tw = spec.width / nx;
-  const td = spec.length / nz;
+export function velvetCofferLines(spec: { width: number; length: number; aisleWidth?: number; bayLength?: number }): { xs: number[]; zs: number[] } {
+  const hw = spec.width / 2;
+  const hl = spec.length / 2;
+  let xs = cuts(-hw, hw);
+  let zs = cuts(-hl, hl);
+  if (spec.aisleWidth !== undefined && spec.bayLength !== undefined) {
+    const cx = spec.aisleWidth / 2 + 1.15;
+    if (cx > 1 && cx < hw - 1) xs = [...cuts(-hw, -cx), ...cuts(-cx, cx).slice(1), ...cuts(cx, hw).slice(1)];
+    const bays = Math.ceil(spec.length / spec.bayLength);
+    zs = Array.from({ length: bays + 1 }, (_, i) => -hl + (spec.length * i) / bays);
+  }
+  return { xs, zs };
+}
+
+/**
+ * ChatGPT's dimensional coffer (193106d, rosettes 7945050, deeper beams 5e2e896) tiled across the
+ * hall on velvetCofferLines(): 24 x 36 m with the default colonnade is 7 x 9 tiles, 3.27-3.55 m by
+ * 4 m. Each tile's inset top touches the slab's underside; since 5e2e896 its frame hangs 0.47 m
+ * under that (rosettes included), still above the follow camera's clamp (0.67 m under the hall
+ * height). The art builds new materials per tile; artScene batches by material properties, so the
+ * copies merge into one draw per material.
+ */
+export function velvetCofferCeiling(spec: { width: number; length: number; height: number; aisleWidth?: number; bayLength?: number }): THREE.Group {
+  const { xs, zs } = velvetCofferLines(spec);
   const root = new THREE.Group();
   root.name = 'velvet_coffer_grid';
   const y = spec.height - SLAB_HALF - VELVET_COFFER_RELIEF;
-  for (let i = 0; i < nx; i++) {
-    for (let j = 0; j < nz; j++) {
+  for (let i = 0; i + 1 < xs.length; i++) {
+    for (let j = 0; j + 1 < zs.length; j++) {
+      const tw = xs[i + 1] - xs[i];
+      const td = zs[j + 1] - zs[j];
       const tile = createVelvetCeilingCoffer(THREE, { width: tw, depth: td }) as THREE.Group;
-      tile.position.set(-spec.width / 2 + tw * (i + 0.5), y, -spec.length / 2 + td * (j + 0.5));
+      tile.position.set((xs[i] + xs[i + 1]) / 2, y, (zs[j] + zs[j + 1]) / 2);
       root.add(tile);
     }
   }
-  root.userData = { tilesX: nx, tilesZ: nz, tileWidth: tw, tileDepth: td };
+  root.userData = { tilesX: xs.length - 1, tilesZ: zs.length - 1, xs, zs };
   return root;
 }
 
