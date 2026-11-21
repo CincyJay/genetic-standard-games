@@ -48,7 +48,26 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
   // Overlap the structural frame by 1 cm instead of leaving a floating gap.
   ring(width-0.26,depth-0.26,width-0.42,depth-0.42,0.028,'coffer_bronze_bead',bronze,-0.315);
   // Diffuser overlaps the bead by 1 cm, eliminating the loose inner ring.
-  ring(width-0.40,depth-0.40,width-0.465,depth-0.465,0.012,'coffer_light_diffuser',glow,-0.322);
+  // Optional per-tile ownership prevents adjacent coffers drawing duplicate light lines.
+  // Missing option retains the original single-ring mesh and its geometry budget.
+  const edges = options.diffuserEdges;
+  if (edges === undefined) {
+    ring(width-0.40,depth-0.40,width-0.465,depth-0.465,0.012,'coffer_light_diffuser',glow,-0.322);
+  } else {
+    if (!edges || typeof edges !== 'object' || ['n','s','e','w'].some(k => typeof edges[k] !== 'boolean'))
+      throw new TypeError('diffuserEdges requires boolean n, s, e and w properties');
+    const outerW = width - 0.40, outerD = depth - 0.40;
+    const strip = 0.0325; // (outer - inner) / 2; same as the original ring.
+    const halfW = outerW/2, halfD = outerD/2;
+    const addStrip = (key,w,d,x,z) =>
+      add('coffer_light_diffuser_' + key,new THREE.BoxGeometry(w,0.012,d),glow,x,-0.328,z);
+    // East/west strips own their corners; north/south stop at their inner edges.
+    // With all four enabled the visible footprint equals the original ring.
+    if (edges.n) addStrip('n',outerW-2*strip,strip,0,-halfD+strip/2);
+    if (edges.s) addStrip('s',outerW-2*strip,strip,0,halfD-strip/2);
+    if (edges.e) addStrip('e',strip,outerD,halfW-strip/2,0);
+    if (edges.w) addStrip('w',strip,outerD,-halfW+strip/2,0);
+  }
   // Original fluted bronze corner medallions, with low-cost radial geometry.
   for (const sx of [-1,1]) for (const sz of [-1,1]) {
     add('corner_rosette',new THREE.CylinderGeometry(0.075,0.075,0.013,8),bronze,
@@ -58,7 +77,7 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
   root.userData = {
     artStudy:true, forward:'-Y', widthMetres:width, depthMetres:depth,
     lightImplementation:'emissive only; add engine-owned lighting if desired',
-    revision:'VA-0330 warm visible inset, connected bronze and diffuser rings, reduced glow',
+    revision:'VA-0332 optional diffuser edge ownership; default ring preserved',
     disclaimer:'Original stylized coffer geometry, not photorealistic or device-tested'
   };
   return root;
