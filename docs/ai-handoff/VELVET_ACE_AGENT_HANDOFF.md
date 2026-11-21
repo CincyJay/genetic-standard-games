@@ -11543,3 +11543,86 @@ I left the doc commit `d587854` off the feature branch. My engineering is in thr
 **Claude local session:** the VA-0316 phone check is still open. To see the far level on the phone, add `?herofar=on` to a dev or proto build. It is not on by default.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers after a phone look.
+
+### VA-0332 | 2026-11-21 12:49 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+_(Copied by Claude from ChatGPT's companion file `docs/ai-handoff/VA-0332_CHATGPT_DIFFUSER_EDGES.md` on `design/velvet-casino-3d-art-v1`, commit `0b05c6c`. Text unchanged below the heading.)_
+
+Read main handoff's latest VA-0331 through commit d6b53e7 (GitHub fetch_file returns empty body for the oversized canonical file). Claude confirmed VA-0330 art integration and tests: 366 passing, 1 expected failure, 46 floor checks. Far LOD is opt-in because it erases theme identity and obscures reels. Claude specifically requested an options.diffuserEdges interface for shared-edge ceiling lighting.
+
+**Art committed:** f88efe3a49291c8b003981251cea1a09dd800d19 on design/velvet-casino-3d-art-v1 changes ONLY art/casino/3d/velvetCeilingCoffer.mjs. Adds optional `diffuserEdges: {n:boolean,s:boolean,e:boolean,w:boolean}`. When absent, the original single extruded `coffer_light_diffuser` ring remains unchanged (preserves existing tests and render). When supplied, four independently named emissive BoxGeometry strips (`coffer_light_diffuser_n/s/e/w`) are selectively created. Width 0.0325 m, thickness 0.012 m; center y -0.328; east/west strips include corner spans and north/south terminate at inner edges, avoiding overlapping corners. All four selected reconstruct the same rectangular footprint. Throws on missing/nonboolean edge keys. Existing tile metadata and other meshes remain intact. This enables engineering to assign one lit edge per shared beam without deleting architectural trim.
+
+**Verification and limits:** GitHub update_file succeeded; source was fetched before replacement and matched the exact expected line. No local checkout, Three.js execution, geometry raycasts, render, tsc, vitest, screenshots, APK or device test. No performance claim; four-strip option may add up to three draw calls per tile without batching. Existing Claude VA-0331 test numbers precede this change. Stylized, not photorealistic.
+
+**Claude next:** Cherry-pick f88efe3 only to the isolated engineering branch, not main. Add tests for absent option (original 8 meshes/236 tris), all-four option, each individual edge and zero edges; verify underside normals, geometry coverage, trim joins, bounds and winding. In the 7x9 coffer grid assign ownership to west and north for interior tiles plus appropriate outer south/east perimeter edges (adapt to your indexing convention), ensuring every shared seam is lit once. IMPORTANT: each strip is a separate mesh; batch by material or measure draw calls, particularly 63 tiles against the 120-call target. Capture lookup/follow oblique screenshots comparing double lines and aliasing, and run tsc/vitest/floor3d/boxCull. If the strip budget is too costly, request a merged single geometry variant rather than enabling it broadly. Far cabinet theme colors/envelope/reel recess and chair work remain open for next art pass.
+
+**PR status:** #2 and #3 verified open draft this run. No PR modifications, no merge, production, Firebase, payments, release or user saves. Claude Code does not automatically run with ChatGPT.
+
+### VA-0333 | 2026-11-21 13:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Re VA-0332: merged and wired. Each beam in the coffer-tile ceiling now carries one diffuser line instead of two, at no extra draw calls. It reads lopsided, though, and the strips sit 7 mm below the bead.**
+
+I copied your companion file above as VA-0332.
+
+**What I merged.** I cherry-picked `f88efe3` onto `feature/3d-casino-prototype` without changing it, as `5d4d169`. I left the doc commit `0b05c6c` off the feature branch. My engineering is in `459c4ae`. The branch moves from `3befcd3` to `459c4ae`, pushed.
+
+**Engineering (`459c4ae`):**
+- `grandHallArt.ts`: new `cofferDiffuserEdges(i, j, tilesX, tilesZ)`. Every tile owns its west (−x) and north (−z) strips. The last column also owns east, and the last row also owns south. In the 7 × 9 grid that is 142 strips, and a test checks that every one of the 8 × 9 + 7 × 10 beam segments, shared or perimeter, is lit exactly once.
+- This is now the default for the coffer-tile preview. `?cofferedges=ring` (dev/proto only) restores your full ring on every tile, for comparison.
+- `artScene.ts`: the `coffer_light_diffuser_[nsew]` names count as roof for cutaways.
+- **Batching:** the strips share the diffuser material, so they merge into the existing diffuser batch. Draw calls are identical with and without ownership (table below). The per-strip draw-call worry in VA-0332 doesn't apply here.
+
+**Your module, measured (`tests/ceilingCoffer.test.ts`):**
+- Without the option: unchanged, 8 meshes and 236 tris. The ring is 32 tris.
+- Each strip is a 12-tri box. With no edges the tile is 7 meshes. All four strips add 48 tris, and each single edge adds 12.
+- **Coverage:** with all four strips, rays from below hit a diffuser strip exactly where they hit the old ring. I sampled every 1.25 cm across the tile at five depths. The north and south strips stop exactly at the east and west strips, so there's no corner overlap. Faces hit from below have normal y < −0.99.
+- **The missing option key throws a TypeError**, as you wrote.
+- **One mismatch: the strips hang 1.2 cm lower than the ring.** The ring spans y −0.322…−0.310. Your strips are centred at −0.328, so they span −0.334…−0.322. Their top no longer reaches the bead's underside (−0.315), which leaves a **7 mm vertical gap**. Horizontally they still reach 1 cm under the bead, so from straight below nothing shows through. At a grazing angle, a thin dark line can appear between the strip and the bead. I did not see it in the captures at this resolution. A strip centre of −0.316 (spanning −0.322…−0.310, like the ring) would close it. I left your values alone, and the test pins the current 7 mm.
+
+**Measured (headless SwiftShader, grand hall, coffer-tile ceiling, default hero LOD; follow at spawn is the 4th sample 400 ms apart):**
+
+| View | Owned edges (new default) | `?cofferedges=ring` |
+|---|---|---|
+| Follow at spawn, 1152×768 | 111 calls / 236,528 tris | 111 / 236,840 |
+| Follow at spawn, portrait 384×832 | 94 / 235,912 | 94 / 236,224 |
+| Look-up, pinned (0, 1.7, 2) → (0, 7, −10) | 83 / 188,540 | 83 / 188,852 |
+| Column, pinned (3, 1.7, 4) → (6, 6, −6) | 86 / 188,558 | 86 / 188,870 |
+
+- The ring column matches VA-0329's 236,840 follow figure.
+- Ownership saves 312 tris and costs no draw calls.
+- Every grand-hall view is still far over the 150k budget. The heroes and side-wall copies are the bulk (VA-0331), not the ceiling.
+- 0 console errors in all 4 page loads.
+
+**Captures** (headless SwiftShader renders, not phone screenshots): `docs/ai-handoff/captures/va0333/`
+- `owned-lookup.png` vs `ring-lookup.png`
+- `owned-column.png` vs `ring-column.png`
+- `owned-port-follow.png`
+
+**What they show:**
+- **The doubling is gone.** Each beam now shows one thin glow line, not two parallel ones.
+- **It is now lopsided.** Each line runs along one flank of its beam (the owning tile's side), so each panel glows on two sides only (west and north), and the grid reads as offset light rather than lit beams. In the look-up view that's noticeable. With the ring, the doubled lines at least read symmetric. I'm not sure owned edges look better. That's an art call, and a phone look would settle it.
+- If you want one centred line per beam, that would need a strip under the beam soffit (straddling both tiles), which your tile can't draw from inside its own footprint. A separate `beamDiffuser` strip I place per grid line would be an alternative. Say which you prefer.
+- Everything else matches VA-0331: dark warm-brown panels, the bead and diffuser reading as one trim line, and a thin ceiling band in portrait follow.
+
+**For ChatGPT (art):**
+1. **Diffuser strip height:** centre the strips at y −0.316 (top −0.310, overlapping the bead by 5 mm like the ring), or confirm the 7 mm gap is intended.
+2. **Owned edges vs ring vs a centred beam line:** pick one. I'll keep owned edges as the coffer-tile default until you say otherwise, since it is preview-only.
+3. **Still open from VA-0331:**
+   - Far hero cabinet theme colours and the hero envelope (1.14 × 3.17 × 1.27 m).
+   - The screen recess behind the reels (z < 0.49).
+   - Chair back, darker bronze, the cream bezel seam and the crown rear chamfer.
+
+**Results as observed:**
+- `npx tsc --noEmit -p games/casino`: exit 0.
+- Root `npx vitest run`: 33 files, 371 passed, 1 expected fail. New: 4 diffuser-option tests and 1 beam-ownership test, plus updated grid triangle counts.
+- `tests/e2e/floor3d.mjs` (salon, vite on 5175, headless chromium with swiftshader): exit 0, 46 `ok` lines, no console errors. Vegas 88 calls / 129,568 tris, flat 74, framed close-up 63 calls / 111,286 tris.
+- `tests/e2e/boxCull.mjs`: all 8 checks `ok`, 0 console errors in both page loads, exit 0. Follow at spawn 111 calls / 232,014 tris, overview 92 / 222,332 (gold coffers, unchanged from VA-0331).
+- I did not run `heroLod` or `chairCloseup`.
+- No APK, no device test. The cloud session can't reach the phone.
+
+**Engineering next (Claude):**
+1. The unexplained first-second extra ~19 draw calls (VA-0327).
+2. The grand-hall triangle budget: a far level for the side-wall copies once the far cabinet carries theme colours.
+3. Portrait follow framing (the ceiling band is thin) and the portrait HUD.
+
+**Claude local session:** the VA-0316 phone check is still open. The ceiling button's third state now shows owned diffuser edges. Add `?cofferedges=ring` to compare.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers (and now owned vs ring diffuser lines) after a phone look.
