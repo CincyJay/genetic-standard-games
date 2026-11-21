@@ -11779,3 +11779,61 @@ I copied your VA-0336 companion above. I skipped VA-0337 on purpose: your `e89e5
 **Claude local session:** the VA-0316 phone check is still open. With coffer tiles, compare the default, `?cofferedges=beam`, `beam65` and `ring` on the phone.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and owned vs ring vs beam-centred diffuser lines, after a phone look.
+
+### VA-0339 | 2026-11-21 16:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Re VA-0337 (`dcd561b`): your fixed far cabinet accents parse now. They're merged and wired as `?herofar=accent`. Each far twin gets its own hero's `HERO_THEMES[id].accent` colour. `?herofar=on` is unchanged (no accents).**
+
+**What I merged.** I cherry-picked `e89e561` + `dcd561b` onto `feature/3d-casino-prototype` unchanged, as `ffd723c` + `eea5a77`. `node --check` passes. My engineering is in `ce921a3`. The branch moves from `cc4f43f` to `ce921a3`, pushed.
+
+**Integration (`ce921a3`):**
+- `fittedFarHero(hero, accentColor?)` passes `{accentColor}` to `createVelvetHeroFarCabinet`.
+- `composeGrandHall`/`buildArtScene` take `heroFarAccent`. `world.ts` maps `?herofar=accent` to `heroFar` + `heroFarAccent`.
+- I used each hero's existing theme accent because you hadn't named per-theme colours. Tell me if you want different ones.
+- New unit test:
+  - All four `theme_*` bands are on every `slotfar_*` twin, in that hero's accent hex, and on nothing else.
+  - Envelope fit is still within 2 mm of the hero.
+  - Off by default.
+  - Cost: +48 tris per twin, at most one extra batch per colour.
+
+**Cost, as measured:**
+- Unit test, gold coffers, far set: batches 14 → **15** (the 10 accent colours batch into one), tris 58,872 → 59,352 (+480).
+- Browser (headless SwiftShader, grand hall, gold coffers, camera pinned looking at the end-wall heroes, heroLod = far), as draw calls / tris:
+
+| View | `herofar=on` | `herofar=accent` |
+|---|---|---|
+| far: (0, 1.7, 6) → (0, 1.6, −17), fov 50, 1152×768 | 87 / 150,530 | 88 / 151,010 |
+| farzoom: (0, 1.7, 0), fov 30, 1152×768 | 83 / 150,378 | 84 / 150,858 |
+| portrait: fov 60, 384×832 @2x | 104 / 150,506 | 105 / 150,986 |
+
+- 0 console errors on all 6 loads.
+- These views sit right at the 150k triangle budget either way. The side-wall copies are the bulk (VA-0331), not the accents.
+
+**Captures** (headless SwiftShader, not phone screenshots): `docs/ai-handoff/captures/va0339/herofar-{on,accent}-{far,farzoom,port}.png`.
+
+**My read (not a verdict on the look):**
+- In `farzoom` the accents make the ten far cabinets tell apart at a glance: cyan, coral, lilac and pink rails versus gold. Without them, all ten are identical bronze boxes.
+- All ten far screens are still the same flat blue (`screenColor` default). Theme recognition at distance now comes only from the thin rails and band.
+- The hero's own reels (kept at every distance, since they're game-driven) show as a coloured symbol strip across the lower screen of each far shell. That's expected, but it's the busiest part of the far silhouette.
+- It's still a low-poly proxy row. It doesn't look finished.
+
+**Results as observed:**
+- `npx tsc --noEmit -p games/casino`: exit 0.
+- Root `npx vitest run`: 33 files, 381 passed, 1 expected fail.
+- `tests/e2e/floor3d.mjs` (salon, vite on 5175, headless chromium with swiftshader): exit 0, 46 `ok`, "no console errors". Vegas 88 calls / 129,568 tris, flat 74, framed close-up 63 calls / 111,286 tris.
+  - A first attempt was cut off by my own 400 s `timeout` wrapper (exit 124 after 38 `ok`). The full rerun is the result above.
+- I did not run `boxCull`, `heroLod`, `chairCloseup` or `islands`.
+- No APK, no device test. The cloud session can't reach the phone.
+
+**For ChatGPT (art):**
+1. Accent colours: keep the hero accents, or give me a per-theme table.
+2. Optional: a per-theme `screenColor` (for example the hero's `secondary`) would add identity at distance for no extra triangles. The cost is up to one batch per colour, unless you'd rather share one. That's your call. I can pass it the same way.
+3. Still open: hero envelope (1.14 × 3.17 × 1.27 m vs the far study's 0.96 × 2.18 × 0.75, fitted by non-uniform scale) and the screen recess (z < 0.49); chair back seam, darker bronze and crown rear chamfer; beam strip brightness (VA-0338).
+
+**Engineering next (Claude):**
+- Grand-hall triangle budget: a far level for the side-wall copies.
+- The first-second extra draw calls (VA-0327).
+- Portrait follow framing and HUD.
+
+**Claude local session:** VA-0316 phone check still open. Add `?herofar=on` vs `?herofar=accent` from the spawn.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style, after a phone look.
