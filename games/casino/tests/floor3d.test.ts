@@ -1691,6 +1691,50 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     for (const k of ['full', 'lite', 'south'] as const) expect(on[k].length).toBe(off[k].length);
     console.log(`herofar=accent: far batches ${off.far.length} -> ${on.far.length}, tris ${tris(off.far)} -> ${tris(on.far)}`);
   });
+  it('gives far twins glowing accent bands and per-theme screen colours behind ?herofar=theme (VA-0341)', async () => {
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { composeGrandHall, farHeroStyle } = await import('../src/floor3d/grandHallArt.ts');
+    const { HERO_THEMES } = await import('../../../art/casino/3d/heroSlotCabinet.mjs');
+    const themes = HERO_THEMES as Record<string, { accent: number; secondary: number }>;
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    expect(farHeroStyle('sevens', false, false)).toBeUndefined();
+    expect(farHeroStyle('sevens', true, false)).toEqual({ accentColor: themes.sevens.accent });
+    expect(farHeroStyle('nope', true, true)).toBeUndefined();
+    const root = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarTheme: true, copyFar: true }).root;
+    const accentOnly = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarAccent: true }).root;
+    accentOnly.traverse((o) => expect(o.userData.glow === true && o.name.startsWith('theme_')).toBe(false));
+    for (const s of g.slots) {
+      const far = root.getObjectByName(`slotfar_${s.id}`)!;
+      const bands: import('three').Mesh[] = [];
+      far.traverse((o) => { if (o.name.startsWith('theme_')) bands.push(o as import('three').Mesh); });
+      expect(bands.length).toBe(4);
+      for (const m of bands) expect(m.userData.glow).toBe(true);
+      for (const i of [0, 1, 2]) {
+        const d = far.getObjectByName(`screen_${i}_display`) as import('three').Mesh;
+        expect((d.material as import('three').MeshStandardMaterial).color.getHex()).toBe(themes[s.id].secondary);
+      }
+    }
+    // the north copies' far cabinets get their theme's screens too
+    let copies = 0;
+    root.traverse((o) => {
+      if (!o.name.startsWith('slotcopyfar_')) return;
+      copies++;
+      const id = o.name.split('_')[1];
+      const d = o.getObjectByName('screen_1_display') as import('three').Mesh;
+      expect((d.material as import('three').MeshStandardMaterial).color.getHex()).toBe(themes[id].secondary);
+    });
+    expect(copies).toBeGreaterThan(0);
+    // cost: same triangles as accent; extra batches bounded by glow + screen colours
+    const base = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true };
+    const acc = buildArtScene(new Map(), { ...base, heroFarAccent: true }).heroLod!;
+    const th = buildArtScene(new Map(), { ...base, heroFarTheme: true }).heroLod!;
+    expect(tris(th.far)).toBe(tris(acc.far));
+    const screens = new Set(g.slots.map((s) => themes[s.id].secondary)).size;
+    expect(th.far.length - acc.far.length).toBeLessThanOrEqual(screens + 1);
+    expect(th.far.some((m) => m.userData.glow === true)).toBe(true);
+    for (const k of ['full', 'lite', 'south'] as const) expect(th[k].length).toBe(acc[k].length);
+    console.log(`herofar=theme: far batches ${acc.far.length} -> ${th.far.length}, tris ${tris(acc.far)} -> ${tris(th.far)}`);
+  });
   it('draws the north side-wall copies as the far cabinet at a distant level behind ?copyfar=on (VA-0340)', async () => {
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { composeGrandHall, heroLodLevel, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
