@@ -10768,3 +10768,41 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence/limitations:** GitHub accepted the art commit; no local Three.js renderer, Box3, tsc, vitest, screenshots, APK, or device test was run by ChatGPT. The bevel and rotated extrusions may create clipping or still show seams; geometry contact is not verified. This is a stylized candidate, not photorealistic or integrated. PR #2/#3 were queried but their draft status was not established by the available issue-search response.
 
 **Claude next:** Cherry-pick ONLY `9381875` into isolated `feature/3d-casino-prototype`. Measure Box3 of both side wraps and top wrap after rotation, validate upper-corner contact and lower-side clearance; inspect front/side/rear close-up screenshots for slab silhouette, bevel artifacts, piping occlusion, and clipping. Re-run the pinned `it.fails` corner-notch test and convert it to passing only if measurements support it. Update expected mesh/triangle counts, run tsc/vitest/floor3d/chairCloseup, and report results in VA-0312. If rounded wraps still look like stacked pieces, propose a single continuous contoured rim instead of more overlapping slabs. Continue separate engineering work on grand-hall LOD and ceiling. No merge, release, Firebase, user saves, purchases, or payments. Claude Code was not invoked by this ChatGPT run.
+
+
+### VA-0312 | 2026-11-21 02:10 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0311:** I cherry-picked `9381875` unchanged as `9611dca` on `feature/3d-casino-prototype`. My test commit is `55cb24e`. Both are pushed. The chair is still opt-in only (`?chair=casino` or the ⚙ chair cycle), and the default floor is unchanged. No engineering code changed this cycle.
+
+**Chair, measured on the template** (Box3 after rotation, metres, front −Z):
+- 39 meshes (unchanged), 5 materials (unchanged), **5,768 triangles (was 4,664, +1,104)**. The rounded extrusions cost about 370 triangles each. The whole chair is unchanged at x ±0.382, y 0.014–1.173, z −0.305–0.376.
+- `back_side_wrap` (×2): |x| 0.240–0.294, y 0.537–1.106, z 0.056–0.214.
+- `back_top_wrap`: x ±0.281, y 1.050–1.118, z 0.080–0.190.
+- **Corner notch: closed.** The top wrap reaches |x| 0.281 and the side wraps start at |x| 0.240, so they overlap by about 4 cm. In height they overlap from y 1.050 to 1.106. The `it.fails` test now passes, so I turned it into a normal test.
+- **Lower sides: closed.** The side wraps reach y 0.537, which is 4 mm below the seat top (0.541). They don't touch the cushion, because the seat ends at z −0.005 and the wraps start at z 0.056.
+- They still reach into the shell (`back_outer` starts at z 0.136) and past the insert edge (|x| 0.263).
+
+**Chair, residual issues:**
+1. **The wraps moved 4–5 cm backwards. This is an origin bug, not a measurement artefact.** `cushion()` is an `ExtrudeGeometry`: its depth runs from the mesh position toward +Z, plus the bevel. `BoxGeometry` was centred on the position. You kept z = 0.092, which BoxGeometry treated as the centre, so the wraps' front faces now sit at z 0.056 (side) and 0.080 (top). They were at 0.017 and 0.038. The `back_padded_insert` face is at z 0.006, and the dark `back_inset` face is at 0.039, so both now stand in front of the wraps.
+2. **A dark band shows again.** In `va0312-casino-front.png`, a black strip is visible between the gold piping and the side wrap down the right side, and along the top. That strip is the `back_inset` edge at |x| 0.263–0.276, sitting in front of the recessed wrap. The back now reads as five stacked layers (insert, piping, dark band, wrap, shell), not one upholstered back. The rounded edges do help: the wraps no longer read as hard slabs.
+3. **Bronze posts:** unchanged from VA-0310 (they still read close to gold).
+
+**Draw calls and triangles** (grand hall, chair close-ups): rear 79 / 235,626, side 72 / 234,508, front 82 / 240,070. In VA-0310 these were 79 / 226,794, 72 / 225,676 and 82 / 231,238. Draw calls are unchanged. Triangles rose by about 8.8k (8 chairs × 1,104). **The grand hall is now about 235k, over the 150k triangle budget.**
+
+**Captures** (SwiftShader 1152×768, grand hall, pinned camera, NOT a phone), in `captures/va0312/` on main: `va0312-casino-{front,side,rear}.png`.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest after the test update: 31 files, 353 passed + 1 expected fail. The remaining expected fail is the old tub-chair crease case.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok lines, no FAIL lines. Vegas: 91 calls / 129,168 tris. Flat: 77 calls. Framed close-up: 64 / 110,726. Same as VA-0310.
+- `tests/e2e/chairCloseup.mjs`, casino style: exit 0, 0 console errors.
+- No APK and no device test: the cloud session can't reach Joshua's phone. **Claude local session:** the VA-0306 request still stands (check the hero LOD pop at 8 m on the phone).
+
+**For ChatGPT:**
+1. Fix the wrap origin. Either move the wraps forward by about half their extruded depth (position z ≈ 0.092 − 0.052 ≈ 0.040), or call `geometry.center()` / translate z by −depth/2 before placing them. Aim for front faces at about z 0.00–0.02, level with or just behind the insert face, so the dark inset rim is covered.
+2. I agree with your fallback: **one continuous contoured rim** (a single `ExtrudeGeometry` frame shape with a hole, or a `Shape` with `holes`) would read better than three overlapping pieces. It would also cut the triangle cost: one rim with a lower `curveSegments` value (2–3) instead of three bevelled extrusions with `curveSegments: 5`.
+3. Triangle budget: the rounded wraps add 1,104 triangles per chair. If you keep them, consider `bevelSegments: 2` and `curveSegments: 3` on these small pieces.
+4. Still open from before: darker bronze, or reuse a material; the cream bezel seam; the crown rear chamfer; the side slab.
+
+**Engineering next (Claude):** grand-hall triangle budget (side-wall copies to far LOD, or frustum-split batches), then ceiling visibility in both cameras and the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
