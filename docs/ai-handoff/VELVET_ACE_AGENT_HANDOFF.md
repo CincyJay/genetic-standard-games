@@ -10719,3 +10719,42 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence and limits:** GitHub accepted the isolated art commit. No Node/Three.js Box3, tsc, vitest, browser screenshots, e2e, APK or device tests were run by ChatGPT. Wrap-to-shell contact and silhouette quality are unmeasured. This is stylized geometry, not photorealistic, integrated or phone-tested. No merges, releases, production assets, Firebase, user saves or payments touched.
 
 **Claude next:** Cherry-pick ONLY `b1703cf` into isolated `feature/3d-casino-prototype`. Measure Box3 of `back_side_wrap`, `back_top_wrap`, `back_outer`, `back_inset`, and `back_padded_insert`; check actual gap closure, clipping, and trim visibility from front/side/rear, plus whether bronze posts look metallic rather than yellow under casino lights. Run tsc, vitest, chairCloseup and floor3d as appropriate, capture screenshots, and report specific measured defects in VA-0310. Keep the chair opt-in; do not merge or release. Other art backlog: cream bezel seam, crown rear chamfer, side slab. Engineering owns grand-hall LOD, roof visibility and HUD. Claude Code is not automatically executed by ChatGPT.
+
+
+### VA-0310 | 2026-11-21 01:12 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0309:** I cherry-picked `b1703cf` unchanged as `1825100` on `feature/3d-casino-prototype`. My test commit is `6394e4c`. Both are pushed. The chair is still opt-in only (`?chair=casino` or the ⚙ chair cycle), and the default floor is unchanged. No engineering code changed this cycle.
+
+**Chair, measured on the template** (Box3, metres, front −Z):
+- 39 meshes (was 36), 5 materials (was 4), 4,664 triangles (was 4,596). The whole chair is unchanged at x ±0.382, y 0.014–1.173, z −0.305–0.376.
+- `back_side_wrap` (×2): |x| 0.254–0.292, y 0.571–1.059, z 0.017–0.167. It reaches 3.1 cm into `back_outer` (z 0.136–0.319) and overlaps the insert's side edge (|x| 0.263) by 9 mm. So the side gaps are closed from y 0.571 to 1.059.
+- `back_top_wrap`: x ±0.220, y 1.060–1.104, z 0.038–0.146. It reaches 1 cm into the shell and sits above the insert top (1.089).
+- For reference: `back_padded_insert` |x| ≤0.263, y 0.542–1.089, z 0.006–0.094; `back_inset` |x| ≤0.276, y 0.530–1.101, z 0.039–0.121; `back_piping` |x| ≤0.257, z 0.000–0.063.
+- `arm_support` posts: |x| 0.302–0.342, y 0.335–0.625, bronze 0x735638, metalness 0.82, roughness 0.32. They are still grounded on the rail and inside the cradle.
+
+**Chair, residual issues:**
+1. **Notch at both upper corners.** The top wrap ends at |x| 0.220, but the side wraps start at |x| 0.254, so there is a 3.4 cm open notch at each upper corner. The dark `back_inset` shows through it, which is visible in `va0310-casino-front.png` at the top right of the back. I pinned this as an `it.fails` test.
+2. **The wraps read as flat boxes.** They are hard-edged `BoxGeometry` against the rounded shell and insert. In the front and side views each side wrap reads as a separate rectangular slab standing proud of the insert, so the back now looks like four pieces rather than three. It does not yet read as one upholstered back.
+3. **The side wraps stop 2.9 cm short at the bottom.** They start at y 0.571, but the insert starts at y 0.542 and the seat top is y 0.541. A small dark gap remains at the lower sides, above the seat.
+4. **Bronze posts read as brass/gold, not dark bronze.** Under the hall's warm light the thinner posts read as metal and much less like plain black legs, which is better. However, they look close to the gold piping tone. Whether that is wanted is an art call.
+
+**Draw calls and triangles** (grand hall, chair close-ups): rear 79 / 226,794, side 72 / 225,676, front 82 / 231,238. Before (VA-0308) these were 78 / 226,250, 71 / 225,132 and 81 / 230,694. So the extra bronze material adds 1 draw call in each view, plus 544 triangles (8 chairs × 68). The grand hall is still about 225k, over the 150k triangle budget.
+
+**Captures** (SwiftShader 1152×768, grand hall, pinned camera, NOT a phone), in `captures/va0310/` on main: `va0310-casino-{front,side,rear}.png`.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: before I updated the chair count test, 1 test failed as expected: the template-count test expected 4,596 triangles and got 4,664. I updated it to 4,664 tris and 5 materials. After that, `tests/floor3d.test.ts` ran 86 passed + 2 expected fail. The 2 are the old tub-chair crease case and the new corner notch. I did not rerun the full root suite after that one-file update. The full root run before the update was 31 files: 351 passed + 2 expected fail + that 1 failure.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL. Vegas: 91 calls / 129,168 tris (VA-0304 also sampled 91 / 129,168 once). Flat: 77 calls. Framed close-up: 64 / 110,726. Same as before.
+- `tests/e2e/chairCloseup.mjs`, casino style: exit 0, 0 console errors.
+- No APK and no device test: the cloud session can't reach Joshua's phone. **Claude local session:** the VA-0306 request still stands (check the hero LOD pop at 8 m on the phone).
+
+**For ChatGPT:**
+1. Close the upper-corner notches: widen `back_top_wrap` to about x ±0.26, or extend the side wraps up to y 1.10 so they meet it.
+2. Make the wraps read as part of the back: round their edges (for example the same rounded `cushion(...)` profile), or merge them with the shell into one rim.
+3. Extend the side wraps down to about y 0.545 so they meet the seat.
+4. Optional: darken `armPostColor` if the posts should read as bronze rather than gold next to the piping. Alternatively, reuse an existing metal material so the chair keeps 4 materials and the extra draw call goes away.
+5. Still open from before: the cream bezel seam, the crown rear chamfer and the side slab.
+
+**Engineering next (Claude):** grand-hall triangle budget (side-wall copies far LOD or frustum-split batches), then ceiling visibility in both cameras and portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
