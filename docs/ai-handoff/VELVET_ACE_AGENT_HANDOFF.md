@@ -12233,3 +12233,46 @@ The top screen's text is still squeezed, though less than in revision 1. If you 
 **Claude local session:** VA-0316 phone check still open. Add `?herofar=theme&copyfar=on&farscreentex=atlas` to the A/B list.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; whether `copyfar`'s triangle saving is worth dimmer far banks; how bright far neon rails should be; whether textured far screens are wanted at all, after a phone look.
+
+### VA-0349 | 2026-11-21 23:16 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**The first-seconds draw-call spike (VA-0327) is traced. It is the reel load window, not your far-cabinet art. Engineering only this cycle; no new art since `4582976`, so nothing was merged.**
+
+**Cause, as observed.** I hooked the WebGL draw calls per frame. Setup: headless SwiftShader, grand hall, gold coffers, `?herofar=theme&copyfar=on&farscreentex=on`, 1152×768.
+- Frames 1–2 drew 136 calls. Frame 3 onward drew 117. Triangles were the same in every frame (145,806).
+- The only difference was 20 draws of one shader program in frames 1–2 (8 × 2700, 10 × 900 and 2 × 1800 vertices, 34,200 in total). From frame 3 on, they were replaced by one 34,200-vertex draw.
+- These are the reel meshes. Each of the 10 machines' reels, plus their grand-hall copies, draws on its own until every reel atlas has loaded. Then the shared reel sheet (VA-0222) replaces them with one draw call.
+- Cross-check: with `?reelsheet=off`, 136 stays for the whole run (12 frames sampled).
+- So the spike lasts only for the frames before the reel PNGs finish loading. It is about 2 frames here, about 1.5 s on SwiftShader. I have not measured it on a phone.
+- It is not a steady-state cost. It does not block a textured-far default. The settled figure for `theme` + texture is still 117 / 145,806, with only 3 calls of headroom under 120.
+
+**Change (`ac1465c` on `feature/3d-casino-prototype`, pushed; branch `a2e394f` → `ac1465c`):**
+- `stats().reelsSettled` is a new flag. It becomes true after every reel atlas has loaded or failed, and after the sheet is in the scene.
+- New helper `tests/e2e/fixtures/reelsSettled.mjs`. It waits for that flag, then for two more frames.
+- `heroLod`, `boxCull`, `chairCloseup` and `islands` now call this helper before reading draw calls. Future figures will be steady state, not the load window.
+- No visual change. No art values touched.
+
+**Results as observed:**
+- `npx tsc --noEmit -p games/casino`: exit 0.
+- Root `npx vitest run`: 33 files, 387 passed, 1 expected fail.
+- `tests/e2e/floor3d.mjs` (salon, vite on 5175, headless chromium with swiftshader): exit 0, 46 `ok`. Vegas 88 calls / 129,568 tris, flat 74, framed close-up 63 / 111,286. `reelsSettled: true`, no console errors.
+- `heroLod.mjs`: exit 0. Far → lite 85 / 184,154; near → full 59 / 216,322. With `off`: 85 / 322,762 and 61 / 259,138. 0 console errors.
+- `boxCull.mjs`: exit 0, all 8 `ok`. Follow spawn 111 / 232,014; overview 92 / 222,332. 0 console errors.
+- These runs use default flags, so the default triangles are still above 150k in the grand hall (unchanged).
+- Not run: `chairCloseup` and `islands`. They were edited only to add the wait.
+- No APK, no device test. The cloud session can't reach the phone.
+
+**For ChatGPT (art), unchanged from VA-0348:**
+1. Optional: retune the atlas band heights (top ≈ 191 rows, lower ≈ 148 rows).
+2. Per-theme title strings.
+3. The hero reel-strip overlap at the far level (about one grid row).
+4. Retire `=on` in favour of `=atlas`, or keep both?
+5. Open items from VA-0338/0344/0346.
+
+**Engineering next (Claude):**
+- Possibly a shared atlas across accents, to cut the 9 per-accent far batches under `theme`. That would make room under 120.
+- A far level for the south copies.
+- Portrait follow framing and HUD.
+
+**Claude local session:** VA-0316 phone check still open. To see how long the reel load window lasts on a real device, log `__floor3d.stats().reelsSettled` against `frames` on the phone.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; whether `copyfar`'s triangle saving is worth dimmer far banks; how bright far neon rails should be; whether textured far screens are wanted at all, after a phone look.
