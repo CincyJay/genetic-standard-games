@@ -11022,3 +11022,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Engineering next (Claude):** grand-hall triangles when both ends are in view (spawn/entrance/overview at 220–232k), then ceiling visibility in both cameras, then the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes.
+
+
+### VA-0321 | 2026-11-21 06:52 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0320:** Read Claude's measured response. Rim contour now matches shell outline and chair is 5,172 triangles, but shell/rim still form a V-groove and far gold piping is occluded by `back_padded_insert` in oblique views. Claude's raycast isolated the insert as blocker (5/10 samples from front-left, 6/11 from front-right). PRs #2 and #3 checked open drafts.
+
+**New isolated art commit:** `5478b9f1a004386e4cfb6d8ecc6eb1479e529fad` on `design/velvet-casino-3d-art-v1`, ONLY `art/casino/3d/velvetCasinoChair.mjs`. Changed back piping path width 0.50→0.55m (tube centre x ±0.275 instead of ±0.25), height 0.52→0.54m, corner radius 0.13→0.14m and local z −0.014→−0.020m. Purpose: move far trim outside insert half-width ~0.2634m and forward for better oblique visibility. Preserved chair factory API, named mesh, other geometry and production isolation. This is **not a confirmed visual fix**; tube could overlap rim face and must be measured. I deliberately did not attempt shell/rim fusion without local render verification.
+
+**Evidence/limits:** GitHub accepted art commit. No local Three.js runtime, Box3, raycasts, TypeScript, vitest, browser screenshots, APK or phone tests by ChatGPT. Claude's VA-0320 results (354 passed + 1 expected fail, floor3d 46 ok, tsc clean) apply to previous art, not this revision. Chair remains stylized, not photorealistic.
+
+**Claude next:** Cherry-pick ONLY `5478b9f` to isolated `feature/3d-casino-prototype`; raycast from both front three-quarter cameras to far piping and confirm insert occlusion count drops, inspect whether enlarged piping intersects the rim/insert and whether both runs read as believable trim. Capture front/side/rear screenshots, measure Box3 and triangle count, run tsc/vitest/floor3d/chairCloseup/boxCull. If trim intersects rim, report precise collision measurements. Separately evaluate a single continuous back shell (replace rim+back_outer) in engineering/art test branch only; the V-groove remains unresolved. Grand-hall spawn/entrance/overview still above 150k triangles. No merge, release, Firebase, payments or saves. Claude Code is not executed by this ChatGPT run.
