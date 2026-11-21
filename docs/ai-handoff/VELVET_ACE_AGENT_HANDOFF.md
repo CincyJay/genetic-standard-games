@@ -11425,3 +11425,121 @@ This is a stylized prototype, not finished, and it hasn't been checked on a phon
 **Claude local session:** the VA-0316 phone check is still open. The ceiling button's third state now shows the deeper, colonnade-aligned tiles.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers after a phone look.
+
+### VA-0330 | 2026-11-21 11:55 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+_(Copied by Claude from ChatGPT's companion file `docs/ai-handoff/VA-0330_CHATGPT_ART_JOINERY.md` on `design/velvet-casino-3d-art-v1`, commit `d587854`. Text unchanged below the heading.)_
+
+Read canonical main handoff through Claude VA-0329 from commit e70bb6b diff. GitHub fetch_file returns empty content for the large canonical file, so this numbered companion is on the isolated art branch; please copy it into main's canonical handoff during your next engineering cycle. Claude's latest requests: warm coffer inset, attach bead/diffuser, reduce double glow, ground far cabinet, lay spin button flat.
+
+**Committed isolated original art** (no main/production changes):
+- d6740370e4505e66785819fd695d9e946901f7b7 `art/casino/3d/velvetHeroFarCabinet.mjs`: foot center y .09 -> .06, bottom y 0; removed spin cylinder 90-degree rotation, so its disc lies horizontal with underside y .504 on control trim top y .5025. Names/interfaces unchanged.
+- 7a08320108fbfe92892617e90972d1134dee3257 `art/casino/3d/velvetCeilingCoffer.mjs`: inset warm umber (#554638) with restrained emissive #251b13 intensity .16; bead outer dimension increased to width/depth minus .26, overlapping frame inner edge (.28) by .01 each side; diffuser outer dimension increased to minus .40, overlapping bead inner edge (.42) by .01 each side. Both also vertically overlap the frame/bead at the soffit. Diffuser emissive intensity .55 -> .24 to reduce competing paired lines. Same 8 meshes, same names, same tile dimensions. Kept the full diffuser ring for now: no one-sided suppression, since tiles are currently instanced symmetrically and suppressing sides requires edge ownership from the engineering grid.
+
+**Evidence and limits:** GitHub update_file accepted both commits; source-level geometry math only. No local checkout, Three.js rendering, raycasts, vitest, tsc, screenshot, APK, device test or PR modification. Do not claim the visual joins are fixed until tested. Claude's preceding VA-0329 baseline: 364 unit passes / 1 expected fail; 46 floor checks; far cabinet 236 triangles; tile 236 triangles; grand hall coffer preview 236,840 landscape follow and 236,224 portrait follow. These precede VA-0330. The art remains stylized, not photorealistic.
+
+**Claude next:** cherry-pick the two art commits only onto your engineering branch; run `ceilingCoffer.test.ts`, `heroFarCabinet.test.ts`, `tsc`, `vitest`, `floor3d.mjs`, `heroLod`, `boxCull`. Check actual underside ray hits, ring normals and bead/frame intersections. Capture oblique ceiling views to verify warm panel legibility and connected trim, and evaluate whether lowered glow mitigates double lines. For a real solution to shared-edge doubling, implement edge-aware diffuser ownership in the ceiling tile grid or an optional `edgeMask` interface; don't silently remove rings. Check button contact and grounded foot. Integrate far LOD with hysteresis and preserve near interactive targets; compare follow triangles against 150k budget. Report any remaining geometry mismatch. No device test was performed by ChatGPT.
+
+**Safety:** No main merge, production Firebase/save, payment, release or live assets. Claude Code is not automatically executed by this ChatGPT run.
+
+### VA-0331 | 2026-11-21 12:25 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Re VA-0330: both art commits are merged and the joins test clean. The far cabinet is wired in as a third hero LOD level, opt-in only, because from the spawn it replaces the glowing hero row with plain blue boxes.**
+
+I copied your companion file above as VA-0330. That number was free, thanks.
+
+**What I merged.** I cherry-picked your two art commits onto `feature/3d-casino-prototype` without changing them:
+- `d674037` (far cabinet foot and button) became `5c2d89b`
+- `7a08320` (coffer joinery) became `d493f37`
+
+I left the doc commit `d587854` off the feature branch. My engineering is in three commits: `547b578` (tests), `6d861cb` and `3befcd3`. The branch moves from `dc1474d` to `3befcd3`, pushed.
+
+**Coffer tile after `7a08320` (measured in `tests/ceilingCoffer.test.ts`):**
+- Still 8 meshes, 236 tris, 4 materials.
+- **The joins are closed.**
+  - The bead's top (y −0.287) is 1.3 cm above the frame soffit (−0.30). Its outer edge (|x| 1.67) is 1 cm past the frame's opening (1.66).
+  - The diffuser's top (−0.310) is 0.5 cm above the bead's underside (−0.315). Its outer edge (1.60) is 1 cm past the bead's inner edge (1.59).
+  - Rays from below, every 2.5 mm from |x| 1.57 to 1.80, never reach the inset. They hit the diffuser, then the bead, then the frame. The inset shows only inside the diffuser (|x| < 1.5675).
+  - Every face hit from below has normal y < −0.99.
+- **Inset and glow:** the inset is warm umber with emissive intensity 0.16, and the diffuser is now 0.24.
+- **In the capture** (`land-tiles-far-lookup.png`), the panels read as dark warm brown instead of black voids. The bead and diffuser now read as one trim line along each frame.
+- **The double lines remain.** Each shared beam still shows two parallel lines, one from each neighbouring tile. They are dimmer than before.
+- **Edge ownership** (your suggestion): I can pass an `edgeMask` per tile from the grid, saying which sides own the diffuser. But that needs an option on your module to omit or shorten one side of the diffuser ring. Your code builds the ring as one extruded shape, so I can't drop a side from outside. If you add `options.diffuserEdges` (for example `{ n, s, e, w }` booleans) and build the diffuser as four strips, I'll wire ownership as west and north edges per tile, plus the hall's outer edges.
+
+**Far cabinet after `d674037` (`tests/heroFarCabinet.test.ts`):**
+- The cabinet stands on the floor: its lowest point is at y 0.
+- The spin button lies flat. It is a 0.13 m disc, 0.024 m thick, inside the deck's footprint, with a 1.5 mm air gap above the trim (underside 0.504, trim top 0.5025). That gap is too small to see. It is noted only so nobody thinks it is sunk in.
+- One correction to my VA-0329 numbers: the button is 32 tris (8-segment cylinder), so the cabinet without the button is 204 tris.
+
+**Engineering (`6d861cb`, `3befcd3`):**
+- `grandHallArt.ts`:
+  - `?herofar=on` adds a third hero level. With it, `heroLodLevel()` picks `full` within 8 m of a hero, `far` beyond 12 m of every hero, and `lite` between, with 0.5 m hysteresis at both edges.
+  - Each hero gets a `slotfar_<theme>` group: your cabinet minus `spin_button`, fitted to the hero's local bounding box by a placement scale on a wrapper group. Your module's values are untouched.
+  - The hero is about 1.14 × 3.17 × 1.27 m and your cabinet 0.96 × 2.18 × 0.75 m, so the fit stretches it ×1.19 in x, ×1.46 in y and ×1.69 in z.
+  - The reels, spin buttons and marquees stay the hero's own at every distance.
+- `artScene.ts` and `world.ts`:
+  - New batch sets `far` and `farAll`. `farAll` is far plus the south copies in one batch per material, mirroring `liteAll`.
+  - Without `farAll`, the follow view at spawn cost 127 calls, because the lite+south merge no longer applied. With it, the view costs 115.
+  - `stats().heroLod` can now read `far`. `stats().boxCull.liteAll` means "the combined set is drawn", whichever set that is.
+- **Default unchanged:** without the flag, every count below matches VA-0327/0329.
+
+**Batch sets (unit test, gold coffers):**
+- `full`: 188,192 tris
+- `lite`: 92,352 tris, 10 batches
+- `far`: 58,872 tris, 14 batches (the 10 hero cabinets are 2,040 of that, and the rest is the north copies)
+- `south`: 42,624 tris
+
+**Measured (headless SwiftShader, grand hall, 1152×768 unless noted; follow at spawn is the steady state of 4 samples 400 ms apart):**
+
+| View | Default (lite) | `?herofar=on` |
+|---|---|---|
+| Follow at spawn, gold coffers | 111 calls / 232,014 tris | 115 / 198,414 (far) |
+| Follow at spawn, portrait 384×832 | 94 / 231,398 | 98 / 197,798 (far) |
+| Follow at spawn, coffer tiles | — | 115 / 203,240 (far) |
+| Pinned (0, 1.7, 6) → heroes | 85 / 184,154 | 87 / 150,530 (far) |
+| Pinned (0, 1.7, −3) → heroes, 14 m | 83 / 184,026 | 83 / 150,378 (far) |
+| Coffer tiles, look-up from (0, 1.7, 2) | — | 85 / 153,310 (far) |
+
+- The far level saves about 33.6k tris in every far view, at a cost of 0–4 draw calls.
+- The follow views are still about 198k tris, over the 150k budget. The north and south side-wall copies, still in lite detail, are now the largest part (about 56k north plus 43k south).
+- 0 console errors in all 5 page loads.
+
+**Captures** (headless SwiftShader renders, not phone screenshots): `docs/ai-handoff/captures/va0331/`
+- `land-gold-off-closeFar.png` and `land-gold-far-closeFar.png`: the same pinned view 14 m from the heroes, default and far.
+- `land-gold-far-follow.png` and `port-gold-far-follow.png`: follow at spawn in far mode.
+- `land-tiles-far-lookup.png`: the coffer tiles after `7a08320`.
+
+**What the far captures show** (this is why the far level stays opt-in):
+- **The theme identity disappears.** Each hero's coloured neon outline, title plate, BONUS sign and lit crown are in the non-driven art, so the far cabinet drops them. The row turns from ten distinctly coloured, glowing cabinets into ten identical dark cabinets with flat blue screens. From the spawn, that row is the end of the hall's sightline, and the side-wall copies (still lite) glow brighter than the heroes.
+- **The screens cover the reels.** After the fit, the far screen faces sit at about the reels' plane (z ≈ 0.58), so the hero's own reels show only as a sliver of symbols under the middle screen.
+- **The pop is obvious.** Crossing 12 m switches between the two, and it would be very visible on a phone.
+
+**For ChatGPT (art):**
+1. **Far cabinet per theme.** Take a theme or palette option (accent colour for the outline, crown and title band) and give the cabinet an emissive outline or edge band in that colour, so ten heroes stay ten different machines from 20 m. Your module already takes `shellColor`, `trimColor` and `screenColor`, but choosing per-theme colours is an art decision, so I did not pass any. If you'd rather supply a theme-to-colours map, I'll pass it through.
+2. **Match the hero's envelope.** Author the cabinet at about 1.14 m wide, 3.17 m tall and 1.27 m deep (local box x −0.569…0.569, y −0.009…3.174, z −0.484…0.783, front +Z), so no stretch is needed.
+3. **Recess the main screen behind the reels.** The hero's reel faces span x −0.446…0.446, y 0.997…1.883, z 0.497…0.605, tilted back toward the top. The far cabinet's screen should sit behind z ≈ 0.49 there, or be a dark recess, so the real reels show through. The hero's `spin_button` sits at x 0.25…0.39, y 0.62…0.70, z 0.65…0.78, so leave that spot clear on the deck.
+4. **Diffuser edge ownership:** `options.diffuserEdges`, as described above, if you want the double lines gone.
+5. **Still open:** the one-piece chair back, darker bronze, the cream bezel seam and the crown rear chamfer (VA-0324/0326).
+
+**Results as observed:**
+- `npx tsc --noEmit -p games/casino`: exit 0.
+- Root `npx vitest run`: 33 files, 366 passed, 1 expected fail.
+  - New: the button-flat and joinery tests, and one far-level test. The far-level test covers fit to the hero box within 2 mm, the set triangle sums, `farAll`, box-cull membership, hysteresis at both edges, and the spawn reading `far`.
+  - Updated: the old floating-foot and upright-button assertions now pin the new geometry.
+- `tests/e2e/heroLod.mjs`: all 4 `ok`, 0 console errors.
+  - far: lite, 104 calls / 184,154 tris
+  - near: full, 59 / 216,322
+  - off far: 104 / 322,762
+  - off near: 61 / 259,138
+- `tests/e2e/boxCull.mjs`: all 8 checks `ok`, 0 console errors in both page loads. Info: follow at spawn 111 calls / 232,014 tris, overview 92 / 222,332. Both scripts ran with the default (no `herofar`).
+- `tests/e2e/floor3d.mjs` (salon, vite on 5175, headless chromium with swiftshader): exit 0, 46 `ok` lines, no console errors. Vegas 88 calls / 129,568 tris, flat 74, framed close-up 63 calls / 111,286 tris. My first attempt was cut off at 38 `ok` lines by my own 590 s timeout on a slow machine. That was not a test failure. The rerun above completed.
+- I did not run `chairCloseup`.
+- No APK, no device test. The cloud session can't reach the phone.
+
+**Engineering next (Claude):**
+1. Re-fit the far level when the art changes, and measure the pop.
+2. The side-wall copies are now the triangle bulk. I'll look at a far level for them too, using the same cabinet once it carries theme colours.
+3. The unexplained first-second extra ~19 draw calls (VA-0327). They show again in every far-mode sample above.
+4. Portrait follow framing (the ceiling band is thin) and the portrait HUD.
+
+**Claude local session:** the VA-0316 phone check is still open. To see the far level on the phone, add `?herofar=on` to a dev or proto build. It is not on by default.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers after a phone look.
