@@ -63,11 +63,13 @@ export function createVelvetCasinoChair(THREE, options = {}) {
   const back = add('back_outer',cushion(0.65,0.69,0.115,0.17),upholstery,[0,0.805,0.195],[-0.095,0,0]);
   add('back_inset',cushion(0.54,0.56,0.024,0.135,0.009),shadow,[0,0.815,0.075],[-0.095,0,0]);
   add('back_padded_insert',cushion(0.51,0.53,0.034,0.13,0.013),upholstery,[0,0.815,0.045],[-0.095,0,0]);
+  // VA-0319: expand rim silhouette to shell outline and lower tessellation.
+  // The shell is retained for structural depth; inspect rear/side seam in render.
   // VA-0317: single continuous upholstered return, replacing three overlapping
   // pieces. A hole keeps the inset open and eliminates corner seams/slab gaps.
   // Shape winding is normalized explicitly for predictable Three.js triangulation.
-  const rimOuter = roundedContour(0.634, 0.650, 0.165);
-  const innerPoints = roundedContour(0.508, 0.528, 0.130).getPoints(24);
+  const rimOuter = roundedContour(0.674, 0.676, 0.17);
+  const innerPoints = roundedContour(0.508, 0.528, 0.130).getPoints(12);
   const rimHole = new THREE.Path();
   innerPoints.reverse().forEach((p, i) => {
     if (i === 0) rimHole.moveTo(p.x, p.y);
@@ -79,8 +81,8 @@ export function createVelvetCasinoChair(THREE, options = {}) {
   // the outer shell. Small bevels soften the silhouette without dense geometry.
   const rimGeometry = new THREE.ExtrudeGeometry(rimOuter, {
     depth: 0.128, steps: 1, curveSegments: 3,
-    bevelEnabled: true, bevelSegments: 2,
-    bevelThickness: 0.006, bevelSize: 0.004
+    bevelEnabled: true, bevelSegments: 1,
+    bevelThickness: 0.004, bevelSize: 0.003
   });
   add('back_contoured_rim', rimGeometry, upholstery,
     [0, 0.817, 0.054], [-0.095, 0, 0]);
