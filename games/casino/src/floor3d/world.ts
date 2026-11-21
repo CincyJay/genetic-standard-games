@@ -73,6 +73,10 @@ export interface FloorStats {
   reelCells: number;
   /** Machines whose reels show their symbol atlas (loads after the floor opens). */
   reelTextures: number;
+  /** Every machine's reel atlas has loaded or failed (and the shared sheet, if any, is built).
+   *  Until then each machine's reels draw on their own, ~19 extra calls in the grand hall (VA-0349):
+   *  read draw calls after this. */
+  reelsSettled: boolean;
   /** The shared reel sheet (VA-0222), once built: machines tiled, sheet px, reel meshes merged, triangles. */
   reelSheet: { machines: number; size: [number, number]; meshes: number; triangles: number } | null;
   /** Showing the art pass 05 pilot (carpet, ceiling, hero cabinet, chair). */
@@ -383,6 +387,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const reelSources: ReelSource[] = [];
   const reelLoads: Promise<unknown>[] = [];
   let reelSheet: ReelSheet | null = null;
+  let reelsSettled = false;
   for (const m of MACHINES) {
     const mesh = art.interactive.get(`slot_${m.id}/reels`);
     if (!mesh) continue;
@@ -424,6 +429,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       for (const s of reelSources) for (const r of s.meshes) ((r.material as THREE.MeshBasicMaterial).map as THREE.Texture | null)?.dispose();
     });
   }
+  // registered after the sheet's own handler, so the sheet is in the scene when this flips
+  void Promise.allSettled(reelLoads).then(() => {
+    reelsSettled = true;
+  });
 
   // ------------------------------------------------------------------ gameplay proxies
   // Taps and the follow camera's collision use simple invisible shapes, not the detailed art.
@@ -1308,6 +1317,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       artBatches: art.batches,
       artInteractive: art.interactive.size,
       reelTextures,
+      reelsSettled,
       reelSheet: reelSheet ? { machines: reelSheet.tiles.size, size: [reelSheet.layout.width, reelSheet.layout.height], meshes: reelSources.reduce((n, r) => n + r.meshes.length, 0), triangles: (reelSheet.mesh.geometry.getAttribute('position').count / 3) | 0 } : null,
       heroTextures: [art.heroTextures.length, heroMaps.size],
       heroSignLift: art.heroSignLift,

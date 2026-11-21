@@ -16,6 +16,7 @@
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { reelsSettled } from './fixtures/reelsSettled.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
@@ -52,6 +53,7 @@ for (const [variant, q] of variants) {
   }, style);
   await page.goto(`${base}?floor3d${q}`);
   await page.waitForFunction(() => window.__floor3d?.debug, null, { timeout: 180000 });
+  await reelsSettled(page);
   await page.waitForTimeout(2000);
   let st = await page.evaluate(() => window.__floor3d.stats());
   console.log(`${variant} follow: drawCalls ${st.drawCalls} triangles ${st.triangles}; svelte ${JSON.stringify(st.svelteMachines)}`);

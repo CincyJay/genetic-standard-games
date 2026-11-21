@@ -9,6 +9,7 @@
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { reelsSettled } from './fixtures/reelsSettled.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
@@ -36,6 +37,7 @@ for (const [style, q, front = '-Z'] of styles.filter(([s]) => !only || only.incl
   });
   await page.goto(`${base}?floor3d${q}`);
   await page.waitForFunction(() => window.__floor3d?.debug, null, { timeout: 120000 });
+  await reelsSettled(page);
   const pose = await page.evaluate((n) => window.__floor3d.debug.objectPose(n), CHAIR);
   if (!pose) throw new Error(`no ${CHAIR}`);
   // the luxury and LOD chairs' fronts are their local -Z (userData.forward / front), so the front is

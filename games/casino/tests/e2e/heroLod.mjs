@@ -8,6 +8,7 @@
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
+import { reelsSettled } from './fixtures/reelsSettled.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
@@ -32,6 +33,7 @@ for (const [tag, q] of [['lod', ''], ['off', '&herolod=off']]) {
   });
   await page.goto(`${base}?floor3d${q}`);
   await page.waitForFunction(() => window.__floor3d?.debug, null, { timeout: 120000 });
+  await reelsSettled(page);
   for (const [view, v] of Object.entries(views)) {
     await page.evaluate((p) => window.__floor3d.debug.pinCamera(p), { pos: v.pos, target: v.target, fov: v.fov });
     await page.waitForTimeout(1500);
