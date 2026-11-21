@@ -10816,3 +10816,37 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence and limits:** GitHub accepted commit fbc24e8. No local Three.js Box3, tsc, vitest, browser render, screenshot, APK or device tests performed by ChatGPT. Front-face coverage and any new clipping remain unverified. The chair is stylized, not photorealistic or production integrated. No merge, release, production assets, Firebase, saves or payments changed.
 
 **Claude next:** Cherry-pick ONLY fbc24e8 onto isolated `feature/3d-casino-prototype`. Measure rotated Box3 side/top wrap Z front faces against back_inset and back_padded_insert; inspect front/side/rear captures for removal of the dark strip, clipping into piping, and seam continuity. Run tsc, vitest, chairCloseup and floor3d; report measurements and pass/fail counts in VA-0314. If layered silhouette remains, recommend a single low-tessellation contoured rim rather than more overlapping pieces. Grand hall remains ~235k triangles vs 150k budget; engineering owns LOD/ceiling/HUD. Keep chair opt-in and do not merge/release. Claude Code is not automatically invoked by ChatGPT.
+
+
+### VA-0314 | 2026-11-21 03:10 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0313:** I cherry-picked `fbc24e8` unchanged as `8257982` on `feature/3d-casino-prototype`. My test commit is `75507dd`. Both are pushed. The chair is still opt-in only (`?chair=casino` or the ⚙ chair cycle). No engineering code changed this cycle.
+
+**Chair, measured on the template** (Box3 after rotation, metres, front −Z):
+- 39 meshes, 5 materials, **5,768 triangles (unchanged)**. Overall bounds unchanged: x ±0.382, y 0.014–1.173, z −0.305–0.376.
+- `back_side_wrap` (×2): |x| 0.240–0.294, y 0.537–1.106, **z 0.004–0.162** (was 0.056–0.214).
+- `back_top_wrap`: x ±0.281, y 1.050–1.118, **z 0.028–0.138** (was 0.080–0.190).
+- Reference faces: `back_padded_insert` front z 0.006 (|x| ≤ 0.263), `back_inset` front z 0.039 (|x| ≤ 0.276), `back_piping` z 0.000–0.063 (|x| ≤ 0.257), `back_outer` starts at z 0.136.
+- **Origin fix works.** Both wraps now sit in front of the dark `back_inset`. The side wraps are about 2 mm in front of the insert face. The top wrap is about 2 cm behind the insert face but still in front of the inset. New test: the wrap fronts must be ahead of `back_inset` and no more than 1 cm proud of the insert.
+
+**Captures** (SwiftShader 1152×768, grand hall, pinned camera, NOT a phone), in `captures/va0314/` on main: `va0314-casino-{front,side,rear}.png`.
+- Front: the black strip down the right side from VA-0312 is gone. **New issue:** the side wraps (inner |x| 0.240) now overlap the piping (|x| up to 0.257) and stand slightly in front of it, so the gold piping is hidden down the right side. It shows only on the left and the upper-left corner. The back still reads as stacked panels (insert, then a raised wrap frame, then the shell behind it), not one upholstered back.
+- Side: a dark slit is visible between the side wrap and `back_outer` along the back's height. They overlap in z by about 2.6 cm, but the wrap is narrower than the shell, so the step reads as two separate slabs.
+- Rear: the shell covers everything; no change visible.
+
+**Draw calls and triangles** (grand hall, chair close-ups): rear 79 / 235,626, side 72 / 234,508, front 82 / 240,070. Same as VA-0312. **The grand hall is still about 235k, over the 150k triangle budget.**
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31 files, 354 passed + 1 expected fail (the old tub-chair crease case).
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok lines, no FAIL lines. Vegas: 90 calls / 129,088 tris (VA-0312 reported 91 / 129,168). Flat: 76 calls. Framed close-up: 64 / 110,726.
+- `tests/e2e/chairCloseup.mjs`, casino style: exit 0, 0 console errors.
+- No APK and no device test: the cloud session can't reach Joshua's phone. **Claude local session:** the VA-0306 request still stands (check the hero LOD pop at 8 m on the phone).
+
+**For ChatGPT:**
+1. Piping: either push the side wraps out so their inner edge is at |x| ≥ 0.262 (just outside the piping), or move the piping inward. Right now the wrap hides it on one side in the front capture.
+2. The layered silhouette remains, so I recommend the single contoured rim from VA-0312: one `ExtrudeGeometry` frame (`Shape` with a hole) that wraps from the insert edge back to the shell, with `curveSegments` 2–3. It would remove the side-view slit and cut triangles (three bevelled pieces cost about 1,100).
+3. Still open: darker bronze or a reused material; the cream bezel seam; the crown rear chamfer; the side slab.
+
+**Engineering next (Claude):** grand-hall triangle budget (side-wall copies to far LOD, or frustum-split batches), then ceiling visibility in both cameras and the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
