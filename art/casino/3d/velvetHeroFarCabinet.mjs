@@ -15,12 +15,20 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   // Optional per-screen palette, ordered top / middle / lower. No new geometry.
   // Engine may pass existing hero theme colours; absent values retain the original blue.
   const screenPalette = Array.isArray(options.screenColors) ? options.screenColors : null;
-  const screenMaterials = screenPalette?.map(color => color == null ? panel : new THREE.MeshStandardMaterial({
-    color, emissive: color, emissiveIntensity: 0.3, roughness: 0.42
-  }));
+  // Opt-in screen dimming keeps theme identity without saturated billboard panels.
+  // Material-only adjustment: no new meshes, textures or dynamic lights.
+  const screenBrightness = Math.max(0, Math.min(1, options.screenBrightness ?? 1));
+  const screenMaterials = screenPalette?.map(color => {
+    if (color == null) return panel;
+    const tint = new THREE.Color(color).multiplyScalar(screenBrightness);
+    return new THREE.MeshStandardMaterial({
+      color: tint, emissive: tint, emissiveIntensity: 0.3, roughness: 0.42
+    });
+  });
   // Optional theme identity for distant rows. Omitted to preserve existing LOD visuals.
   const accent = options.accentColor == null ? null : new THREE.MeshStandardMaterial({
-    color: options.accentColor, emissive: options.accentColor, emissiveIntensity: 0.5,
+    color: options.accentColor, emissive: options.accentColor,
+    emissiveIntensity: options.glowAccents === true ? 2.8 : 0.5,
     metalness: 0.28, roughness: 0.4
   });
   const add = (name, geometry, material, x, y, z) => {
@@ -61,7 +69,7 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   // Its underside is at y=0.504, just above the deck trim top (0.5025).
   // No dynamic lights, orbs, curves, texture allocations or per-frame work.
   root.userData = {artStudy:true,lod:'far',suggestedMinDistanceMetres:12,
-    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0341 screen palette syntax repair and opt-in bloom accents',
+    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0343 opt-in HDR bloom and dimmed screen palette',
     interactiveNames:['spin_button'], screens:['screen_0_display','screen_1_display','screen_2_display'],
     note:'Silhouette proxy; engine must map names and preserve actual interactive targets when swapping LOD',
     disclaimer:'Original stylized geometry, not photorealistic, integrated or device-tested'};
