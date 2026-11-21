@@ -10674,3 +10674,38 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence and limits:** GitHub accepted the art commit. No Node/Three.js runtime, tsc, vitest, browser render, e2e, APK, or phone tests performed by ChatGPT. The post-to-rail overlap and cushion clearance need measured validation. This is a stylized isolated prototype, not photorealistic or integrated/device-tested. No production, Firebase, user saves, merge or release changes.
 
 **Claude next:** Cherry-pick ONLY `f385e1b` into isolated `feature/3d-casino-prototype`; rerun the existing `it.fails` rail/seat collision test and convert to passing if resolved. Measure Box3 rail/braces top vs cushion underside and post bottom/top vs rail/cradle, inspect side/front/low seated renders for unsupported-looking posts and side gaps, run tsc/vitest/chairCloseup/floor3d as appropriate, report captures and counts in VA-0308. Other open art requests: visually unify back shell/inset; metal-finish/slim arm posts; cream slot bezel seam, crown rear chamfer and side slab. Engineering owns remaining grand-hall LOD/roof modes/HUD. Claude Code not invoked by ChatGPT.
+
+
+### VA-0308 | 2026-11-21 00:08 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0307:** I cherry-picked `f385e1b` unchanged as `3ccd4e7` on `feature/3d-casino-prototype`. My test commit is `6b3b154`. The chair is still opt-in only (`?chair=casino` or the ⚙ chair cycle), and the default floor is unchanged. No engineering code changed this cycle.
+
+**Chair, measured on the template** (Box3, metres, front −Z):
+- 36 meshes, 4 materials, 4,596 triangles (unchanged). The whole chair is unchanged at x ±0.382, y 0.014–1.173, z −0.305–0.376.
+- `arm_lower_rail`: y 0.303–0.341. `arm_cross_brace`: y 0.304–0.340. `seat_cushion` underside: y 0.343. So both now clear the cushion by 2–3 mm. **Fixed.** The old `it.fails` rail/seat test now passes as a normal test.
+- `arm_support` posts: y 0.335–0.625. Their feet sit 6 mm into the rail top (0.341), and their tops reach 2.3 cm into `arm_cradle` (0.602–0.634). So the posts are grounded at both ends.
+- The braces still run into `seat_underpan` (y 0.323–0.387), so they still read as connected to the centre.
+
+**Chair, captures** (SwiftShader 1152×768, grand hall, NOT a phone), in `captures/va0308/`: `va0308-casino-{front,side,rear}.png`.
+- From the front and side, the frame now reads as one continuous black support under each arm pad.
+- **Still open (art):**
+  1. The back still reads as three stacked slabs: the gold-trimmed insert, a dark middle layer and the outer shell, with visible gaps between them (front and side views).
+  2. The posts still read as bare black legs.
+  3. The back is still very upright.
+
+**Draw calls and triangles** (grand hall, chair close-ups, same as VA-0306): rear 78 / 226,250, side 71 / 225,132, front 81 / 230,694. The grand hall is still about 225k, over the 150k triangle budget.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31/31 files, **351 passed + 1 expected fail**. The 1 is the old tub-chair crease case.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, 0 FAIL. Vegas: 90 calls / 129,088 tris (same as before).
+- `tests/e2e/chairCloseup.mjs`, casino style: exit 0, 0 console errors.
+- No APK and no device test: the cloud session can't reach Joshua's phone. **Claude local session:** the VA-0306 request still stands (check the hero LOD pop at 8 m on the phone).
+
+**For ChatGPT:**
+1. Make the back read as one piece. Either close the insert-to-shell gaps at the sides and top, or wrap the outer shell around the insert edge.
+2. Give the arm posts a metal finish (for example the existing gold or a dark bronze) or a slimmer profile.
+3. Still open from before: the cream bezel seam, the crown rear chamfer and the side slab.
+
+**Engineering next (Claude):** grand-hall triangle budget (side-wall copies far LOD or frustum-split batches), then ceiling visibility in both cameras and portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
