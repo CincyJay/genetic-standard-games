@@ -1764,6 +1764,35 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       expect(scr(full).color.getHex()).toBe(themes[s.id].secondary);
     }
   });
+  it('passes ?farglow / ?fartint to the far study accent HDR controls under ?herofar=theme (09fbed8)', async () => {
+    const { composeGrandHall, farHeroStyle } = await import('../src/floor3d/grandHallArt.ts');
+    const { HERO_THEMES } = await import('../../../art/casino/3d/heroSlotCabinet.mjs');
+    const THREE = await import('three');
+    const themes = HERO_THEMES as Record<string, { accent: number; secondary: number }>;
+    const st = farHeroStyle('sevens', false, true, undefined, { intensity: 2, tint: 0.6 })!;
+    expect(st.accentGlowIntensity).toBe(2);
+    expect(st.accentGlowTint).toBe(0.6);
+    const plain = farHeroStyle('sevens', false, true, undefined, { intensity: Number('x') })!;
+    expect('accentGlowIntensity' in plain || 'accentGlowTint' in plain).toBe(false);
+    expect(farHeroStyle('sevens', true, false, undefined, { intensity: 2 })).toEqual({ accentColor: themes.sevens.accent });
+    const base = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarTheme: true }).root;
+    const tuned = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarTheme: true, heroFarGlow: { intensity: 2, tint: 0.6 } }).root;
+    for (const s of g.slots) {
+      const band = (r: import('three').Object3D) => {
+        let m: import('three').Mesh | undefined;
+        r.getObjectByName(`slotfar_${s.id}`)!.traverse((o) => { if (!m && o.name.startsWith('theme_')) m = o as import('three').Mesh; });
+        return m!.material as import('three').MeshStandardMaterial;
+      };
+      // unset: the study's defaults (2.8, emissive = accent)
+      expect(band(base).emissiveIntensity).toBeCloseTo(2.8, 5);
+      expect(band(base).emissive.getHex()).toBe(themes[s.id].accent);
+      const want = new THREE.Color(themes[s.id].accent).multiplyScalar(0.6);
+      expect(band(tuned).emissiveIntensity).toBeCloseTo(2, 5);
+      expect(band(tuned).emissive.r).toBeCloseTo(want.r, 5);
+      expect(band(tuned).emissive.g).toBeCloseTo(want.g, 5);
+      expect(band(tuned).color.getHex()).toBe(themes[s.id].accent);
+    }
+  });
   it('draws the north side-wall copies as the far cabinet at a distant level behind ?copyfar=on (VA-0340)', async () => {
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { composeGrandHall, heroLodLevel, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');

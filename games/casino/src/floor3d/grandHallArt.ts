@@ -462,11 +462,13 @@ export function heroLodLevel(prev: HeroLodLevel, x: number, z: number, centres: 
  * `screenBrightness` (0..1) to tone the palette down (`?herofar=theme&farscreen=0.55`).
  */
 /** Options for the far cabinet's opt-in theme identity, passed through to ChatGPT's study unchanged. */
-export interface FarHeroStyle { accentColor?: number; screenColors?: (number | null)[]; glowAccents?: boolean; screenBrightness?: number }
+export interface FarHeroStyle { accentColor?: number; screenColors?: (number | null)[]; glowAccents?: boolean; screenBrightness?: number; accentGlowIntensity?: number; accentGlowTint?: number }
+/** 09fbed8's artist HDR controls for the glowing accent bands; the study clamps both itself. */
+export interface FarGlowTune { intensity?: number; tint?: number }
 
 type HeroTheme = { accent: number; secondary: number };
 /** The far study's theme options for one hero theme: none, accent bands, or bands + glow + screen palette. */
-export function farHeroStyle(id: string, accent: boolean | undefined, theme: boolean | undefined, screenBrightness?: number): FarHeroStyle | undefined {
+export function farHeroStyle(id: string, accent: boolean | undefined, theme: boolean | undefined, screenBrightness?: number, glow?: FarGlowTune): FarHeroStyle | undefined {
   const t = (HERO_THEMES as Record<string, HeroTheme | undefined>)[id];
   if (!t || (!accent && !theme)) return undefined;
   // `theme`: all three screens in the hero's secondary colour (one material per theme once batched)
@@ -474,6 +476,9 @@ export function farHeroStyle(id: string, accent: boolean | undefined, theme: boo
   const style: FarHeroStyle = { accentColor: t.accent, screenColors: [t.secondary, t.secondary, t.secondary], glowAccents: true };
   // the study clamps to 0..1 itself; only pass a real number so its default (1) holds otherwise
   if (screenBrightness !== undefined && Number.isFinite(screenBrightness)) style.screenBrightness = screenBrightness;
+  // 09fbed8: accentGlowIntensity (0..4, default 2.8) and accentGlowTint (0.1..1, default 1); unset keeps the study's defaults
+  if (glow?.intensity !== undefined && Number.isFinite(glow.intensity)) style.accentGlowIntensity = glow.intensity;
+  if (glow?.tint !== undefined && Number.isFinite(glow.tint)) style.accentGlowTint = glow.tint;
   return style;
 }
 
@@ -484,6 +489,8 @@ export function fittedFarHero(hero: THREE.Object3D, style?: number | FarHeroStyl
     ...(st.screenColors ? { screenColors: st.screenColors } : {}),
     ...(st.glowAccents ? { glowAccents: true } : {}),
     ...(st.screenBrightness === undefined ? {} : { screenBrightness: st.screenBrightness }),
+    ...(st.accentGlowIntensity === undefined ? {} : { accentGlowIntensity: st.accentGlowIntensity }),
+    ...(st.accentGlowTint === undefined ? {} : { accentGlowTint: st.accentGlowTint }),
   }) as THREE.Group;
   const drop: THREE.Object3D[] = [];
   far.traverse((o) => { if ((o as THREE.Mesh).isMesh && HERO_DRIVEN_PART.test(o.name)) drop.push(o); });
@@ -572,7 +579,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; copyFar?: boolean },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -686,7 +693,7 @@ export function composeGrandHall(
         far.position.copy(slot.position);
         far.rotation.copy(slot.rotation);
         // with heroFarAccent each theme's far twin carries that hero's own accent colour (one batch per theme)
-        far.add(fittedFarHero(hero, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen)));
+        far.add(fittedFarHero(hero, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen, opts.heroFarGlow)));
         root.add(far);
       }
     }
@@ -711,7 +718,7 @@ export function composeGrandHall(
       far.userData.heroLod = 'distant';
       far.position.copy(copy.position);
       far.rotation.copy(copy.rotation);
-      far.add(fittedFarHero(src, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen)));
+      far.add(fittedFarHero(src, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen, opts.heroFarGlow)));
       root.add(far);
     }
   });
