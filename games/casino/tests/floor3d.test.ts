@@ -1655,6 +1655,42 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // the spawn (z 14.5) is far from every hero
     expect(heroLodLevel('full', g.spawn.x, g.spawn.z, lod.centres, true)).toBe('far');
   });
+  it('gives each far twin its own theme accent bands behind ?herofar=accent (VA-0337)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { composeGrandHall, fittedFarHero } = await import('../src/floor3d/grandHallArt.ts');
+    const { HERO_THEMES } = await import('../../../art/casino/3d/heroSlotCabinet.mjs');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const plain = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true }).root;
+    const acc = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarAccent: true }).root;
+    const bands = /^theme_(crown_band|left_rail|right_rail|title_band)$/;
+    // off by default: the plain far twins are unchanged
+    plain.traverse((o) => expect(bands.test(o.name)).toBe(false));
+    // on: every far twin has the four bands in its own hero's accent colour, and nothing else gets them
+    for (const s of g.slots) {
+      const far = acc.getObjectByName(`slotfar_${s.id}`)!;
+      const found: import('three').Mesh[] = [];
+      far.traverse((o) => { if (bands.test(o.name)) found.push(o as import('three').Mesh); });
+      expect(found.map((m) => m.name).sort()).toEqual(['theme_crown_band', 'theme_left_rail', 'theme_right_rail', 'theme_title_band']);
+      const want = (HERO_THEMES as Record<string, { accent: number }>)[s.id].accent;
+      for (const m of found) expect((m.material as import('three').MeshStandardMaterial).color.getHex()).toBe(want);
+    }
+    for (const o of acc.children) if (!o.name.startsWith('slotfar_')) o.traverse((m) => expect(bands.test(m.name)).toBe(false));
+    // still fitted to the hero's envelope (the bands sit inside the study's bounds)
+    acc.updateMatrixWorld(true);
+    const hero = acc.getObjectByName('slot_sevens')!.children[0];
+    const hb = new THREE.Box3().setFromObject(hero), fb = new THREE.Box3().setFromObject(acc.getObjectByName('slotfar_sevens')!);
+    for (const k of ['min', 'max'] as const) for (const a of ['x', 'y', 'z'] as const) expect(Math.abs(fb[k][a] - hb[k][a])).toBeLessThan(0.002);
+    expect(fittedFarHero(hero, 0x123456).getObjectByName('theme_title_band')).toBeTruthy();
+    // cost: 4 boxes (48 tris) per twin; at most one extra batch per accent colour
+    const off = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroFar: true }).heroLod!;
+    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroFar: true, heroFarAccent: true }).heroLod!;
+    expect(Math.abs(tris(on.far) - tris(off.far) - g.slots.length * 48)).toBeLessThan(1);
+    const colours = new Set(g.slots.map((s) => (HERO_THEMES as Record<string, { accent: number }>)[s.id].accent)).size;
+    expect(on.far.length - off.far.length).toBeLessThanOrEqual(colours);
+    for (const k of ['full', 'lite', 'south'] as const) expect(on[k].length).toBe(off[k].length);
+    console.log(`herofar=accent: far batches ${off.far.length} -> ${on.far.length}, tris ${tris(off.far)} -> ${tris(on.far)}`);
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {

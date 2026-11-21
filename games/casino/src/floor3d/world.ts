@@ -328,7 +328,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   lampPlan.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   lampScale = lampPlan.intensityScale;
   applyLighting();
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: devFlag('herofar') === 'on' });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: devFlag('herofar') === 'on' || devFlag('herofar') === 'accent', heroFarAccent: devFlag('herofar') === 'accent' });
   // the end-wall heroes start in full detail (art.heroLod.lite starts hidden); frame() switches them by distance
   let heroLevel: HeroLodLevel = 'full';
   const heroHasFar = !!art.heroLod?.far.length;

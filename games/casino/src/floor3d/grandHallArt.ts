@@ -18,7 +18,7 @@
 import * as THREE from 'three';
 import { createGrandHallArchitecture } from '../../../../art/casino/3d/grandHallArchitecture.mjs';
 import { createGrandHallEndcaps } from '../../../../art/casino/3d/grandHallEndcaps.mjs';
-import { makeVelvetHeroCabinet } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
+import { makeVelvetHeroCabinet, HERO_THEMES } from '../../../../art/casino/3d/heroSlotCabinet.mjs';
 import { makeVelvetLuxuryGamingChair } from '../../../../art/casino/3d/luxuryGamingChair.mjs';
 import { createVelvetGamingChair } from '../../../../art/casino/3d/velvetGamingChair.mjs';
 import { createVelvetGamingChairLod } from '../../../../art/casino/3d/velvetGamingChairLod.mjs';
@@ -452,9 +452,10 @@ export function heroLodLevel(prev: HeroLodLevel, x: number, z: number, centres: 
  * game drives. The study is 0.96 x 2.18 x 0.75 m and the hero about 1.14 x 3.17 x 1.27 m, so the
  * fit is a non-uniform placement scale (x 1.19, y 1.46, z 1.69): an engineering stand-in until the
  * art matches the hero's envelope, behind `?herofar=on` only. Its screens land on the reels' plane.
+ * `accentColor` turns on the study's optional theme bands (e89e561/dcd561b, `?herofar=accent`).
  */
-export function fittedFarHero(hero: THREE.Object3D): THREE.Group {
-  const far = createVelvetHeroFarCabinet(THREE) as THREE.Group;
+export function fittedFarHero(hero: THREE.Object3D, accentColor?: number): THREE.Group {
+  const far = createVelvetHeroFarCabinet(THREE, accentColor === undefined ? {} : { accentColor }) as THREE.Group;
   const drop: THREE.Object3D[] = [];
   far.traverse((o) => { if ((o as THREE.Mesh).isMesh && HERO_DRIVEN_PART.test(o.name)) drop.push(o); });
   for (const o of drop) o.removeFromParent();
@@ -542,7 +543,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -655,7 +656,9 @@ export function composeGrandHall(
         far.userData.heroLod = 'far';
         far.position.copy(slot.position);
         far.rotation.copy(slot.rotation);
-        far.add(fittedFarHero(hero));
+        // with heroFarAccent each theme's far twin carries that hero's own accent colour (one batch per theme)
+        const themes = HERO_THEMES as Record<string, { accent: number } | undefined>;
+        far.add(fittedFarHero(hero, opts.heroFarAccent ? themes[s.id]?.accent : undefined));
         root.add(far);
       }
     }

@@ -395,6 +395,8 @@ export interface ArtOptions {
   heroLod?: boolean;
   /** With heroLod: ChatGPT's far hero cabinet as a third level beyond HERO_LOD_FAR_M (VA-0330); dev opt-in. */
   heroFar?: boolean;
+  /** With `heroFar`: the far twins show the study's per-theme accent bands (`?herofar=accent`). */
+  heroFarAccent?: boolean;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -501,7 +503,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
-    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar });
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent });
     art = grand.root;
     art.updateMatrixWorld(true);
     art.traverse((o) => {
