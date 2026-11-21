@@ -594,8 +594,9 @@ describe('art pass 05 pilot', () => {
       }
     }
     expect(checked).toBeGreaterThan(0);
-    // interactive parts are never colour-merged: each cabinet keeps its own reels, button and marquee
-    for (const m of a.interactive.values()) expect(m.geometry.attributes.color).toBeUndefined();
+    // reels and marquees are never colour-merged: each cabinet keeps its own; the spin buttons
+    // share one batch (VA-0327), each cabinet a vertex range of it
+    for (const [k, m] of a.interactive) if (!k.endsWith('/spin_button')) expect(m.geometry.attributes.color).toBeUndefined();
   });
 
   it('the guest avatar pilot is a few batches, stands on the floor at the gameplay height and faces -Z like the capsule (VA-0035)', async () => {
@@ -841,6 +842,36 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       if (o.userData.glow) glow++;
     });
     expect(glow).toBeGreaterThan(0);
+  });
+  it('draws the ten heroes\' spin buttons as one batch, each hero a vertex range at its own machine (VA-0327)', async () => {
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const a = buildArtScene(new Map(), { pilot05: true, layout: g });
+    const buttons = new Set(g.slots.map((s) => a.interactive.get(`slot_${s.id}/spin_button`)));
+    expect(buttons.size).toBe(1);
+    const mesh = [...buttons][0]!;
+    expect(mesh.parent).toBe(a.root);
+    expect(mesh.userData.glow).toBe(true);
+    // no geometry groups: one draw call, not one per button
+    expect(mesh.geometry.groups.length).toBe(0);
+    const pos = mesh.geometry.attributes.position;
+    const ranges = mesh.userData.ranges as Record<string, [number, number]>;
+    expect(Object.keys(ranges).sort()).toEqual(g.slots.map((s) => `slot_${s.id}`).sort());
+    // the ranges tile the batch with no gap or overlap
+    const sorted = Object.values(ranges).sort((p, q) => p[0] - q[0]);
+    let next = 0;
+    for (const [first, count] of sorted) {
+      expect(first).toBe(next);
+      expect(count).toBeGreaterThan(0);
+      next = first + count;
+    }
+    expect(next).toBe(pos.count);
+    // each range sits at its own machine: within a metre of its placement on the floor
+    for (const s of g.slots) {
+      const [first, count] = ranges[`slot_${s.id}`];
+      let x = 0, z = 0;
+      for (let v = first; v < first + count; v++) { x += pos.getX(v); z += pos.getZ(v); }
+      expect(Math.hypot(x / count - s.x, z / count - s.z), s.id).toBeLessThan(1);
+    }
   });
   it('frames both ends with the endcaps, clear of the back row and the walkable room (VA-0071)', async () => {
     const THREE = await import('three');

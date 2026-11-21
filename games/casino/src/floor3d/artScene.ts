@@ -6,8 +6,9 @@
  * values) are merged into one mesh per material. Walls stay in their own batches, so the
  * overview can still cut away the walls it looks through. Each slot cabinet's interactive parts
  * stay out of the shared batches (VA-0021): its 25 reel cells become one mesh with a geometry
- * group per cell (one draw call, each cell still addressable), and its spin button and marquee
- * screen stay meshes of their own.
+ * group per cell (one draw call, each cell still addressable), and its marquee screen stays a
+ * mesh of its own. The spin buttons of all cabinets share one batch (VA-0327): each cabinet's
+ * button is a vertex range of it (`userData.ranges`), so ten buttons cost one draw call.
  *
  * Engineering only: no geometry or material values are changed here.
  */
@@ -44,7 +45,11 @@ export interface ArtScene {
    * `fixtures` the chandeliers, rods and canopies, `entrance` the wings, arch and vestibule.
    */
   ceiling: Record<CeilingPart, THREE.Mesh[]>;
-  /** Each cabinet's interactive parts, by `slot_<theme>/<part>` (`reels`, `spin_button`, `marquee`). */
+  /**
+   * Each cabinet's interactive parts, by `slot_<theme>/<part>` (`reels`, `spin_button`, `marquee`).
+   * Every cabinet's `spin_button` entry is the same shared batch (VA-0327); its button is the
+   * vertex range `userData.ranges[<slot_theme>]` ([first vertex, vertex count]).
+   */
   interactive: Map<string, THREE.Mesh>;
   /**
    * The grand hall's copied cabinets' reels, one batch per theme (25 geometry groups per copy, in
@@ -151,6 +156,8 @@ function interactivePart(name: string): string | null {
   if (name === 'marquee_world_texture_target') return 'marquee';
   return null;
 }
+/** The interactive part whose cabinets share one batch (VA-0327). */
+const SHARED_PART = 'spin_button';
 const EXTERIOR_GROUP = 'VA_ExteriorBackdrop_ArtOnly';
 function isExterior(o: THREE.Object3D): boolean {
   for (let p: THREE.Object3D | null = o.parent; p; p = p.parent) if (p.name === EXTERIOR_GROUP) return true;
@@ -548,7 +555,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   art.updateMatrixWorld(true);
 
   const wpLod = new THREE.Vector3();
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; side: Side; part: string | null; renderOrder: number; glow: boolean; fade: string | null; lod: string | null }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; cabinets: string[]; side: Side; part: string | null; shared: boolean; renderOrder: number; glow: boolean; fade: string | null; lod: string | null }>();
   const lodCentres: { x: number; z: number }[] = [];
   art.traverse((o) => {
     if (o.userData.heroLod !== 'full') return;
@@ -583,10 +590,12 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     // an instanced mesh (the hero table's chip stacks) becomes one piece per instance
     const pieces = bakedPieces(mesh);
     lods.forEach((l, li) => {
-      const key = part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : l ? `lod:${l}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
+      // the cabinets' spin buttons share one batch per material (VA-0327); reels and marquees stay per cabinet
+      const shared = !!cabinet && part === SHARED_PART;
+      const key = shared ? `slots/${part}#${glow ? 'glow#' : ''}${materialKey(material)}` : part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : l ? `lod:${l}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
       let b = buckets.get(key);
       if (!b) {
-        b = { material, geos: [], colours: [], emissives: [], names: [], side, part: part && cabinet ? part : null, renderOrder: 0, glow: false, fade, lod: l };
+        b = { material, geos: [], colours: [], emissives: [], names: [], cabinets: [], side, part: part && cabinet ? part : null, shared, renderOrder: 0, glow: false, fade, lod: l };
         buckets.set(key, b);
       }
       for (const g of pieces) {
@@ -594,6 +603,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
         b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
         b.emissives.push(emissiveOf(material));
         b.names.push(mesh.name);
+        b.cabinets.push(cabinet ?? '');
       }
       if (glow) b.glow = true;
       // e.g. the contact-shadow decals draw after the floor
@@ -642,12 +652,25 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     for (const k of keys) replacedKeys.add(k);
   }
   for (const [key, b] of buckets) {
-    let material = b.part ? b.material : colourMerge(b.material, b.geos, b.colours, b.emissives);
+    let material = b.part && !b.shared ? b.material : colourMerge(b.material, b.geos, b.colours, b.emissives);
     if (material !== b.material) colourBatches++;
     // a fading batch gets its own copy of the material (the same values), so its opacity is its own
     else if (b.fade) material = b.material.clone();
-    // interactive parts keep a geometry group per original mesh (groups[i] is names[i])
-    const merged = mergeGeometries(b.geos, !!b.part);
+    // each cabinet's vertex range in a shared batch, before the pieces are merged and disposed
+    const ranges: Record<string, [number, number]> = {};
+    if (b.shared) {
+      let first = 0;
+      b.geos.forEach((g, i) => {
+        const n = g.attributes.position.count;
+        const r = ranges[b.cabinets[i]];
+        if (r) r[1] = first + n - r[0];
+        else ranges[b.cabinets[i]] = [first, n];
+        first += n;
+      });
+    }
+    // interactive parts keep a geometry group per original mesh (groups[i] is names[i]); a shared
+    // batch has none (each group would be a draw call of its own)
+    const merged = mergeGeometries(b.geos, !!b.part && !b.shared);
     for (const g of b.geos) g.dispose();
     if (!merged) throw new Error(`could not batch art group ${key}`);
     const mesh = new THREE.Mesh(merged, material);
@@ -657,7 +680,11 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     root.add(mesh);
     if (replacedKeys.has(key)) whole.replaced.push(mesh);
     if (b.glow) mesh.userData.glow = true;
-    if (b.part) {
+    if (b.shared) {
+      mesh.userData.parts = b.names;
+      mesh.userData.ranges = ranges;
+      for (const c of Object.keys(ranges)) interactive.set(`${c}/${b.part}`, mesh);
+    } else if (b.part) {
       mesh.userData.parts = b.names;
       if (key.startsWith('slotcopy_')) reelCopies.set(key.slice('slotcopy_'.length, -'/reels'.length), mesh);
       else interactive.set(key, mesh);
