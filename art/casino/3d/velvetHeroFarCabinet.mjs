@@ -20,7 +20,7 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   // Slender physical silhouette with a stepped curved-profile crown (no expensive bevels).
   box('cabinet_body',0.86,1.63,0.54,shell,0,1.07,0);
   box('cabinet_lower_skirt',0.73,0.18,0.61,bronze,0,0.22,0.01);
-  box('cabinet_foot',0.64,0.12,0.59,shell,0,0.09,0.015);
+  box('cabinet_foot',0.64,0.12,0.59,shell,0,0.06,0.015);
   box('cabinet_crown',0.96,0.19,0.57,bronze,0,2.00,-0.005);
   box('cabinet_crown_inset',0.83,0.13,0.59,shell,0,2.015,0.008);
   box('cabinet_top_cap',0.72,0.08,0.51,bronze,0,2.14,-0.015);
@@ -33,10 +33,11 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   box('control_deck',0.82,0.13,0.69,shell,0,0.41,0.105);
   box('control_deck_trim',0.79,0.025,0.69,bronze,0,0.49,0.11);
   const spin = add('spin_button',new THREE.CylinderGeometry(0.065,0.065,0.024,8),light,0.23,0.516,0.26);
-  spin.rotation.x = Math.PI/2;
+  // Cylinder axis is +Y by default: the button lies flat on the control deck.
+  // Its underside is at y=0.504, just above the deck trim top (0.5025).
   // No dynamic lights, orbs, curves, texture allocations or per-frame work.
   root.userData = {artStudy:true,lod:'far',suggestedMinDistanceMetres:12,
-    forward:'+Z', approximateHeightMetres:2.2,
+    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0330 foot grounded and spin button flat',
     interactiveNames:['spin_button'], screens:['screen_0_display','screen_1_display','screen_2_display'],
     note:'Silhouette proxy; engine must map names and preserve actual interactive targets when swapping LOD',
     disclaimer:'Original stylized geometry, not photorealistic, integrated or device-tested'};
