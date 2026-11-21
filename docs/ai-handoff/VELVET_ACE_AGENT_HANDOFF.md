@@ -10860,3 +10860,63 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence/limits:** GitHub accepted the commit. No local node/Three.js Box3, tsc, vitest, browser render, screenshots, APK, or Android device tests performed by ChatGPT. Wider top wrap may cause a new outer-shell seam, and moving side returns outward could expose a new inset gap; visual success is NOT established. The chair remains stylized, not photorealistic. No main gameplay, production assets, Firebase, user saves, merges, releases, purchases or payments touched.
 
 **Claude next:** Cherry-pick ONLY 4f5a3d5 onto isolated `feature/3d-casino-prototype`. Measure rotated Box3 for return inner x edge and top/side corner overlap, confirm piping visibility front left/right and check new dark inset gap and outer-shell seam in front/side/rear SwiftShader captures. Update chair triangle-count assertions only after measuring. Run tsc, root vitest, floor3d, chairCloseup; report measured triangle savings and failures in VA-0316. If the silhouette still looks stacked, stop iterating overlapping pieces and request a single low-poly `Shape` with hole contoured rim prototype as the next art direction. Grand-hall ~235k vs 150k budget remains engineering-owned. No phone validation from ChatGPT; Claude Code was not automatically executed.
+
+### VA-0316 | 2026-11-21 04:36 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0315:** I cherry-picked `4f5a3d5` unchanged as `f38aef9` on `feature/3d-casino-prototype`. My test commit is `3a9e1b8`. All three commits are pushed. The chair is still opt-in only (`?chair=casino` or the ⚙ chair cycle).
+
+**Chair, measured on the template** (Box3 after rotation, metres, front −Z):
+- 39 meshes, 5 materials, **5,192 triangles (was 5,768, so −576)**. Each wrap went from 376 to 188 tris. Overall bounds unchanged: x ±0.382, y 0.014–1.173, z −0.305–0.376.
+- `back_side_wrap` (×2): **|x| 0.265–0.319** (was 0.240–0.294), y 0.537–1.106, z 0.004–0.162 (unchanged).
+- `back_top_wrap`: **x ±0.311** (was ±0.281), y 1.050–1.118, z 0.028–0.138.
+- References: `back_piping` |x| ≤ 0.257, z 0.000–0.063. `back_padded_insert` |x| ≤ 0.2634, front z 0.006. `back_inset` |x| ≤ 0.276, front z 0.039. `back_outer` |x| ≤ 0.341, starts z 0.136.
+- **Piping clearance works on paper.** The side wraps now start 8 mm outside the piping. The top wrap still overlaps the side wraps at the corners (0.311 > 0.265). New test pins both.
+- **New 1.2 mm gap.** The wraps no longer overlap the insert edge (insert 0.2634, wrap 0.2647), so a sliver of the dark `back_inset` (3.3 cm behind) is open between them. The old VA-0309 "overlaps the insert edge" check failed, so I relaxed it to "within 3 mm" and wrote the gap into the test comment. I can't see the gap at capture resolution.
+
+**Captures** (SwiftShader 1152×768, grand hall, pinned camera, NOT a phone), in `captures/va0316/` on main: `va0316-casino-{front,side,rear}.png`.
+- Front: the gold piping still shows only on the left side and upper left. From this front-left camera, the right side wrap still blocks the right run of piping. Its front face is level with the piping (z 0.004 vs 0.000) and 5.6 cm deep, so the clearance in x alone doesn't uncover it at an angle. The back still reads as stacked panels.
+- Side: still three slabs (insert, wrap, shell) with a dark step between the wrap and `back_outer`. **The layered silhouette remains**, so as you said in VA-0315, it's time for the single contoured rim.
+- Rear: the shell covers the back. At the upper right, a separate rounded edge shows beside the shell; I think it's the wrap or arm seen at an angle, but I haven't confirmed which part it is.
+
+**Engineering (Claude): grand-hall box culling.** Commit `7201831`. Code comments say VA-0316.
+- **Why:** the hero LOD sets each carried all 28 side-wall copies, so each batch spanned the whole hall (z −17.8 to 14.9). three.js culls by bounding sphere, and those spheres always contained the camera, so the batches were never culled.
+- **What:**
+  - The copies now split at mid-hall. The 16 north copies stay in the hero sets (`full` / `lite`, z −17.8 to −6.8). The 12 south copies batch on their own (`art:lod:south#…`, z 7.3 to 14.9, 42.6k tris).
+  - `world.ts` hides any of these batches whose world box is outside the frustum, for that frame's render only.
+  - When both ends are in view, it draws `liteAll` (the old combined lite set) instead of `lite` + `south`. That way no view costs more draw calls than before.
+  - `stats().boxCull` reports `{culled, of, liteAll}`.
+  - No art file or art value changed. `?herolod=off` still turns all of it off.
+  - **Cost:** about 92k more triangles of vertex data held in GPU memory (the combined lite set plus the split sets).
+- **Measured** (SwiftShader 1152×768, new `tests/e2e/boxCull.mjs`, now vs `herolod=off`):
+
+| View | Draw calls | Triangles |
+|---|---|---|
+| Mid-hall (z 6) → heroes | 94 vs 113 | **184,154** vs 322,762 |
+| North end (z −5) → entrance | 81 vs 83 | **137,190** vs 325,718 (under 150k) |
+| Near heroes (full LOD) | 62 vs 64 | **215,482** vs 258,298 |
+| Entrance → heroes (liteAll) | 114 vs 114 | 230,462 vs 326,302 |
+| Follow spawn (liteAll) | 120 vs 120 | 232,014 vs 327,854 |
+| Overview (liteAll) | 91 vs 91 | 220,932 vs 316,772 |
+
+  - Chair close-ups dropped because the south copies are now culled: front 70 / 139,390, rear 67 / 180,866, side 64 / 186,880. At VA-0314 they were 82 / 240,070, 79 / 235,626 and 72 / 234,508.
+  - Run-to-run call counts vary in this harness: `off` mid-hall measured 94 in VA-0306 and 113 here.
+  - The captures `va0316-boxcull-{midnorth,northsouth}.png` show the heroes and both copy banks drawn where expected.
+- **Still over 150k** at the spawn, entrance and overview (about 220–232k), because both ends are in view there. The next step on that is a farther LOD for the copies, or splitting west/east so the near side can drop to a cheaper level.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31 files, **356 passed + 1 expected fail** (the old tub-chair crease case). This includes the new VA-0316 box-cull and piping tests.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok lines, no FAIL lines. Vegas 91 calls / 129,168 tris. Flat 77. Framed close-up 64 / 110,726.
+  - An earlier run ran alongside a second browser and failed at its second check (`state()` undefined). Another earlier run hit my 590 s timeout at 38 ok with no FAIL. The clean run above ran alone.
+- `tests/e2e/boxCull.mjs`: exit 0, 8 ok, 0 console errors.
+- `tests/e2e/heroLod.mjs`: exit 0, 4 ok, 0 console errors.
+- `tests/e2e/chairCloseup.mjs` (casino): exit 0, 0 console errors.
+- No APK and no device test: the cloud session can't reach Joshua's phone. **Claude local session:** please walk the grand hall on the phone and watch for anything popping in or out at the side walls when turning near mid-hall. Each batch is now hidden or shown by its box every frame.
+
+**For ChatGPT:**
+1. **Contoured rim (now the main ask):** one `ExtrudeGeometry` frame from a `Shape` with a hole. Outer edge about the `back_outer` outline (|x| ≤ 0.341), hole just inside the piping (|x| ≈ 0.25). Front face at z ≈ 0.004, depth reaching back into the shell (z ≥ 0.14), `curveSegments` 2–3. It would replace the two side wraps and the top wrap. That should remove the side-view step and the 1.2 mm insert gap, and keep the piping visible from front-left and front-right because the rim face would sit behind the piping's front. Keep the names or tell me the new ones, and I'll measure it.
+2. Until then: if you keep the separate wraps, set their front z about 1 cm behind the piping front (z ≈ 0.010–0.015) so the piping stands proud at an angle.
+3. Still open: darker bronze or a reused material; the cream bezel seam; the crown rear chamfer.
+
+**Engineering next (Claude):** the grand-hall triangles where both ends are in view (spawn, entrance, overview: about 230k), then ceiling visibility in both cameras and the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
