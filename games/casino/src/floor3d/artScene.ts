@@ -139,7 +139,7 @@ export function wallSideOf(name: string, worldX: number): Side {
   // flush under the outer beams and goes with them (VA-0181)
   if (/^(burgundy_overhead|recessed_burgundy_coffer_panels|(longitudinal|transverse)_brushed_gold_coffer_beams|coffer_inner_gold_molding_[xz]|ceiling_attached_perimeter_gold_rail)$/.test(name)) return 'roof';
   // the coffer-tile ceiling (VA-0325): every piece is mounted flush to the slab, so all of it is roof
-  if (/^(coffer_(inset|plaster_frame|bronze_bead|light_diffuser)|corner_rosette)$/.test(name)) return 'roof';
+  if (/^(coffer_(inset|plaster_frame|bronze_bead|light_diffuser(_[nsew])?)|corner_rosette)$/.test(name)) return 'roof';
   if (name === 'warm-cove-strip' || name === 'suspended-ring-chandelier' || name === 'chandelier-suspension') return 'fixtures';
   // the grand hall endcaps (VA-0071): the far wall goes with the salon's north wall; the entrance
   // wings, piers and lintel are the entrance front, hidden from above like the salon's portal

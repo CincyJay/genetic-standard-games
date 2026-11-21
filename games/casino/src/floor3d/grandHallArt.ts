@@ -105,7 +105,17 @@ export function velvetCofferLines(spec: { width: number; length: number; aisleWi
  * height). The art builds new materials per tile; artScene batches by material properties, so the
  * copies merge into one draw per material.
  */
-export function velvetCofferCeiling(spec: { width: number; length: number; height: number; aisleWidth?: number; bayLength?: number }): THREE.Group {
+/**
+ * Diffuser edge ownership (VA-0331/0332): neighbouring tiles each lit their side of a shared beam,
+ * drawing two parallel glow lines. With f88efe3's `diffuserEdges`, each tile owns its west (-x) and
+ * north (-z) edges, and the last column / last row also own the hall's east / south edges, so every
+ * beam (shared or perimeter) carries exactly one diffuser strip.
+ */
+export function cofferDiffuserEdges(i: number, j: number, tilesX: number, tilesZ: number): { n: boolean; s: boolean; e: boolean; w: boolean } {
+  return { n: true, w: true, e: i === tilesX - 1, s: j === tilesZ - 1 };
+}
+
+export function velvetCofferCeiling(spec: { width: number; length: number; height: number; aisleWidth?: number; bayLength?: number }, ownEdges = true): THREE.Group {
   const { xs, zs } = velvetCofferLines(spec);
   const root = new THREE.Group();
   root.name = 'velvet_coffer_grid';
@@ -114,12 +124,13 @@ export function velvetCofferCeiling(spec: { width: number; length: number; heigh
     for (let j = 0; j + 1 < zs.length; j++) {
       const tw = xs[i + 1] - xs[i];
       const td = zs[j + 1] - zs[j];
-      const tile = createVelvetCeilingCoffer(THREE, { width: tw, depth: td }) as THREE.Group;
+      const diffuserEdges = ownEdges ? cofferDiffuserEdges(i, j, xs.length - 1, zs.length - 1) : undefined;
+      const tile = createVelvetCeilingCoffer(THREE, { width: tw, depth: td, diffuserEdges }) as THREE.Group;
       tile.position.set((xs[i] + xs[i + 1]) / 2, y, (zs[j] + zs[j + 1]) / 2);
       root.add(tile);
     }
   }
-  root.userData = { tilesX: xs.length - 1, tilesZ: zs.length - 1, xs, zs };
+  root.userData = { tilesX: xs.length - 1, tilesZ: zs.length - 1, xs, zs, ownEdges };
   return root;
 }
 
@@ -156,6 +167,21 @@ function readCofferSideInset(): number {
   if (typeof location === 'undefined') return 0;
   if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return 0;
   return cofferSideInsetFrom(location.search);
+}
+
+/**
+ * Coffer-tile diffuser edges (VA-0332): one strip per beam (owned edges) is the default for the
+ * coffer-tile preview; `?cofferedges=ring` in a dev or prototype build restores the art's full
+ * ring on every tile (two parallel glow lines per shared beam) for a side-by-side comparison.
+ */
+export function cofferEdgeOwnershipFrom(search: string): boolean {
+  return new URLSearchParams(search).get('cofferedges') !== 'ring';
+}
+
+function readCofferEdgeOwnership(): boolean {
+  if (typeof location === 'undefined') return true;
+  if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return true;
+  return cofferEdgeOwnershipFrom(location.search);
 }
 
 /**
@@ -498,7 +524,7 @@ export function composeGrandHall(
       if (o !== architecture && REPLACED_BY_VELVET_COFFERS.test(o.name)) drop.push(o);
     });
     for (const o of drop) o.removeFromParent();
-    root.add(velvetCofferCeiling(spec));
+    root.add(velvetCofferCeiling(spec, readCofferEdgeOwnership()));
   }
   root.add(architecture);
   // ChatGPT's end wall and entrance frame (VA-0071). The back row is at -Z, so rearZ is negative.

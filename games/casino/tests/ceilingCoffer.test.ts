@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createVelvetCeilingCoffer } from '../../../art/casino/3d/velvetCeilingCoffer.mjs';
 import { grandFloorLayout, hallCameraClamp, hallColumns, grandHallLayout, GRAND_SPEC } from '../src/floor3d/grandHall.ts';
-import { composeGrandHall, NEXT_CEILING_STYLE, REPLACED_BY_VELVET_COFFERS, velvetCofferCeiling, velvetCofferLines, VELVET_COFFER_RELIEF } from '../src/floor3d/grandHallArt.ts';
+import { cofferDiffuserEdges, cofferEdgeOwnershipFrom, composeGrandHall, NEXT_CEILING_STYLE, REPLACED_BY_VELVET_COFFERS, velvetCofferCeiling, velvetCofferLines, VELVET_COFFER_RELIEF } from '../src/floor3d/grandHallArt.ts';
 import { buildArtScene, wallSideOf } from '../src/floor3d/artScene.ts';
 
 const trisOf = (root: THREE.Object3D) => {
@@ -65,6 +65,65 @@ describe('ChatGPT coffer tile (193106d + 7945050 + 5e2e896 + 7a08320, VA-0325/VA
   });
 });
 
+describe('ChatGPT diffuser edge option (f88efe3, VA-0332)', () => {
+  const build = (diffuserEdges?: { n: boolean; s: boolean; e: boolean; w: boolean }) => {
+    const t = createVelvetCeilingCoffer(THREE, diffuserEdges ? { diffuserEdges } : {}) as THREE.Group;
+    t.updateMatrixWorld(true);
+    return t;
+  };
+  const names = (t: THREE.Object3D) => { const a: string[] = []; t.traverse((o) => { if ((o as THREE.Mesh).isMesh) a.push(o.name); }); return a; };
+  const all = { n: true, s: true, e: true, w: true };
+  const none = { n: false, s: false, e: false, w: false };
+  it('without the option keeps the single ring (8 meshes, 236 tris)', () => {
+    const t = build();
+    expect(names(t)).toContain('coffer_light_diffuser');
+    expect(trisOf(t)).toBe(236);
+  });
+  it('builds one 12-tri box strip per selected edge; none leaves 7 meshes', () => {
+    expect(names(build(all)).filter((n) => n.startsWith('coffer_light_diffuser'))).toEqual(['coffer_light_diffuser_n', 'coffer_light_diffuser_s', 'coffer_light_diffuser_e', 'coffer_light_diffuser_w']);
+    const base = trisOf(build(none));
+    expect(names(build(none))).toHaveLength(7);
+    expect(trisOf(build(all)) - base).toBe(48);
+    for (const k of ['n', 's', 'e', 'w'] as const) {
+      const t = build({ ...none, [k]: true });
+      expect(names(t).filter((n) => n.startsWith('coffer_light_diffuser'))).toEqual([`coffer_light_diffuser_${k}`]);
+      expect(trisOf(t) - base).toBe(12);
+    }
+    expect(() => createVelvetCeilingCoffer(THREE, { diffuserEdges: { n: true } })).toThrow(TypeError);
+  });
+  it('all four strips cover the old ring footprint from below, without overlapping at the corners, faces down', () => {
+    const ring = build(), strips = build(all);
+    const rc = new THREE.Raycaster();
+    const hitName = (t: THREE.Object3D, x: number, z: number) => {
+      rc.set(new THREE.Vector3(x, -3, z), new THREE.Vector3(0, 1, 0));
+      return rc.intersectObject(t, true)[0];
+    };
+    for (let x = -1.79; x <= 1.79; x += 0.0125) for (const z of [-1.585, -0.7, 0, 1.2, 1.585]) {
+      const a = hitName(ring, x, z)!.object.name, b = hitName(strips, x, z)!;
+      expect(b.object.name.startsWith('coffer_light_diffuser')).toBe(a === 'coffer_light_diffuser');
+    }
+    // corners belong to the east/west strips only
+    const c = new THREE.Box3().setFromObject(strips.getObjectByName('coffer_light_diffuser_n')!);
+    const e = new THREE.Box3().setFromObject(strips.getObjectByName('coffer_light_diffuser_e')!);
+    expect(c.max.x).toBeCloseTo(e.min.x, 6);
+    const h = hitName(strips, 0, -1.585)!;
+    expect(h.object.name).toBe('coffer_light_diffuser_n');
+    expect(h.face!.normal.clone().transformDirection(h.object.matrixWorld).y).toBeLessThan(-0.99);
+  });
+  it('measured: the strips hang 1.2 cm lower than the ring and leave a 7 mm vertical gap under the bead (reported, not changed)', () => {
+    const t = build(all);
+    const s = new THREE.Box3().setFromObject(t.getObjectByName('coffer_light_diffuser_e')!);
+    const bead = new THREE.Box3().setFromObject(t.getObjectByName('coffer_bronze_bead')!);
+    const ring = new THREE.Box3().setFromObject(build().getObjectByName('coffer_light_diffuser')!);
+    expect(s.min.y).toBeCloseTo(-0.334, 4);
+    expect(s.max.y).toBeCloseTo(-0.322, 4);
+    expect(ring.min.y).toBeCloseTo(-0.322, 4);
+    expect(bead.min.y - s.max.y).toBeCloseTo(0.007, 4);
+    // horizontally the strip still reaches 1 cm under the bead
+    expect(s.max.x - (bead.max.x - 0.08)).toBeCloseTo(0.01, 4);
+  });
+});
+
 describe('coffer-tile ceiling in the grand hall (VA-0325, preview only)', () => {
   const g = grandFloorLayout();
   const spec = g.hallSpec!;
@@ -88,8 +147,26 @@ describe('coffer-tile ceiling in the grand hall (VA-0325, preview only)', () => 
     expect(box.min.y).toBeGreaterThan(hallCameraClamp(grandHallLayout(GRAND_SPEC)).y1);
     expect(box.min.x).toBeCloseTo(-spec.width / 2, 4);
     expect(box.max.z).toBeCloseTo(spec.length / 2, 4);
-    // 236 tris a tile
-    expect(trisOf(grid)).toBe(236 * 63);
+    // per tile 236 tris less the 32-tri ring; the 7 x 9 grid owns 7*9*2 + 7 + 9 = 142 strips of 12 tris
+    expect(trisOf(grid)).toBe((236 - 32) * 63 + 142 * 12);
+    expect(trisOf(velvetCofferCeiling(spec, false))).toBe(236 * 63);
+  });
+  it('lights every beam once: shared edges owned by exactly one neighbour, the hall perimeter too', () => {
+    const X = 7, Z = 9;
+    const vert = new Map<string, number>(), horiz = new Map<string, number>();
+    const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
+    for (let i = 0; i < X; i++) for (let j = 0; j < Z; j++) {
+      const e = cofferDiffuserEdges(i, j, X, Z);
+      if (e.w) bump(vert, `${i},${j}`);
+      if (e.e) bump(vert, `${i + 1},${j}`);
+      if (e.n) bump(horiz, `${i},${j}`);
+      if (e.s) bump(horiz, `${i},${j + 1}`);
+    }
+    expect(cofferEdgeOwnershipFrom('?floor3d')).toBe(true);
+    expect(cofferEdgeOwnershipFrom('?floor3d&cofferedges=ring')).toBe(false);
+    expect(vert.size).toBe((X + 1) * Z);
+    expect(horiz.size).toBe(X * (Z + 1));
+    for (const v of [...vert.values(), ...horiz.values()]) expect(v).toBe(1);
   });
   it('puts every colonnade column on a frame intersection', () => {
     const { xs, zs } = velvetCofferLines(spec);
