@@ -1140,7 +1140,8 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // eb42846 (VA-0303) adds an arm cradle and a second post per side: 28 -> 32 meshes, 4,444 -> 4,548 tris
     // bebd39b (VA-0305) adds a lower rail and a cross brace per side: 32 -> 36 meshes, 4,596 tris
     // b1703cf (VA-0309) adds two side wraps, a top wrap and a bronze post material: 39 meshes, 4,664 tris, 5 materials
-    expect(tris).toBe(4664);
+    // 9381875 (VA-0311) rebuilds the three wraps as rounded cushion() extrusions: still 39 meshes, 5,768 tris (+1,104)
+    expect(tris).toBe(5768);
     expect(mats.size).toBe(5);
     const all = new THREE.Box3().setFromObject(tpl);
     expect(all.min.y).toBeGreaterThan(0);
@@ -1276,21 +1277,27 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(posts).toHaveLength(4);
     for (const p of posts) expect((p.material as import('three').MeshStandardMaterial).metalness).toBeGreaterThan(0.5);
   });
-  // Open in b1703cf: the top wrap (x +-0.220) stops 3.4 cm short of each side wrap (|x| >= 0.254), leaving a notch at
-  // both upper corners where the dark back_inset shows. Pinned as an expected failure until the art closes it.
-  it.fails('casino chair (b1703cf): top wrap meets the side wraps at the upper corners, within 1 cm (VA-0309)', async () => {
+  // b1703cf left a 3.4 cm notch at both upper corners (top wrap x +-0.220, side wraps |x| >= 0.254). 9381875 measured:
+  // top wrap x +-0.281, y 1.050..1.118; side wraps |x| 0.240..0.294, y 0.537..1.106, z 0.056..0.214. The top wrap now
+  // overlaps each side wrap by ~4 cm and the side wraps reach down to the seat top (0.541). Was it.fails; passes now.
+  it('casino chair (9381875): top wrap overlaps the side wraps at the upper corners; side wraps reach the seat (VA-0311)', async () => {
     const THREE = await import('three');
     const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
     const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
     tpl.updateMatrixWorld(true);
     const top = new THREE.Box3().setFromObject(tpl.getObjectByName('back_top_wrap')!);
+    const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat_cushion')!);
     let sideInner = Infinity;
+    let sideBottom = -Infinity;
     tpl.traverse((o) => {
       if (o.name !== 'back_side_wrap') return;
       const b = new THREE.Box3().setFromObject(o);
       sideInner = Math.min(sideInner, Math.min(Math.abs(b.min.x), Math.abs(b.max.x)));
+      sideBottom = Math.max(sideBottom, b.min.y);
+      expect(b.max.y).toBeGreaterThan(top.min.y); // vertical overlap with the top wrap
     });
-    expect(sideInner - top.max.x).toBeLessThanOrEqual(0.01);
+    expect(top.max.x).toBeGreaterThan(sideInner); // horizontal overlap: no corner notch
+    expect(sideBottom).toBeLessThanOrEqual(seat.max.y + 0.005);
   });
   // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
   // Measured (18 segments): arm tips |x| 0.255..0.268 (was 0.113..0.126); nearest shell point in front of the back
