@@ -341,7 +341,7 @@ export function grandFloorLayout(opts: { islands?: boolean; islandDir?: IslandDi
  */
 export const GOLD_COFFER_LAMPS = { drop: 1.2, intensityScale: 0.7 } as const;
 
-export function lampsForCeiling(lamps: readonly { x: number; y: number; z: number }[], ceiling: 'hall' | 'gold-coffers'): { lamps: { x: number; y: number; z: number }[]; intensityScale: number } {
+export function lampsForCeiling(lamps: readonly { x: number; y: number; z: number }[], ceiling: 'hall' | 'gold-coffers' | 'velvet-coffers'): { lamps: { x: number; y: number; z: number }[]; intensityScale: number } {
   if (ceiling !== 'gold-coffers') return { lamps: lamps.map((p) => ({ ...p })), intensityScale: 1 };
   return { lamps: lamps.map((p) => ({ ...p, y: p.y - GOLD_COFFER_LAMPS.drop })), intensityScale: GOLD_COFFER_LAMPS.intensityScale };
 }

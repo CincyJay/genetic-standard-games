@@ -795,7 +795,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // prototype builds, grand hall only: swap its ceiling for the gold coffers (stored; reloads the floor)
   const ceilingBtn = $<HTMLButtonElement>('.ceilingstyle');
   ceilingBtn.hidden = svelteBtn.hidden || hall !== 'grand';
-  ceilingBtn.textContent = { hall: 'Ceiling: hall', 'gold-coffers': 'Ceiling: gold coffers + chandeliers (preview)' }[ceilingStyle];
+  ceilingBtn.textContent = { hall: 'Ceiling: hall', 'gold-coffers': 'Ceiling: gold coffers + chandeliers (preview)', 'velvet-coffers': 'Ceiling: coffer tiles (preview)' }[ceilingStyle];
   ceilingBtn.setAttribute('aria-label', `${ceilingBtn.textContent}. Tap to switch (reloads the floor).`);
   ceilingBtn.addEventListener('click', () => {
     try {

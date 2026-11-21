@@ -29,19 +29,24 @@ import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
+import { createVelvetCeilingCoffer } from '../../../../art/casino/3d/velvetCeilingCoffer.mjs';
 import { BLACKJACK_HERO_ANCHORS, type FloorLayout, type TablePlacement } from './layout.ts';
 
 /** How far each endcap sits outside the hall's ends, in metres. */
 export const ENDCAP_RECESS = 0.15;
 
-/** The grand hall's ceiling: the architecture's own (VA-0065), or ChatGPT's gold coffers and chandeliers (VA-0175). */
-export type CeilingStyle = 'hall' | 'gold-coffers';
+/**
+ * The grand hall's ceiling: the architecture's own (VA-0065), ChatGPT's gold coffers and
+ * chandeliers (VA-0175), or a grid of ChatGPT's dimensional coffer tiles (VA-0325, preview only).
+ */
+export type CeilingStyle = 'hall' | 'gold-coffers' | 'velvet-coffers';
 export const CEILING_STORAGE_KEY = 'va3d.ceiling';
-export const NEXT_CEILING_STYLE: Record<CeilingStyle, CeilingStyle> = { hall: 'gold-coffers', 'gold-coffers': 'hall' };
-/** The stored ceiling style. Gold coffers are the default (Joshua, VA-0197); only a stored 'hall' keeps the hall's own. */
+export const NEXT_CEILING_STYLE: Record<CeilingStyle, CeilingStyle> = { hall: 'gold-coffers', 'gold-coffers': 'velvet-coffers', 'velvet-coffers': 'hall' };
+/** The stored ceiling style. Gold coffers are the default (Joshua, VA-0197); only a stored 'hall' or 'velvet-coffers' changes it. */
 export function readCeilingStyle(): CeilingStyle {
   try {
-    return localStorage.getItem(CEILING_STORAGE_KEY) === 'hall' ? 'hall' : 'gold-coffers';
+    const v = localStorage.getItem(CEILING_STORAGE_KEY);
+    return v === 'hall' || v === 'velvet-coffers' ? v : 'gold-coffers';
   } catch {
     return 'gold-coffers';
   }
@@ -52,6 +57,45 @@ export function readCeilingStyle(): CeilingStyle {
  * under the gold beams with nothing behind them once it was gone.
  */
 export const REPLACED_BY_GOLD_COFFERS = /^(ceiling-base|coffer-.*|suspended-ring-chandelier|chandelier-suspension|warm-cove-strip)$/;
+/**
+ * The architecture pieces the coffer-tile ceiling (VA-0325) replaces: its own coffers, beams and
+ * cove strips. Its slab (`ceiling-base`) stays as the backing the tiles are mounted against, so
+ * the 1 cm slit the art leaves between each tile's inset and frame shows slab, not sky; its ring
+ * chandeliers stay too, hanging through the grid.
+ */
+export const REPLACED_BY_VELVET_COFFERS = /^(coffer-.*|warm-cove-strip)$/;
+/** The coffer tile's nominal size (the art's default) and its height from mount point to the inset's top. */
+export const VELVET_COFFER_TILE = 3.6;
+export const VELVET_COFFER_RELIEF = 0.1375;
+/** The architecture slab's half thickness: its underside is this far under the hall height. */
+const SLAB_HALF = 0.09;
+
+/**
+ * ChatGPT's dimensional coffer (193106d, rosettes 7945050) tiled across the hall: whole tiles of
+ * about 3.6 m, stretched so they fill the width and length exactly (24 x 36 m is 7 x 10 tiles of
+ * 3.43 x 3.6 m). Each tile's inset top touches the slab's underside. The art builds new
+ * materials per tile; artScene batches by material properties, so the copies merge into one draw
+ * per material.
+ */
+export function velvetCofferCeiling(spec: { width: number; length: number; height: number }): THREE.Group {
+  const nx = Math.max(1, Math.round(spec.width / VELVET_COFFER_TILE));
+  const nz = Math.max(1, Math.round(spec.length / VELVET_COFFER_TILE));
+  const tw = spec.width / nx;
+  const td = spec.length / nz;
+  const root = new THREE.Group();
+  root.name = 'velvet_coffer_grid';
+  const y = spec.height - SLAB_HALF - VELVET_COFFER_RELIEF;
+  for (let i = 0; i < nx; i++) {
+    for (let j = 0; j < nz; j++) {
+      const tile = createVelvetCeilingCoffer(THREE, { width: tw, depth: td }) as THREE.Group;
+      tile.position.set(-spec.width / 2 + tw * (i + 0.5), y, -spec.length / 2 + td * (j + 0.5));
+      root.add(tile);
+    }
+  }
+  root.userData = { tilesX: nx, tilesZ: nz, tileWidth: tw, tileDepth: td };
+  return root;
+}
+
 /** Chandeliers down the promenade (the art spaces them at most 5 m apart, centred). */
 export const GOLD_COFFER_CHANDELIERS = 4;
 
@@ -375,6 +419,13 @@ export function composeGrandHall(
     });
     for (const o of drop) o.removeFromParent();
     root.add(goldCofferCeiling(spec));
+  } else if (opts.ceiling === 'velvet-coffers') {
+    const drop: THREE.Object3D[] = [];
+    architecture.traverse((o) => {
+      if (o !== architecture && REPLACED_BY_VELVET_COFFERS.test(o.name)) drop.push(o);
+    });
+    for (const o of drop) o.removeFromParent();
+    root.add(velvetCofferCeiling(spec));
   }
   root.add(architecture);
   // ChatGPT's end wall and entrance frame (VA-0071). The back row is at -Z, so rearZ is negative.
