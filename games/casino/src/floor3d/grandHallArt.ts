@@ -115,7 +115,51 @@ export function cofferDiffuserEdges(i: number, j: number, tilesX: number, tilesZ
   return { n: true, w: true, e: i === tilesX - 1, s: j === tilesZ - 1 };
 }
 
-export function velvetCofferCeiling(spec: { width: number; length: number; height: number; aisleWidth?: number; bayLength?: number }, ownEdges = true): THREE.Group {
+/** Coffer-tile diffuser modes: owned tile edges (default), the art's full ring, or engine-owned beam-centred strips. */
+export type CofferEdgeMode = 'owned' | 'ring' | 'beam';
+
+/** Width of a beam-centred strip: the two flanking tile strips (0.0325 m each) side by side. */
+export const BEAM_DIFFUSER_WIDTH = 0.065;
+/** Tile-local y span of a beam strip: 12 mm hanging just under the plaster soffit (-0.30), like the ring under the bead. */
+export const BEAM_DIFFUSER_Y = { min: -0.312, max: -0.300 };
+/** Perimeter beams are one tile frame wide (0.14 m); their strip is centred on that band, inboard of the wall. */
+export const PERIMETER_BEAM_INSET = 0.07;
+
+/**
+ * VA-0334 (ChatGPT asked for it as an engine-owned prototype): one strip centred under each beam's
+ * soffit instead of a strip inside either tile. Lines along Z run the whole hall (the colonnade
+ * columns stand on the intersections, so the strip passes inside them); lines along X are cut into
+ * per-bay segments that stop at the Z strips' edges, so intersections are never covered twice.
+ * Perimeter beams use the middle of their single 0.14 m frame band. The strip stays 6 cm clear of
+ * the bronze bead (which starts 0.13 m inboard of a tile edge) and of the corner rosettes
+ * (0.115 m+). Material: a clone of the art's diffuser material, so the strips batch with it.
+ */
+export function cofferBeamStrips(xs: number[], zs: number[], material: THREE.Material): THREE.Mesh[] {
+  const w = BEAM_DIFFUSER_WIDTH, h = BEAM_DIFFUSER_Y.max - BEAM_DIFFUSER_Y.min, yc = (BEAM_DIFFUSER_Y.max + BEAM_DIFFUSER_Y.min) / 2;
+  const centre = (ls: number[], k: number) => (k === 0 ? ls[0] + PERIMETER_BEAM_INSET : k === ls.length - 1 ? ls[k] - PERIMETER_BEAM_INSET : ls[k]);
+  const lx = xs.map((_, k) => centre(xs, k)), lz = zs.map((_, k) => centre(zs, k));
+  const out: THREE.Mesh[] = [];
+  const z0 = lz[0] - w / 2, z1 = lz[lz.length - 1] + w / 2;
+  for (const x of lx) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, z1 - z0), material);
+    m.name = 'coffer_light_diffuser_beam';
+    m.position.set(x, yc, (z0 + z1) / 2);
+    out.push(m);
+  }
+  for (const z of lz) for (let i = 0; i + 1 < lx.length; i++) {
+    const a = lx[i] + w / 2, b = lx[i + 1] - w / 2;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(b - a, h, w), material);
+    m.name = 'coffer_light_diffuser_beam';
+    m.position.set((a + b) / 2, yc, z);
+    out.push(m);
+  }
+  return out;
+}
+
+const NO_EDGES = { n: false, s: false, e: false, w: false };
+
+export function velvetCofferCeiling(spec: { width: number; length: number; height: number; aisleWidth?: number; bayLength?: number }, mode: CofferEdgeMode | boolean = 'owned'): THREE.Group {
+  const m: CofferEdgeMode = mode === true ? 'owned' : mode === false ? 'ring' : mode;
   const { xs, zs } = velvetCofferLines(spec);
   const root = new THREE.Group();
   root.name = 'velvet_coffer_grid';
@@ -124,13 +168,23 @@ export function velvetCofferCeiling(spec: { width: number; length: number; heigh
     for (let j = 0; j + 1 < zs.length; j++) {
       const tw = xs[i + 1] - xs[i];
       const td = zs[j + 1] - zs[j];
-      const diffuserEdges = ownEdges ? cofferDiffuserEdges(i, j, xs.length - 1, zs.length - 1) : undefined;
+      const diffuserEdges = m === 'owned' ? cofferDiffuserEdges(i, j, xs.length - 1, zs.length - 1) : m === 'beam' ? NO_EDGES : undefined;
       const tile = createVelvetCeilingCoffer(THREE, { width: tw, depth: td, diffuserEdges }) as THREE.Group;
       tile.position.set((xs[i] + xs[i + 1]) / 2, y, (zs[j] + zs[j + 1]) / 2);
       root.add(tile);
     }
   }
-  root.userData = { tilesX: xs.length - 1, tilesZ: zs.length - 1, xs, zs, ownEdges };
+  if (m === 'beam') {
+    // borrow the art's own diffuser material from a reference tile, so colour/emissive stay art-owned
+    const ref = createVelvetCeilingCoffer(THREE, {}) as THREE.Group;
+    const glow = ((ref.getObjectByName('coffer_light_diffuser') as THREE.Mesh).material as THREE.Material).clone();
+    const beams = new THREE.Group();
+    beams.name = 'coffer_beam_diffusers';
+    beams.position.y = y;
+    for (const s of cofferBeamStrips(xs, zs, glow)) beams.add(s);
+    root.add(beams);
+  }
+  root.userData = { tilesX: xs.length - 1, tilesZ: zs.length - 1, xs, zs, ownEdges: m === 'owned', edgeMode: m };
   return root;
 }
 
@@ -170,18 +224,25 @@ function readCofferSideInset(): number {
 }
 
 /**
- * Coffer-tile diffuser edges (VA-0332): one strip per beam (owned edges) is the default for the
- * coffer-tile preview; `?cofferedges=ring` in a dev or prototype build restores the art's full
- * ring on every tile (two parallel glow lines per shared beam) for a side-by-side comparison.
+ * Coffer-tile diffuser edges (VA-0332/0334): one strip per beam (owned edges) is the default for the
+ * coffer-tile preview. In a dev or prototype build `?cofferedges=ring` restores the art's full ring on
+ * every tile (two parallel glow lines per shared beam) and `?cofferedges=beam` draws one engine-owned
+ * strip centred under each beam, for side-by-side comparison.
  */
-export function cofferEdgeOwnershipFrom(search: string): boolean {
-  return new URLSearchParams(search).get('cofferedges') !== 'ring';
+export function cofferEdgeModeFrom(search: string): CofferEdgeMode {
+  const v = new URLSearchParams(search).get('cofferedges');
+  return v === 'ring' || v === 'beam' ? v : 'owned';
 }
 
-function readCofferEdgeOwnership(): boolean {
-  if (typeof location === 'undefined') return true;
-  if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return true;
-  return cofferEdgeOwnershipFrom(location.search);
+/** True unless the ring is asked for (kept for older callers/tests). */
+export function cofferEdgeOwnershipFrom(search: string): boolean {
+  return cofferEdgeModeFrom(search) !== 'ring';
+}
+
+function readCofferEdgeMode(): CofferEdgeMode {
+  if (typeof location === 'undefined') return 'owned';
+  if (!(import.meta.env?.DEV || import.meta.env?.MODE === 'proto')) return 'owned';
+  return cofferEdgeModeFrom(location.search);
 }
 
 /**
@@ -524,7 +585,7 @@ export function composeGrandHall(
       if (o !== architecture && REPLACED_BY_VELVET_COFFERS.test(o.name)) drop.push(o);
     });
     for (const o of drop) o.removeFromParent();
-    root.add(velvetCofferCeiling(spec, readCofferEdgeOwnership()));
+    root.add(velvetCofferCeiling(spec, readCofferEdgeMode()));
   }
   root.add(architecture);
   // ChatGPT's end wall and entrance frame (VA-0071). The back row is at -Z, so rearZ is negative.

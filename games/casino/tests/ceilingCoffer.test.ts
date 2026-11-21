@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createVelvetCeilingCoffer } from '../../../art/casino/3d/velvetCeilingCoffer.mjs';
 import { grandFloorLayout, hallCameraClamp, hallColumns, grandHallLayout, GRAND_SPEC } from '../src/floor3d/grandHall.ts';
-import { cofferDiffuserEdges, cofferEdgeOwnershipFrom, composeGrandHall, NEXT_CEILING_STYLE, REPLACED_BY_VELVET_COFFERS, velvetCofferCeiling, velvetCofferLines, VELVET_COFFER_RELIEF } from '../src/floor3d/grandHallArt.ts';
+import { BEAM_DIFFUSER_WIDTH, cofferDiffuserEdges, cofferEdgeModeFrom, cofferEdgeOwnershipFrom, composeGrandHall, NEXT_CEILING_STYLE, REPLACED_BY_VELVET_COFFERS, velvetCofferCeiling, velvetCofferLines, VELVET_COFFER_RELIEF } from '../src/floor3d/grandHallArt.ts';
 import { buildArtScene, wallSideOf } from '../src/floor3d/artScene.ts';
 
 const trisOf = (root: THREE.Object3D) => {
@@ -110,17 +110,21 @@ describe('ChatGPT diffuser edge option (f88efe3, VA-0332)', () => {
     expect(h.object.name).toBe('coffer_light_diffuser_n');
     expect(h.face!.normal.clone().transformDirection(h.object.matrixWorld).y).toBeLessThan(-0.99);
   });
-  it('measured: the strips hang 1.2 cm lower than the ring and leave a 7 mm vertical gap under the bead (reported, not changed)', () => {
+  it('since 6ea4882 (VA-0334) the strips span the ring\'s -0.322..-0.310 exactly, overlapping the bead (no gap)', () => {
     const t = build(all);
-    const s = new THREE.Box3().setFromObject(t.getObjectByName('coffer_light_diffuser_e')!);
-    const bead = new THREE.Box3().setFromObject(t.getObjectByName('coffer_bronze_bead')!);
     const ring = new THREE.Box3().setFromObject(build().getObjectByName('coffer_light_diffuser')!);
-    expect(s.min.y).toBeCloseTo(-0.334, 4);
-    expect(s.max.y).toBeCloseTo(-0.322, 4);
-    expect(ring.min.y).toBeCloseTo(-0.322, 4);
-    expect(bead.min.y - s.max.y).toBeCloseTo(0.007, 4);
+    const bead = new THREE.Box3().setFromObject(t.getObjectByName('coffer_bronze_bead')!);
+    for (const k of ['n', 's', 'e', 'w']) {
+      const s = new THREE.Box3().setFromObject(t.getObjectByName(`coffer_light_diffuser_${k}`)!);
+      expect(s.min.y).toBeCloseTo(-0.322, 4);
+      expect(s.max.y).toBeCloseTo(-0.310, 4);
+      expect(s.min.y).toBeCloseTo(ring.min.y, 6);
+      expect(s.max.y).toBeCloseTo(ring.max.y, 6);
+      expect(s.max.y).toBeGreaterThan(bead.min.y);
+    }
+    const e = new THREE.Box3().setFromObject(t.getObjectByName('coffer_light_diffuser_e')!);
     // horizontally the strip still reaches 1 cm under the bead
-    expect(s.max.x - (bead.max.x - 0.08)).toBeCloseTo(0.01, 4);
+    expect(e.max.x - (bead.max.x - 0.08)).toBeCloseTo(0.01, 4);
   });
 });
 
@@ -200,5 +204,69 @@ describe('coffer-tile ceiling in the grand hall (VA-0325, preview only)', () => 
     for (let i = 0; i < 3; i++) { seen.add(s); s = NEXT_CEILING_STYLE[s]; }
     expect(seen.size).toBe(3);
     expect(s).toBe('hall');
+  });
+});
+
+describe('engine-owned beam-centred diffuser strips (VA-0334, ?cofferedges=beam, preview only)', () => {
+  const spec = grandFloorLayout().hallSpec!;
+  const grid = velvetCofferCeiling(spec, 'beam');
+  grid.updateMatrixWorld(true);
+  const { xs, zs } = grid.userData as { xs: number[]; zs: number[] };
+  const strips: THREE.Mesh[] = [];
+  grid.traverse((o) => { if (o.name === 'coffer_light_diffuser_beam') strips.push(o as THREE.Mesh); });
+  const boxes = strips.map((s) => new THREE.Box3().setFromObject(s));
+  it('reads the mode from the query; tiles carry no diffuser of their own', () => {
+    expect(cofferEdgeModeFrom('?floor3d')).toBe('owned');
+    expect(cofferEdgeModeFrom('?cofferedges=ring')).toBe('ring');
+    expect(cofferEdgeModeFrom('?cofferedges=beam')).toBe('beam');
+    expect(cofferEdgeModeFrom('?cofferedges=nonsense')).toBe('owned');
+    let tileDiffusers = 0;
+    grid.traverse((o) => { if (/^coffer_light_diffuser(_[nsew])?$/.test(o.name)) tileDiffusers++; });
+    expect(tileDiffusers).toBe(0);
+  });
+  it('8 full-length Z lines + 7 x 10 X segments, 12 tris each, sharing one material', () => {
+    expect(strips).toHaveLength(8 + 70);
+    expect(trisOf(grid)).toBe((236 - 32) * 63 + 78 * 12);
+    expect(new Set(strips.map((s) => s.material)).size).toBe(1);
+  });
+  it('sits on beam centrelines (perimeter: middle of the 0.14 m band), just under the soffit, never overlapping itself', () => {
+    const top = spec.height - 0.09 - VELVET_COFFER_RELIEF;
+    for (const b of boxes) {
+      expect(b.max.y).toBeCloseTo(top - 0.300, 5);
+      expect(b.min.y).toBeCloseTo(top - 0.312, 5);
+    }
+    const cx = boxes.map((b) => (b.max.x - b.min.x < 0.07 ? (b.min.x + b.max.x) / 2 : null)).filter((v): v is number => v !== null).sort((p, q) => p - q);
+    expect(cx).toHaveLength(8);
+    expect(cx[0]).toBeCloseTo(xs[0] + 0.07, 5);
+    expect(cx[7]).toBeCloseTo(xs[xs.length - 1] - 0.07, 5);
+    for (let k = 1; k < 7; k++) expect(cx[k]).toBeCloseTo(xs[k], 5);
+    for (let p = 0; p < boxes.length; p++) for (let q = p + 1; q < boxes.length; q++) {
+      const i = boxes[p].clone().intersect(boxes[q]);
+      const vol = i.isEmpty() ? 0 : (i.max.x - i.min.x) * (i.max.z - i.min.z);
+      expect(vol).toBeLessThan(1e-9);
+    }
+    expect(BEAM_DIFFUSER_WIDTH).toBeCloseTo(0.065, 6);
+  });
+  it('a ray straight up on every beam segment midpoint hits a beam strip first, facing down; clear of beads and rosettes', () => {
+    const rc = new THREE.Raycaster();
+    const up = (x: number, z: number) => { rc.set(new THREE.Vector3(x, 0, z), new THREE.Vector3(0, 1, 0)); return rc.intersectObject(grid, true)[0]; };
+    const c = (ls: number[], k: number) => (k === 0 ? ls[0] + 0.07 : k === ls.length - 1 ? ls[k] - 0.07 : ls[k]);
+    for (let k = 0; k < xs.length; k++) for (let j = 0; j + 1 < zs.length; j++) {
+      const h = up(c(xs, k), (zs[j] + zs[j + 1]) / 2)!;
+      expect(h.object.name).toBe('coffer_light_diffuser_beam');
+      expect(h.face!.normal.clone().transformDirection(h.object.matrixWorld).y).toBeLessThan(-0.99);
+    }
+    for (let k = 0; k < zs.length; k++) for (let i = 0; i + 1 < xs.length; i++) {
+      expect(up((xs[i] + xs[i + 1]) / 2, c(zs, k))!.object.name).toBe('coffer_light_diffuser_beam');
+    }
+    const avoid: THREE.Box3[] = [];
+    grid.traverse((o) => { if (o.name === 'coffer_bronze_bead' || o.name === 'corner_rosette') avoid.push(new THREE.Box3().setFromObject(o)); });
+    // beads are rings: test against their outer edge band only via rays just inside the strip's outer edges
+    for (const b of boxes) for (const a of avoid) {
+      if (!b.intersectsBox(a)) continue;
+      // the box hull of a ring bead covers the whole tile; check the actual surface with rays along the strip edge
+      const pts = [[b.min.x + 0.001, b.min.z + 0.001], [b.max.x - 0.001, b.max.z - 0.001]];
+      for (const [x, z] of pts) expect(up(x, z)!.object.name).toBe('coffer_light_diffuser_beam');
+    }
   });
 });
