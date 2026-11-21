@@ -1282,7 +1282,13 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       return rc.intersectObject(tpl, true)[0];
     };
     for (const x of [0, 0.2, -0.2]) expect(first(x, 0.817).object.name).toBe('back_padded_insert'); // hole is open
-    for (const x of [0.27, -0.27, 0.29, 0.335]) {
+    // 5478b9f+75f2fe4 (VA-0321/VA-0323) move the piping out to |x| 0.268..0.282 (tube centre 0.275), past the insert
+    // edge 0.2634: rays at x +-0.275 now hit back_piping at z ~0.019; the 4.6 mm strip between insert and piping
+    // (x 0.264..0.267) and everything outboard of it (0.284..0.335) still lands on the rim front at z 0.050.
+    for (const x of [0.275, -0.275]) expect(first(x, 0.817).object.name).toBe('back_piping');
+    expect(piping.max.x).toBeGreaterThan(insert.max.x);
+    expect(piping.max.x).toBeLessThan(rim.max.x);
+    for (const x of [0.266, -0.266, 0.29, -0.29, 0.335]) {
       const h = first(x, 0.817);
       expect(h.object.name).toBe('back_contoured_rim'); // no gap onto the dark inset between insert and rim
       expect(h.point.z).toBeGreaterThan(piping.min.z + 0.01); // rim face sits behind the piping front
