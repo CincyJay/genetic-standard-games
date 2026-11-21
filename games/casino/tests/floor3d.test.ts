@@ -1233,7 +1233,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
   });
   // measured on bebd39b: the lower rails (y 0.335-0.373, |x| 0.298-0.346) and braces (y 0.336-0.372) rise ~3 cm
   // into the seat cushion's underside (y from 0.343, |x| <= 0.316); hidden from most angles, pinned here
-  it.fails('casino chair (bebd39b): lower rails and braces stay below the seat cushion (VA-0305)', async () => {
+  // f385e1b lowered rails (top y 0.341) and braces (top 0.340) below the cushion underside (y 0.343); posts
+  // now y 0.335..0.625, still landing on the rails and reaching the arm cradle (0.602..0.634) (VA-0307).
+  it('casino chair (f385e1b): lower rails and braces stay below the seat cushion (VA-0305, VA-0307)', async () => {
     const THREE = await import('three');
     const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
     const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
