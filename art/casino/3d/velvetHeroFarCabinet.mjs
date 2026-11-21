@@ -12,7 +12,7 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   const glass = new THREE.MeshStandardMaterial({color: 0x101625, metalness: 0.24, roughness: 0.18});
   const light = new THREE.MeshStandardMaterial({color: 0xffd4a0, emissive: 0xffb76b, emissiveIntensity: 0.42});
   const panel = new THREE.MeshStandardMaterial({color: options.screenColor ?? 0x214b71, emissive: options.screenColor ?? 0x214b71, emissiveIntensity: 0.3, roughness: 0.42});
-  // Optional theme identity for distant rows. Omitted to preserve existing LOD visuals.
+  // Optional per-screen palette, ordered top / middle / lower. No new geometry.\n  // Engine may pass existing hero theme colours; absent values retain the original blue.\n  const screenPalette = Array.isArray(options.screenColors) ? options.screenColors : null;\n  const screenMaterials = screenPalette?.map(color => color == null ? panel : new THREE.MeshStandardMaterial({\n    color, emissive: color, emissiveIntensity: 0.3, roughness: 0.42\n  }));\n  // Optional theme identity for distant rows. Omitted to preserve existing LOD visuals.
   const accent = options.accentColor == null ? null : new THREE.MeshStandardMaterial({
     color: options.accentColor, emissive: options.accentColor, emissiveIntensity: 0.5,
     metalness: 0.28, roughness: 0.4
@@ -40,7 +40,7 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   for (const [i,y,h] of [[0,1.65,0.43],[1,1.12,0.52],[2,0.64,0.35]]) {
     box('screen_'+i+'_bezel',0.73,h+0.055,0.055,bronze,0,y,0.293);
     box('screen_'+i+'_glass',0.665,h,0.012,glass,0,y,0.328);
-    box('screen_'+i+'_display',0.60,h-0.065,0.013,panel,0,y,0.337);
+    box('screen_'+i+'_display',0.60,h-0.065,0.013,screenMaterials?.[i] ?? panel,0,y,0.337);
   }
   box('control_deck',0.82,0.13,0.69,shell,0,0.41,0.105);
   box('control_deck_trim',0.79,0.025,0.69,bronze,0,0.49,0.11);
@@ -49,7 +49,7 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   // Its underside is at y=0.504, just above the deck trim top (0.5025).
   // No dynamic lights, orbs, curves, texture allocations or per-frame work.
   root.userData = {artStudy:true,lod:'far',suggestedMinDistanceMetres:12,
-    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0337 optional theme accent bands',
+    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0340 optional three-screen palette and theme accent bands',
     interactiveNames:['spin_button'], screens:['screen_0_display','screen_1_display','screen_2_display'],
     note:'Silhouette proxy; engine must map names and preserve actual interactive targets when swapping LOD',
     disclaimer:'Original stylized geometry, not photorealistic, integrated or device-tested'};
