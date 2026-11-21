@@ -14,7 +14,7 @@ const trisOf = (root: THREE.Object3D) => {
   return n;
 };
 
-describe('ChatGPT coffer tile (193106d + 7945050 + 5e2e896, VA-0325/VA-0327)', () => {
+describe('ChatGPT coffer tile (193106d + 7945050 + 5e2e896 + 7a08320, VA-0325/VA-0327/VA-0330)', () => {
   const tile = createVelvetCeilingCoffer(THREE) as THREE.Group;
   tile.updateMatrixWorld(true);
   it('is 8 meshes, 236 triangles, 4 materials, hanging 0.474 m from the inset top (5e2e896 deeper beams)', () => {
@@ -43,9 +43,25 @@ describe('ChatGPT coffer tile (193106d + 7945050 + 5e2e896, VA-0325/VA-0327)', (
       const n = h!.face!.normal.clone().transformDirection(h!.object.matrixWorld);
       expect(n.y).toBeLessThan(-0.99);
     }
-    // 5e2e896 widened the inset (|x| 1.68) past the frame's opening (1.66): the old 1 cm slit, and
-    // the gaps between frame, bead and diffuser, now show the inset's underside
-    for (const x of [1.655, 1.5875, 1.55]) expect(hit(x, 0)?.object.name).toBe('coffer_inset');
+    // 7a08320 widened the bead (to |x| 1.67) and diffuser (to 1.60): from below, nothing shows the
+    // inset between the frame and the diffuser's inner edge (1.5675) any more
+    for (let x = 1.57; x <= 1.8; x += 0.0025) expect(hit(x, 0.5)?.object.name).not.toBe('coffer_inset');
+    expect(hit(1.655, 0)?.object.name).toBe('coffer_bronze_bead');
+    expect(hit(1.5875, 0)?.object.name).toBe('coffer_light_diffuser');
+    expect(hit(1.55, 0)?.object.name).toBe('coffer_inset');
+  });
+  it('touches: the bead overlaps the frame and the diffuser overlaps the bead (7a08320)', () => {
+    const box = (n: string) => new THREE.Box3().setFromObject(tile.getObjectByName(n)!);
+    const frame = box('coffer_plaster_frame'), bead = box('coffer_bronze_bead'), diff = box('coffer_light_diffuser');
+    // vertical overlap: bead top -0.287 above the frame soffit -0.30; diffuser top -0.310 above bead bottom -0.315
+    expect(bead.max.y - frame.min.y).toBeCloseTo(0.013, 4);
+    expect(diff.max.y - bead.min.y).toBeCloseTo(0.005, 4);
+    // horizontal overlap of 1 cm each: bead outer 1.67 past frame inner 1.66; diffuser outer 1.60 past bead inner 1.59
+    expect(bead.max.x).toBeCloseTo(1.67, 4);
+    expect(diff.max.x).toBeCloseTo(1.6, 4);
+    const mat = (n: string) => (tile.getObjectByName(n) as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    expect(mat('coffer_inset').emissiveIntensity).toBeCloseTo(0.16, 6);
+    expect(mat('coffer_light_diffuser').emissiveIntensity).toBeCloseTo(0.24, 6);
   });
 });
 
