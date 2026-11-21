@@ -1143,7 +1143,8 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // 9381875 (VA-0311) rebuilds the three wraps as rounded cushion() extrusions: still 39 meshes, 5,768 tris (+1,104)
     // 4f5a3d5 (VA-0315) gives the three wraps a lower tessellation (376 -> 188 tris each): 5,192 tris (-576)
     // 0b98f52 (VA-0317) replaces the three wraps (564 tris) with one back_contoured_rim (1,392): 37 meshes, 6,020 tris
-    expect(tris).toBe(6020);
+    // 108f001 (VA-0319) halves the rim's hole sampling and bevel segments: rim 1,392 -> 544, chair 5,172 tris (-848)
+    expect(tris).toBe(5172);
     expect(mats.size).toBe(5);
     const all = new THREE.Box3().setFromObject(tpl);
     expect(all.min.y).toBeGreaterThan(0);
@@ -1271,6 +1272,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const piping = box('back_piping');
     expect(rim.max.z).toBeGreaterThan(shell.min.z); // reaches into the shell
     expect(rim.max.x).toBeLessThan(shell.max.x); // and stays inside its outline
+    // 108f001 (VA-0319) widens the rim to the shell outline: x +-0.340 vs +-0.341, top y 1.169 vs 1.173
+    expect(shell.max.x - rim.max.x).toBeLessThan(0.003);
+    expect(shell.max.y - rim.max.y).toBeLessThan(0.006);
     expect(rim.max.y).toBeGreaterThan(insert.max.y);
     const rc = new THREE.Raycaster();
     const first = (x: number, y: number) => {
@@ -1278,7 +1282,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       return rc.intersectObject(tpl, true)[0];
     };
     for (const x of [0, 0.2, -0.2]) expect(first(x, 0.817).object.name).toBe('back_padded_insert'); // hole is open
-    for (const x of [0.27, -0.27, 0.29]) {
+    for (const x of [0.27, -0.27, 0.29, 0.335]) {
       const h = first(x, 0.817);
       expect(h.object.name).toBe('back_contoured_rim'); // no gap onto the dark inset between insert and rim
       expect(h.point.z).toBeGreaterThan(piping.min.z + 0.01); // rim face sits behind the piping front
