@@ -1142,7 +1142,8 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // b1703cf (VA-0309) adds two side wraps, a top wrap and a bronze post material: 39 meshes, 4,664 tris, 5 materials
     // 9381875 (VA-0311) rebuilds the three wraps as rounded cushion() extrusions: still 39 meshes, 5,768 tris (+1,104)
     // 4f5a3d5 (VA-0315) gives the three wraps a lower tessellation (376 -> 188 tris each): 5,192 tris (-576)
-    expect(tris).toBe(5192);
+    // 0b98f52 (VA-0317) replaces the three wraps (564 tris) with one back_contoured_rim (1,392): 37 meshes, 6,020 tris
+    expect(tris).toBe(6020);
     expect(mats.size).toBe(5);
     const all = new THREE.Box3().setFromObject(tpl);
     expect(all.min.y).toBeGreaterThan(0);
@@ -1250,94 +1251,47 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       if (b.min.x < seat.max.x && b.max.x > seat.min.x && b.min.z < seat.max.z && b.max.z > seat.min.z) expect(b.max.y).toBeLessThanOrEqual(seat.min.y + 0.005);
     });
   });
-  // b1703cf measured: back_side_wrap |x| 0.254..0.292, y 0.571..1.059, z 0.017..0.167 (back_outer starts z 0.136);
-  // back_top_wrap x +-0.220, y 1.060..1.104, z 0.038..0.146; bronze arm posts |x| 0.302..0.342.
-  it('casino chair (b1703cf): side and top wraps bridge the insert to the shell; bronze arm posts (VA-0309)', async () => {
+  // 0b98f52 (VA-0317) replaces back_side_wrap x2 + back_top_wrap with one back_contoured_rim: an ExtrudeGeometry
+  // rounded frame with a hole, 1,392 tris. Measured (AABB after rotation, metres): rim x +-0.321, y 0.489..1.157,
+  // z 0.017..0.219 (back_outer |x| <= 0.341 starts z 0.136; back_piping |x| <= 0.257, z 0.000..0.063; insert |x| <=
+  // 0.2634). Rays along +Z: x 0 and 0.2 at y 0.817 pass the hole and hit back_padded_insert (z 0.032); x 0.27 and 0.29
+  // hit the rim front at z 0.048, ~5 cm behind the piping front, so the piping stands proud. All 116 front-cap
+  // triangles face -Z (no inverted winding).
+  it('casino chair (0b98f52): one contoured rim with an open hole bridges the insert to the shell (VA-0317)', async () => {
     const THREE = await import('three');
     const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
     const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
     tpl.updateMatrixWorld(true);
-    const box = (o: import('three').Object3D) => new THREE.Box3().setFromObject(o);
-    const shell = box(tpl.getObjectByName('back_outer')!);
-    const insert = box(tpl.getObjectByName('back_padded_insert')!);
-    const wraps: import('three').Box3[] = [];
-    const posts: import('three').Mesh[] = [];
-    tpl.traverse((o) => {
-      if (o.name === 'back_side_wrap') wraps.push(box(o));
-      if (o.name === 'arm_support') posts.push(o as import('three').Mesh);
-    });
-    expect(wraps).toHaveLength(2);
-    for (const w of wraps) {
-      expect(w.max.z).toBeGreaterThan(shell.min.z); // reaches into the shell
-      expect(w.min.z).toBeLessThan(insert.max.z); // and back to the insert's side
-      // overlapped the insert edge until 4f5a3d5 (VA-0315) moved the wraps out past the piping: now a 1.2 mm gap
-      // (insert |x| 0.2634, wrap 0.2647) onto the dark back_inset 3.3 cm behind; held to 3 mm here
-      expect(Math.min(Math.abs(w.min.x), Math.abs(w.max.x))).toBeLessThan(insert.max.x + 0.003);
+    expect(tpl.getObjectByName('back_side_wrap')).toBeUndefined();
+    expect(tpl.getObjectByName('back_top_wrap')).toBeUndefined();
+    const box = (n: string) => new THREE.Box3().setFromObject(tpl.getObjectByName(n)!);
+    const rim = box('back_contoured_rim');
+    const shell = box('back_outer');
+    const insert = box('back_padded_insert');
+    const piping = box('back_piping');
+    expect(rim.max.z).toBeGreaterThan(shell.min.z); // reaches into the shell
+    expect(rim.max.x).toBeLessThan(shell.max.x); // and stays inside its outline
+    expect(rim.max.y).toBeGreaterThan(insert.max.y);
+    const rc = new THREE.Raycaster();
+    const first = (x: number, y: number) => {
+      rc.set(new THREE.Vector3(x, y, -1), new THREE.Vector3(0, 0, 1));
+      return rc.intersectObject(tpl, true)[0];
+    };
+    for (const x of [0, 0.2, -0.2]) expect(first(x, 0.817).object.name).toBe('back_padded_insert'); // hole is open
+    for (const x of [0.27, -0.27, 0.29]) {
+      const h = first(x, 0.817);
+      expect(h.object.name).toBe('back_contoured_rim'); // no gap onto the dark inset between insert and rim
+      expect(h.point.z).toBeGreaterThan(piping.min.z + 0.01); // rim face sits behind the piping front
     }
-    const top = box(tpl.getObjectByName('back_top_wrap')!);
-    expect(top.max.z).toBeGreaterThan(shell.min.z);
-    expect(top.max.y).toBeGreaterThan(insert.max.y);
+  });
+  it('casino chair (0b98f52): all posts stay bronze metal (VA-0309)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    const posts: import('three').Mesh[] = [];
+    tpl.traverse((o) => { if (o.name === 'arm_support') posts.push(o as import('three').Mesh); });
     expect(posts).toHaveLength(4);
     for (const p of posts) expect((p.material as import('three').MeshStandardMaterial).metalness).toBeGreaterThan(0.5);
-  });
-  // b1703cf left a 3.4 cm notch at both upper corners (top wrap x +-0.220, side wraps |x| >= 0.254). 9381875 measured:
-  // top wrap x +-0.281, y 1.050..1.118; side wraps |x| 0.240..0.294, y 0.537..1.106, z 0.056..0.214. The top wrap now
-  // overlaps each side wrap by ~4 cm and the side wraps reach down to the seat top (0.541). Was it.fails; passes now.
-  it('casino chair (9381875): top wrap overlaps the side wraps at the upper corners; side wraps reach the seat (VA-0311)', async () => {
-    const THREE = await import('three');
-    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
-    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
-    tpl.updateMatrixWorld(true);
-    const top = new THREE.Box3().setFromObject(tpl.getObjectByName('back_top_wrap')!);
-    const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat_cushion')!);
-    let sideInner = Infinity;
-    let sideBottom = -Infinity;
-    tpl.traverse((o) => {
-      if (o.name !== 'back_side_wrap') return;
-      const b = new THREE.Box3().setFromObject(o);
-      sideInner = Math.min(sideInner, Math.min(Math.abs(b.min.x), Math.abs(b.max.x)));
-      sideBottom = Math.max(sideBottom, b.min.y);
-      expect(b.max.y).toBeGreaterThan(top.min.y); // vertical overlap with the top wrap
-    });
-    expect(top.max.x).toBeGreaterThan(sideInner); // horizontal overlap: no corner notch
-    expect(sideBottom).toBeLessThanOrEqual(seat.max.y + 0.005);
-  });
-  // 9381875 kept z = 0.092 after switching the wraps to ExtrudeGeometry (which grows toward +Z from its origin), so the
-  // wrap fronts fell 4-5 cm behind the dark back_inset (front z 0.039). fbc24e8 moves them to z = 0.040. Measured (AABB):
-  // side wraps z 0.004..0.162, top wrap z 0.028..0.138; back_inset front 0.039, back_padded_insert front 0.006.
-  it('casino chair (fbc24e8): wrap fronts sit ahead of the dark back_inset, so its rim is covered (VA-0313)', async () => {
-    const THREE = await import('three');
-    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
-    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
-    tpl.updateMatrixWorld(true);
-    const box = (n: string) => new THREE.Box3().setFromObject(tpl.getObjectByName(n)!);
-    const inset = box('back_inset');
-    const insert = box('back_padded_insert');
-    expect(box('back_top_wrap').min.z).toBeLessThan(inset.min.z);
-    tpl.traverse((o) => {
-      if (o.name !== 'back_side_wrap') return;
-      const b = new THREE.Box3().setFromObject(o);
-      expect(b.min.z).toBeLessThan(inset.min.z);
-      expect(b.min.z).toBeGreaterThan(insert.min.z - 0.01); // not standing proud of the cushion face by more than 1 cm
-    });
-  });
-  // fbc24e8 put the side wraps' inner edge at |x| 0.240, over the gold back_piping (|x| <= 0.257), hiding it on one
-  // side (VA-0314). 4f5a3d5 moves them out: side wraps |x| 0.265..0.319, top wrap x +-0.311 (was +-0.281), z unchanged.
-  it('casino chair (4f5a3d5): side wraps clear the piping; the top wrap still bridges them (VA-0315)', async () => {
-    const THREE = await import('three');
-    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
-    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
-    tpl.updateMatrixWorld(true);
-    const box = (n: string) => new THREE.Box3().setFromObject(tpl.getObjectByName(n)!);
-    const piping = box('back_piping');
-    const top = box('back_top_wrap');
-    tpl.traverse((o) => {
-      if (o.name !== 'back_side_wrap') return;
-      const b = new THREE.Box3().setFromObject(o);
-      const inner = Math.min(Math.abs(b.min.x), Math.abs(b.max.x));
-      expect(inner).toBeGreaterThan(piping.max.x); // the wrap starts outside the piping
-      expect(top.max.x).toBeGreaterThan(inner); // the top wrap still covers the corner
-    });
   });
   // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
   // Measured (18 segments): arm tips |x| 0.255..0.268 (was 0.113..0.126); nearest shell point in front of the back
