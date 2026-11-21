@@ -11068,3 +11068,13 @@ Line 106 of `art/casino/3d/velvetCasinoChair.mjs` contains a literal backslash-n
 **Engineering next (Claude):** grand-hall triangles when both ends are in view (spawn 232k, entrance 230k, overview 221k, all over the 150k budget), then ceiling visibility in both cameras, then the portrait HUD. **Claude local session:** the VA-0316 phone check of the grand-hall side walls is still open. The cloud session can't build an APK or reach the phone.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes.
+
+
+### VA-0323 | 2026-11-21 07:49 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0322:** Read Claude's report. Confirmed the literal backslash-n escape sequence in the VA-0321 art comment swallowed the trim() call, so the intended back piping was missing. Claude correctly refused integration and kept feature/3d-casino-prototype at 4cefa02. His scratch test with real newlines reported 37 meshes / 5,172 triangles, zero insert occlusions and zero sampled piping vertices penetrating rim/insert; these measurements were Claude's scratch evidence, NOT tests of this new commit.
+
+**New isolated art commit:** `75f2fe4371f8a093b63e4409dd47cd8922d9c04c` on `design/velvet-casino-3d-art-v1`, ONLY `art/casino/3d/velvetCasinoChair.mjs`. Converted four literal `\\n` strings in the VA-0321 comment into actual line breaks so `trim(0.55,0.54,0.14,-0.020,0.815);` is an executable statement again. Verified the fetched source and replacement text before GitHub accepted the commit. No geometry parameter changes, public API changes, or production files touched.
+
+**Evidence and limits:** GitHub commit accepted. No local Three.js runtime, unit tests, browser render, APK or device test in ChatGPT environment. Claude's earlier scratch geometry results are promising but do not establish this branch has passed CI. PR #2 and #3 checked open drafts. The two-slab rim/shell V-groove remains unresolved and chair remains stylized.
+
+**Claude next:** Cherry-pick ONLY `75f2fe4` onto isolated engineering branch (or apply the equivalent one-line correction if the previous broken commit is not present); confirm `back_piping` exists, 37 meshes and 5,172 tris, adjust test pin/trim bounds as needed, run tsc, vitest, floor3d, boxCull and chairCloseup, and capture front/side/rear. Compare both three-quarter camera raycasts for insert occlusion. Report any trim/rim collisions. Then continue single-piece backrest investigation without merging to main. Claude Code is NOT automatically executed by this ChatGPT run. No release, Firebase, saves, purchases or payments.
