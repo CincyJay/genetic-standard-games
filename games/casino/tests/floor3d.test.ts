@@ -1511,9 +1511,10 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(lod.lite.length).toBeGreaterThan(0);
     expect(lod.lite.every((m) => !m.visible)).toBe(true);
     expect(lod.full.every((m) => m.visible)).toBe(true);
-    // both sets carry the side-wall copies; the far set saves the heroes' detail (~95k triangles)
+    // both sets carry the north side-wall copies (the south ones batch apart, VA-0316); the far
+    // set saves the heroes' detail (~95k triangles)
     const full = tris(lod.full), lite = tris(lod.lite);
-    expect(full).toBeGreaterThan(200_000);
+    expect(full).toBeGreaterThan(180_000);
     expect(full - lite).toBeGreaterThan(90_000);
     // the whole batched scene: the same triangles as without the LOD when the full set shows
     const visible = (a: typeof on) => tris(a.root.children.filter((m) => m.visible && !a.whole.combined.includes(m as import('three').Mesh)) as import('three').Mesh[]);
@@ -1521,16 +1522,19 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // reels, spin buttons and marquees: the hero's own, once, at every distance
     expect([...on.interactive.keys()].sort()).toEqual([...off.interactive.keys()].sort());
     expect([...on.reelCopies.keys()].sort()).toEqual([...off.reelCopies.keys()].sort());
-    for (const m of [...lod.full, ...lod.lite]) expect(m.name).toMatch(/^art:lod:(full|lite)#/);
+    for (const m of [...lod.full, ...lod.lite, ...lod.south, ...lod.liteAll]) expect(m.name).toMatch(/^art:lod:(full|lite|south|liteAll)#/);
     // no lights or other non-mesh extras came along with the twins
     let lightsOn = 0, lightsOff = 0;
     on.root.traverse((o) => { if ((o as import('three').Light).isLight) lightsOn++; });
     off.root.traverse((o) => { if ((o as import('three').Light).isLight) lightsOff++; });
     expect(lightsOn).toBe(lightsOff);
-    // draw cost: either set is as many batches as the heroes and copies shared before
+    // draw cost: either set is as many batches as the heroes and copies shared before, plus the
+    // south copies' batches (box-culled when behind the camera; world.ts draws liteAll, one batch
+    // per material, in place of lite + south when both are in view)
     const shown = (a: typeof on) => a.root.children.filter((m) => m.visible).length;
-    expect(shown(on)).toBe(shown(off));
+    expect(shown(on)).toBe(shown(off) + lod.south.length);
     expect(lod.lite.length).toBe(lod.full.length);
+    expect(lod.liteAll.length).toBe(lod.full.length);
     // distance switch with hysteresis: full detail near any hero, lite from the far end of the hall
     const c = lod.centres[0];
     expect(heroLodFull(false, c.x, c.z + HERO_LOD_NEAR_M - 1, lod.centres)).toBe(true);
@@ -1539,6 +1543,42 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(heroLodFull(true, c.x, c.z + edge, [c])).toBe(true);
     expect(heroLodFull(false, c.x, c.z + edge, [c])).toBe(false);
     void THREE;
+  });
+
+  it('splits the side-wall copies at mid-hall so either end can be box-culled (VA-0316)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const off = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers' });
+    expect(off.boxCull).toEqual([]);
+    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true });
+    const lod = on.heroLod!;
+    // box-tested: the hero sets and the south copies, not the combined set
+    expect(on.boxCull.map((e) => e.mesh).sort((a, b) => a.id - b.id)).toEqual([...lod.full, ...lod.lite, ...lod.south].sort((a, b) => a.id - b.id));
+    const union = (ms: import('three').Mesh[]) => on.boxCull.filter((e) => ms.includes(e.mesh)).reduce((b, e) => b.union(e.box), new THREE.Box3());
+    const north = union(lod.full), south = union(lod.south);
+    // the two ends don't overlap: the hero sets stop before mid-hall, the south copies start after it
+    expect(north.max.z).toBeLessThan(-5);
+    expect(south.min.z).toBeGreaterThan(5);
+    // every box holds its batch
+    for (const { mesh, box } of on.boxCull) {
+      mesh.geometry.computeBoundingBox();
+      expect(box.containsBox(mesh.geometry.boundingBox!)).toBe(true);
+    }
+    // the combined lite set is the twins plus every copy: what lite + south draw, hidden until needed
+    expect(lod.liteAll.every((m) => !m.visible)).toBe(true);
+    expect(Math.abs(tris(lod.liteAll) - tris(lod.lite) - tris(lod.south))).toBeLessThan(1);
+    expect(tris(lod.south)).toBeGreaterThan(30_000);
+    // a camera mid-hall looking at the heroes: the south copies' box is behind it, the heroes' isn't
+    const cam = new THREE.PerspectiveCamera(50, 1.5, 0.1, 100);
+    cam.position.set(0, 1.7, 6);
+    cam.lookAt(0, 1.6, -17);
+    cam.updateMatrixWorld();
+    const f = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    expect(f.intersectsBox(south)).toBe(false);
+    expect(f.intersectsBox(north)).toBe(true);
+    // ...where three.js's own sphere test would still draw every south batch
+    expect(lod.south.every((m) => f.intersectsObject(m))).toBe(true);
   });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');

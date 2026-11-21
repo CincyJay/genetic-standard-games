@@ -95,6 +95,8 @@ export interface FloorStats {
   lightMode: LightMode;
   /** Grand hall hero LOD (VA-0305): which detail the end-wall heroes are drawn in now, or null when it is off. */
   heroLod: 'full' | 'lite' | null;
+  /** Art batches hidden by their world box in the last frame (VA-0316), of how many are box-tested. */
+  boxCull: { culled: number; of: number; liteAll: boolean };
 }
 
 export interface FloorHandle {
@@ -1013,6 +1015,54 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const tmpB = new THREE.Vector3();
   let raf = 0;
 
+  // VA-0316: for this frame's render only, hide the long art batches whose world box is out of
+  // view (three.js culls by bounding sphere, which for these reaches past the hall's middle), and
+  // draw the combined lite set in place of the lite and south sets when both ends are in view
+  const cullFrustum = new THREE.Frustum();
+  const cullMatrix = new THREE.Matrix4();
+  const culledNow: THREE.Mesh[] = [];
+  const shownNow: THREE.Mesh[] = [];
+  let lastBoxCulled = 0;
+  let lastLiteAll = false;
+  const unionBox = (meshes: THREE.Mesh[]) => {
+    const box = new THREE.Box3();
+    for (const e of art.boxCull) if (meshes.includes(e.mesh)) box.union(e.box);
+    return box;
+  };
+  const liteBox = art.heroLod ? unionBox(art.heroLod.lite) : null;
+  const southBox = art.heroLod ? unionBox(art.heroLod.south) : null;
+  function boxCulled(): void {
+    culledNow.length = 0;
+    shownNow.length = 0;
+    lastLiteAll = false;
+    if (!art.boxCull.length) return;
+    camera.updateMatrixWorld();
+    cullFrustum.setFromProjectionMatrix(cullMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    const lod = art.heroLod;
+    if (lod && liteBox && southBox && lod.liteAll.length && lod.lite[0]?.visible && lod.south[0]?.visible && cullFrustum.intersectsBox(liteBox) && cullFrustum.intersectsBox(southBox)) {
+      lastLiteAll = true;
+      for (const m of [...lod.lite, ...lod.south]) if (m.visible) {
+        m.visible = false;
+        culledNow.push(m);
+      }
+      for (const m of lod.liteAll) {
+        m.visible = true;
+        shownNow.push(m);
+      }
+      return;
+    }
+    for (const { mesh, box } of art.boxCull) {
+      if (!mesh.visible || cullFrustum.intersectsBox(box)) continue;
+      mesh.visible = false;
+      culledNow.push(mesh);
+    }
+  }
+  function boxRestore(): void {
+    lastBoxCulled = lastLiteAll ? 0 : culledNow.length;
+    for (const m of culledNow) m.visible = true;
+    for (const m of shownNow) m.visible = false;
+  }
+
   function frame(now: number): void {
     if (disposed) return;
     raf = requestAnimationFrame(frame);
@@ -1023,8 +1073,10 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     update(dt, now);
     capScene?.animate(now / 1000);
     renderer.info.reset();
+    boxCulled();
     if (composer) composer.render(dt);
     else renderer.render(scene, camera);
+    boxRestore();
     const cost = performance.now() - t0;
     if (frames > 0) {
       intervals.push(dtMs);
@@ -1263,6 +1315,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       guestAvatar,
       lightMode,
       heroLod: art.heroLod ? (heroFull ? 'full' : 'lite') : null,
+      boxCull: { culled: lastBoxCulled, of: art.boxCull.length, liteAll: lastLiteAll },
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };
   }

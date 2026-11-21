@@ -95,7 +95,17 @@ export interface ArtScene {
    * where each hero stands. Show one set at a time (heroLodFull in grandHallArt.ts);
    * `lite` starts hidden. Null unless the hall was composed with `heroLod`.
    */
-  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; centres: { x: number; z: number }[] } | null;
+  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; liteAll: THREE.Mesh[]; centres: { x: number; z: number }[] } | null;
+  /**
+   * Batches the renderer skips by world box instead of bounding sphere (boxCulled in world.ts,
+   * VA-0316). With the hero LOD on, the side-wall copies split at the hall's middle: the north
+   * ones stay in the hero sets (`full`, `lite`, z −17.8…−6.8) and the south ones batch on their
+   * own (`south`, z 7.3…14.9). Each spans both side walls, so a sphere around it reaches past the
+   * hall's middle and three.js never culls it; a box does once that end is behind the camera.
+   * `liteAll` is the old lite set (twins and every copy, hidden): drawn in place of `lite` and
+   * `south` when both are in view, so that view costs no more draw calls than before the split.
+   */
+  boxCull: { mesh: THREE.Mesh; box: THREE.Box3 }[];
   /** How many meshes the factories built, and how many draw batches they became. */
   meshesAuthored: number;
   batches: number;
@@ -561,10 +571,11 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     const glow = mesh.userData.glow === true;
     const fade = part ? null : fadeGroupOf(mesh);
     const lod = part || fade ? null : heroLodOf(mesh);
-    // with the hero LOD on, the side-wall copies go into both hero sets (VA-0305), so each set
-    // stays one batch per material, as the copies and heroes were before: no extra draw calls,
-    // at the cost of the copies' vertices being held twice
-    const lods: (string | null)[] = lod ? [lod] : lodCentres.length && !part && !fade && !side && copyCabinetOf(mesh) ? ['full', 'lite'] : [null];
+    // with the hero LOD on, the north side-wall copies (beside the heroes) go into both hero sets
+    // (VA-0305), so each set stays one batch per material; the south copies batch on their own
+    // (VA-0316) so the hero sets end mid-hall and either half can be culled when behind the camera
+    const copyLod = lodCentres.length && !part && !fade && !side && copyCabinetOf(mesh);
+    const lods: (string | null)[] = lod ? (lod === 'lite' ? ['lite', 'liteAll'] : [lod]) : copyLod ? (wp.z > 0 ? ['south', 'liteAll'] : ['full', 'lite', 'liteAll']) : [null];
     // merging needs one layout: unindexed, with position / normal / uv only
     const src = mesh.geometry;
     // an instanced mesh (the hero table's chip stacks) becomes one piece per instance
@@ -597,7 +608,8 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const reelCopies = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
   const fadeable = new Map<string, THREE.Mesh[]>();
-  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], centres: lodCentres } : null;
+  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], liteAll: [], centres: lodCentres } : null;
+  const boxCull: ArtScene['boxCull'] = [];
   let colourBatches = 0;
   // whole-view batches (VA-0052): buckets that differ only by wall / ceiling side, per material
   const sideless = (key: string) => key.slice(key.indexOf('#'));
@@ -648,11 +660,16 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
       if (key.startsWith('slotcopy_')) reelCopies.set(key.slice('slotcopy_'.length, -'/reels'.length), mesh);
       else interactive.set(key, mesh);
     }
-    if (heroLod && b.lod === 'full') heroLod.full.push(mesh);
-    else if (heroLod && b.lod === 'lite') {
-      mesh.visible = false;
-      heroLod.lite.push(mesh);
+    if (b.lod && b.lod !== 'liteAll') {
+      // batches are baked in world space and never move
+      merged.computeBoundingBox();
+      boxCull.push({ mesh, box: merged.boundingBox!.clone() });
     }
+    if (heroLod && b.lod === 'full') heroLod.full.push(mesh);
+    else if (heroLod && (b.lod === 'lite' || b.lod === 'liteAll')) {
+      mesh.visible = false;
+      heroLod[b.lod].push(mesh);
+    } else if (heroLod && b.lod === 'south') heroLod.south.push(mesh);
     if (b.fade) {
       const list = fadeable.get(b.fade) ?? [];
       list.push(mesh);
@@ -669,5 +686,5 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();
   if (svelteLod) root.add(svelteLod.root);
-  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, chairPoses, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, svelteLod, whole, heroLod, meshesAuthored, batches: buckets.size, colourBatches };
+  return { root, walls, ceiling, interactive, reelCopies, exterior, fadeable, heroTextures, chairPoses, heroSignLift, blackjackHero, wovenCarpet, svelteCabinets, svelteLod, whole, heroLod, boxCull, meshesAuthored, batches: buckets.size, colourBatches };
 }
