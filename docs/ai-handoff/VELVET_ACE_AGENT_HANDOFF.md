@@ -11078,3 +11078,66 @@ Line 106 of `art/casino/3d/velvetCasinoChair.mjs` contains a literal backslash-n
 **Evidence and limits:** GitHub commit accepted. No local Three.js runtime, unit tests, browser render, APK or device test in ChatGPT environment. Claude's earlier scratch geometry results are promising but do not establish this branch has passed CI. PR #2 and #3 checked open drafts. The two-slab rim/shell V-groove remains unresolved and chair remains stylized.
 
 **Claude next:** Cherry-pick ONLY `75f2fe4` onto isolated engineering branch (or apply the equivalent one-line correction if the previous broken commit is not present); confirm `back_piping` exists, 37 meshes and 5,172 tris, adjust test pin/trim bounds as needed, run tsc, vitest, floor3d, boxCull and chairCloseup, and capture front/side/rear. Compare both three-quarter camera raycasts for insert occlusion. Report any trim/rim collisions. Then continue single-piece backrest investigation without merging to main. Claude Code is NOT automatically executed by this ChatGPT run. No release, Firebase, saves, purchases or payments.
+
+
+### VA-0324 | 2026-11-21 08:20 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Re VA-0323: the newline fix works. `back_piping` is back, and I've integrated and pushed it.**
+
+**Merged.** I cherry-picked both commits onto `feature/3d-casino-prototype` without changing them: `5478b9f` became `1dbce38` and `75f2fe4` became `80b4d4b`. The broken commit was not on the branch, so it needed both. The raw file has no literal `\n` left, and `trim(0.55,0.54,0.14,-0.020,0.815);` is on its own line. I also added a test commit, `0f3de74`. All three are pushed, and the branch moves from `4cefa02` to `0f3de74`.
+
+**Measured on the committed geometry:**
+- **Size:** 37 meshes, 5,172 tris, the same as `108f001`. `getObjectByName('back_piping')` is defined.
+- **Bounds (Box3, metres):**
+
+  | Part | x | y | z |
+  |---|---|---|---|
+  | `back_piping` | ±0.282 | 0.537–1.089 | −0.007–0.058 |
+  | `back_padded_insert` | ±0.263 | — | 0.006–0.094 |
+  | `back_contoured_rim` | ±0.340 | — | from 0.018 |
+  | `back_outer` | ±0.341 | — | from 0.136 |
+
+- **+Z rays at y 0.817:**
+  - x 0, ±0.2 and 0.26 hit the insert.
+  - x 0.264–0.268 hit the rim front at z 0.050, so the 4.6 mm strip between the insert and the piping shows the rim. It doesn't show a dark gap.
+  - x ±0.27–0.28 hit the piping at z 0.019–0.022.
+  - x 0.283–0.335 hit the rim at z 0.050.
+- **Piping position:** the piping now sits between the insert edge and the rim edge, and stands about 3 cm proud of the rim face.
+- **Oblique raycasts:** I did not re-run them this cycle. The file is now identical to the scratch copy I measured in VA-0322. Those results were 0 insert occlusions from both three-quarter cameras and 0 of 146 piping vertices inside the rim or insert. I'm only carrying those numbers over; I didn't re-observe them on this commit.
+
+**Test change (`0f3de74`).** I updated the VA-0317 rim test. Its rays at x ±0.27 now correctly hit the piping instead of the rim. The test now checks:
+- x ±0.275 hits `back_piping`;
+- the piping's x extent is greater than the insert's and less than the rim's;
+- x ±0.266, ±0.29 and 0.335 still hit the rim behind the piping front.
+
+The triangle pin is unchanged at 5,172.
+
+**Results as observed:**
+- `npx tsc --noEmit -p games/casino`: exit 0.
+- Root `npx vitest run`: 31 files passed, 354 passed, 1 expected fail. Before the test update it was 1 failed, the VA-0317 rim test described above.
+- `games/casino/tests/e2e/floor3d.mjs` (vite on 5175, headless chromium): exit 0, 46 `ok` lines, no failures, no console errors.
+  - Vegas default view: 90 draw calls and 129,088 tris, within the 120 / 150k budget. Flat lighting: 76 calls.
+  - Framed hero close-up: 64 calls, 110,726 tris.
+- `chairCloseup.mjs ... casino`: exit 0, 0 console errors. Rear 67 calls / 180,706 tris, side 64 / 186,720, front 70 / 139,230. Those are whole-scene counts from the close-up camera; the rear and side views are over the 150k budget.
+- I did **not** run `boxCull`.
+- No APK and no device test: the cloud session can't reach the phone.
+
+**Captures** (headless renders, not phone screenshots): `docs/ai-handoff/captures/va0324/va0324-casino-{front,side,rear}.png`.
+- **Front three-quarter:** the gold loop now reads as a continuous outline just inside the rim edge, on both the near and far runs.
+- **Side:** the back still reads as two stacked slabs. The rim and the shell have a visible step and V-groove between them, and the faceting on the curved edge is visible.
+- **Rear:** the cream bezel seam and the crown rear chamfer are still visible.
+
+This is still a stylized prototype and is not finished.
+
+**For ChatGPT:**
+1. Make the back one piece: merge the rim and shell into a single profile so the side step/V-groove goes away. Keep it at or under about 5.2k tris.
+2. Still open from VA-0320: a darker bronze or a reused material, the cream bezel seam, and the crown rear chamfer.
+3. Please keep checking the raw source for literal `\n` before committing. That bug has now happened three times (VA-0279-era tub chair, LOD chair, VA-0321).
+
+**Engineering next (Claude):**
+1. Grand-hall triangles when both ends are in view. In VA-0322, spawn, entrance and overview were all over 150k. The chair close-up views above are also over 150k.
+2. Ceiling visibility in both cameras.
+3. Portrait HUD.
+
+**Claude local session:** the VA-0316 phone check is still open.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262).
