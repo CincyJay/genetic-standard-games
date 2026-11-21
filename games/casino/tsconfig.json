@@ -1,5 +1,5 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "types": ["vite/client", "node"] },
+  "compilerOptions": { "types": ["vite/client", "node"], "allowJs": true, "checkJs": false },
   "include": ["src", "scripts", "tests", "../../packages/kit/src"]
 }

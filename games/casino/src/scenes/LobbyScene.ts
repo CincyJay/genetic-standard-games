@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
-import { DISPLAY_FONT, GOLD, audio, bonus, fmt, haptics, player } from '../services.ts';
+import { DISPLAY_FONT, GOLD, THEME, audio, bonus, fmt, haptics, player } from '../services.ts';
 import { showDailyWheel, showMissions, showProfile } from '../ui/progress.ts';
-import { coinBar, coinShower, formatWait, text } from '../ui/common.ts';
+import { coinBar, coinShower, formatWait, makeButton, text } from '../ui/common.ts';
+import { PROTO } from '../floor3d/flags.ts';
 import { VW, backdrop, frame } from '../ui/common.ts';
 import { drawWheel } from '../ui/wheel.ts';
 import { cardsArt, gameTile, reelArt, wheelArt } from '../ui/tiles.ts';
@@ -27,6 +28,9 @@ export class LobbyScene extends Phaser.Scene {
     backdrop(this, 'room-lobby');
     const refresh = coinBar(this, 'Velvet Ace');
     this.marquee(view.top);
+    // the 3D-floor prototype app only: a way back onto the floor
+    if (PROTO)
+      makeButton(this, VW / 2, view.top + 300, '3D floor (prototype)', () => this.scene.start('floor3d'), { width: 560, height: 120, fontSize: 40, theme: THEME }).setDepth(60);
 
     // one door per room
     const top = view.top + 380;

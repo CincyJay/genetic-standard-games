@@ -25,6 +25,8 @@ import { online } from './online.ts';
 import { save } from './services.ts';
 import { SlotsScene } from './scenes/SlotsScene.ts';
 import { VideoPokerScene } from './scenes/VideoPokerScene.ts';
+import { Floor3DScene } from './scenes/Floor3DScene.ts';
+import { PROTO } from './floor3d/flags.ts';
 import { setupBackButton } from './native.ts';
 import { THEME } from './services.ts';
 
@@ -46,7 +48,7 @@ async function start(): Promise<void> {
     scale: { mode: Phaser.Scale.EXPAND, autoCenter: Phaser.Scale.CENTER_BOTH },
     render: { antialias: true },
     input: { activePointers: 1 },
-    scene: [BootScene, LobbyScene, RoomScene, PokerLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene, BaccaratScene, ThreeCardScene, WarScene, CrapsScene, UthScene, CardGameScene, DressingRoomScene, LoungeScene],
+    scene: [BootScene, LobbyScene, RoomScene, PokerLobbyScene, SlotsScene, BlackjackScene, HoldemScene, VideoPokerScene, RouletteScene, BaccaratScene, ThreeCardScene, WarScene, CrapsScene, UthScene, CardGameScene, DressingRoomScene, LoungeScene, Floor3DScene],
   });
   void setupBackButton(game);
   // moving between rooms and tables: every scene fades up from black, and the
@@ -54,7 +56,8 @@ async function start(): Promise<void> {
   const TABLES = ['blackjack', 'roulette', 'baccarat', 'threecard', 'war', 'craps', 'uth', 'holdem', 'videopoker', 'slots', 'cardgame'];
   // sign in quietly in the background; the casino never waits for it
   migrateAvatar();
-online.start();
+  // the 3D-floor prototype is a separate test app: it never signs in to the live project
+  if (!PROTO) online.start();
   game.events.once('ready', () => {
     for (const sc of game.scene.scenes) {
       sc.events.on('create', () => {
