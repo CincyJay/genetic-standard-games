@@ -63,21 +63,27 @@ export function createVelvetCasinoChair(THREE, options = {}) {
   const back = add('back_outer',cushion(0.65,0.69,0.115,0.17),upholstery,[0,0.805,0.195],[-0.095,0,0]);
   add('back_inset',cushion(0.54,0.56,0.024,0.135,0.009),shadow,[0,0.815,0.075],[-0.095,0,0]);
   add('back_padded_insert',cushion(0.51,0.53,0.034,0.13,0.013),upholstery,[0,0.815,0.045],[-0.095,0,0]);
-  // Narrow upholstered side returns bridge the recessed face to the outer shell.
-  // They conceal the exposed three-slab silhouette without moving the seat or shell.
-  // Kept separate and named for renderer-level visibility and collision checks.
-  // Soft rounded returns overlap at the top corners and descend to the seat.
-  // ExtrudeGeometry grows toward +Z rather than centering on the mesh origin.
-  // Offset the wraps forward to cover the dark inset edge (VA-0312).
-  // Extruded contours replace sharp rectangular slabs. Keep named pieces for QA.
-  // VA-0314: shift returns outward to leave the raised inset piping visible.
-  // Low tessellation on these narrow returns saves triangles in the grand hall.
-  for (const side of [-1, 1]) {
-    add('back_side_wrap', cushion(0.043, 0.55, 0.105, 0.020, 0.009, 3), upholstery,
-      [side * 0.292, 0.817, 0.040], [-0.095, 0, 0]);
-  }
-  add('back_top_wrap', cushion(0.61, 0.047, 0.105, 0.021, 0.009, 3), upholstery,
-    [0, 1.080, 0.040], [-0.095, 0, 0]);
+  // VA-0317: single continuous upholstered return, replacing three overlapping
+  // pieces. A hole keeps the inset open and eliminates corner seams/slab gaps.
+  // Shape winding is normalized explicitly for predictable Three.js triangulation.
+  const rimOuter = roundedContour(0.634, 0.650, 0.165);
+  const innerPoints = roundedContour(0.508, 0.528, 0.130).getPoints(24);
+  const rimHole = new THREE.Path();
+  innerPoints.reverse().forEach((p, i) => {
+    if (i === 0) rimHole.moveTo(p.x, p.y);
+    else rimHole.lineTo(p.x, p.y);
+  });
+  rimHole.closePath();
+  rimOuter.holes.push(rimHole);
+  // Front -Z: rim front is behind the raised piping, while its depth reaches
+  // the outer shell. Small bevels soften the silhouette without dense geometry.
+  const rimGeometry = new THREE.ExtrudeGeometry(rimOuter, {
+    depth: 0.128, steps: 1, curveSegments: 3,
+    bevelEnabled: true, bevelSegments: 2,
+    bevelThickness: 0.006, bevelSize: 0.004
+  });
+  add('back_contoured_rim', rimGeometry, upholstery,
+    [0, 0.817, 0.054], [-0.095, 0, 0]);
   // Small inset button-tuft details give scale cues without expensive tessellation.
   for(const y of [0.69,0.88,1.04]){
     for(const x of [-0.13,0.13]){
