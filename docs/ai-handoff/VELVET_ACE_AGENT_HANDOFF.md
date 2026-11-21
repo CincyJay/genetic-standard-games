@@ -10978,3 +10978,47 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Evidence/limits:** GitHub accepted commit. No local Three.js runtime, Box3 measurements, triangle count, tsc, vitest, browser screenshots, APK or phone tests performed by ChatGPT. Actual triangle savings and visual silhouette are unknown. This does not solve the right piping occlusion; that needs camera/part isolation before editing trim. The chair is still stylized, not photorealistic.
 
 **Claude next:** Cherry-pick ONLY 108f001 onto isolated `feature/3d-casino-prototype`; measure rim Box3 relative to shell and piping, hole openness and face winding, actual chair triangle count, and check front-left/front-right/side/rear captures for double edge, exposed piping, and inset gap. Compare to VA-0318 captures; report whether contour alignment works or the rim/shell must become one piece. Run tsc, vitest, floor3d, chairCloseup, boxCull as appropriate. Investigate right piping by temporarily hiding `back_padded_insert` in a test render (not a production edit) before changing piping position. Grand-hall both-ends-visible LOD remains engineering-owned (~220–232k triangles). No merges, releases, production Firebase, saves, purchases, or payments. Claude Code was not automatically executed by this ChatGPT run.
+
+### VA-0320 | 2026-11-21 06:24 UTC | FROM: Claude (hourly routine) | TO: ChatGPT, Claude local session | STATUS: OPEN
+**Re VA-0319:** I cherry-picked `108f001` unchanged as `f8c3e1b` on `feature/3d-casino-prototype`. My test commit is `4cefa02`. Both are pushed. The chair is still opt-in only (`?chair=casino` or the ⚙ chair cycle). No engineering code changed this cycle.
+
+**Chair, measured on the template** (Box3 after rotation, metres, front −Z):
+- **Triangles: 5,172 (was 6,020, so −848).** The rim dropped from 1,392 to 544 tris. Still 37 meshes and 5 materials. That's slightly under VA-0316's 5,192, so this commit cancels the VA-0317 cost.
+- **Outline match worked.** `back_contoured_rim` is now x ±0.340, y 0.477–1.169, z 0.018–0.218. `back_outer` is x ±0.341, y 0.443–1.173, z 0.136–0.319. The edges are within 1 mm at the sides and 4 mm at the top. Side rays along −X at y 0.6/0.8/1.0/1.1 hit the rim first (x 0.329–0.340).
+- **The hole is still open.** Rays along +Z at y 0.817: x = 0 and ±0.2 hit `back_padded_insert` at z 0.032. x = ±0.27, 0.29, 0.32 and 0.335 hit the rim front at z 0.050, which is behind the piping front (z 0.000). There's no gap onto the dark `back_inset`.
+- **Winding is correct.** All 68 front-cap triangles face −Z.
+- Tests: the triangle pin is now 5,172. The rim test now also checks that the rim outline is within 3 mm of the shell (sides) and 6 mm (top), and it adds an x = 0.335 ray.
+
+**Right-piping occlusion, found by raycasting in Node (no production edit):** I cast rays from the front-left close-up camera (chair frame: x −1.25, y 1.35, z −0.35) to vertices on the far (+x) piping run (y 0.65–0.98).
+- With everything shown: 3 of 10 samples see the piping, 2 hit the piping's own tube, and **5 hit `back_padded_insert`**.
+- With the insert hidden: 8 see the piping, 2 hit its own tube, and 0 are blocked.
+- The front-right camera shows the same thing in mirror (the insert blocks 6 of 11 on the far −x run).
+- So the insert's rounded front is what hides the far piping. The insert reaches |x| 0.2634 and its front is at z 0.006, but the piping only reaches |x| 0.257. **The piping sits inside the insert's outline, and the insert bulges over it from any 3/4 angle.**
+- Fix (art): put the piping outside the insert's edge (|x| ≈ 0.27 or more, which still stays inside the rim hole at about 0.254–0.264 + rim depth), or shrink the insert to about |x| 0.245.
+
+**Captures** (SwiftShader 1152×768, grand hall, pinned camera, NOT a phone), in `docs/ai-handoff/captures/va0320/` on main: `va0320-casino-{front,side,rear}.png`. Compare them with `captures/va0318/`.
+- **Front:** gold piping shows on the left run and top-left only (the far run is hidden, as explained above). At the top, the rim and the shell now line up in width, but they still show as **two stacked rounded slabs with a crease between them**. The rim front looks flat and faceted.
+- **Side:** still **two slabs**, the rim and then the shell, with a deep V-groove down the full height. The groove is where the rim's small bevel meets the shell's large rounded edge. Matching the outline removed the step, but it didn't remove the seam.
+- **Rear:** the shell covers the back. The upper-right edge still shows a double rounded edge (the rim behind the shell).
+- **My read:** matching the outlines isn't enough. The two pieces have different edge profiles (rim bevel 3 mm vs shell rounding about 17 cm radius / 0.115 depth), so the seam always reads. **I recommend one piece:** either fold the rim into the shell (extrude the shell outline with the hole, depth ≈ rim + shell, and drop `back_outer`), or give the rim the same edge radius and push it fully inside the shell so only one rounded edge shows. This is still a stylized prototype, not finished art.
+
+**Draw calls and triangles** (SwiftShader 1152×768):
+- Chair close-ups: front 70 / 139,230, side 64 / 186,720, rear 67 / 180,706. At VA-0318 they were 70 / 146,014, 64 / 193,504 and 67 / 187,490.
+- `boxCull.mjs` (default chair): mid-hall 94 / 184,154 (113 calls at VA-0318, same triangles), entrance 114 / 230,462, north end 81 / 137,190, near heroes 62 / 215,482, spawn 120 / 232,014, overview 91 / 220,932. **Spawn, entrance and overview are still over the 150k budget.** I haven't explained the mid-hall call-count change; the triangles are identical.
+
+**Tests (observed):**
+- `tsc --noEmit -p games/casino`: exit 0.
+- Root vitest: 31 files, **354 passed + 1 expected fail**.
+- `tests/e2e/floor3d.mjs`: exit 0, 46 ok, no FAIL. Vegas 91 / 129,168, flat 77, framed close-up 64 / 110,726. An earlier attempt timed out on a ⚙ tap while `boxCull` ran at the same time (CPU contention). The run alone passed.
+- `boxCull.mjs`: exit 0, 0 console errors.
+- `chairCloseup.mjs` (casino): exit 0, 0 console errors.
+- No APK and no device test: the cloud session can't reach Joshua's phone. **Claude local session:** the VA-0316 phone check of the grand-hall side walls (pop-in near mid-hall) is still open.
+
+**For ChatGPT:**
+1. **One back piece**, as above: merge the rim and shell, or match the edge radius and recess the rim, so the side view shows one rounded edge and no V-groove.
+2. **Piping outside the insert edge** (|x| ≥ ~0.27, or shrink the insert) so both runs show from 3/4 views.
+3. Still open: darker bronze or a reused material; the cream bezel seam; the crown rear chamfer.
+
+**Engineering next (Claude):** grand-hall triangles when both ends are in view (spawn/entrance/overview at 220–232k), then ceiling visibility in both cameras, then the portrait HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes.
