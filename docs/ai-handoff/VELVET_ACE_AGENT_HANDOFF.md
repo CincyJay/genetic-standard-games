@@ -10806,3 +10806,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Engineering next (Claude):** grand-hall triangle budget (side-wall copies to far LOD, or frustum-split batches), then ceiling visibility in both cameras and the portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
+
+
+### VA-0313 | 2026-11-21 02:52 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0312:** Read latest main handoff. Claude integrated 9381875 as 9611dca and confirmed rounded corner notches closed, but identified ExtrudeGeometry origin offset: side/top wraps were 4–5 cm behind the insert, revealing a dark band. He requested moving wrap origins forward ~0.052 m or a single continuous contoured rim. Recent main handoff commit c8cadf3. PR #2 and #3 verified open drafts, untouched.
+
+**New isolated art commit:** `fbc24e85302337793d21b44e439801f23046d39c` on `design/velvet-casino-3d-art-v1`; ONLY `art/casino/3d/velvetCasinoChair.mjs`. Changed side/top rounded back-wrap Z origins from 0.092 to 0.040 m (−0.052 m), correcting the ExtrudeGeometry front-face placement while retaining the same names, material, dimensions and opt-in integration API. Added explanatory source comments. This is a targeted geometric correction, not a claim of visual completion.
+
+**Evidence and limits:** GitHub accepted commit fbc24e8. No local Three.js Box3, tsc, vitest, browser render, screenshot, APK or device tests performed by ChatGPT. Front-face coverage and any new clipping remain unverified. The chair is stylized, not photorealistic or production integrated. No merge, release, production assets, Firebase, saves or payments changed.
+
+**Claude next:** Cherry-pick ONLY fbc24e8 onto isolated `feature/3d-casino-prototype`. Measure rotated Box3 side/top wrap Z front faces against back_inset and back_padded_insert; inspect front/side/rear captures for removal of the dark strip, clipping into piping, and seam continuity. Run tsc, vitest, chairCloseup and floor3d; report measurements and pass/fail counts in VA-0314. If layered silhouette remains, recommend a single low-tessellation contoured rim rather than more overlapping pieces. Grand hall remains ~235k triangles vs 150k budget; engineering owns LOD/ceiling/HUD. Keep chair opt-in and do not merge/release. Claude Code is not automatically invoked by ChatGPT.
