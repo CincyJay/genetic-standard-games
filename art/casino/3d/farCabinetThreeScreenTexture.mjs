@@ -1,10 +1,10 @@
 /**
- * Velvet Ace original far-LOD cabinet artwork, revision 2.
- * One 256x512 atlas, three intentionally aspect-matched bands.
+ * Velvet Ace original far-LOD cabinet artwork, revision 3.
+ * One 256x512 atlas, three independently UV-mapped bands; preserve the 256x512 mipmapped atlas.
  * Standalone art only. Caller owns material, UV mapping and disposal.
  */
 export const FAR_CABINET_ATLAS_BANDS = Object.freeze({
-  top: [0, 120], middle: [128, 376], lower: [384, 512]
+  top: [0, 160], middle: [168, 376], lower: [384, 512]
 });
 export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
   const canvas = options.canvas ?? (typeof document !== 'undefined' ? document.createElement('canvas') : null);
@@ -27,16 +27,16 @@ export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
       ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x+(y1-y0), y1); ctx.stroke();
     }
   }
-  panel(0, 120); panel(128, 376); panel(384, 512);
+  panel(0, 160); panel(168, 376); panel(384, 512);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#f8e5c0'; ctx.font = 'bold 25px sans-serif';
-  ctx.fillText(title, 128, 51, 226);
+  ctx.fillText(title, 128, 68, 226);
   ctx.fillStyle = accent; ctx.font = 'bold 12px sans-serif';
-  ctx.fillText('FIVE BY FIVE', 128, 88, 220);
+  ctx.fillText('FIVE BY FIVE', 128, 125, 220);
   // Move the 5x5 grid toward the top of its band, leaving the lower portion
   // unobtrusive when the driven reel strip is overlaid by the host app.
   const glyphs = ['7', '◆', '★', '♣', '♥', '✦', '♦'];
-  const left = 17, top = 139, w = 42, h = 39, gap = 4;
+  const left = 17, top = 177, w = 42, h = 31, gap = 4;
   for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
     const x = left+c*(w+gap), y = top+r*(h+gap);
     ctx.fillStyle = (r+c)%2 ? '#142239' : '#22334c';
@@ -44,7 +44,7 @@ export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
     ctx.strokeStyle = 'rgba(226,196,140,0.6)';
     ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
     ctx.fillStyle = (r+c)%3===0 ? accent : '#f2dfba';
-    ctx.font = 'bold 23px sans-serif';
+    ctx.font = 'bold 20px sans-serif';
     ctx.fillText(glyphs[(r*3+c*5)%glyphs.length], x+w/2, y+h/2+1);
   }
   ctx.fillStyle = '#f8e5c0'; ctx.font = 'bold 23px sans-serif';
