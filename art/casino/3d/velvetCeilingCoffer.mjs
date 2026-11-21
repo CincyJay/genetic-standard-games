@@ -13,7 +13,7 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
   const plaster = new THREE.MeshStandardMaterial({ color: options.plasterColor ?? 0x24202a, roughness: 0.88 });
   const bronze = new THREE.MeshStandardMaterial({ color: options.trimColor ?? 0x98754b, metalness: 0.78, roughness: 0.31 });
   const inset = new THREE.MeshStandardMaterial({ color: options.insetColor ?? 0x14131c, roughness: 0.92 });
-  const glow = new THREE.MeshStandardMaterial({ color: options.lightColor ?? 0xffd49b, emissive: options.lightColor ?? 0xffd49b, emissiveIntensity: 1.5, roughness: 0.55 });
+  const glow = new THREE.MeshStandardMaterial({ color: options.lightColor ?? 0xffd49b, emissive: options.lightColor ?? 0xffd49b, emissiveIntensity: 0.55, roughness: 0.55 });
   const add = (name, geometry, material, x=0,y=0,z=0) => {
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
@@ -43,19 +43,20 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
     mesh.rotation.x = -Math.PI/2;
     return mesh;
   };
-  add('coffer_inset',new THREE.BoxGeometry(width-0.30,0.035,depth-0.30),inset,0,0.12,0);
-  ring(width,depth,width-0.28,depth-0.28,0.07,'coffer_plaster_frame',plaster,0.05);
-  ring(width-0.31,depth-0.31,width-0.38,depth-0.38,0.022,'coffer_bronze_bead',bronze,0.038);
-  ring(width-0.42,depth-0.42,width-0.47,depth-0.47,0.012,'coffer_light_diffuser',glow,0.032);
+  add('coffer_inset',new THREE.BoxGeometry(width-0.24,0.035,depth-0.24),inset,0,0.12,0);
+  ring(width,depth,width-0.28,depth-0.28,0.38,'coffer_plaster_frame',plaster,-0.30);
+  ring(width-0.30,depth-0.30,width-0.42,depth-0.42,0.028,'coffer_bronze_bead',bronze,-0.315);
+  ring(width-0.43,depth-0.43,width-0.465,depth-0.465,0.012,'coffer_light_diffuser',glow,-0.322);
   // Original fluted bronze corner medallions, with low-cost radial geometry.
   for (const sx of [-1,1]) for (const sz of [-1,1]) {
-    add('corner_rosette',new THREE.CylinderGeometry(0.075,0.075,0.013,12),bronze,
-      sx*(width/2-0.19),0.015,sz*(depth/2-0.19));
+    add('corner_rosette',new THREE.CylinderGeometry(0.075,0.075,0.013,8),bronze,
+      sx*(width/2-0.19),-0.33,sz*(depth/2-0.19));
   }
   // Emissive surfaces are decorative, not real light sources; engine owns lighting.
   root.userData = {
     artStudy:true, forward:'-Y', widthMetres:width, depthMetres:depth,
     lightImplementation:'emissive only; add engine-owned lighting if desired',
+    revision:'VA-0327 deeper 0.38m structural beam, sealed inset, restrained diffuser, 8-segment rosettes',
     disclaimer:'Original stylized coffer geometry, not photorealistic or device-tested'
   };
   return root;
