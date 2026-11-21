@@ -328,7 +328,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   lampPlan.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   lampScale = lampPlan.intensityScale;
   applyLighting();
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: devFlag('herofar') === 'on' || devFlag('herofar') === 'accent', heroFarAccent: devFlag('herofar') === 'accent' });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: devFlag('herofar') === 'on' || devFlag('herofar') === 'accent', heroFarAccent: devFlag('herofar') === 'accent', copyFar: devFlag('copyfar') === 'on' });
   // the end-wall heroes start in full detail (art.heroLod.lite starts hidden); frame() switches them by distance
   let heroLevel: HeroLodLevel = 'full';
   const heroHasFar = !!art.heroLod?.far.length;
@@ -1033,6 +1033,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const liteBox = art.heroLod ? unionBox(art.heroLod.lite) : null;
   const southBox = art.heroLod ? unionBox(art.heroLod.south) : null;
   const farBox = art.heroLod?.far.length ? unionBox(art.heroLod.far) : null;
+  const distantBox = art.heroLod?.distant.length ? unionBox(art.heroLod.distant) : null;
   function boxCulled(): void {
     culledNow.length = 0;
     shownNow.length = 0;
@@ -1043,7 +1044,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     const lod = art.heroLod;
     // the lite (or far, VA-0330) hero set and the south copies both in view: their combined set instead
     const far = !!lod?.far[0]?.visible;
-    const [set, all, setBox] = far ? [lod!.far, lod!.farAll, farBox] : [lod?.lite ?? [], lod?.liteAll ?? [], liteBox];
+    const distant = !!lod?.distant[0]?.visible;
+    const [set, all, setBox] = distant ? [lod!.distant, lod!.distantAll, distantBox] : far ? [lod!.far, lod!.farAll, farBox] : [lod?.lite ?? [], lod?.liteAll ?? [], liteBox];
     if (lod && setBox && southBox && all.length && set[0]?.visible && lod.south[0]?.visible && cullFrustum.intersectsBox(setBox) && cullFrustum.intersectsBox(southBox)) {
       lastLiteAll = true;
       for (const m of [...set, ...lod.south]) if (m.visible) {
@@ -1243,12 +1245,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
     art.svelteLod?.update(camera.position);
     if (art.heroLod) {
-      const level = heroLodLevel(heroLevel, camera.position.x, camera.position.z, art.heroLod.centres, heroHasFar);
+      const level = heroLodLevel(heroLevel, camera.position.x, camera.position.z, art.heroLod.centres, heroHasFar, art.heroLod.copyCentres);
       if (level !== heroLevel) {
         heroLevel = level;
         for (const m of art.heroLod.full) m.visible = level === 'full';
         for (const m of art.heroLod.lite) m.visible = level === 'lite';
         for (const m of art.heroLod.far) m.visible = level === 'far';
+        for (const m of art.heroLod.distant) m.visible = level === 'distant';
       }
     }
     capScene?.update(camera.position);

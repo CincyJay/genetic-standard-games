@@ -100,9 +100,12 @@ export interface ArtScene {
    * where each hero stands. Show one set at a time (heroLodFull in grandHallArt.ts);
    * `lite` starts hidden. Null unless the hall was composed with `heroLod`. `far` (with `heroFar`,
    * VA-0330) is ChatGPT's far cabinet in place of each hero's lite twin, plus the north copies; hidden,
-   * and empty without `heroFar`. `farAll` is to `far` what `liteAll` is to `lite`.
+   * and empty without `heroFar`. `farAll` is to `far` what `liteAll` is to `lite`. `distant` (with
+   * `copyFar`, VA-0340) is `far` with the north side-wall copies drawn as the far cabinet too,
+   * shown beyond HERO_LOD_FAR_M of every hero and of every north copy (`copyCentres`);
+   * `distantAll` is it plus the south copies. Both empty without `copyFar`.
    */
-  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; liteAll: THREE.Mesh[]; far: THREE.Mesh[]; farAll: THREE.Mesh[]; centres: { x: number; z: number }[] } | null;
+  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; liteAll: THREE.Mesh[]; far: THREE.Mesh[]; farAll: THREE.Mesh[]; distant: THREE.Mesh[]; distantAll: THREE.Mesh[]; centres: { x: number; z: number }[]; copyCentres: { x: number; z: number }[] } | null;
   /**
    * Batches the renderer skips by world box instead of bounding sphere (boxCulled in world.ts,
    * VA-0316). With the hero LOD on, the side-wall copies split at the hall's middle: the north
@@ -397,6 +400,8 @@ export interface ArtOptions {
   heroFar?: boolean;
   /** With `heroFar`: the far twins show the study's per-theme accent bands (`?herofar=accent`). */
   heroFarAccent?: boolean;
+  /** With `heroFar`: the north side-wall copies get a far cabinet too, for the 'distant' level (`?copyfar=on`, VA-0340). */
+  copyFar?: boolean;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -503,7 +508,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
-    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent });
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, copyFar: opts.copyFar });
     art = grand.root;
     art.updateMatrixWorld(true);
     art.traverse((o) => {
@@ -563,9 +568,14 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const wpLod = new THREE.Vector3();
   const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; cabinets: string[]; side: Side; part: string | null; shared: boolean; renderOrder: number; glow: boolean; fade: string | null; lod: string | null }>();
   const lodCentres: { x: number; z: number }[] = [];
+  const copyCentres: { x: number; z: number }[] = [];
   let hasFar = false;
   art.traverse((o) => {
     if (o.userData.heroLod === 'far') hasFar = true;
+    if (o.userData.heroLod === 'distant' && o.name.startsWith('slotcopyfar_')) {
+      o.getWorldPosition(wpLod);
+      copyCentres.push({ x: wpLod.x, z: wpLod.z });
+    }
     if (o.userData.heroLod !== 'full') return;
     o.getWorldPosition(wpLod);
     lodCentres.push({ x: wpLod.x, z: wpLod.z });
@@ -593,7 +603,10 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     // (VA-0316) so the hero sets end mid-hall and either half can be culled when behind the camera
     const copyLod = lodCentres.length && !part && !fade && !side && copyCabinetOf(mesh);
     const farAll = hasFar ? ['farAll'] : [];
-    const lods: (string | null)[] = lod ? (lod === 'lite' ? ['lite', 'liteAll'] : lod === 'far' ? ['far', 'farAll'] : [lod]) : copyLod ? (wp.z > 0 ? ['south', 'liteAll', ...farAll] : ['full', 'lite', 'liteAll', ...(hasFar ? ['far', 'farAll'] : [])]) : [null];
+    // with copyFar the hero far twins are in the 'distant' sets too, and so are the south copies'
+    // combined set; the north copies' lite bodies are not (their far cabinets are, VA-0340)
+    const distant = copyCentres.length ? ['distant', 'distantAll'] : [];
+    const lods: (string | null)[] = lod ? (lod === 'lite' ? ['lite', 'liteAll'] : lod === 'far' ? ['far', 'farAll', ...distant] : lod === 'distant' ? ['distant', 'distantAll'] : [lod]) : copyLod ? (wp.z > 0 ? ['south', 'liteAll', ...farAll, ...(copyCentres.length ? ['distantAll'] : [])] : ['full', 'lite', 'liteAll', ...(hasFar ? ['far', 'farAll'] : [])]) : [null];
     // merging needs one layout: unindexed, with position / normal / uv only
     const src = mesh.geometry;
     // an instanced mesh (the hero table's chip stacks) becomes one piece per instance
@@ -629,7 +642,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const reelCopies = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
   const fadeable = new Map<string, THREE.Mesh[]>();
-  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], liteAll: [], far: [], farAll: [], centres: lodCentres } : null;
+  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], liteAll: [], far: [], farAll: [], distant: [], distantAll: [], centres: lodCentres, copyCentres } : null;
   const boxCull: ArtScene['boxCull'] = [];
   let colourBatches = 0;
   // whole-view batches (VA-0052): buckets that differ only by wall / ceiling side, per material
@@ -698,13 +711,13 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
       if (key.startsWith('slotcopy_')) reelCopies.set(key.slice('slotcopy_'.length, -'/reels'.length), mesh);
       else interactive.set(key, mesh);
     }
-    if (b.lod && b.lod !== 'liteAll' && b.lod !== 'farAll') {
+    if (b.lod && b.lod !== 'liteAll' && b.lod !== 'farAll' && b.lod !== 'distantAll') {
       // batches are baked in world space and never move
       merged.computeBoundingBox();
       boxCull.push({ mesh, box: merged.boundingBox!.clone() });
     }
     if (heroLod && b.lod === 'full') heroLod.full.push(mesh);
-    else if (heroLod && (b.lod === 'lite' || b.lod === 'liteAll' || b.lod === 'far' || b.lod === 'farAll')) {
+    else if (heroLod && (b.lod === 'lite' || b.lod === 'liteAll' || b.lod === 'far' || b.lod === 'farAll' || b.lod === 'distant' || b.lod === 'distantAll')) {
       mesh.visible = false;
       heroLod[b.lod].push(mesh);
     } else if (heroLod && b.lod === 'south') heroLod.south.push(mesh);

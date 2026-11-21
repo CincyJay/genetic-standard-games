@@ -1691,6 +1691,57 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     for (const k of ['full', 'lite', 'south'] as const) expect(on[k].length).toBe(off[k].length);
     console.log(`herofar=accent: far batches ${off.far.length} -> ${on.far.length}, tris ${tris(off.far)} -> ${tris(on.far)}`);
   });
+  it('draws the north side-wall copies as the far cabinet at a distant level behind ?copyfar=on (VA-0340)', async () => {
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { composeGrandHall, heroLodLevel, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const opts = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, heroFarAccent: true };
+    const off = buildArtScene(new Map(), opts);
+    const on = buildArtScene(new Map(), { ...opts, copyFar: true });
+    // off by default: no distant sets, no copy centres
+    expect(off.heroLod!.distant).toEqual([]);
+    expect(off.heroLod!.distantAll).toEqual([]);
+    expect(off.heroLod!.copyCentres).toEqual([]);
+    const lod = on.heroLod!;
+    // the other sets are what they were
+    for (const k of ['full', 'lite', 'far', 'south', 'liteAll', 'farAll'] as const) {
+      expect(Math.abs(tris(lod[k]) - tris(off.heroLod![k]))).toBeLessThan(1);
+      expect(lod[k].length).toBe(off.heroLod![k].length);
+    }
+    // one far cabinet per north copy, where the copy stands; none for the south copies
+    const north = g.decor.slots.filter((s) => s.z < 0);
+    expect(lod.copyCentres.length).toBe(north.length);
+    for (const c of lod.copyCentres) expect(north.some((s) => Math.hypot(s.x - c.x, s.z - c.z) < 1e-6)).toBe(true);
+    const root = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarAccent: true, copyFar: true }).root;
+    const farCopies = root.children.filter((o) => o.name.startsWith('slotcopyfar_'));
+    expect(farCopies.length).toBe(north.length);
+    for (const o of farCopies) expect(o.getObjectByName('spin_button')).toBeUndefined();
+    // distant = far with the north copies' lite bodies swapped for far cabinets: hidden, far cheaper
+    expect(lod.distant.every((m) => !m.visible) && lod.distantAll.every((m) => !m.visible)).toBe(true);
+    const perCopy = tris(lod.distant) - tris(lod.far);
+    expect(tris(lod.far) - tris(lod.distant)).toBeGreaterThan(40_000);
+    expect(Math.abs(tris(lod.distantAll) - tris(lod.distant) - tris(lod.south))).toBeLessThan(1);
+    // no more batches than the far set, and box-culled like it (distantAll is not)
+    expect(lod.distant.length).toBeLessThanOrEqual(lod.far.length);
+    expect(lod.distantAll.length).toBeLessThanOrEqual(lod.farAll.length);
+    expect(on.boxCull.map((e) => e.mesh).sort((x, y) => x.id - y.id)).toEqual([...lod.full, ...lod.lite, ...lod.far, ...lod.distant, ...lod.south].sort((x, y) => x.id - y.id));
+    expect([...on.interactive.keys()].sort()).toEqual([...off.interactive.keys()].sort());
+    // the level: distant only beyond HERO_LOD_FAR_M of every hero and every north copy, with hysteresis
+    const at = (prev: 'full' | 'lite' | 'far' | 'distant', x: number, z: number) => heroLodLevel(prev, x, z, lod.centres, true, lod.copyCentres);
+    expect(at('full', g.spawn.x, g.spawn.z)).toBe('distant');
+    expect(heroLodLevel('full', g.spawn.x, g.spawn.z, lod.centres, true)).toBe('far');
+    // beside the north-west copies yet 12 m from every hero: far, not distant
+    expect(at('far', -11.3, -6.3)).toBe('far');
+    const nearest = (z: number) => Math.min(...lod.copyCentres.map((c) => Math.hypot(c.x, c.z - z)));
+    // walking down the middle aisle from the spawn: distant until within reach of a north copy
+    // (the aisle passes about 11.1 m from the copies, so the hysteresis band is about 3 m long here)
+    let z = g.spawn.z;
+    while (nearest(z) > HERO_LOD_FAR_M + HERO_LOD_HYSTERESIS_M) z -= 0.05;
+    expect(at('distant', 0, z)).toBe('distant');
+    expect(at('far', 0, z)).toBe('far');
+    expect(at('distant', 0, z - 3)).toBe('far');
+    console.log(`copyfar: far ${lod.far.length} batches / ${tris(lod.far)} tris -> distant ${lod.distant.length} / ${tris(lod.distant)} (saves ${-perCopy}); farAll ${tris(lod.farAll)} -> distantAll ${tris(lod.distantAll)}`);
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {

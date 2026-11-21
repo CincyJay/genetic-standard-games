@@ -433,18 +433,22 @@ export function heroLodFull(prev: boolean, x: number, z: number, centres: readon
 
 /** Beyond this distance (m) from every hero, a hero with a far twin draws it (VA-0328/0330, dev opt-in). */
 export const HERO_LOD_FAR_M = 12;
-export type HeroLodLevel = 'full' | 'lite' | 'far';
+export type HeroLodLevel = 'full' | 'lite' | 'far' | 'distant';
 
 /**
  * The heroes' detail level for a camera at (x, z): 'full' within HERO_LOD_NEAR_M of any hero,
  * 'far' beyond HERO_LOD_FAR_M of all of them (only when `hasFar`), else 'lite'. Both edges have
  * HERO_LOD_HYSTERESIS_M of hysteresis around the level in `prev`.
  */
-export function heroLodLevel(prev: HeroLodLevel, x: number, z: number, centres: readonly { x: number; z: number }[], hasFar: boolean): HeroLodLevel {
+export function heroLodLevel(prev: HeroLodLevel, x: number, z: number, centres: readonly { x: number; z: number }[], hasFar: boolean, copyCentres: readonly { x: number; z: number }[] = []): HeroLodLevel {
   if (heroLodFull(prev === 'full', x, z, centres)) return 'full';
   if (!hasFar) return 'lite';
-  const d = Math.min(...centres.map((c) => Math.hypot(c.x - x, c.z - z)));
-  return d > HERO_LOD_FAR_M + (prev === 'far' ? -HERO_LOD_HYSTERESIS_M : HERO_LOD_HYSTERESIS_M) ? 'far' : 'lite';
+  const beyond = (cs: readonly { x: number; z: number }[], was: boolean) =>
+    Math.min(...cs.map((c) => Math.hypot(c.x - x, c.z - z))) > HERO_LOD_FAR_M + (was ? -HERO_LOD_HYSTERESIS_M : HERO_LOD_HYSTERESIS_M);
+  if (!beyond(centres, prev === 'far' || prev === 'distant')) return 'lite';
+  // 'distant' (VA-0340, `?copyfar=on`): also beyond HERO_LOD_FAR_M of every north side-wall copy,
+  // so those copies can draw the far cabinet too
+  return copyCentres.length && beyond(copyCentres, prev === 'distant') ? 'distant' : 'far';
 }
 
 /**
@@ -543,7 +547,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; copyFar?: boolean },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -674,6 +678,19 @@ export function composeGrandHall(
     copy.rotation.y = s.rotationY;
     copy.add(machineDetail === 'lite' ? liteCabinet(src, liteGeos) : src.clone());
     root.add(copy);
+    // `?copyfar=on` (VA-0340): a north copy (the half beside the heroes, batched with the hero
+    // sets) also gets the far cabinet, drawn instead of it at the 'distant' level. Its reels,
+    // spin button and marquee stay the copy's own, as for the heroes.
+    if (opts.heroLod && opts.heroFar && opts.copyFar && s.z < 0) {
+      const far = new THREE.Group();
+      far.name = `slotcopyfar_${s.id}_${i + 1}`;
+      far.userData.heroLod = 'distant';
+      far.position.copy(copy.position);
+      far.rotation.copy(copy.rotation);
+      const themes = HERO_THEMES as Record<string, { accent: number } | undefined>;
+      far.add(fittedFarHero(src, opts.heroFarAccent ? themes[s.id]?.accent : undefined));
+      root.add(far);
+    }
   });
   return { root, heroes, heroTextures, wovenCarpet, carpetArt, carpetMotif };
 }
