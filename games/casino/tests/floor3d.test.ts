@@ -1850,6 +1850,40 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(d.far.length).toBeLessThanOrEqual(c.far.length + 1);
     console.log(`farscreentex: theme far batches ${a.far.length} -> ${b.far.length}, plain ${c.far.length} -> ${d.far.length}, tris ${tris(a.far)} -> ${tris(b.far)}`);
   });
+  it('maps ChatGPT\'s three-screen far atlas with its own bands behind ?farscreentex=atlas (4582976)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { composeGrandHall, FAR_SCREEN_ATLAS_BANDS } = await import('../src/floor3d/grandHallArt.ts');
+    const { FAR_CABINET_ATLAS_BANDS } = await import('../../../art/casino/3d/farCabinetThreeScreenTexture.mjs');
+    const ctx = new Proxy({} as Record<string, unknown>, { get: (t, k) => (k in t ? t[k as string] : () => ({ addColorStop: () => {} })), set: (t, k, v) => ((t[k as string] = v), true) });
+    let canvases = 0;
+    const screenCanvas = () => (canvases++, { width: 0, height: 0, getContext: () => ctx });
+    // the art's declared rows, not engineering's choice
+    const b = FAR_CABINET_ATLAS_BANDS as unknown as Record<string, [number, number]>;
+    expect(FAR_SCREEN_ATLAS_BANDS).toEqual([b.top, b.middle, b.lower]);
+    const r = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarScreenTex: 'atlas', screenCanvas }).root;
+    expect(canvases).toBe(1);
+    const mats = new Set<import('three').Material>();
+    for (const s of g.slots) for (const i of [0, 1, 2]) {
+      const m = r.getObjectByName(`slotfar_${s.id}`)!.getObjectByName(`screen_${i}_display`) as import('three').Mesh;
+      const mat = m.material as import('three').MeshStandardMaterial;
+      expect(mat.map).toBeInstanceOf(THREE.CanvasTexture);
+      expect(mat.name.startsWith('far_screen_atlas_')).toBe(true);
+      mats.add(mat);
+      const vs = [16, 17, 18, 19].map((k) => m.geometry.attributes.uv.getY(k));
+      const [top, bottom] = FAR_SCREEN_ATLAS_BANDS[i];
+      expect(Math.max(...vs)).toBeCloseTo(1 - top / 512, 5);
+      expect(Math.min(...vs)).toBeCloseTo(1 - bottom / 512, 5);
+    }
+    expect(mats.size).toBe(1);
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const base = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, heroFarTheme: true };
+    const on = buildArtScene(new Map(), { ...base, heroFarScreenTex: true, farScreenCanvas: screenCanvas }).heroLod!;
+    const at = buildArtScene(new Map(), { ...base, heroFarScreenTex: 'atlas', farScreenCanvas: screenCanvas }).heroLod!;
+    expect(tris(at.far)).toBe(tris(on.far));
+    expect(at.far.length).toBe(on.far.length);
+    console.log(`farscreentex=atlas: theme far batches ${at.far.length} (on: ${on.far.length}), tris ${tris(at.far)}`);
+  });
   it('draws the north side-wall copies as the far cabinet at a distant level behind ?copyfar=on (VA-0340)', async () => {
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { composeGrandHall, heroLodLevel, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');

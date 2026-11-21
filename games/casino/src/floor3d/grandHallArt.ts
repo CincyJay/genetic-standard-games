@@ -27,6 +27,7 @@ import { createVelvetTubChair } from '../../../../art/casino/3d/velvetTubChairPr
 import { createVelvetCasinoChair } from '../../../../art/casino/3d/velvetCasinoChair.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { createFarCabinetScreenTexture } from '../../../../art/casino/3d/farCabinetScreenTexture.mjs';
+import { createFarCabinetThreeScreenTexture, FAR_CABINET_ATLAS_BANDS } from '../../../../art/casino/3d/farCabinetThreeScreenTexture.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
@@ -524,15 +525,26 @@ export function fittedFarHero(hero: THREE.Object3D, style?: number | FarHeroStyl
  */
 export const FAR_SCREEN_TEX_BANDS: readonly (readonly [number, number])[] = [[0, 108], [118, 390], [404, 512]];
 const FAR_SCREEN_TEX_H = 512;
+/**
+ * `?farscreentex=atlas`: ChatGPT's revision-2 three-screen atlas (4582976). Same 256x512 canvas,
+ * but the art declares its own bands (FAR_CABINET_ATLAS_BANDS: top, middle, lower), so engineering
+ * uses those rows instead of choosing its own.
+ */
+export type FarScreenTexMode = boolean | 'atlas';
+const atlasBands = FAR_CABINET_ATLAS_BANDS as unknown as { top: readonly [number, number]; middle: readonly [number, number]; lower: readonly [number, number] };
+export const FAR_SCREEN_ATLAS_BANDS: readonly (readonly [number, number])[] = [atlasBands.top, atlasBands.middle, atlasBands.lower];
+export function farScreenBands(mode: FarScreenTexMode | undefined): readonly (readonly [number, number])[] {
+  return mode === 'atlas' ? FAR_SCREEN_ATLAS_BANDS : FAR_SCREEN_TEX_BANDS;
+}
 
 /**
  * Puts `material` on the fitted far cabinet's three screen displays, remapping each display's
  * front-face UVs to its band. The other faces sample a corner of the dark backdrop. Returns the
  * number of displays changed. The study builds new geometry per cabinet, so editing UVs is local.
  */
-export function applyFarScreenTexture(far: THREE.Object3D, material: THREE.Material): number {
+export function applyFarScreenTexture(far: THREE.Object3D, material: THREE.Material, bands: readonly (readonly [number, number])[] = FAR_SCREEN_TEX_BANDS): number {
   let n = 0;
-  FAR_SCREEN_TEX_BANDS.forEach(([top, bottom], i) => {
+  bands.forEach(([top, bottom], i) => {
     const m = far.getObjectByName(`screen_${i}_display`) as THREE.Mesh | undefined;
     if (!m?.isMesh) return;
     const uv = m.geometry.attributes.uv as THREE.BufferAttribute;
@@ -555,17 +567,18 @@ export function applyFarScreenTexture(far: THREE.Object3D, material: THREE.Mater
  * shares it and batches. Mirrors the study's screen values (emissive 0.3, roughness 0.42) with the
  * texture as map and emissive map; `brightness` is ?farscreen's 0..1 dimming.
  */
-export function farScreenTexMaterials(makeCanvas: () => unknown, brightness?: number): (accent?: number) => THREE.MeshStandardMaterial {
+export function farScreenTexMaterials(makeCanvas: () => unknown, brightness?: number, mode: FarScreenTexMode = true): (accent?: number) => THREE.MeshStandardMaterial {
+  const create = mode === 'atlas' ? createFarCabinetThreeScreenTexture : createFarCabinetScreenTexture;
   const cache = new Map<string, THREE.MeshStandardMaterial>();
   const b = brightness !== undefined && Number.isFinite(brightness) ? Math.max(0, Math.min(1, brightness)) : 1;
   return (accent) => {
     const key = accent === undefined ? 'default' : accent.toString(16).padStart(6, '0');
     let mat = cache.get(key);
     if (!mat) {
-      const tex = createFarCabinetScreenTexture(THREE, { canvas: makeCanvas(), ...(accent === undefined ? {} : { accent: `#${key}` }) }) as THREE.Texture;
+      const tex = create(THREE, { canvas: makeCanvas(), ...(accent === undefined ? {} : { accent: `#${key}` }) }) as THREE.Texture;
       const tint = new THREE.Color(0xffffff).multiplyScalar(b);
       mat = new THREE.MeshStandardMaterial({ color: tint, map: tex, emissive: tint, emissiveMap: tex, emissiveIntensity: 0.3, roughness: 0.42 });
-      mat.name = `far_screen_tex_${key}`;
+      mat.name = `far_screen_${mode === 'atlas' ? 'atlas' : 'tex'}_${key}`;
       cache.set(key, mat);
     }
     return mat;
@@ -637,18 +650,18 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean; heroFarScreenTex?: boolean; screenCanvas?: () => unknown },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean; heroFarScreenTex?: FarScreenTexMode; screenCanvas?: () => unknown },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
   // `?farscreentex=on` (83619b2): ChatGPT's 5x5 screen texture on the far cabinets' screens, in
   // each theme's accent under ?herofar=accent/theme. Needs a canvas (a browser, or a test stub).
   const screenCanvas = opts.screenCanvas ?? (typeof document !== 'undefined' ? () => document.createElement('canvas') : undefined);
-  const farScreenMat = opts.heroFarScreenTex && screenCanvas ? farScreenTexMaterials(screenCanvas, opts.heroFarScreen) : undefined;
+  const farScreenMat = opts.heroFarScreenTex && screenCanvas ? farScreenTexMaterials(screenCanvas, opts.heroFarScreen, opts.heroFarScreenTex) : undefined;
   const withFarScreenTex = (fit: THREE.Group, id: string): THREE.Group => {
     if (!farScreenMat) return fit;
     const t = (HERO_THEMES as Record<string, HeroTheme | undefined>)[id];
-    applyFarScreenTexture(fit, farScreenMat(opts.heroFarAccent || opts.heroFarTheme ? t?.accent : undefined));
+    applyFarScreenTexture(fit, farScreenMat(opts.heroFarAccent || opts.heroFarTheme ? t?.accent : undefined), farScreenBands(opts.heroFarScreenTex));
     return fit;
   };
   const spec = layout.hallSpec ?? { width: 24, length: 36, height: 7.2, aisleWidth: 7.5, bayLength: 4 };

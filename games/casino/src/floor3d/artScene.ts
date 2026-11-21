@@ -406,8 +406,8 @@ export interface ArtOptions {
   heroFarScreen?: number;
   /** With `heroFarTheme`: the study's accentGlowIntensity / accentGlowTint (`?farglow=2&fartint=0.6`, 09fbed8). */
   heroFarGlow?: { intensity?: number; tint?: number };
-  /** `?farscreentex=on`: ChatGPT's 5x5 far screen texture (83619b2) on the far cabinets' three screens. */
-  heroFarScreenTex?: boolean;
+  /** `?farscreentex=on`: ChatGPT's 5x5 far screen texture (83619b2) on the far cabinets' three screens; `'atlas'` (`?farscreentex=atlas`) uses the three-screen atlas (4582976) and its bands. */
+  heroFarScreenTex?: boolean | 'atlas';
   /** Canvas factory for `heroFarScreenTex` outside a browser (tests); a browser uses document. */
   farScreenCanvas?: () => unknown;
   /** With `heroFar`: the north side-wall copies get a far cabinet too, for the 'distant' level (`?copyfar=on`, VA-0340). */
