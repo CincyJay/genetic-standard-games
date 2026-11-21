@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createVelvetCeilingCoffer } from '../../../art/casino/3d/velvetCeilingCoffer.mjs';
+import { createVelvetCofferBeamDiffuser } from '../../../art/casino/3d/velvetCofferBeamDiffuser.mjs';
 import { grandFloorLayout, hallCameraClamp, hallColumns, grandHallLayout, GRAND_SPEC } from '../src/floor3d/grandHall.ts';
 import { BEAM_DIFFUSER_WIDTH, cofferDiffuserEdges, cofferEdgeModeFrom, cofferEdgeOwnershipFrom, composeGrandHall, NEXT_CEILING_STYLE, REPLACED_BY_VELVET_COFFERS, velvetCofferCeiling, velvetCofferLines, VELVET_COFFER_RELIEF } from '../src/floor3d/grandHallArt.ts';
 import { buildArtScene, wallSideOf } from '../src/floor3d/artScene.ts';
@@ -207,9 +208,9 @@ describe('coffer-tile ceiling in the grand hall (VA-0325, preview only)', () => 
   });
 });
 
-describe('engine-owned beam-centred diffuser strips (VA-0334, ?cofferedges=beam, preview only)', () => {
+for (const [mode, width] of [['beam', 0.045], ['beam65', 0.065]] as const) describe(`beam-centred diffuser strips from the art helper (VA-0334/0336, ?cofferedges=${mode}, preview only)`, () => {
   const spec = grandFloorLayout().hallSpec!;
-  const grid = velvetCofferCeiling(spec, 'beam');
+  const grid = velvetCofferCeiling(spec, mode);
   grid.updateMatrixWorld(true);
   const { xs, zs } = grid.userData as { xs: number[]; zs: number[] };
   const strips: THREE.Mesh[] = [];
@@ -219,6 +220,7 @@ describe('engine-owned beam-centred diffuser strips (VA-0334, ?cofferedges=beam,
     expect(cofferEdgeModeFrom('?floor3d')).toBe('owned');
     expect(cofferEdgeModeFrom('?cofferedges=ring')).toBe('ring');
     expect(cofferEdgeModeFrom('?cofferedges=beam')).toBe('beam');
+    expect(cofferEdgeModeFrom('?cofferedges=beam65')).toBe('beam65');
     expect(cofferEdgeModeFrom('?cofferedges=nonsense')).toBe('owned');
     let tileDiffusers = 0;
     grid.traverse((o) => { if (/^coffer_light_diffuser(_[nsew])?$/.test(o.name)) tileDiffusers++; });
@@ -242,10 +244,12 @@ describe('engine-owned beam-centred diffuser strips (VA-0334, ?cofferedges=beam,
     for (let k = 1; k < 7; k++) expect(cx[k]).toBeCloseTo(xs[k], 5);
     for (let p = 0; p < boxes.length; p++) for (let q = p + 1; q < boxes.length; q++) {
       const i = boxes[p].clone().intersect(boxes[q]);
-      const vol = i.isEmpty() ? 0 : (i.max.x - i.min.x) * (i.max.z - i.min.z);
-      expect(vol).toBeLessThan(1e-9);
+      // touching ends may overlap by float32 rounding only (< 1 micron)
+      const lap = i.isEmpty() ? 0 : Math.min(i.max.x - i.min.x, i.max.z - i.min.z);
+      expect(lap).toBeLessThan(1e-6);
     }
     expect(BEAM_DIFFUSER_WIDTH).toBeCloseTo(0.065, 6);
+    for (const b of boxes) expect(Math.min(b.max.x - b.min.x, b.max.z - b.min.z)).toBeCloseTo(width, 6);
   });
   it('a ray straight up on every beam segment midpoint hits a beam strip first, facing down; clear of beads and rosettes', () => {
     const rc = new THREE.Raycaster();
@@ -269,4 +273,11 @@ describe('engine-owned beam-centred diffuser strips (VA-0334, ?cofferedges=beam,
       for (const [x, z] of pts) expect(up(x, z)!.object.name).toBe('coffer_light_diffuser_beam');
     }
   });
+});
+
+it('beam strips come from the art helper and keep its name (cutaway classification) and default 0.045 m width', () => {
+  const g = createVelvetCofferBeamDiffuser(THREE, { length: 1 }) as THREE.Group;
+  expect(g.userData.widthMetres).toBe(0.045);
+  expect(g.userData.centreYMetres).toBe(-0.306);
+  expect(g.children[0].name).toBe('coffer_light_diffuser_beam');
 });

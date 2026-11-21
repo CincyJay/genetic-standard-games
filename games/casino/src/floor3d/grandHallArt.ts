@@ -30,6 +30,7 @@ import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet
 import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
 import { createVelvetCeilingCoffer } from '../../../../art/casino/3d/velvetCeilingCoffer.mjs';
+import { createVelvetCofferBeamDiffuser } from '../../../../art/casino/3d/velvetCofferBeamDiffuser.mjs';
 import { createVelvetHeroFarCabinet } from '../../../../art/casino/3d/velvetHeroFarCabinet.mjs';
 import { BLACKJACK_HERO_ANCHORS, type FloorLayout, type TablePlacement } from './layout.ts';
 
@@ -115,43 +116,53 @@ export function cofferDiffuserEdges(i: number, j: number, tilesX: number, tilesZ
   return { n: true, w: true, e: i === tilesX - 1, s: j === tilesZ - 1 };
 }
 
-/** Coffer-tile diffuser modes: owned tile edges (default), the art's full ring, or engine-owned beam-centred strips. */
-export type CofferEdgeMode = 'owned' | 'ring' | 'beam';
+/**
+ * Coffer-tile diffuser modes: owned tile edges (default), the art's full ring, or beam-centred strips.
+ * `beam` uses ChatGPT's createVelvetCofferBeamDiffuser at its own defaults (VA-0336: 0.045 m wide);
+ * `beam65` is the same helper at the 0.065 m width of Claude's VA-0335 prototype, for comparison.
+ */
+export type CofferEdgeMode = 'owned' | 'ring' | 'beam' | 'beam65';
 
-/** Width of a beam-centred strip: the two flanking tile strips (0.0325 m each) side by side. */
+/** Width of the VA-0335 comparison strip (`beam65`): the two flanking tile strips (0.0325 m each) side by side. */
 export const BEAM_DIFFUSER_WIDTH = 0.065;
-/** Tile-local y span of a beam strip: 12 mm hanging just under the plaster soffit (-0.30), like the ring under the bead. */
+/** Tile-local y span of a beam strip (the art helper's default: centre -0.306, 12 mm thick, 12 mm under the -0.30 soffit). */
 export const BEAM_DIFFUSER_Y = { min: -0.312, max: -0.300 };
 /** Perimeter beams are one tile frame wide (0.14 m); their strip is centred on that band, inboard of the wall. */
 export const PERIMETER_BEAM_INSET = 0.07;
 
+/** One strip from the art helper, taken out of its wrapper group so the engine can place and batch the mesh directly. */
+function artBeamStrip(length: number, axis: 'x' | 'z', material: THREE.Material, width: number | undefined, x: number, z: number): THREE.Mesh {
+  const g = createVelvetCofferBeamDiffuser(THREE, { length, axis, width, material }) as THREE.Group;
+  const m = g.getObjectByName('coffer_light_diffuser_beam') as THREE.Mesh;
+  g.remove(m);
+  m.position.set(x, m.position.y, z);
+  return m;
+}
+
+/** Strip width the art helper produces for a mode (its default when `width` is undefined). */
+export function beamStripWidth(width?: number): number {
+  return (createVelvetCofferBeamDiffuser(THREE, { length: 1, width }) as THREE.Group).userData.widthMetres as number;
+}
+
 /**
- * VA-0334 (ChatGPT asked for it as an engine-owned prototype): one strip centred under each beam's
- * soffit instead of a strip inside either tile. Lines along Z run the whole hall (the colonnade
- * columns stand on the intersections, so the strip passes inside them); lines along X are cut into
- * per-bay segments that stop at the Z strips' edges, so intersections are never covered twice.
- * Perimeter beams use the middle of their single 0.14 m frame band. The strip stays 6 cm clear of
- * the bronze bead (which starts 0.13 m inboard of a tile edge) and of the corner rosettes
- * (0.115 m+). Material: a clone of the art's diffuser material, so the strips batch with it.
+ * VA-0334/0336: one strip centred under each beam's soffit instead of a strip inside either tile.
+ * The geometry is ChatGPT's createVelvetCofferBeamDiffuser (ad3d934); the engine owns placement and
+ * trimming. Lines along Z run the whole hall (the colonnade columns stand on the intersections, so
+ * the strip passes inside them); lines along X are cut into per-bay segments that stop at the Z
+ * strips' edges, so intersections are never covered twice. Perimeter beams use the middle of their
+ * single 0.14 m frame band. Material: one clone of the art's tile diffuser material, shared by every
+ * strip, so they batch with it.
  */
-export function cofferBeamStrips(xs: number[], zs: number[], material: THREE.Material): THREE.Mesh[] {
-  const w = BEAM_DIFFUSER_WIDTH, h = BEAM_DIFFUSER_Y.max - BEAM_DIFFUSER_Y.min, yc = (BEAM_DIFFUSER_Y.max + BEAM_DIFFUSER_Y.min) / 2;
+export function cofferBeamStrips(xs: number[], zs: number[], material: THREE.Material, width?: number): THREE.Mesh[] {
+  const w = beamStripWidth(width);
   const centre = (ls: number[], k: number) => (k === 0 ? ls[0] + PERIMETER_BEAM_INSET : k === ls.length - 1 ? ls[k] - PERIMETER_BEAM_INSET : ls[k]);
   const lx = xs.map((_, k) => centre(xs, k)), lz = zs.map((_, k) => centre(zs, k));
   const out: THREE.Mesh[] = [];
   const z0 = lz[0] - w / 2, z1 = lz[lz.length - 1] + w / 2;
-  for (const x of lx) {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, z1 - z0), material);
-    m.name = 'coffer_light_diffuser_beam';
-    m.position.set(x, yc, (z0 + z1) / 2);
-    out.push(m);
-  }
+  for (const x of lx) out.push(artBeamStrip(z1 - z0, 'z', material, width, x, (z0 + z1) / 2));
   for (const z of lz) for (let i = 0; i + 1 < lx.length; i++) {
     const a = lx[i] + w / 2, b = lx[i + 1] - w / 2;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(b - a, h, w), material);
-    m.name = 'coffer_light_diffuser_beam';
-    m.position.set((a + b) / 2, yc, z);
-    out.push(m);
+    out.push(artBeamStrip(b - a, 'x', material, width, (a + b) / 2, z));
   }
   return out;
 }
@@ -168,20 +179,20 @@ export function velvetCofferCeiling(spec: { width: number; length: number; heigh
     for (let j = 0; j + 1 < zs.length; j++) {
       const tw = xs[i + 1] - xs[i];
       const td = zs[j + 1] - zs[j];
-      const diffuserEdges = m === 'owned' ? cofferDiffuserEdges(i, j, xs.length - 1, zs.length - 1) : m === 'beam' ? NO_EDGES : undefined;
+      const diffuserEdges = m === 'owned' ? cofferDiffuserEdges(i, j, xs.length - 1, zs.length - 1) : m === 'beam' || m === 'beam65' ? NO_EDGES : undefined;
       const tile = createVelvetCeilingCoffer(THREE, { width: tw, depth: td, diffuserEdges }) as THREE.Group;
       tile.position.set((xs[i] + xs[i + 1]) / 2, y, (zs[j] + zs[j + 1]) / 2);
       root.add(tile);
     }
   }
-  if (m === 'beam') {
+  if (m === 'beam' || m === 'beam65') {
     // borrow the art's own diffuser material from a reference tile, so colour/emissive stay art-owned
     const ref = createVelvetCeilingCoffer(THREE, {}) as THREE.Group;
     const glow = ((ref.getObjectByName('coffer_light_diffuser') as THREE.Mesh).material as THREE.Material).clone();
     const beams = new THREE.Group();
     beams.name = 'coffer_beam_diffusers';
     beams.position.y = y;
-    for (const s of cofferBeamStrips(xs, zs, glow)) beams.add(s);
+    for (const s of cofferBeamStrips(xs, zs, glow, m === 'beam65' ? BEAM_DIFFUSER_WIDTH : undefined)) beams.add(s);
     root.add(beams);
   }
   root.userData = { tilesX: xs.length - 1, tilesZ: zs.length - 1, xs, zs, ownEdges: m === 'owned', edgeMode: m };
@@ -226,12 +237,13 @@ function readCofferSideInset(): number {
 /**
  * Coffer-tile diffuser edges (VA-0332/0334): one strip per beam (owned edges) is the default for the
  * coffer-tile preview. In a dev or prototype build `?cofferedges=ring` restores the art's full ring on
- * every tile (two parallel glow lines per shared beam) and `?cofferedges=beam` draws one engine-owned
- * strip centred under each beam, for side-by-side comparison.
+ * every tile (two parallel glow lines per shared beam), `?cofferedges=beam` draws one strip centred
+ * under each beam with ChatGPT's beam diffuser helper at its 0.045 m default, and `?cofferedges=beam65`
+ * the same at 0.065 m, for side-by-side comparison.
  */
 export function cofferEdgeModeFrom(search: string): CofferEdgeMode {
   const v = new URLSearchParams(search).get('cofferedges');
-  return v === 'ring' || v === 'beam' ? v : 'owned';
+  return v === 'ring' || v === 'beam' || v === 'beam65' ? v : 'owned';
 }
 
 /** True unless the ring is asked for (kept for older callers/tests). */
