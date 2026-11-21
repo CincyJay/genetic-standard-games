@@ -50,11 +50,11 @@ export function createVelvetCasinoChair(THREE, options = {}) {
     s.lineTo(x,y+r); s.quadraticCurveTo(x,y,x+r,y);
     return s;
   };
-  const cushion = (w,h,depth,r,bevel=0.025) =>
+  const cushion = (w,h,depth,r,bevel=0.025, detail=5) =>
     new THREE.ExtrudeGeometry(roundedContour(w,h,r), {
       depth: Math.max(0.01,depth-2*bevel),
-      bevelEnabled:true, bevelSegments:3, steps:1,
-      bevelThickness:bevel, bevelSize:bevel*0.65, curveSegments:5
+      bevelEnabled:true, bevelSegments:detail <= 3 ? 2 : 3, steps:1,
+      bevelThickness:bevel, bevelSize:bevel*0.65, curveSegments:detail
     });
   // Seat slopes subtly backwards; upholstered edge has physical thickness.
   add('seat_cushion',cushion(0.60,0.15,0.29,0.065),upholstery,[0,0.435,-0.275],[-0.055,0,0]);
@@ -70,11 +70,13 @@ export function createVelvetCasinoChair(THREE, options = {}) {
   // ExtrudeGeometry grows toward +Z rather than centering on the mesh origin.
   // Offset the wraps forward to cover the dark inset edge (VA-0312).
   // Extruded contours replace sharp rectangular slabs. Keep named pieces for QA.
+  // VA-0314: shift returns outward to leave the raised inset piping visible.
+  // Low tessellation on these narrow returns saves triangles in the grand hall.
   for (const side of [-1, 1]) {
-    add('back_side_wrap', cushion(0.043, 0.55, 0.105, 0.020, 0.009), upholstery,
-      [side * 0.267, 0.817, 0.040], [-0.095, 0, 0]);
+    add('back_side_wrap', cushion(0.043, 0.55, 0.105, 0.020, 0.009, 3), upholstery,
+      [side * 0.292, 0.817, 0.040], [-0.095, 0, 0]);
   }
-  add('back_top_wrap', cushion(0.55, 0.047, 0.105, 0.021, 0.009), upholstery,
+  add('back_top_wrap', cushion(0.61, 0.047, 0.105, 0.021, 0.009, 3), upholstery,
     [0, 1.080, 0.040], [-0.095, 0, 0]);
   // Small inset button-tuft details give scale cues without expensive tessellation.
   for(const y of [0.69,0.88,1.04]){
