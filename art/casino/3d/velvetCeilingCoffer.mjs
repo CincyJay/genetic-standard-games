@@ -59,8 +59,9 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
     const outerW = width - 0.40, outerD = depth - 0.40;
     const strip = 0.0325; // (outer - inner) / 2; same as the original ring.
     const halfW = outerW/2, halfD = outerD/2;
+    // Match the original ring's -0.322..-0.310 vertical extent; no bead gap.
     const addStrip = (key,w,d,x,z) =>
-      add('coffer_light_diffuser_' + key,new THREE.BoxGeometry(w,0.012,d),glow,x,-0.328,z);
+      add('coffer_light_diffuser_' + key,new THREE.BoxGeometry(w,0.012,d),glow,x,-0.316,z);
     // East/west strips own their corners; north/south stop at their inner edges.
     // With all four enabled the visible footprint equals the original ring.
     if (edges.n) addStrip('n',outerW-2*strip,strip,0,-halfD+strip/2);
@@ -77,7 +78,7 @@ export function createVelvetCeilingCoffer(THREE, options = {}) {
   root.userData = {
     artStudy:true, forward:'-Y', widthMetres:width, depthMetres:depth,
     lightImplementation:'emissive only; add engine-owned lighting if desired',
-    revision:'VA-0332 optional diffuser edge ownership; default ring preserved',
+    revision:'VA-0334 edge diffuser height aligned to ring; default ring preserved',
     disclaimer:'Original stylized coffer geometry, not photorealistic or device-tested'
   };
   return root;
