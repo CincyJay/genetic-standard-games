@@ -26,9 +26,16 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
     });
   });
   // Optional theme identity for distant rows. Omitted to preserve existing LOD visuals.
-  const accent = options.accentColor == null ? null : new THREE.MeshStandardMaterial({
-    color: options.accentColor, emissive: options.accentColor,
-    emissiveIntensity: options.glowAccents === true ? 2.8 : 0.5,
+  // Artist-tunable HDR bloom: retain saturated hue instead of white-clipping rails.
+  // Defaults preserve the previously integrated 2.8 look until an A/B is approved.
+  const accentIntensity = Number.isFinite(options.accentGlowIntensity)
+    ? Math.max(0, Math.min(4, options.accentGlowIntensity)) : 2.8;
+  const accentTint = Number.isFinite(options.accentGlowTint)
+    ? Math.max(0.1, Math.min(1, options.accentGlowTint)) : 1;
+  const accentColor = options.accentColor == null ? null : new THREE.Color(options.accentColor);
+  const accent = accentColor == null ? null : new THREE.MeshStandardMaterial({
+    color: accentColor, emissive: accentColor.clone().multiplyScalar(accentTint),
+    emissiveIntensity: options.glowAccents === true ? accentIntensity : 0.5,
     metalness: 0.28, roughness: 0.4
   });
   const add = (name, geometry, material, x, y, z) => {
@@ -69,7 +76,7 @@ export function createVelvetHeroFarCabinet(THREE, options = {}) {
   // Its underside is at y=0.504, just above the deck trim top (0.5025).
   // No dynamic lights, orbs, curves, texture allocations or per-frame work.
   root.userData = {artStudy:true,lod:'far',suggestedMinDistanceMetres:12,
-    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0343 opt-in HDR bloom and dimmed screen palette',
+    forward:'+Z', approximateHeightMetres:2.2, revision:'VA-0345 opt-in artist HDR hue and intensity controls',
     interactiveNames:['spin_button'], screens:['screen_0_display','screen_1_display','screen_2_display'],
     note:'Silhouette proxy; engine must map names and preserve actual interactive targets when swapping LOD',
     disclaimer:'Original stylized geometry, not photorealistic, integrated or device-tested'};
