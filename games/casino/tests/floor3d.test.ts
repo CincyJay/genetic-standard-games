@@ -1596,6 +1596,59 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // ...where three.js's own sphere test would still draw every south batch
     expect(lod.south.every((m) => f.intersectsObject(m))).toBe(true);
   });
+  it('adds ChatGPT\'s far cabinet as a third hero level behind ?herofar=on, fitted to the hero (VA-0330)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { composeGrandHall, fittedFarHero, heroLodLevel, HERO_LOD_NEAR_M, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const base = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true });
+    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroFar: true });
+    expect(base.heroLod!.far).toEqual([]);
+    const lod = on.heroLod!;
+    // hidden until the camera is far; the other sets are what they were without it
+    expect(lod.far.length).toBeGreaterThan(0);
+    expect(lod.far.every((m) => !m.visible)).toBe(true);
+    for (const k of ['full', 'lite', 'south', 'liteAll'] as const) expect(Math.abs(tris(lod[k]) - tris(base.heroLod![k]))).toBeLessThan(1);
+    // the far set is the north copies (in every hero set) plus ten 204-tri cabinets (236 minus the
+    // 32-tri button; the hero keeps its own); it saves the lite twins' triangles
+    const grand = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true }).root;
+    const groupTris = (prefix: string) => {
+      const ms: import('three').Mesh[] = [];
+      for (const o of grand.children) if (o.name.startsWith(prefix)) o.traverse((m) => { if ((m as import('three').Mesh).isMesh) ms.push(m as import('three').Mesh); });
+      return tris(ms);
+    };
+    expect(groupTris('slotfar_')).toBe(10 * 204);
+    expect(Math.abs(tris(lod.far) - (tris(lod.lite) - groupTris('slotlod_') + 10 * 204))).toBeLessThan(1);
+    expect(tris(lod.lite) - tris(lod.far)).toBeGreaterThan(30_000);
+    console.log(`hero LOD tris: full ${tris(lod.full)} lite ${tris(lod.lite)} far ${tris(lod.far)} south ${tris(lod.south)}; batches full ${lod.full.length} lite ${lod.lite.length} far ${lod.far.length}`);
+    // a handful of extra batches at most (the far cabinet's 5 materials)
+    expect(lod.far.length - lod.lite.length).toBeLessThanOrEqual(5);
+    // driven parts stay the hero's own
+    expect([...on.interactive.keys()].sort()).toEqual([...base.interactive.keys()].sort());
+    for (const m of lod.far) expect(m.name).toMatch(/^art:lod:far#/);
+    // fitted to the hero's envelope (to the millimetre), standing on the floor
+    const root = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true }).root;
+    root.updateMatrixWorld(true);
+    const hero = root.getObjectByName('slot_sevens')!.children[0];
+    const far = root.getObjectByName('slotfar_sevens')!;
+    const hb = new THREE.Box3().setFromObject(hero), fb = new THREE.Box3().setFromObject(far);
+    for (const k of ['min', 'max'] as const) for (const a of ['x', 'y', 'z'] as const) expect(Math.abs(fb[k][a] - hb[k][a])).toBeLessThan(0.002);
+    expect(far.getObjectByName('spin_button')).toBeUndefined();
+    expect(fittedFarHero(hero).getObjectByName('screen_1_display')).toBeTruthy();
+    // three levels with hysteresis at both edges; without a far set it never says 'far'
+    const c = { x: 0, z: 0 };
+    const at = (prev: 'full' | 'lite' | 'far', d: number, hasFar = true) => heroLodLevel(prev, 0, d, [c], hasFar);
+    expect(at('lite', HERO_LOD_NEAR_M - 1)).toBe('full');
+    expect(at('full', HERO_LOD_NEAR_M + HERO_LOD_HYSTERESIS_M / 2)).toBe('full');
+    expect(at('lite', HERO_LOD_NEAR_M + HERO_LOD_HYSTERESIS_M / 2)).toBe('lite');
+    expect(at('lite', HERO_LOD_FAR_M + HERO_LOD_HYSTERESIS_M / 2)).toBe('lite');
+    expect(at('far', HERO_LOD_FAR_M + HERO_LOD_HYSTERESIS_M / 2)).toBe('far');
+    expect(at('far', HERO_LOD_FAR_M - HERO_LOD_HYSTERESIS_M * 2)).toBe('lite');
+    expect(at('full', 30)).toBe('far');
+    expect(at('full', 30, false)).toBe('lite');
+    // the spawn (z 14.5) is far from every hero
+    expect(heroLodLevel('full', g.spawn.x, g.spawn.z, lod.centres, true)).toBe('far');
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {

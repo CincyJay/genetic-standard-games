@@ -30,6 +30,7 @@ import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet
 import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
 import { createVelvetCeilingCoffer } from '../../../../art/casino/3d/velvetCeilingCoffer.mjs';
+import { createVelvetHeroFarCabinet } from '../../../../art/casino/3d/velvetHeroFarCabinet.mjs';
 import { BLACKJACK_HERO_ANCHORS, type FloorLayout, type TablePlacement } from './layout.ts';
 
 /** How far each endcap sits outside the hall's ends, in metres. */
@@ -331,6 +332,52 @@ export function heroLodFull(prev: boolean, x: number, z: number, centres: readon
   return centres.some((c) => Math.hypot(c.x - x, c.z - z) < limit);
 }
 
+/** Beyond this distance (m) from every hero, a hero with a far twin draws it (VA-0328/0330, dev opt-in). */
+export const HERO_LOD_FAR_M = 12;
+export type HeroLodLevel = 'full' | 'lite' | 'far';
+
+/**
+ * The heroes' detail level for a camera at (x, z): 'full' within HERO_LOD_NEAR_M of any hero,
+ * 'far' beyond HERO_LOD_FAR_M of all of them (only when `hasFar`), else 'lite'. Both edges have
+ * HERO_LOD_HYSTERESIS_M of hysteresis around the level in `prev`.
+ */
+export function heroLodLevel(prev: HeroLodLevel, x: number, z: number, centres: readonly { x: number; z: number }[], hasFar: boolean): HeroLodLevel {
+  if (heroLodFull(prev === 'full', x, z, centres)) return 'full';
+  if (!hasFar) return 'lite';
+  const d = Math.min(...centres.map((c) => Math.hypot(c.x - x, c.z - z)));
+  return d > HERO_LOD_FAR_M + (prev === 'far' ? -HERO_LOD_HYSTERESIS_M : HERO_LOD_HYSTERESIS_M) ? 'far' : 'lite';
+}
+
+/**
+ * ChatGPT's far hero cabinet (d48451f + d674037) fitted to a hero's envelope, minus the parts the
+ * game drives. The study is 0.96 x 2.18 x 0.75 m and the hero about 1.14 x 3.17 x 1.27 m, so the
+ * fit is a non-uniform placement scale (x 1.19, y 1.46, z 1.69): an engineering stand-in until the
+ * art matches the hero's envelope, behind `?herofar=on` only. Its screens land on the reels' plane.
+ */
+export function fittedFarHero(hero: THREE.Object3D): THREE.Group {
+  const far = createVelvetHeroFarCabinet(THREE) as THREE.Group;
+  const drop: THREE.Object3D[] = [];
+  far.traverse((o) => { if ((o as THREE.Mesh).isMesh && HERO_DRIVEN_PART.test(o.name)) drop.push(o); });
+  for (const o of drop) o.removeFromParent();
+  hero.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(hero.matrixWorld).invert();
+  const hb = new THREE.Box3();
+  hero.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    m.geometry.computeBoundingBox();
+    hb.union(m.geometry.boundingBox!.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, m.matrixWorld)));
+  });
+  far.updateMatrixWorld(true);
+  const fb = new THREE.Box3().setFromObject(far);
+  const fit = new THREE.Group();
+  fit.name = 'hero_far_fit';
+  fit.scale.set((hb.max.x - hb.min.x) / (fb.max.x - fb.min.x), (hb.max.y - hb.min.y) / (fb.max.y - fb.min.y), (hb.max.z - hb.min.z) / (fb.max.z - fb.min.z));
+  fit.position.set((hb.min.x + hb.max.x) / 2 - ((fb.min.x + fb.max.x) / 2) * fit.scale.x, hb.min.y - fb.min.y * fit.scale.y, hb.min.z - fb.min.z * fit.scale.z);
+  fit.add(far);
+  return fit;
+}
+
 export const CHAIR_STORAGE_KEY = 'va3d.chair';
 export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'swivel', swivel: 'tub', tub: 'casino', casino: 'velvet' };
 /**
@@ -396,7 +443,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -503,6 +550,15 @@ export function composeGrandHall(
       for (const o of drop) o.removeFromParent();
       twin.add(lite);
       root.add(twin);
+      if (opts.heroFar) {
+        const far = new THREE.Group();
+        far.name = `slotfar_${s.id}`;
+        far.userData.heroLod = 'far';
+        far.position.copy(slot.position);
+        far.rotation.copy(slot.rotation);
+        far.add(fittedFarHero(hero));
+        root.add(far);
+      }
     }
   }
   layout.decor.slots.forEach((s, i) => {
