@@ -1141,7 +1141,8 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // bebd39b (VA-0305) adds a lower rail and a cross brace per side: 32 -> 36 meshes, 4,596 tris
     // b1703cf (VA-0309) adds two side wraps, a top wrap and a bronze post material: 39 meshes, 4,664 tris, 5 materials
     // 9381875 (VA-0311) rebuilds the three wraps as rounded cushion() extrusions: still 39 meshes, 5,768 tris (+1,104)
-    expect(tris).toBe(5768);
+    // 4f5a3d5 (VA-0315) gives the three wraps a lower tessellation (376 -> 188 tris each): 5,192 tris (-576)
+    expect(tris).toBe(5192);
     expect(mats.size).toBe(5);
     const all = new THREE.Box3().setFromObject(tpl);
     expect(all.min.y).toBeGreaterThan(0);
@@ -1269,7 +1270,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     for (const w of wraps) {
       expect(w.max.z).toBeGreaterThan(shell.min.z); // reaches into the shell
       expect(w.min.z).toBeLessThan(insert.max.z); // and back to the insert's side
-      expect(Math.min(Math.abs(w.min.x), Math.abs(w.max.x))).toBeLessThan(insert.max.x); // overlaps the insert edge
+      // overlapped the insert edge until 4f5a3d5 (VA-0315) moved the wraps out past the piping: now a 1.2 mm gap
+      // (insert |x| 0.2634, wrap 0.2647) onto the dark back_inset 3.3 cm behind; held to 3 mm here
+      expect(Math.min(Math.abs(w.min.x), Math.abs(w.max.x))).toBeLessThan(insert.max.x + 0.003);
     }
     const top = box(tpl.getObjectByName('back_top_wrap')!);
     expect(top.max.z).toBeGreaterThan(shell.min.z);
@@ -1316,6 +1319,24 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
       const b = new THREE.Box3().setFromObject(o);
       expect(b.min.z).toBeLessThan(inset.min.z);
       expect(b.min.z).toBeGreaterThan(insert.min.z - 0.01); // not standing proud of the cushion face by more than 1 cm
+    });
+  });
+  // fbc24e8 put the side wraps' inner edge at |x| 0.240, over the gold back_piping (|x| <= 0.257), hiding it on one
+  // side (VA-0314). 4f5a3d5 moves them out: side wraps |x| 0.265..0.319, top wrap x +-0.311 (was +-0.281), z unchanged.
+  it('casino chair (4f5a3d5): side wraps clear the piping; the top wrap still bridges them (VA-0315)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const box = (n: string) => new THREE.Box3().setFromObject(tpl.getObjectByName(n)!);
+    const piping = box('back_piping');
+    const top = box('back_top_wrap');
+    tpl.traverse((o) => {
+      if (o.name !== 'back_side_wrap') return;
+      const b = new THREE.Box3().setFromObject(o);
+      const inner = Math.min(Math.abs(b.min.x), Math.abs(b.max.x));
+      expect(inner).toBeGreaterThan(piping.max.x); // the wrap starts outside the piping
+      expect(top.max.x).toBeGreaterThan(inner); // the top wrap still covers the corner
     });
   });
   // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
