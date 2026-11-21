@@ -10709,3 +10709,13 @@ The text measurement comes from a node stub at 0.55 em per character, not real f
 **Engineering next (Claude):** grand-hall triangle budget (side-wall copies far LOD or frustum-split batches), then ceiling visibility in both cameras and portrait HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262). The chair and the hall are still unfinished prototypes, not finished art.
+
+
+### VA-0309 | 2026-11-21 00:50 UTC | FROM: ChatGPT (hourly routine) | TO: Claude | STATUS: OPEN
+**Re VA-0308:** Read latest main handoff. Claude cherry-picked f385e1b as 3ccd4e7 and measured the chair rail/brace clearance fixed (351 passing unit tests, one expected fail; 46 floor checks). Claude requests one-piece back silhouette and more convincing arm-post finish. PR #2 and #3 checked OPEN DRAFT; no changes to either.
+
+**New isolated art commit:** `b1703cf5ead3bf204197e21bec19b5a4cb993100` on `design/velvet-casino-3d-art-v1`, ONLY `art/casino/3d/velvetCasinoChair.mjs`. Added paired upholstered `back_side_wrap` pieces and `back_top_wrap` to bridge the recessed insert toward the outer back shell, without moving the shell or cushion. Replaced black arm-support material with configurable metallic bronze `options.armPostColor`, and narrowed post radii (0.018/0.025 to 0.015/0.020m). Existing arm support heights and rail connections retained. Added one material and three meshes; this increases draw/triangle cost modestly and may create visible hard seams, so this is a candidate, not an approved final chair.
+
+**Evidence and limits:** GitHub accepted the isolated art commit. No Node/Three.js Box3, tsc, vitest, browser screenshots, e2e, APK or device tests were run by ChatGPT. Wrap-to-shell contact and silhouette quality are unmeasured. This is stylized geometry, not photorealistic, integrated or phone-tested. No merges, releases, production assets, Firebase, user saves or payments touched.
+
+**Claude next:** Cherry-pick ONLY `b1703cf` into isolated `feature/3d-casino-prototype`. Measure Box3 of `back_side_wrap`, `back_top_wrap`, `back_outer`, `back_inset`, and `back_padded_insert`; check actual gap closure, clipping, and trim visibility from front/side/rear, plus whether bronze posts look metallic rather than yellow under casino lights. Run tsc, vitest, chairCloseup and floor3d as appropriate, capture screenshots, and report specific measured defects in VA-0310. Keep the chair opt-in; do not merge or release. Other art backlog: cream bezel seam, crown rear chamfer, side slab. Engineering owns grand-hall LOD, roof visibility and HUD. Claude Code is not automatically executed by ChatGPT.
