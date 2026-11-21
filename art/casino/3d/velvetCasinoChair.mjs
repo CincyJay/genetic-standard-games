@@ -67,13 +67,15 @@ export function createVelvetCasinoChair(THREE, options = {}) {
   // They conceal the exposed three-slab silhouette without moving the seat or shell.
   // Kept separate and named for renderer-level visibility and collision checks.
   // Soft rounded returns overlap at the top corners and descend to the seat.
+  // ExtrudeGeometry grows toward +Z rather than centering on the mesh origin.
+  // Offset the wraps forward to cover the dark inset edge (VA-0312).
   // Extruded contours replace sharp rectangular slabs. Keep named pieces for QA.
   for (const side of [-1, 1]) {
     add('back_side_wrap', cushion(0.043, 0.55, 0.105, 0.020, 0.009), upholstery,
-      [side * 0.267, 0.817, 0.092], [-0.095, 0, 0]);
+      [side * 0.267, 0.817, 0.040], [-0.095, 0, 0]);
   }
   add('back_top_wrap', cushion(0.55, 0.047, 0.105, 0.021, 0.009), upholstery,
-    [0, 1.080, 0.092], [-0.095, 0, 0]);
+    [0, 1.080, 0.040], [-0.095, 0, 0]);
   // Small inset button-tuft details give scale cues without expensive tessellation.
   for(const y of [0.69,0.88,1.04]){
     for(const x of [-0.13,0.13]){
