@@ -1609,6 +1609,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(lod.far.length).toBeGreaterThan(0);
     expect(lod.far.every((m) => !m.visible)).toBe(true);
     for (const k of ['full', 'lite', 'south', 'liteAll'] as const) expect(Math.abs(tris(lod[k]) - tris(base.heroLod![k]))).toBeLessThan(1);
+    expect(base.heroLod!.farAll).toEqual([]);
     // the far set is the north copies (in every hero set) plus ten 204-tri cabinets (236 minus the
     // 32-tri button; the hero keeps its own); it saves the lite twins' triangles
     const grand = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true }).root;
@@ -1621,6 +1622,11 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(Math.abs(tris(lod.far) - (tris(lod.lite) - groupTris('slotlod_') + 10 * 204))).toBeLessThan(1);
     expect(tris(lod.lite) - tris(lod.far)).toBeGreaterThan(30_000);
     console.log(`hero LOD tris: full ${tris(lod.full)} lite ${tris(lod.lite)} far ${tris(lod.far)} south ${tris(lod.south)}; batches full ${lod.full.length} lite ${lod.lite.length} far ${lod.far.length}`);
+    // farAll is far + south in one batch per material, hidden; box-tested sets are full, lite, far, south
+    expect(lod.farAll.every((m) => !m.visible)).toBe(true);
+    expect(Math.abs(tris(lod.farAll) - tris(lod.far) - tris(lod.south))).toBeLessThan(1);
+    expect(lod.farAll.length).toBe(lod.far.length);
+    expect(on.boxCull.map((e) => e.mesh).sort((x, y) => x.id - y.id)).toEqual([...lod.full, ...lod.lite, ...lod.far, ...lod.south].sort((x, y) => x.id - y.id));
     // a handful of extra batches at most (the far cabinet's 5 materials)
     expect(lod.far.length - lod.lite.length).toBeLessThanOrEqual(5);
     // driven parts stay the hero's own

@@ -1032,6 +1032,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   };
   const liteBox = art.heroLod ? unionBox(art.heroLod.lite) : null;
   const southBox = art.heroLod ? unionBox(art.heroLod.south) : null;
+  const farBox = art.heroLod?.far.length ? unionBox(art.heroLod.far) : null;
   function boxCulled(): void {
     culledNow.length = 0;
     shownNow.length = 0;
@@ -1040,13 +1041,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     camera.updateMatrixWorld();
     cullFrustum.setFromProjectionMatrix(cullMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     const lod = art.heroLod;
-    if (lod && liteBox && southBox && lod.liteAll.length && lod.lite[0]?.visible && lod.south[0]?.visible && cullFrustum.intersectsBox(liteBox) && cullFrustum.intersectsBox(southBox)) {
+    // the lite (or far, VA-0330) hero set and the south copies both in view: their combined set instead
+    const far = !!lod?.far[0]?.visible;
+    const [set, all, setBox] = far ? [lod!.far, lod!.farAll, farBox] : [lod?.lite ?? [], lod?.liteAll ?? [], liteBox];
+    if (lod && setBox && southBox && all.length && set[0]?.visible && lod.south[0]?.visible && cullFrustum.intersectsBox(setBox) && cullFrustum.intersectsBox(southBox)) {
       lastLiteAll = true;
-      for (const m of [...lod.lite, ...lod.south]) if (m.visible) {
+      for (const m of [...set, ...lod.south]) if (m.visible) {
         m.visible = false;
         culledNow.push(m);
       }
-      for (const m of lod.liteAll) {
+      for (const m of all) {
         m.visible = true;
         shownNow.push(m);
       }
