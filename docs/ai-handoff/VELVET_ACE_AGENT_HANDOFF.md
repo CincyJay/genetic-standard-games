@@ -11902,3 +11902,66 @@ Browser (headless SwiftShader, grand hall, gold coffers). Follow at spawn is the
 **Claude local session:** VA-0316 phone check still open. From the spawn, compare `?herofar=accent` with `?herofar=accent&copyfar=on` for the glow loss and the pop.
 
 **NEEDS JOSHUA (unchanged, plus one):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style, after a phone look. New: whether the triangle saving is worth dimmer far side banks (`copyfar`), after a phone look.
+
+### VA-0342 | 2026-11-21 18:15 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Re your `908ec84` + `b30b85b` (far cabinet `screenColors` + `glowAccents`): both are merged unchanged and wired as `?herofar=theme`. The screen palette works and costs nothing. The glow tag has no visible effect yet: at `emissiveIntensity` 0.5 the accent bands are below the bloom threshold (details below).**
+
+I didn't find a board entry for these commits. Your file labels its revision "VA-0341", so I left that number for you and took VA-0342.
+
+**What I merged.** I cherry-picked `908ec84` + `b30b85b` onto `feature/3d-casino-prototype` unchanged, as `36b3881` + `f39ed9a`. `node --check` passes. My engineering is in `2216258`. The branch moves from `0105429` to `2216258`, pushed.
+
+**Integration (`2216258`, `grandHallArt.ts` / `artScene.ts` / `world.ts`):**
+- `fittedFarHero(hero, style)` now takes `{accentColor, screenColors, glowAccents}` and passes them straight to `createVelvetHeroFarCabinet`. A bare number still means `accentColor`, as before.
+- `farHeroStyle(id, accent, theme)` maps a hero theme to those options:
+  - `?herofar=accent` is unchanged (bands only).
+  - `?herofar=theme` adds `screenColors: [secondary, secondary, secondary]` from `HERO_THEMES[id]`, plus `glowAccents: true`.
+- It applies to the 10 far hero twins and, with `?copyfar=on`, to the 16 north copies' far cabinets.
+- I used each hero's `secondary` on all three screens because you didn't name colours. Tell me if you want a different top/middle/lower split.
+- New unit test (`…behind ?herofar=theme (VA-0341)`):
+  - Every far twin's `theme_*` bands carry `userData.glow`. `?herofar=accent` has none.
+  - All three `screen_*_display` meshes are in the hero's `secondary`, on the twins and on the copy far cabinets.
+  - Same triangles as `accent`. Batches are bounded and other sets are unchanged.
+
+**Cost, as measured:**
+- Unit test, gold coffers, far set: `accent` 15 batches / 59,352 tris → `theme` **15 / 59,352**. The screen colours merge through vertex colours, and the one accent batch just becomes glow-tagged.
+- Browser (headless SwiftShader, grand hall, gold coffers, `copyfar=on`, all at hero level `distant`), as draw calls / tris:
+
+| View | `herofar=accent` | `herofar=theme` |
+|---|---|---|
+| Landscape 1152×768, follow at spawn (4th sample, 400 ms apart, after 2.5 s) | 108 / 145,806 | 108 / 145,806 |
+| Pinned far (0,1.7,6) → (0,1.6,−17), fov 50 | 70 / 98,042 | 70 / 98,042 |
+| Pinned farzoom (0,1.7,0), fov 30 | 68 / 97,914 | 68 / 97,914 |
+| Pinned aisle (0,1.7,1) → (−11,1.6,−12) | 66 / 98,012 | 66 / 98,012 |
+| Portrait 384×832 @2x, follow at spawn | 91 / 145,190 | 91 / 145,190 |
+| Portrait, pinned far | 68 / 98,018 | 68 / 98,018 |
+
+- 0 console errors on all 4 page loads.
+- All follow views stay under 120 calls and 150k tris, but only with `copyfar=on`. Without it, the grand hall is still ~199k (VA-0340).
+
+**Why the glow tag does nothing yet.** Vegas bloom is threshold-based (`lighting.ts`). Only HDR emissive gets through, about `emissiveIntensity` 2.6–3.0 as on the hero neon. `userData.glow` only keeps those pieces in their own batch; it doesn't make them bloom. Your accent material is `emissiveIntensity: 0.5`, so in `land-accent-farzoom.png` vs `land-theme-farzoom.png` the rails look identical. If you want the far banks to get back the glow they lose under `copyfar` (VA-0340 #1), the accent `emissiveIntensity` has to go up. That's your value; I haven't touched it.
+
+**Captures** (headless SwiftShader, not phone screenshots): `docs/ai-handoff/captures/va0342/`: `land-accent-farzoom.png`, `land-theme-farzoom.png`, `land-theme-follow.png`, `land-theme-aisle.png`, `port-theme-follow.png`.
+
+**My read (not a verdict on the look):**
+- In farzoom, the themed screens make the ten far cabinets distinct at a glance: red, teal, cyan, brown, crimson, purple, blue, mustard. With `accent` they're all one flat blue.
+- But each screen is now one solid, fully saturated colour block with no detail. Up close in farzoom it reads as coloured panels, not slot screens. Darker or less saturated values, or a lower emissive, might sit better. Phone review needed.
+- The game-driven reel strip under each far shell is still the busiest part of the silhouette.
+- Nothing here looks finished or premium.
+
+**Results as observed:**
+- `npx tsc --noEmit -p games/casino`: exit 0 (after `npm ci`).
+- Root `npx vitest run`: 33 files, 383 passed, 1 expected fail.
+- `tests/e2e/floor3d.mjs` (salon, vite on 5175, headless chromium with swiftshader): exit 0, 46 `ok`, "no console errors". Vegas 88 calls / 129,568 tris, flat 74, framed close-up 63 / 111,286.
+- Not run this cycle: `heroLod`, `boxCull`, `chairCloseup`, `islands`.
+- No APK, no device test. The cloud session can't reach the phone.
+
+**For ChatGPT (art):**
+1. Far accent `emissiveIntensity` high enough to pass the bloom threshold (~2.6+) if you want `glowAccents` to glow. One batch either way.
+2. Screen palette: confirm `secondary` × 3, or give per-theme top/middle/lower colours, possibly darker/less emissive than the current flat blocks.
+3. Still open: hero envelope (1.14 × 3.17 × 1.27 m) and screen recess (z < 0.49); chair back seam, darker bronze and crown rear chamfer; beam strip brightness (VA-0338).
+
+**Engineering next (Claude):** a far level for the south copies; softening the 12 m copy pop; the first-second extra draw calls (VA-0327); portrait follow framing and HUD.
+
+**Claude local session:** VA-0316 phone check still open. From the spawn, compare `?herofar=accent&copyfar=on` with `?herofar=theme&copyfar=on`.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; whether `copyfar`'s triangle saving is worth dimmer far banks. All after a phone look.
