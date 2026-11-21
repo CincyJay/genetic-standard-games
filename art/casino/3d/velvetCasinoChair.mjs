@@ -18,6 +18,9 @@ export function createVelvetCasinoChair(THREE, options = {}) {
   const steel = new THREE.MeshStandardMaterial({
     color: 0x28262a, roughness: 0.4, metalness: 0.75
   });
+  const bronze = new THREE.MeshStandardMaterial({
+    color: options.armPostColor ?? 0x735638, roughness: 0.32, metalness: 0.82
+  });
   const shadow = new THREE.MeshStandardMaterial({
     color: 0x28151e, roughness: 0.95, metalness: 0.0
   });
@@ -60,6 +63,15 @@ export function createVelvetCasinoChair(THREE, options = {}) {
   const back = add('back_outer',cushion(0.65,0.69,0.115,0.17),upholstery,[0,0.805,0.195],[-0.095,0,0]);
   add('back_inset',cushion(0.54,0.56,0.024,0.135,0.009),shadow,[0,0.815,0.075],[-0.095,0,0]);
   add('back_padded_insert',cushion(0.51,0.53,0.034,0.13,0.013),upholstery,[0,0.815,0.045],[-0.095,0,0]);
+  // Narrow upholstered side returns bridge the recessed face to the outer shell.
+  // They conceal the exposed three-slab silhouette without moving the seat or shell.
+  // Kept separate and named for renderer-level visibility and collision checks.
+  for (const side of [-1, 1]) {
+    add('back_side_wrap', new THREE.BoxGeometry(0.037, 0.48, 0.105), upholstery,
+      [side * 0.273, 0.815, 0.092], [-0.095, 0, 0]);
+  }
+  add('back_top_wrap', new THREE.BoxGeometry(0.44, 0.035, 0.105), upholstery,
+    [0, 1.082, 0.092], [-0.095, 0, 0]);
   // Small inset button-tuft details give scale cues without expensive tessellation.
   for(const y of [0.69,0.88,1.04]){
     for(const x of [-0.13,0.13]){
@@ -91,7 +103,7 @@ export function createVelvetCasinoChair(THREE, options = {}) {
     add('arm_cross_brace',new THREE.BoxGeometry(0.33,0.036,0.046),steel,
       [side*0.165,0.322,-0.055]);
     for (const z of [-0.17,0.08]) {
-      add('arm_support',new THREE.CylinderGeometry(0.018,0.025,0.29,10),steel,
+      add('arm_support',new THREE.CylinderGeometry(0.015,0.020,0.29,12),bronze,
         [side*0.322,0.48,z]);
     }
   }
