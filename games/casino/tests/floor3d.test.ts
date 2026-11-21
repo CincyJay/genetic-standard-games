@@ -1299,6 +1299,25 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(top.max.x).toBeGreaterThan(sideInner); // horizontal overlap: no corner notch
     expect(sideBottom).toBeLessThanOrEqual(seat.max.y + 0.005);
   });
+  // 9381875 kept z = 0.092 after switching the wraps to ExtrudeGeometry (which grows toward +Z from its origin), so the
+  // wrap fronts fell 4-5 cm behind the dark back_inset (front z 0.039). fbc24e8 moves them to z = 0.040. Measured (AABB):
+  // side wraps z 0.004..0.162, top wrap z 0.028..0.138; back_inset front 0.039, back_padded_insert front 0.006.
+  it('casino chair (fbc24e8): wrap fronts sit ahead of the dark back_inset, so its rim is covered (VA-0313)', async () => {
+    const THREE = await import('three');
+    const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
+    const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    const box = (n: string) => new THREE.Box3().setFromObject(tpl.getObjectByName(n)!);
+    const inset = box('back_inset');
+    const insert = box('back_padded_insert');
+    expect(box('back_top_wrap').min.z).toBeLessThan(inset.min.z);
+    tpl.traverse((o) => {
+      if (o.name !== 'back_side_wrap') return;
+      const b = new THREE.Box3().setFromObject(o);
+      expect(b.min.z).toBeLessThan(inset.min.z);
+      expect(b.min.z).toBeGreaterThan(insert.min.z - 0.01); // not standing proud of the cushion face by more than 1 cm
+    });
+  });
   // 1961cbf (v3) adds a tapered sideways push (+-0.142 m * edge^8) at both ends of the sweep to open the mouth.
   // Measured (18 segments): arm tips |x| 0.255..0.268 (was 0.113..0.126); nearest shell point in front of the back
   // cushion |x| 0.249, so the mouth is ~0.50 m wide; max plan radius still 0.378 (collision circle 0.38); shell box
