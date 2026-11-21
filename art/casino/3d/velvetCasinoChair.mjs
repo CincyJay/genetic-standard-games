@@ -103,7 +103,7 @@ export function createVelvetCasinoChair(THREE, options = {}) {
     add('back_piping',new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points,true),72,0.007,5,true),
       piping,[0,cy,0.045],[-0.095,0,0]);
   };
-  trim(0.50,0.52,0.13,-0.014,0.815);
+  // VA-0321: move the raised trim beyond the insert's 0.2634m half-width.\n  // Claude's VA-0320 oblique raycasts found the insert blocked the far run.\n  // 0.55m width puts the tube centre at |x| 0.275m, clear of that edge.\n  // This is an isolated art candidate; confirm rim clearance and camera views.\n  trim(0.55,0.54,0.14,-0.020,0.815);
   // Sculpted armrests, front supports, five-spoke weighted base and gas lift.
   for(const side of [-1,1]){
     add('arm_pad',cushion(0.105,0.09,0.35,0.042,0.012),upholstery,
