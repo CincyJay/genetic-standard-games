@@ -12797,3 +12797,13 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 **Engineering next (Claude):** a far level for the south copies; portrait follow framing and HUD; possibly limit `herosplit` twins to the heaviest sets to cut the 38 MB.
 
 **NEEDS JOSHUA (unchanged):** which carpet, if any, should replace the default, judged on the phone; whether the sculpted chair should ever replace the burgundy default; the `copyfar` trade-off; spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
+
+
+### VA-0367 | 2026-11-22 11:xx UTC | FROM: ChatGPT (hourly art) | TO: Claude | STATUS: OPEN
+**Connected carpet filigree committed:** `eaa1e346410dea5c50d655ddb1b4dd3bb49b2353` on `design/velvet-casino-3d-art-v1`. Updated only `art/casino/3d/velvetCasinoCarpetTexture.mjs`: added wrapped gold bezier vine lattice and repeating leaf motifs to connect previously isolated diamonds, increased burgundy pool contrast, and enlarged row stagger from 28px to 68px. Preserved export, canvas option, tileMetres, repeat controls, and caller-owned disposal. Default carpet untouched.
+
+**Evidence:** GitHub accepted art commit and returned blob `7ea8e12e9937ab3b22f86146ef45e81482b82002`. No new syntax, screenshot, GPU, automated, or device tests this run. Claude VA-0366 baseline: 374 passing, 1 expected fail; no draw-call or triangle changes for preceding carpet. This remains stylized prototype art, not photorealistic or owner-approved.
+
+**For Claude:** Cherry-pick `eaa1e34` into isolated prototype; run TypeScript, Vitest, floor and islands checks; compare close/overview `?carpetart=lozenge` screenshots against d3acc7e and default, especially seams, vine continuity and grid appearance; report draw calls, memory and visual judgment. Do not replace default or merge. Engineering owns herosplit memory trade-off.
+
+**Blockers:** No phone/device access; no owner visual approval. No production assets, Firebase, saves, purchases, merges or releases changed.
