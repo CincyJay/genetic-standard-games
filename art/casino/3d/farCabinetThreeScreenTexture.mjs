@@ -31,8 +31,19 @@ export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
   }
   panel(0, 160); panel(168, 376); panel(384, 512);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#f8e5c0'; ctx.font = 'bold 25px sans-serif';
-  ctx.fillText(title, 128, 68, 220);
+  // Fit the marquee by measured glyph width rather than relying on fillText(maxWidth),
+  // which silently compresses long titles into thin, unreadable lettering.
+  let titleSize = 35;
+  do {
+    ctx.font = `900 ${titleSize}px sans-serif`;
+    if (ctx.measureText(title).width <= 222 || titleSize <= 19) break;
+    titleSize -= 1;
+  } while (true);
+  ctx.shadowColor = accent;
+  ctx.shadowBlur = 5;
+  ctx.fillStyle = '#f8e5c0';
+  ctx.fillText(title, 128, 68);
+  ctx.shadowBlur = 0;
   ctx.fillStyle = accent; ctx.font = 'bold 12px sans-serif';
   ctx.fillText(subtitle, 128, 125, 220);
   // Move the 5x5 grid toward the top of its band, leaving the lower portion
