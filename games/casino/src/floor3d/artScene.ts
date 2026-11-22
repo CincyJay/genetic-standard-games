@@ -396,8 +396,8 @@ export interface ArtOptions {
   slimNear?: boolean;
   /** With svelteLod: ChatGPT's slim family at every distance (near shell + 4530e71 mid/far LOD, VA-0226); dev opt-in. */
   slimLod?: boolean;
-  /** With the Svelte machines: Joshua's Tripo cabinet (near and far levels, tripoCabinet.ts) in place of the Svelte cabinet. */
-  tripoCabinet?: { near: THREE.Object3D; far: THREE.Object3D };
+  /** With the Svelte machines: Joshua's Tripo cabinets (near and far levels each, tripoCabinet.ts) in place of the Svelte cabinet; bank spots pick theirs by `BankSlot.model`. */
+  tripoCabinet?: readonly { near: THREE.Object3D; far: THREE.Object3D }[];
   /** Grand hall only: its own ceiling, or ChatGPT's gold coffers and chandeliers (VA-0175). */
   ceiling?: CeilingStyle;
   /** Grand hall only: give the end-wall heroes a lighter far twin (VA-0305; see ArtScene.heroLod). */

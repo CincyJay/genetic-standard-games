@@ -37,6 +37,8 @@ export type MachineStyle = 'classic' | 'svelte' | 'svelte-lod' | 'svelte-lod-mid
 export const NEXT_MACHINE_STYLE: Record<MachineStyle, MachineStyle> = { classic: 'svelte', svelte: 'svelte-lod', 'svelte-lod': 'svelte-lod-mid', 'svelte-lod-mid': 'classic' };
 /** Cabinets drawn in full detail with distance LOD on (the rest draw ChatGPT's far LOD). */
 export const SVELTE_NEAR_CABINETS = 6;
+/** Full-detail cabinets each of `n` Tripo models keeps near the camera: 6 shared out, at least 3. */
+export const tripoNearPerModel = (n: number): number => Math.max(3, Math.ceil(SVELTE_NEAR_CABINETS / Math.max(1, n)));
 /** Cabinets outside the near set but within this many metres draw ChatGPT's mid LOD (62d46bc, hint 6–15 m); the rest draw the far LOD. */
 export const SVELTE_MID_RANGE_M = 15;
 /** Bank stools drawn in full detail with distance LOD on; the rest draw `farStool` (VA-0203). */
@@ -252,8 +254,23 @@ interface Placed { x: number; z: number; rotationY: number }
 export interface BankSlot {
   slot: SlotPlacement;
   offsets: number[];
-  /** Stools that fit, as local X offsets (each at local z BankPlan.stoolZ, facing the cabinet). */
+  /** Stools that fit, as local X offsets (each at local z `stoolZ`, facing the cabinet). */
   stools: number[];
+  /** How far in front of this spot's cabinets their stools stand. */
+  stoolZ: number;
+  /** Which of the floor's cabinet models this spot's cabinets are (index into the host's list), if it mixes models. */
+  model?: number;
+}
+
+/** What a bank row's cabinet needs from the planner; every field defaults to the Svelte cabinet's. */
+export interface BankCabinet {
+  /** Centre-to-centre spacing: given, the row is filled at this pitch as one run (a wide cabinet stands fewer to a row). */
+  pitch?: number;
+  /** Half the cabinet's width, for the bank box and where the end caps stand. */
+  halfW?: number;
+  stoolZ?: number;
+  frontZ?: number;
+  model?: number;
 }
 export interface BankPlan {
   slots: BankSlot[];
@@ -262,7 +279,7 @@ export interface BankPlan {
   obstacles: Obstacle[];
   stoolsDropped: number;
   capsDropped: number;
-  /** How far in front of each cabinet its stool stands (BANK.stoolZ unless the cabinet asks otherwise). */
+  /** The first row's stool distance (BANK.stoolZ unless the cabinet asks otherwise); each spot has its own `stoolZ`. */
   stoolZ: number;
 }
 
@@ -295,6 +312,27 @@ function rowRuns(slots: readonly SlotPlacement[]): { s: SlotPlacement; t: number
   return runs;
 }
 
+/**
+ * Each run's group: its own index, or the lower index of the run it stands back to back with
+ * (opposite facing, centres within 1.5 m, so an island's two faces), numbered densely from 0.
+ */
+function backToBack(runs: readonly { s: SlotPlacement; t: number }[][]): number[] {
+  const centre = runs.map((run) => {
+    const n = run.length;
+    return { x: run.reduce((a, { s }) => a + s.x, 0) / n, z: run.reduce((a, { s }) => a + s.z, 0) / n, ry: run[0].s.rotationY };
+  });
+  const root = runs.map((_, i) => i);
+  for (let i = 0; i < runs.length; i++) {
+    for (let j = 0; j < i; j++) {
+      const a = centre[i], b = centre[j];
+      const opposite = Math.cos(a.ry - b.ry) < -0.99;
+      if (opposite && root[j] === j && Math.hypot(a.x - b.x, a.z - b.z) < 1.5) { root[i] = j; break; }
+    }
+  }
+  const dense = new Map<number, number>();
+  return root.map((g) => { if (!dense.has(g)) dense.set(g, dense.size); return dense.get(g)!; });
+}
+
 /** A local box (slot frame) as a world axis-aligned box. */
 function localBox(s: SlotPlacement, id: string, x0: number, x1: number, z0: number, z1: number, h: number): Obstacle & { kind: 'box' } {
   const pts = [toWorld(s, x0, z0), toWorld(s, x1, z0), toWorld(s, x0, z1), toWorld(s, x1, z1)];
@@ -309,25 +347,60 @@ function localBox(s: SlotPlacement, id: string, x0: number, x1: number, z0: numb
  * is where caps may stand: the grand hall's back row stands outside the walkable room, against the
  * end wall, so the caps closing it and the side banks' back ends need the wall line instead.
  */
-export function planBanks(slots: readonly SlotPlacement[], existing: readonly Obstacle[] = [], room?: Readonly<RoomBounds>, capRoom: Readonly<RoomBounds> | undefined = room, cabinet: { stoolZ?: number; frontZ?: number } = {}): BankPlan {
-  // a shallower cabinet (Joshua's Tripo cabinet) brings its stools in and its collision front back
-  const stoolZ = cabinet.stoolZ ?? BANK.stoolZ, frontZ = cabinet.frontZ ?? BANK.frontZ;
+export function planBanks(slots: readonly SlotPlacement[], existing: readonly Obstacle[] = [], room?: Readonly<RoomBounds>, capRoom: Readonly<RoomBounds> | undefined = room, cabinet: BankCabinet | ((first: SlotPlacement, run: number) => BankCabinet) = {}): BankPlan {
   const out: BankSlot[] = [];
   const caps: CapPlacement[] = [];
   const bankBoxes: Obstacle[] = [];
-  for (const run of rowRuns(slots)) {
-    run.forEach(({ s, t }, i) => {
-      const lo = i > 0 ? (run[i - 1].t - t) / 2 : -(i < run.length - 1 ? (run[i + 1].t - t) / 2 : BANK.soloHalf);
-      const hi = i < run.length - 1 ? (run[i + 1].t - t) / 2 : i > 0 ? (t - run[i - 1].t) / 2 : BANK.soloHalf;
-      const k = Math.max(1, Math.floor((hi - lo) / BANK.pitchMin + 1e-6));
-      const offsets = Array.from({ length: k }, (_, j) => lo + ((j + 0.5) * (hi - lo)) / k);
-      out.push({ slot: s, offsets, stools: [] });
-      bankBoxes.push(localBox(s, `svelte-bank-${s.id}-${out.length}`, offsets[0] - CABINET_HALF_W, offsets[k - 1] + CABINET_HALF_W, BANK.backZ, frontZ, CAP.height));
+  let firstStoolZ: number | null = null;
+  const runs = rowRuns(slots);
+  const groups = backToBack(runs);
+  for (const [r, run] of runs.entries()) {
+    // a row's cabinet (Joshua's Tripo models differ in width and depth) sets its pitch, stools and
+    // collision front; back-to-back rows share one so their banks, and so their end caps, line up
+    const c = typeof cabinet === 'function' ? cabinet(run[0].s, groups[r]) : cabinet;
+    const stoolZ = c.stoolZ ?? BANK.stoolZ, frontZ = c.frontZ ?? BANK.frontZ, halfW = c.halfW ?? CABINET_HALF_W;
+    firstStoolZ ??= stoolZ;
+    const share = run.map(({ t }, i) => ({
+      lo: i > 0 ? (run[i - 1].t - t) / 2 : -(i < run.length - 1 ? (run[i + 1].t - t) / 2 : BANK.soloHalf),
+      hi: i < run.length - 1 ? (run[i + 1].t - t) / 2 : i > 0 ? (t - run[i - 1].t) / 2 : BANK.soloHalf,
+    }));
+    const offsetsOf: number[][] = run.map(() => []);
+    if (c.pitch) {
+      // one even fill along the whole row, each cabinet handed to the spot whose share it stands in
+      const a = run[0].t + share[0].lo, b = run[run.length - 1].t + share[run.length - 1].hi;
+      const k = Math.max(1, Math.floor((b - a) / c.pitch + 1e-6));
+      for (let j = 0; j < k; j++) {
+        const at = a + ((j + 0.5) * (b - a)) / k;
+        const i = Math.max(0, run.findIndex(({ t }, n) => at < t + share[n].hi + 1e-9));
+        offsetsOf[i].push(at - run[i].t);
+      }
+    } else {
+      share.forEach(({ lo, hi }, i) => {
+        const k = Math.max(1, Math.floor((hi - lo) / BANK.pitchMin + 1e-6));
+        for (let j = 0; j < k; j++) offsetsOf[i].push(lo + ((j + 0.5) * (hi - lo)) / k);
+      });
+    }
+    const row: BankSlot[] = [];
+    run.forEach(({ s }, i) => {
+      const offsets = offsetsOf[i];
+      const b: BankSlot = { slot: s, offsets, stools: [], stoolZ, ...(c.model !== undefined ? { model: c.model } : {}) };
+      out.push(b);
+      if (!offsets.length) return;
+      row.push(b);
+      bankBoxes.push(localBox(s, `svelte-bank-${s.id}-${out.length}`, offsets[0] - halfW, offsets[offsets.length - 1] + halfW, BANK.backZ, frontZ, CAP.height));
     });
-    const first = out[out.length - run.length], last = out[out.length - 1];
-    const capOff = CABINET_HALF_W + CAP.gap + CAP.width / 2;
+    if (!row.length) continue;
+    const first = row[0], last = row[row.length - 1];
+    const capOff = halfW + CAP.gap + CAP.width / 2;
+    // a wide model's even fill can leave its end cabinets short of the row's ends: its caps still
+    // stand out at the row's ends, where the slot spots' own footprint stops
+    const tOf = (b: BankSlot) => run.find(({ s }) => s === b.slot)!.t;
+    const rowLo = run[0].t + share[0].lo, rowHi = run[run.length - 1].t + share[run.length - 1].hi;
+    const edgeOff = CAP.gap + CAP.width / 2;
     for (const [b, sign] of [[first, -1], [last, 1]] as const) {
-      const lx = sign < 0 ? b.offsets[0] - capOff : b.offsets[b.offsets.length - 1] + capOff;
+      const lx = sign < 0
+        ? Math.min(b.offsets[0] - capOff, c.pitch ? rowLo - tOf(b) - edgeOff : Infinity)
+        : Math.max(b.offsets[b.offsets.length - 1] + capOff, c.pitch ? rowHi - tOf(b) + edgeOff : -Infinity);
       const p = toWorld(b.slot, lx, CAP.centreZ);
       caps.push({ x: p.x, z: p.z, rotationY: b.slot.rotationY + (sign > 0 ? 0 : Math.PI) });
     }
@@ -338,7 +411,7 @@ export function planBanks(slots: readonly SlotPlacement[], existing: readonly Ob
   let stoolsDropped = 0;
   for (const b of out) {
     for (const off of b.offsets) {
-      const p = toWorld(b.slot, off, stoolZ);
+      const p = toWorld(b.slot, off, b.stoolZ);
       const c: Obstacle = { kind: 'circle', id: `svelte-stool-${b.slot.id}-${obstacles.length}`, x: p.x, z: p.z, r: BANK.stoolR, h: 0.95 };
       const box = { x0: p.x - c.r, z0: p.z - c.r, x1: p.x + c.r, z1: p.z + c.r };
       // stools may stand out to the caps' wall line too: the grand hall's end-wall row stands outside
@@ -354,7 +427,7 @@ export function planBanks(slots: readonly SlotPlacement[], existing: readonly Ob
       obstacles.push(c);
     }
   }
-  return { slots: out, caps: fit.caps, obstacles, stoolsDropped, capsDropped: fit.dropped, stoolZ };
+  return { slots: out, caps: fit.caps, obstacles, stoolsDropped, capsDropped: fit.dropped, stoolZ: firstStoolZ ?? BANK.stoolZ };
 }
 
 export interface CapPlacement {
@@ -462,11 +535,13 @@ function machineScreen(id: string, base: THREE.MeshStandardMaterial, textures: T
  * with a Svelte pair, before batching. The pass-05 pilot's swivel chair stays. Returns the screen
  * textures (for disposal) and how many cabinets went in.
  */
-export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; midLod?: boolean; banks?: BankPlan; artFarStool?: boolean; slimNear?: boolean; slimLod?: boolean; tripo?: { near: THREE.Object3D; far: THREE.Object3D } } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
+export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[], opts: { lod?: boolean; midLod?: boolean; banks?: BankPlan; artFarStool?: boolean; slimNear?: boolean; slimLod?: boolean; tripo?: readonly { near: THREE.Object3D; far: THREE.Object3D }[] } = {}): { textures: THREE.Texture[]; cabinets: number; stools: number; lod: SvelteLod | null } {
   const svelteProto = createSvelteSlotCabinet(THREE) as THREE.Group;
-  // Joshua's Tripo cabinet (tripoCabinet.ts) stands in for the Svelte one at every distance; its
-  // screen is painted into its texture, so the per-theme screens below go unused
-  const proto = (opts.tripo?.near as THREE.Group | undefined) ?? svelteProto;
+  // Joshua's Tripo cabinets (tripoCabinet.ts) stand in for the Svelte one at every distance, each bank
+  // spot taking the model its row was planned with; their screens are painted into their textures,
+  // so the per-theme screens below go unused
+  const models = opts.tripo?.length ? opts.tripo : null;
+  const proto = (models?.[0].near as THREE.Group | undefined) ?? svelteProto;
   try {
     applySvelteLuxuryFinish(THREE, svelteProto);
   } catch (e) {
@@ -504,6 +579,7 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
   art.updateMatrixWorld(true);
   const stool = opts.banks ? (createVelvetSlotStool(THREE) as THREE.Group) : null;
   const stoolSpots: CabinetSpot[] = [];
+  const modelSpots: CabinetSpot[][] = [];
   const turn = new THREE.Matrix4().makeRotationY(Math.PI);
   const wp = new THREE.Vector3();
   for (const { g, id } of groups) {
@@ -520,12 +596,12 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
         stools++;
         if (opts.lod) {
           // instanced with a distance LOD (VA-0203), its open front toward the cabinet
-          stoolSpots.push({ id: 'stool', matrix: g.matrixWorld.clone().multiply(new THREE.Matrix4().makeTranslation(off, 0, opts.banks!.stoolZ)).multiply(turn) });
+          stoolSpots.push({ id: 'stool', matrix: g.matrixWorld.clone().multiply(new THREE.Matrix4().makeTranslation(off, 0, bank.stoolZ)).multiply(turn) });
           continue;
         }
         const st = stool.clone(true);
         st.name = 'svelte_bank_stool';
-        st.position.set(off, 0, opts.banks!.stoolZ);
+        st.position.set(off, 0, bank.stoolZ);
         st.rotation.y = Math.PI; // its open front toward the cabinet
         g.add(st);
       }
@@ -533,24 +609,29 @@ export function applySvelteMachines(art: THREE.Group, slotIds: readonly string[]
     for (const [n, x] of (bank?.offsets ?? [-SVELTE_PAIR_X, SVELTE_PAIR_X]).entries()) {
       if (opts.lod) {
         // instanced outside the floor's static batches, so the near set can follow the camera
-        spots.push({ id, matrix: g.matrixWorld.clone().multiply(new THREE.Matrix4().makeTranslation(x, 0, 0)) });
+        const spot = { id, matrix: g.matrixWorld.clone().multiply(new THREE.Matrix4().makeTranslation(x, 0, 0)) };
+        spots.push(spot);
+        if (models) (modelSpots[bank?.model ?? 0] ??= []).push(spot);
         cabinets++;
         continue;
       }
-      const cab = proto.clone(true);
+      const cab = (models ? models[Math.min(bank?.model ?? 0, models.length - 1)].near : proto).clone(true);
       cab.name = `svelte_cabinet_${n}`;
       cab.position.x = x;
-      const screen = opts.tripo ? undefined : screenFor(id);
+      const screen = models ? undefined : screenFor(id);
       if (screen) cab.traverse((o) => { const m = o as THREE.Mesh; if (m.isMesh && (m.material as THREE.Material).name === screenName) m.material = screen; });
       g.add(cab);
       cabinets++;
     }
   }
   if (!opts.lod) return { textures, cabinets, stools, lod: null };
-  if (!opts.tripo) for (const { id } of spots) screenFor(id);
+  if (!models) for (const { id } of spots) screenFor(id);
   // `slimLod`: the whole slim family (near, mid within SVELTE_MID_RANGE_M, far), one machine look at every distance
-  const lod = opts.tripo
-    ? buildSvelteLod(spots, opts.tripo.near, opts.tripo.far, () => undefined, SVELTE_NEAR_CABINETS)
+  // one LOD per Tripo model over that model's spots (two draw calls each)
+  const lod = models
+    // the near budget is shared out across Joshua's models (each keeps its own nearest few), so a
+    // mixed floor draws about as many full-detail cabinets as a one-model floor
+    ? combineLods(models.flatMap((m, i) => (modelSpots[i]?.length ? [buildSvelteLod(modelSpots[i], m.near, m.far, () => undefined, tripoNearPerModel(models.length))] : [])))
     : opts.slimLod
     // near takes the LOD's 0.59 m reel plane (still past the near's ±0.288 aperture, under its rails) so all
     // three levels share one screen geometry and each machine's screen is one draw call (VA-0229)

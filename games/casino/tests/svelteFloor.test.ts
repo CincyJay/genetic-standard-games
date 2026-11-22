@@ -461,16 +461,31 @@ describe('Svelte machines switch (prototype)', () => {
     }
   });
 
-  it("Joshua's Tripo cabinet: stools come in to its shallow front, nothing dropped, every stool reachable", async () => {
-    const { TRIPO_STOOL_Z, TRIPO_CABINET } = await import('../src/floor3d/tripoCabinet.ts');
+  it("Joshua's Tripo cabinets: rows take the models in turn at each model's pitch, stools at its distance, nothing dropped, every seat reachable", async () => {
+    const { CABINET_MODELS, modelForRun } = await import('../src/floor3d/tripoCabinet.ts');
+    expect(CABINET_MODELS.length).toBeGreaterThanOrEqual(2);
     const g = layoutFor('grand', true, true, { islands: true });
     const wallLine = { ...g.room, z0: -g.hallSpec!.length / 2 + 0.2 };
-    const plan = planBanks([...g.slots, ...g.decor.slots], g.obstacles, g.room, wallLine, { stoolZ: TRIPO_STOOL_Z, frontZ: TRIPO_CABINET.frontZ + 0.15 });
-    expect(plan.stoolZ).toBe(TRIPO_STOOL_Z);
+    const plan = planBanks([...g.slots, ...g.decor.slots], g.obstacles, g.room, wallLine, (_s, run) => {
+      const i = modelForRun(run, CABINET_MODELS.length), m = CABINET_MODELS[i];
+      return { pitch: m.pitch, halfW: m.halfW, stoolZ: m.stoolZ, frontZ: m.frontZ + 0.15, model: i };
+    });
     expect(plan.stoolsDropped).toBe(0);
     expect(plan.capsDropped).toBe(0);
-    // the stool clears the cabinet's front
-    expect(TRIPO_STOOL_Z - BANK.stoolR).toBeGreaterThan(TRIPO_CABINET.frontZ);
+    // both models are on the floor, every spot carries its model's stool distance
+    const used = new Set(plan.slots.map((b) => b.model));
+    expect(used.size).toBe(CABINET_MODELS.length);
+    for (const b of plan.slots) {
+      const m = CABINET_MODELS[b.model!];
+      expect(b.stoolZ).toBe(m.stoolZ);
+      // the stool clears the cabinet's front
+      expect(m.stoolZ - BANK.stoolR).toBeGreaterThan(m.frontZ);
+      // neighbouring cabinets in a spot stand at least the model's pitch apart (allowing the even fill's rounding)
+      for (let i = 1; i < b.offsets.length; i++) expect(b.offsets[i] - b.offsets[i - 1]).toBeGreaterThanOrEqual(m.pitch - 1e-6);
+    }
+    // a wide model stands fewer to a row than the narrow one in the same island rows
+    const per = (i: number) => plan.slots.filter((b) => b.model === i).reduce((n, b) => n + b.offsets.length, 0) / plan.slots.filter((b) => b.model === i).length;
+    expect(per(1)).toBeLessThan(per(0));
     useRoom(g.room);
     try {
       const nav = new NavGrid(ROOM, [...g.obstacles, ...plan.obstacles]);

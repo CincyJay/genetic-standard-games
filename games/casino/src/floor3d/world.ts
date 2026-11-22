@@ -21,7 +21,7 @@ import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { HERO_FACING_MARGIN_M, CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, southFarLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
-import { CABINET_STORAGE_KEY, NEXT_CABINET_MODEL, preloadTripoCabinet, readCabinetModel, TRIPO_CABINET, TRIPO_STOOL_Z, tripoCabinet } from './tripoCabinet.ts';
+import { CABINET_STORAGE_KEY, modelForRun, NEXT_CABINET_MODEL, preloadTripoCabinets, readCabinetModel, tripoCabinets } from './tripoCabinet.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { buildPlaceholderCrowd, type PlaceholderPerson } from './placeholderCrowd.ts';
@@ -183,7 +183,7 @@ const C = {
 export async function preloadFloorAssets(): Promise<void> {
   if (!(import.meta.env.MODE === 'proto' || import.meta.env.DEV)) return;
   if (readMachineStyle() === 'classic' || readCabinetModel() !== 'tripo') return;
-  await preloadTripoCabinet();
+  await preloadTripoCabinets();
 }
 
 export function mountFloor(opts: FloorOptions): FloorHandle {
@@ -340,11 +340,17 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // the grand hall's back row stands outside the walkable room, against the end wall; its caps (and
   // the side banks' back caps) may stand out to that wall line, 0.2 m off the wall like the room
   const capRoom = layout.hallSpec ? { ...ROOM, z0: -layout.hallSpec.length / 2 + 0.2 } : ROOM;
-  // Joshua's Tripo cabinet (proto/dev; preloaded before the floor mounts): shallower than the Svelte
-  // cabinet, so its stools stand closer; falls back to the Svelte cabinet if it failed to load
+  // Joshua's Tripo cabinets (proto/dev; preloaded before the floor mounts): bank rows take them in
+  // turn, each with its own pitch, depth and stool distance; the Svelte cabinet if none loaded
   const cabinetModel = readCabinetModel();
-  const tripo = svelteMachines && cabinetModel === 'tripo' ? (() => { const near = tripoCabinet('near'), far = tripoCabinet('far'); return near && far ? { near, far } : undefined; })() : undefined;
-  const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM, capRoom, tripo ? { stoolZ: TRIPO_STOOL_Z, frontZ: TRIPO_CABINET.frontZ + 0.15 } : {}) : null;
+  const tripoModels = svelteMachines && cabinetModel === 'tripo' ? tripoCabinets() : [];
+  const tripo = tripoModels.length ? tripoModels : undefined;
+  const svelteBanks = svelteMachines
+    ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM, capRoom, tripo ? (_s, run) => {
+      const i = modelForRun(run, tripoModels.length), m = tripoModels[i];
+      return { pitch: m.pitch, halfW: m.halfW, stoolZ: m.stoolZ, frontZ: m.frontZ + 0.15, model: i };
+    } : {})
+    : null;
   // prototype switch (VA-0175): the grand hall's own ceiling, or ChatGPT's gold coffers and chandeliers
   const ceilingStyle = (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && hall === 'grand' ? readCeilingStyle() : 'hall';
   const lampPlan = lampsForCeiling(layout.lamps, ceilingStyle);
@@ -850,7 +856,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // prototype builds, Svelte machines on: Joshua's Tripo cabinet or the Svelte one (stored; reloads the floor)
   const cabinetBtn = $<HTMLButtonElement>('.cabinetmodel');
   cabinetBtn.hidden = svelteBtn.hidden || !svelteMachines;
-  cabinetBtn.textContent = cabinetModel === 'tripo' ? (tripo ? 'Slot cabinets: your Tripo model (preview)' : 'Slot cabinets: your Tripo model (failed to load)') : 'Slot cabinets: Svelte';
+  cabinetBtn.textContent = cabinetModel === 'tripo' ? (tripo ? `Slot cabinets: your Tripo models ×${tripoModels.length} (preview)` : 'Slot cabinets: your Tripo models (failed to load)') : 'Slot cabinets: Svelte';
   cabinetBtn.setAttribute('aria-label', `${cabinetBtn.textContent}. Tap to switch (reloads the floor).`);
   cabinetBtn.addEventListener('click', () => {
     try {
