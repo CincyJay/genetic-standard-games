@@ -1914,6 +1914,33 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(at.far.length).toBe(on.far.length);
     expect(tris(at.far)).toBe(tris(on.far));
   });
+  it('fits far marquee titles by font size and clamps only overflow at the 19px floor (a72749c, afd5bcf, VA-0352)', async () => {
+    const THREE = await import('three');
+    const { createFarCabinetThreeScreenTexture } = await import('../../../art/casino/3d/farCabinetThreeScreenTexture.mjs');
+    // fake 2D context: glyph width = 0.7 * font px per char, so measured width tracks the fitted font size
+    const draw = (title: string) => {
+      const calls: { txt: string; max?: number; font: string }[] = [];
+      const st: Record<string, unknown> = { font: '10px sans-serif' };
+      const px = () => Number(/(\d+)px/.exec(String(st.font))![1]);
+      const ctx = new Proxy(st, {
+        get: (t, k) => k === 'fillText' ? (txt: string, _x: number, _y: number, max?: number) => calls.push({ txt, max, font: String(t.font) })
+          : k === 'measureText' ? (txt: string) => ({ width: txt.length * 0.7 * px() })
+          : k in t ? t[k as string] : () => ({ addColorStop: () => {} }),
+        set: (t, k, v) => ((t[k as string] = v), true),
+      });
+      createFarCabinetThreeScreenTexture(THREE, { canvas: { width: 0, height: 0, getContext: () => ctx }, title });
+      return calls.find((c) => c.txt === title.slice(0, 18))!;
+    };
+    const short = draw('DEEP BLUE');
+    expect(short.max).toBeUndefined();
+    expect(short.font).toContain('35px');
+    const long = draw('TIGER\'S TREASURE');
+    expect(long.max).toBeUndefined();
+    expect(Number(/(\d+)px/.exec(long.font)![1]) * 0.7 * 16).toBeLessThanOrEqual(222);
+    const worst = draw('WWWWWWWWWWWWWWWWWW');
+    expect(worst.font).toContain('19px');
+    expect(worst.max).toBe(222);
+  });
   it('keeps each far atlas band within 10% of its display face aspect, so the art is not visibly squashed (6090776)', async () => {
     const THREE = await import('three');
     const { FAR_SCREEN_ATLAS_BANDS } = await import('../src/floor3d/grandHallArt.ts');
