@@ -1562,7 +1562,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const { heroLodFull, HERO_LOD_NEAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
     const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
     const off = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers' });
-    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true });
+    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroSplit: false });
     expect(off.heroLod).toBeNull();
     const lod = on.heroLod!;
     // one centre per hero, where the layout puts it
@@ -1611,7 +1611,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
     const off = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers' });
     expect(off.boxCull).toEqual([]);
-    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true });
+    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroSplit: false });
     const lod = on.heroLod!;
     // box-tested: the hero sets and the south copies, not the combined set
     expect(on.boxCull.map((e) => e.mesh).sort((a, b) => a.id - b.id)).toEqual([...lod.full, ...lod.lite, ...lod.south].sort((a, b) => a.id - b.id));
@@ -1640,13 +1640,58 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // ...where three.js's own sphere test would still draw every south batch
     expect(lod.south.every((m) => f.intersectsObject(m))).toBe(true);
   });
+  it('splits the culled hero/copy LOD sets west / east so a side view drops the far half (VA-0362)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const opts = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, copyFar: true };
+    const whole = buildArtScene(new Map(), { ...opts, heroSplit: false });
+    const split = buildArtScene(new Map(), { ...opts, heroSplit: true });
+    const a = whole.heroLod!, b = split.heroLod!;
+    const sets = ['full', 'lite', 'south', 'far', 'distant'] as const;
+    for (const k of sets) {
+      // the same triangles in every set, now in a west and an east batch per material
+      expect(Math.abs(tris(b[k]) - tris(a[k]))).toBeLessThan(1);
+      expect(b[k].length).toBeGreaterThan(a[k].length);
+      expect(b[k].length).toBeLessThanOrEqual(2 * a[k].length);
+      for (const m of b[k]) expect(m.name).toMatch(new RegExp(`^art:lod:${k}:[WE]#`));
+    }
+    // the combined sets (drawn when lite/far/distant and south are both in view) stay one batch per material
+    for (const k of ['liteAll', 'farAll', 'distantAll'] as const) {
+      expect(b[k].length).toBe(a[k].length);
+      expect(Math.abs(tris(b[k]) - tris(a[k]))).toBeLessThan(1);
+    }
+    // visibility at start is unchanged: full and south shown, the rest hidden
+    expect(b.full.every((m) => m.visible) && b.south.every((m) => m.visible)).toBe(true);
+    expect([...b.lite, ...b.far, ...b.distant].every((m) => !m.visible)).toBe(true);
+    // every split batch is box-tested, and each half sits on its own side of x = 0
+    const boxes = new Map(split.boxCull.map((e) => [e.mesh, e.box]));
+    for (const k of sets) for (const m of b[k]) {
+      const box = boxes.get(m)!;
+      expect(box).toBeTruthy();
+      const cx = (box.min.x + box.max.x) / 2;
+      expect(m.name.includes(':W#') ? cx < 0 : cx > 0).toBe(true);
+    }
+    expect([...split.interactive.keys()].sort()).toEqual([...whole.interactive.keys()].sort());
+    // the west blackjack chair close-up (chairCloseup.mjs side view): no east-half lite box in view,
+    // so the lite triangles it draws fall by the east half's share
+    const cam = new THREE.PerspectiveCamera(40, 1.5, 0.1, 100);
+    cam.position.set(-8.43, 1.3, -0.08);
+    cam.lookAt(-9.595, 0.85, -1.37);
+    cam.updateMatrixWorld();
+    const f = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    const east = b.lite.filter((m) => m.name.includes(':E#'));
+    expect(east.length).toBeGreaterThan(0);
+    expect(east.some((m) => f.intersectsBox(boxes.get(m)!))).toBe(false);
+    expect(tris(east)).toBeGreaterThan(0.4 * tris(b.lite));
+  });
   it('adds ChatGPT\'s far cabinet as a third hero level behind ?herofar=on, fitted to the hero (VA-0330)', async () => {
     const THREE = await import('three');
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { composeGrandHall, fittedFarHero, heroLodLevel, HERO_LOD_NEAR_M, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
     const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
-    const base = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true });
-    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroFar: true });
+    const base = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroSplit: false });
+    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroSplit: false, heroFar: true });
     expect(base.heroLod!.far).toEqual([]);
     const lod = on.heroLod!;
     // hidden until the camera is far; the other sets are what they were without it

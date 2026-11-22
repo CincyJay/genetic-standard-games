@@ -412,6 +412,13 @@ export interface ArtOptions {
   farScreenCanvas?: () => unknown;
   /** With `heroFar`: the north side-wall copies get a far cabinet too, for the 'distant' level (`?copyfar=on`, VA-0340). */
   copyFar?: boolean;
+  /**
+   * With heroLod: split each culled hero/copy LOD batch (full, lite, south, far, distant) into a west
+   * and an east half by world x (VA-0362), so box culling drops the half outside the view. The
+   * combined sets (liteAll, farAll, distantAll) stay whole. Opt-in (`?herosplit=on`): a view that
+   * sees both halves pays one more draw call per material for no triangle saving.
+   */
+  heroSplit?: boolean;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -624,7 +631,9 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     lods.forEach((l, li) => {
       // the cabinets' spin buttons share one batch per material (VA-0327); reels and marquees stay per cabinet
       const shared = !!cabinet && part === SHARED_PART;
-      const key = shared ? `slots/${part}#${glow ? 'glow#' : ''}${materialKey(material)}` : part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : l ? `lod:${l}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
+      // the culled LOD sets split west / east of x = 0 (VA-0362); the combined *All sets never do
+      const half = opts.heroSplit && l && !l.endsWith('All') ? (wp.x < 0 ? ':W' : ':E') : '';
+      const key = shared ? `slots/${part}#${glow ? 'glow#' : ''}${materialKey(material)}` : part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : l ? `lod:${l}${half}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
       let b = buckets.get(key);
       if (!b) {
         b = { material, geos: [], colours: [], emissives: [], names: [], cabinets: [], side, part: part && cabinet ? part : null, shared, renderOrder: 0, glow: false, fade, lod: l };
