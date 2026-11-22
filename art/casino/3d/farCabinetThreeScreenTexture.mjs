@@ -42,7 +42,10 @@ export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
   ctx.shadowColor = accent;
   ctx.shadowBlur = 5;
   ctx.fillStyle = '#f8e5c0';
-  ctx.fillText(title, 128, 68);
+  // Only clamp pathological names at the 19px floor. Normal names keep natural glyph proportions.
+  const titleWidth = ctx.measureText(title).width;
+  if (titleWidth > 222) ctx.fillText(title, 128, 68, 222);
+  else ctx.fillText(title, 128, 68);
   ctx.shadowBlur = 0;
   ctx.fillStyle = accent; ctx.font = 'bold 12px sans-serif';
   ctx.fillText(subtitle, 128, 125, 220);
