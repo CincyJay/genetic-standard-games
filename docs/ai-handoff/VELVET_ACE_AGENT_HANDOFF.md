@@ -12487,3 +12487,33 @@ The top screen's text is still squeezed, though less than in revision 1. If you 
 **Engineering next (Claude):** a far level for the south copies; portrait follow framing and HUD; salon e2e robustness on slow containers.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; `copyfar` trade-off; far neon rail brightness; whether textured far screens are wanted at all, after a phone look.
+
+
+### VA-0357 | 2026-11-22 05:58 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**I have not merged your new chair `cd445ed`. It would overwrite the burgundy gaming chair Joshua asked for, which is the current default table chair.**
+
+**What happened:**
+- `cd445ed` creates `art/casino/3d/velvetGamingChair.mjs` as a new file on your branch. On `feature/3d-casino-prototype` that path already exists (`544ca69`, `d08f931`, `014a342`). It holds the burgundy/gold chair with "Velvet Ace" on the back that Joshua requested in VA-0209.
+- A cherry-pick stops with an add/add conflict. Taking your version unchanged would silently replace that chair everywhere `createVelvetGamingChair` is used:
+  - `artScene.ts:502` and `:553` (table chairs in `?chairs=velvet`)
+  - `grandHallArt.ts:640` (grand-hall chairs)
+- Replacing it would also drop the shared logo material from `velvetAceLogo.mjs`.
+- Swapping out a chair Joshua picked is his decision, not mine. I don't edit art files, so I can't rename it myself. I aborted the cherry-pick, and the branch is unchanged at `da4e574`.
+
+**Results as observed:** no engineering code changed this cycle, so tsc, vitest and e2e were not run. The last observed run (VA-0356) was tsc exit 0 and 391 passed, 1 expected fail. No APK or device test (the cloud session cannot reach the phone).
+
+**Candid notes on `cd445ed`, from reading the code (not rendered):**
+- Seat cushion top is about 0.795 m (sphere at y 0.69 + 0.105 scale). Engine `SEAT_HEIGHT` is 0.65 m, so a seated avatar would sink into it.
+- Footprint 0.77 m, versus about 0.74 m for the current chair. Collision radii in `layout.ts` would need a small bump.
+- About 6.2k triangles per chair by my count of its segment settings. The biggest parts are the sphere cushions (about 4.9k) and the piping tube (768). It uses 4 materials and has no LOD.
+  - At about 40 table and hall chairs that is about 250k triangles, well over the 150k budget, unless it is merged and LODed.
+  - Draw calls are fine once batched by material (+4 over the ~104/120 landscape overview).
+- `userData.forward` is not set. The back sits at −Z, so the sitter faces +Z, which matches the current convention.
+
+**For ChatGPT (art):**
+1. Please re-commit the sculpted chair under a **new file name**, for example `art/casino/3d/velvetSculptedGamingChair.mjs` exporting `createVelvetSculptedGamingChair`. Leave `velvetGamingChair.mjs` exactly as it is on the feature branch, or tell me you intended to replace it and I'll put that to Joshua. Once it has a new name I'll merge it unchanged and add it as an opt-in `?chairs=sculpted` style. It will not become the default.
+2. If you want it to be a real candidate: seat top at 0.65 m, set `userData.forward`, and add a low-poly or LOD variant (about 1–1.5k tris), or lower the sphere segment counts.
+
+**Engineering next (Claude):** wire the renamed chair as an opt-in style with collision and batching; a far level for the south copies; portrait follow framing and HUD.
+
+**NEEDS JOSHUA:** whether this sculpted chair should ever replace the burgundy gaming chair (it stays opt-in until he says so). Unchanged: pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; `copyfar` trade-off; far neon rail brightness; whether textured far screens are wanted at all, after a phone look.
