@@ -116,7 +116,7 @@ export interface FloorHandle {
     screenOf: (x: number, y: number, z: number) => { x: number; y: number };
     seatScreen: (id: string) => { x: number; y: number };
     /** What the camera draws this frame, mesh by mesh (VA-0052). */
-    drawList: () => { name: string; tris: number; glow: boolean; instances: number }[];
+    drawList: () => { name: string; tris: number; glow: boolean; instances: number; sources?: Record<string, number> }[];
     tap: (sx: number, sy: number) => void;
     /** The visible meshes under a screen point (CSS pixels), nearest first. */
     pick: (sx: number, sy: number) => { name: string; dist: number; material: string }[];
@@ -336,7 +336,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   lampPlan.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   lampScale = lampPlan.intensityScale;
   applyLighting();
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: ['on', 'accent', 'theme'].includes(devFlag('herofar') ?? ''), heroFarAccent: devFlag('herofar') === 'accent', heroFarTheme: devFlag('herofar') === 'theme', heroFarScreen: devFlag('farscreen') === null ? undefined : Number(devFlag('farscreen')), heroFarGlow: { intensity: devFlag('farglow') === null ? undefined : Number(devFlag('farglow')), tint: devFlag('fartint') === null ? undefined : Number(devFlag('fartint')) }, copyFar: devFlag('copyfar') === 'on', southFar: devFlag('southfar') === 'on', heroSplit: devFlag('herosplit') === 'on', heroGroup: devFlag('herogroup') === 'on', heroFarScreenTex: devFlag('farscreentex') === 'atlas' ? 'atlas' : devFlag('farscreentex') === 'on' });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: ['on', 'accent', 'theme'].includes(devFlag('herofar') ?? ''), heroFarAccent: devFlag('herofar') === 'accent', heroFarTheme: devFlag('herofar') === 'theme', heroFarScreen: devFlag('farscreen') === null ? undefined : Number(devFlag('farscreen')), heroFarGlow: { intensity: devFlag('farglow') === null ? undefined : Number(devFlag('farglow')), tint: devFlag('fartint') === null ? undefined : Number(devFlag('fartint')) }, copyFar: devFlag('copyfar') === 'on', southFar: devFlag('southfar') === 'on', heroSplit: devFlag('herosplit') === 'on', heroGroup: devFlag('herogroup') === 'on', drawSources: devFlag('drawsrc') === 'on', heroFarScreenTex: devFlag('farscreentex') === 'atlas' ? 'atlas' : devFlag('farscreentex') === 'on' });
   // the end-wall heroes start in full detail (art.heroLod.lite starts hidden); frame() switches them by distance
   let heroLevel: HeroLodLevel = 'full';
   // ?southfar=on (VA-0371): the south copies drawn as the far cabinet (their own level, by distance)
@@ -1427,13 +1427,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       /** Meshes the camera can see this frame, by name: about one draw call each (a two-sided transparent one draws twice), for trimming the budget. */
       drawList: () => {
         const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-        const out: { name: string; tris: number; glow: boolean; instances: number }[] = [];
+        const out: { name: string; tris: number; glow: boolean; instances: number; sources?: Record<string, number> }[] = [];
         scene.traverseVisible((o) => {
           const m = o as THREE.Mesh;
           if (!(m.isMesh || (o as THREE.Sprite).isSprite) || (m.material as THREE.Material).visible === false || (m.frustumCulled && !frustum.intersectsObject(m))) return;
           const g = m.geometry;
           const tris = g ? (g.index ? g.index.count : g.attributes.position.count) / 3 : 0;
-          out.push({ name: m.name || (m.parent?.name ? `${m.parent.name}>` : '') + `${m.type}:${(m.material as THREE.Material)?.type ?? ''}:${o.position.x.toFixed(1)},${o.position.y.toFixed(1)},${o.position.z.toFixed(1)}`, tris: Math.round(tris), glow: m.userData.glow === true, instances: (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1 });
+          out.push({ name: m.name || (m.parent?.name ? `${m.parent.name}>` : '') + `${m.type}:${(m.material as THREE.Material)?.type ?? ''}:${o.position.x.toFixed(1)},${o.position.y.toFixed(1)},${o.position.z.toFixed(1)}`, tris: Math.round(tris), glow: m.userData.glow === true, instances: (m as THREE.InstancedMesh).isInstancedMesh ? (m as THREE.InstancedMesh).count : 1, ...(m.userData.sources ? { sources: m.userData.sources as Record<string, number> } : {}) });
         });
         return out;
       },

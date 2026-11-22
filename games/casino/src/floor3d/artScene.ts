@@ -433,6 +433,26 @@ export interface ArtOptions {
    * (`?herogroup=on`).
    */
   heroGroup?: boolean;
+  /**
+   * Debug only (`?drawsrc=on`, VA-0374): each batch keeps `userData.sources`, its triangles per
+   * source mesh name (trailing numbers dropped), so debug.drawList() can say what a draw call holds.
+   */
+  drawSources?: boolean;
+}
+
+/** A source mesh's name without its trailing index, for the drawSources breakdown: `chair_back_pad_3` -> `chair_back_pad`. */
+export function sourceKey(name: string): string {
+  return name.replace(/[_-]?\d+$/, '') || '?';
+}
+
+/** Triangles per source name in a batch's pieces (drawSources, VA-0374). */
+export function sourceTris(geos: readonly THREE.BufferGeometry[], names: readonly string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  geos.forEach((g, i) => {
+    const k = sourceKey(names[i] ?? '');
+    out[k] = (out[k] ?? 0) + (g.index ? g.index.count : g.attributes.position.count) / 3;
+  });
+  return out;
 }
 
 /** A culled LOD batch's part: west / east of x = 0 (heroSplit), heroes / copies (heroGroup), or the joined twin. */
@@ -720,6 +740,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     const parts = keys.map((k) => buckets.get(k)!);
     const geos = parts.flatMap((b) => b.geos.map((g) => g.clone()));
     const material = colourMerge(parts[0].material, geos, parts.flatMap((b) => b.colours), parts.flatMap((b) => b.emissives));
+    const sources = opts.drawSources ? sourceTris(geos, parts.flatMap((b) => b.names)) : null;
     const merged = mergeGeometries(geos, false);
     for (const g of geos) g.dispose();
     if (!merged) throw new Error(`could not batch art group ${mkey}`);
@@ -728,6 +749,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     mesh.matrixAutoUpdate = false;
     mesh.renderOrder = Math.max(...parts.map((b) => b.renderOrder));
     if (parts.some((b) => b.glow)) mesh.userData.glow = true;
+    if (sources) mesh.userData.sources = sources;
     mesh.visible = false;
     whole.combined.push(mesh);
     for (const k of keys) replacedKeys.add(k);
@@ -752,6 +774,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     }
     // interactive parts keep a geometry group per original mesh (groups[i] is names[i]); a shared
     // batch has none (each group would be a draw call of its own)
+    const sources = opts.drawSources ? sourceTris(b.geos, b.names) : null;
     const merged = mergeGeometries(b.geos, !!b.part && !b.shared);
     for (const g of b.geos) g.dispose();
     if (!merged) throw new Error(`could not batch art group ${key}`);
@@ -762,6 +785,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     root.add(mesh);
     if (replacedKeys.has(key)) whole.replaced.push(mesh);
     if (b.glow) mesh.userData.glow = true;
+    if (sources) mesh.userData.sources = sources;
     if (b.shared) {
       mesh.userData.parts = b.names;
       mesh.userData.ranges = ranges;

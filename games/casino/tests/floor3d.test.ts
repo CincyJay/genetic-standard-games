@@ -1807,6 +1807,31 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const inView = b.lite.filter((m) => f.intersectsBox(boxes.get(m)!));
     console.log(`herogroup: lite ${tris(a.lite)} tris; heroes ${tris(heroLite)}, copies ${tris(b.lite) - tris(heroLite)}; look-back draws ${tris(inView)} lite tris in ${inView.length} batches (ungrouped ${a.lite.length})`);
   });
+  it('records each batch\'s triangles per source mesh behind ?drawsrc=on (VA-0374)', async () => {
+    const { buildArtScene, sourceKey } = await import('../src/floor3d/artScene.ts');
+    expect(sourceKey('chair_back_pad_3')).toBe('chair_back_pad');
+    expect(sourceKey('dealer_rack_chips_red')).toBe('dealer_rack_chips_red');
+    expect(sourceKey('slotcopy-12')).toBe('slotcopy');
+    const tris = (m: import('three').Mesh) => (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3;
+    const opts = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true };
+    const off = buildArtScene(new Map(), opts);
+    const on = buildArtScene(new Map(), { ...opts, drawSources: true });
+    const meshes = (r: import('three').Object3D) => r.children.filter((c) => (c as import('three').Mesh).isMesh) as import('three').Mesh[];
+    // off: nothing recorded; on: the same batches, each breakdown summing to its triangles
+    expect(meshes(off.root).some((m) => m.userData.sources)).toBe(false);
+    expect(meshes(on.root).map((m) => m.name)).toEqual(meshes(off.root).map((m) => m.name));
+    let total = 0;
+    const missing: string[] = [];
+    for (const m of meshes(on.root)) {
+      const src = m.userData.sources as Record<string, number>;
+      if (!src) { missing.push(m.name); continue; }
+      const sum = Object.values(src).reduce((a, b) => a + b, 0);
+      expect(Math.abs(sum - tris(m))).toBeLessThan(1);
+      total += sum;
+    }
+    expect(missing).toEqual([]);
+    expect(total).toBeGreaterThan(0);
+  });
   it('adds ChatGPT\'s far cabinet as a third hero level behind ?herofar=on, fitted to the hero (VA-0330)', async () => {
     const THREE = await import('three');
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
