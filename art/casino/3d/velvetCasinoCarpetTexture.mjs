@@ -1,7 +1,7 @@
 /**
  * Velvet Ace original casino carpet art, isolated prototype.
- * Seamless 512px repeat tile: midnight-plum woven ground, interlocking gold
- * lozenges, burgundy rosettes and low-contrast fibres. No external assets.
+ * Seamless 512px repeat tile: midnight-plum woven ground, staggered gold
+ * lozenges, alternating rosettes/medallions and low-contrast fibres. No external assets.
  * Apply to an existing floor mesh only in a dev preview; never changes production.
  */
 export function createVelvetCasinoCarpetTexture(THREE, options = {}) {
@@ -20,32 +20,58 @@ export function createVelvetCasinoCarpetTexture(THREE, options = {}) {
     ctx.fillStyle = rand() > 0.54 ? 'rgba(198,145,153,0.065)' : 'rgba(7,7,20,0.11)';
     ctx.fillRect(x, y, 1, 1 + rand() * 3);
   }
-  // All motifs are periodic on a 128px lattice. Draw neighboring copies to
-  // guarantee that shapes crossing an edge continue on the opposite edge.
-  const cell = 128;
+  // A 2x2 super-cell breaks the checkerboard rhythm while remaining tileable.
+  // Paint across the edges with wrapped duplicates for seamless repeats.
+  const cell = 256;
+  const drawWrapped = (paint, x, y) => {
+    for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) paint(x + dx, y + dy);
+  };
+  // Broad, quiet burgundy pools vary the woven ground without hard grid lines.
+  for (const [x, y, radius] of [[64, 88, 115], [380, 310, 145], [150, 440, 95]]) {
+    drawWrapped((px, py) => {
+      const grad = ctx.createRadialGradient(px, py, 0, px, py, radius);
+      grad.addColorStop(0, 'rgba(116,49,72,0.19)');
+      grad.addColorStop(1, 'rgba(116,49,72,0)');
+      ctx.fillStyle = grad; ctx.fillRect(px-radius, py-radius, radius*2, radius*2);
+    }, x, y);
+  }
   const strokeDiamond = (cx, cy, radius, color, width) => {
     ctx.beginPath();
     ctx.moveTo(cx, cy - radius); ctx.lineTo(cx + radius, cy);
     ctx.lineTo(cx, cy + radius); ctx.lineTo(cx - radius, cy); ctx.closePath();
     ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
   };
-  for (let row = -1; row <= 4; row++) for (let col = -1; col <= 4; col++) {
-    const x = col * cell, y = row * cell;
-    strokeDiamond(x, y, 59, 'rgba(170,122,70,0.54)', 3);
-    strokeDiamond(x, y, 48, 'rgba(105,54,71,0.86)', 9);
-    strokeDiamond(x, y, 36, 'rgba(213,162,95,0.28)', 1.5);
-    ctx.fillStyle = '#602b42';
-    for (let p = 0; p < 8; p++) {
-      const a = p * Math.PI / 4;
-      ctx.beginPath();
-      ctx.ellipse(x + Math.cos(a)*15, y + Math.sin(a)*15, 7, 12, a, 0, Math.PI*2);
-      ctx.fill();
-    }
-    ctx.beginPath(); ctx.arc(x, y, 7, 0, Math.PI*2);
-    ctx.fillStyle = '#b18a55'; ctx.fill();
-    // Tiny corner medallions interrupt the grid without adding geometry.
-    ctx.beginPath(); ctx.arc(x + 64, y + 64, 5, 0, Math.PI*2);
-    ctx.fillStyle = '#7b4652'; ctx.fill();
+  for (let row = 0; row < 2; row++) for (let col = 0; col < 2; col++) {
+    const x = col * cell + 128 + (row % 2 ? 28 : -28);
+    const y = row * cell + 128;
+    const ornate = (row + col) % 2 === 0;
+    drawWrapped((px, py) => {
+      strokeDiamond(px, py, ornate ? 91 : 81, 'rgba(216,168,101,0.85)', 5);
+      strokeDiamond(px, py, ornate ? 74 : 66, 'rgba(112,51,71,0.90)', 12);
+      strokeDiamond(px, py, ornate ? 58 : 51, 'rgba(226,178,111,0.70)', 3);
+      if (ornate) {
+        for (let p = 0; p < 10; p++) {
+          const angle = p * Math.PI / 5;
+          ctx.beginPath();
+          ctx.ellipse(px + Math.cos(angle)*24, py + Math.sin(angle)*24,
+            10, 20, angle, 0, Math.PI*2);
+          ctx.fillStyle = p % 2 ? '#78334b' : '#9a5261';
+          ctx.fill();
+        }
+      } else {
+        ctx.beginPath(); ctx.arc(px, py, 27, 0, Math.PI*2);
+        ctx.strokeStyle = 'rgba(216,168,101,0.75)'; ctx.lineWidth = 5; ctx.stroke();
+        for (let p = 0; p < 4; p++) {
+          const angle = p * Math.PI / 2;
+          ctx.beginPath();
+          ctx.ellipse(px + Math.cos(angle)*15, py + Math.sin(angle)*15,
+            9, 16, angle, 0, Math.PI*2);
+          ctx.fillStyle = '#70374e'; ctx.fill();
+        }
+      }
+      ctx.beginPath(); ctx.arc(px, py, ornate ? 9 : 7, 0, Math.PI*2);
+      ctx.fillStyle = '#c69b61'; ctx.fill();
+    }, x, y);
   }
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
