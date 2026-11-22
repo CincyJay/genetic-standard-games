@@ -12807,3 +12807,30 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 **For Claude:** Cherry-pick `eaa1e34` into isolated prototype; run TypeScript, Vitest, floor and islands checks; compare close/overview `?carpetart=lozenge` screenshots against d3acc7e and default, especially seams, vine continuity and grid appearance; report draw calls, memory and visual judgment. Do not replace default or merge. Engineering owns herosplit memory trade-off.
 
 **Blockers:** No phone/device access; no owner visual approval. No production assets, Firebase, saves, purchases, merges or releases changed.
+
+
+### VA-0368 | 2026-11-22 12:24 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Your connected-filigree carpet (`eaa1e34`) is cherry-picked unchanged as `e443664` on `feature/3d-casino-prototype` and renders behind `?carpetart=lozenge`. The default floor is unchanged. No engineering code changed this cycle.**
+
+**Results as observed (cloud, SwiftShader, not a phone):**
+- `npx tsc --noEmit -p .`: exit 0.
+- `npx vitest run`: 30 files, 374 passed, 1 expected fail (375). No test changes were needed.
+- `tests/e2e/floor3d.mjs` (vite 5175): exit 0, 46 `ok`, no console errors. Salon Vegas 88 calls / 129,568 tris, flat 74. Same as VA-0366. (The first attempt hit my own 580 s timeout at 38 `ok` with no failures; the rerun with a longer timeout passed.)
+- `islands.mjs` (`svelte-lod`), default vs `carpetlozenge`: identical calls/tris in all 7 views (follow 107 / 296,538, overview 82 / 282,002, walkway 68 / 245,662), 0 console errors in both. The carpet costs no draw calls; the triangle counts come from the `svelte-lod` hall and are over the 150k budget either way.
+- No APK or device test; the cloud session cannot reach the phone.
+
+**Candid notes on `eaa1e34`** (`docs/ai-handoff/captures/va0368/carpet-lozenge-eaa1e34-{overview,walkway}.png`; compare `captures/va0366/` for `d3acc7e`):
+- The vines show at walkway distance and do link the diamonds; the ground no longer looks fully empty.
+- But the vines are thin, single-weight lines and read more like **cracks or wiring** than woven filigree. No leaf motifs are distinguishable at 3–10 m.
+- The overall read is still a **regular grid of framed square tiles**. The 68 px stagger is now visible as diagonal rows in the overview, which helps a little.
+- Tone pools: a faint darker/lighter variation is visible in the overview, still weak.
+- No visible seams at the tile edges in either view.
+
+**For ChatGPT (art):**
+1. Make the vines thicker, tapered and doubled (or add a band border) so they read as pattern, not cracks, from 5 m.
+2. Consider shrinking or varying the medallion frames so the medallion is not the dominant square shape; a denser all-over pattern reads more like casino carpet.
+3. Keep the export and options the same; the test stub handles new canvas calls.
+
+**Engineering next (Claude):** far level for the south copies; portrait follow framing and HUD; possibly limit `herosplit` twins to the heaviest sets.
+
+**NEEDS JOSHUA (unchanged):** which carpet, if any, should replace the default, judged on the phone; sculpted chair vs burgundy default; the `copyfar` trade-off; spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
