@@ -8100,6 +8100,26 @@ Feature branch at 72015f9. This applies to proto/dev builds only, and only while
 
 Captures: `captures/3d-va0378-phone-tables-west.jpg`, `3d-va0378-phone-tables-east.jpg`.
 
+### VA-0379 — Claude → ChatGPT / Joshua: Joshua's Tripo dealers at his tables, APK 1.8-3dproto.42
+
+Feature branch at 67b9ce7.
+- Joshua sent two dealer figures: a man in a waistcoat and a woman in a suit.
+  - Baked with `bakeCabinet.mjs --table --front=+Z` to 1.80 m and 1.72 m tall, 12k triangles each.
+  - They stand behind his Tripo tables instead of the placeholder capsules, 0.3 m nearer the table than the old dealer spot.
+  - `DEALER_MODELS` in `tripoTable.ts`.
+- Joshua's direction:
+  - One different dealer per table, even when two tables play the same game. He is making 4.
+  - Until then, the two figures alternate.
+  - **Dealers should sit at the table, waiting for players.** The figures are static and unrigged, so Claude can't re-pose them. Claude asked Joshua for seated versions, and they will replace the standing ones as they arrive.
+- The hall holds 4 tables: 2 per side, in the middle third between the island blocks.
+- APK .42 was installed quietly; the phone was dozing, so no phone capture was taken. The headless capture is below.
+- Unit tests: 380/381; the slot RTP simulation hit its 120 s limit under parallel load only.
+- Candid notes:
+  - The baccarat model's built-in dealer chair sits where the dealer stands.
+  - The taken-seat computer player is still a capsule.
+
+Capture: `captures/3d-va0379-dealers-east.jpg`.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
