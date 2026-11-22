@@ -12910,3 +12910,40 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 **Engineering next (Claude):** profile the north-end look-back (288k tris); portrait follow framing and HUD; possibly limit `herosplit` twins to the heaviest sets.
 
 **NEEDS JOSHUA (unchanged, plus one):** which carpet, if any, should replace the default, judged on the phone (`b2ba3c0` is the strongest cloud candidate); sculpted chair vs burgundy default; the `copyfar` trade-off, and now `southfar` with it (fewer triangles, plainer far end); spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
+
+
+### VA-0372 | 2026-11-22 15:12 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Nothing new from ChatGPT since VA-0370 (the art branch tip is still `b2ba3c0`, already cherry-picked). This cycle profiles the north-end look-back from VA-0371 and fixes its largest cost: `e696c76` on `feature/3d-casino-prototype` (pushed), behind a new opt-in flag `?herofacing=on`. The default floor is unchanged and no art files were touched.**
+
+**What the profile showed:** in that view (camera at z −12 looking south, `herofar=theme&southfar=on`), `debug.drawList()` put about 180k of the 288k tris in the `lod:full` batches. The camera is within the 8 m full range of the heroes, so the full set is chosen. Those batches also carry every north side-wall copy, so their box is in view even though the heroes are behind the camera.
+
+**What changed:** `artScene` now records `heroLod.heroBox`, the box of the heroes' full twins only, without the copies. With `?herofacing=on`, `world.ts` drops to the lite set when that box, grown by `HERO_FACING_MARGIN_M` (1 m), is outside the camera frustum. `stats().heroFacingLite` reports when this happens, or `null` with the flag off. One new unit test (VA-0372).
+
+**Results as observed (cloud, SwiftShader, not a phone):**
+- `npx tsc --noEmit -p .`: exit 0.
+- `npx vitest run`: 30 files, 376 passed, 1 expected fail (377). That is 375 + 1 new test.
+- `tests/e2e/floor3d.mjs` (vite 5175): exit 0, 46 `ok`, no console errors. Vegas 88 calls / 129,568 tris, framed close-up 63 / 111,286. Same as VA-0371.
+- Ad-hoc probe, not committed: grand hall, gold coffers, 1152×768, 0 console errors in every run. Figures are calls / tris.
+
+  | View (pinned camera) | `herofar=theme&southfar=on` | `+herofacing=on` | `+herofacing+copyfar+herosplit` |
+  |---|---|---|---|
+  | overview (0,4.6,6 → heroes) | 116 / 141,880 | 116 / 141,880 | 96 / 88,888 |
+  | toward heroes (z −9.5) | 76 / 147,034 | 76 / 147,034 | 76 / 146,938 |
+  | **north end looking south (z −12 → 14)** | 102 / 287,942 | **102 / 192,102** | 98 / 191,958 |
+  | north end looking west | 71 / 278,192 | 71 / 278,192 (heroes in view, stays full) | 71 / 183,988 |
+  | beside the south copies (spawn) | 83 / 191,314 | 83 / 191,314 | 82 / 138,922 |
+
+- No APK or device test; the cloud session cannot reach the phone.
+
+**Candid notes:**
+- The look-back drops by 96k tris, with no change in draw calls. The two captures (`docs/ai-handoff/captures/va0372/northlookback-{full,herofacing}.png`) look the same to me in this view; the north copies that switch to lite are at the edges of the frame or out of it.
+- It is still about 192k tris, over the 150k budget. Most of what remains is the `lod:lite` set (hero twins plus north copies, about 100k), then the hall shell and reels.
+- Looking west or east from the north end keeps the heroes in view, so they stay full (278k without `herosplit`). `herosplit` brings that to 184k.
+- There can be a lite→full swap at the edge of the screen when turning toward the heroes. The 1 m margin should mostly hide it, but this has not been checked on the phone.
+- Spawn (beside the south copies) is unchanged at about 191k without `copyfar`. Those two flags remain the levers there.
+
+**For ChatGPT (art):** nothing is needed for this change. The VA-0370/0371 requests stand: carpet ribbon hue (it reads peach, not gold) and a readable lit screen or marquee band on the far cabinet at 15–25 m.
+
+**Engineering next (Claude):** split the `lite` set into heroes vs. north copies so off-screen ones can be dropped; portrait follow framing and HUD; possibly limit `herosplit` twins to the heaviest sets.
+
+**NEEDS JOSHUA (unchanged):** which carpet, if any, should replace the default, judged on the phone (`b2ba3c0` is the strongest cloud candidate); sculpted chair vs burgundy default; the `copyfar`/`southfar` trade-off (fewer triangles, plainer far end); whether to turn on `herofacing`/`herosplit` by default after a phone check; spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
