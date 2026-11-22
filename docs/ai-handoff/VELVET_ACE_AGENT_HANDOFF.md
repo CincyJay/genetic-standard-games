@@ -12587,3 +12587,59 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 **For Claude:** Cherry-pick only `5499a69` into `feature/3d-casino-prototype`, retaining `?chair=sculpted` (singular) as opt-in. Repeat pinned rear/side/front captures and measure chair triangles, draw calls, seat alignment, caster orientation and arm height; compare with default velvet chair. Keep disabled if silhouette or performance regresses. Investigate the 391 vs 371 test-count discrepancy separately. No production changes or merges.
 
 **Blockers:** Not photorealistic, no real-phone inspection; rear channels may need further tuning after captures. No release, Firebase, saves or payments changed.
+
+### VA-0361 | 2026-11-22 08:22 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Your chair refinement (`5499a69`) is cherry-picked unchanged. The chair is still opt-in with `?chair=sculpted`, and the burgundy Velvet Ace chair is still the default.**
+
+**What changed on `feature/3d-casino-prototype`:**
+- `d7efc29`: cherry-pick (`-x`) of `5499a69` only. It touches `art/casino/3d/velvetSculptedGamingChair.mjs` and nothing else.
+- `4c9e7e7`: re-pinned the sculpted-chair unit test (test file only):
+  - 2,404 tris, 27 meshes, 4 materials (was 2,096 / 24 / 4).
+  - Arm-pad top 0.902 m.
+  - caster-1 now spans more than 7 cm in Z, so it turns with its spoke.
+  - Seat top and plan reach are unchanged.
+- No runtime engineering code changed this cycle.
+
+**Results as observed:**
+- `npx tsc --noEmit -p .` (games/casino): exit 0.
+- `npx vitest run` (games/casino): 30 files, 371 passed, 1 expected fail (372).
+  - One extra run failed a single `?farscreentex` test on its 5 s timeout. That run was alongside the e2e and the CPU was saturated. The next run, with nothing alongside it, passed.
+- Root `npx vitest run`: 33 files, 392 passed, 1 expected fail.
+- **391 vs 371 explained:** VA-0356's 391 came from the repo root, which also runs 3 non-casino test files (21 tests). The 371/372 count is games/casino alone. Root went from 391 to 392 because `86df6f2` added one sculpted-chair test. No tests were lost.
+- `tests/e2e/floor3d.mjs` (vite on 5175, SwiftShader): exit 0, 46 `ok` lines, "no console errors" passed.
+  - Salon Vegas: 88 draw calls, 129,568 triangles. Framed close-up: 63 calls, 111,286 triangles. Same as VA-0359.
+  - A first attempt was stopped by my own 500 s `timeout` wrapper. It did not fail an assertion.
+- `chairCloseup.mjs velvet,sculpted` (grand hall), same pinned cameras, 0 console errors:
+
+  | View | Velvet (default) | Sculpted (5499a69) | Sculpted before (269653b) |
+  |---|---|---|---|
+  | rear | 60 / 175,082 | 59 / 158,842 | 59 / 156,378 |
+  | side | 64 / 180,816 | 63 / 164,576 | 63 / 162,112 |
+  | front | 70 / 133,326 | 69 / 117,086 | 69 / 114,622 |
+
+  The refinement adds about 2.5k triangles per view and no draw calls. The grand-hall close-ups are still over the 150k budget with either chair; that comes from the hall, not the chair.
+- No APK or device test (the cloud session cannot reach the phone).
+- Captures are SwiftShader, not a phone: `docs/ai-handoff/captures/va0361/chair-{velvet,sculpted}-{side,rear}.png`.
+
+**Measured on the chair, and candid notes from the captures:**
+- **Fixed:**
+  - Arm pads now span y 0.818–0.902, about 0.21–0.25 m above the 0.65 m seat. They no longer read as a throne.
+  - The box slab is gone. The elliptical pan (y 0.465–0.503) sits inside the cushion's footprint.
+  - The casters turn with their spokes.
+  - Facing is still correct.
+- **Arm supports go through the cushion.** Each support now runs y 0.53–0.85 at x ±0.295. The cushion spans y 0.44–0.65 and x ±0.305, so the lower ~12 cm of each support passes through the cushion's outer edge. In the side capture it reads as a black bar across the front of the seat. Before this change the support started at 0.65 and did not do this.
+- **The rear channels don't follow the tilted back.**
+  - Each channel is a straight, untilted sliver at z −0.349 running y 0.82–1.37. The back ellipsoid is tilted −0.11 rad, so at x = 0 its rear surface is at z −0.303 (y 0.82), −0.331 (y 0.95), −0.352 (y 1.095) and −0.362 (y 1.25).
+  - Result: the lower part of each channel floats up to ~4.6 cm behind the back, and the upper part sinks inside it.
+  - Measured inside the back ellipsoid: centre channel 33/63 vertices, side channels 17/63 each.
+  - In the rear capture they show as broken dark slashes, not continuous channels. In the side capture the floating lower end shows as a thin black line behind the back.
+- Collision: plan reach is still 0.432 m (the arm-pad tips), so I kept the 0.38 m circle.
+
+**For ChatGPT (art):**
+1. Start the arm supports at or above the cushion's top edge (y ≥ 0.65), or move them outboard of x ±0.305. Right now they pass through the seat.
+2. Give the rear channels the back's −0.11 rad X tilt, and push them out along the surface normal (≈ +0.004 m beyond the surface). Or make them follow the ellipsoid's curve. Right now they float at the bottom and are buried at the top.
+3. Keep the export name and file. I'll re-pick and re-pin.
+
+**Engineering next (Claude):** a far level for the south copies; portrait follow framing and HUD; the grand-hall close-up triangle count (over 150k).
+
+**NEEDS JOSHUA (unchanged):** whether the sculpted chair should ever replace the burgundy default. It stays opt-in. Nothing here is a finished or premium look. It has only been checked in SwiftShader captures, not on the phone.
