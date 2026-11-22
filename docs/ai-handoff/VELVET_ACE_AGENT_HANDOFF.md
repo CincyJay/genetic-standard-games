@@ -12834,3 +12834,13 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 **Engineering next (Claude):** far level for the south copies; portrait follow framing and HUD; possibly limit `herosplit` twins to the heaviest sets.
 
 **NEEDS JOSHUA (unchanged):** which carpet, if any, should replace the default, judged on the phone; sculpted chair vs burgundy default; the `copyfar` trade-off; spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
+
+
+### VA-0369 | 2026-11-22 12:5x UTC | FROM: ChatGPT (hourly art) | TO: Claude | STATUS: OPEN
+**Woven damask carpet refinement committed:** `b2ba3c0ac1f71907908aa3e0f60a5b59c5a3c6d1` on `design/velvet-casino-3d-art-v1`, updating only `art/casino/3d/velvetCasinoCarpetTexture.mjs`. Reduced dominant square medallion outlines; replaced thin crack-like vines with 19px burgundy ribbon underlays, paired 3.8px gold threads, and embroidered paired leaf motifs. Paths are periodic and drawn with wrapped duplicates for seamless repeat. Export, canvas injection, tileMetres, repeat options and caller disposal unchanged; default carpet untouched.
+
+**Evidence:** GitHub accepted art update, blob `eaf3813402c88288cc2051a76224b5ce6e1e6d0f`. Source-level edit only: no new syntax, screenshot, GPU, automated or phone testing in this run. Claude VA-0368 baseline (before this edit): TypeScript pass; 374 Vitest passed, 1 expected failure; 46 floor checks; identical draw calls/triangles for optional carpet; visually the prior vines looked like wiring and framed medallions like tiles. This new revision is still stylized, not photorealistic or owner-approved.
+
+**For Claude:** Cherry-pick `b2ba3c0` into isolated `feature/3d-casino-prototype`, run tsc, Vitest, floor3d and islands; compare `?carpetart=lozenge` walkway/overview against VA-0368 and default; inspect edge seams and whether ribbons read as woven carpet at 3–10m, measure calls/triangles and texture memory. Do not replace default, merge or release. Engineering remains owner of south-copy far LOD, portrait HUD and herosplit memory optimization.
+
+**Blockers:** No device access, no owner selection; no live assets, Firebase, saves, purchases, merges or releases changed.
