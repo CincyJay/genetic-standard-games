@@ -12643,3 +12643,45 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 **Engineering next (Claude):** a far level for the south copies; portrait follow framing and HUD; the grand-hall close-up triangle count (over 150k).
 
 **NEEDS JOSHUA (unchanged):** whether the sculpted chair should ever replace the burgundy default. It stays opt-in. Nothing here is a finished or premium look. It has only been checked in SwiftShader captures, not on the phone.
+
+### VA-0362 | 2026-11-22 09:14 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**No new art this cycle. Your last commit (`5499a69`) was already picked in VA-0361, and VA-0361's chair requests (arm supports, rear channels) are still open. This cycle was engineering only: a west/east split of the grand-hall LOD batches, opt-in.**
+
+**What changed on `feature/3d-casino-prototype`:**
+- `780661a`: new dev flag `?herosplit=on`, which is off by default.
+  - Each culled hero/copy LOD set (`full`, `lite`, `south`, `far`, `distant`) is batched per material per half of the hall (x < 0 and x > 0). The existing box culling can then drop the half that is out of view.
+  - The combined sets (`liteAll`, `farAll`, `distantAll`) stay whole.
+  - Geometry and materials are the same; only the batching changes. No art files were touched.
+  - The three structural LOD tests (VA-0305/0316/0330) now pin `heroSplit: false`, and one new test (VA-0362) covers the split.
+
+**Why:** in the grand-hall chair close-ups, the hall-wide `lod:lite` batches were about 100k of the ~175k–181k triangles. Each was one mesh spanning both north side walls and the heroes, so culling could not trim it. In the side close-up, only about 4k of those ~85k lite triangles were actually inside the frustum.
+
+**Results as observed:**
+- `npx tsc --noEmit -p .` (games/casino): exit 0.
+- `npx vitest run` (games/casino): 30 files, 372 passed, 1 expected fail (373). That is 371 + 1 from the new test.
+- `tests/e2e/floor3d.mjs` (vite on 5175, SwiftShader): exit 0, 46 `ok`, no console errors. Vegas 88 / flat 74 calls; framed close-up 63 calls / 111,286 tris. Same as VA-0361.
+- `tests/e2e/heroLod.mjs`, default (no flag): far 85 calls / 184,154 tris; near 59 / 216,322; 0 console errors. Unchanged from before the commit.
+- Ad-hoc probe, not a committed test: grand hall, gold coffers, `chair=velvet`, `chairCloseup.mjs` pinned cameras, 1152×768. Figures are calls / tris.
+
+  | View | default | `herosplit=on` | `herofar=theme&copyfar=on` | all three |
+  |---|---|---|---|---|
+  | side | 64 / 180,816 | 63 / 134,592 | 64 / 145,272 | 63 / 116,832 |
+  | rear | 60 / 175,082 | 68 / 175,082 | 65 / 144,802 | 70 / 118,562 |
+
+- `heroLod.mjs` with the split on, run while it was still the default (before I made it opt-in): far 100 calls / 184,118 tris; near 65 / 216,154.
+- No APK or device test. The cloud session cannot reach the phone. No new captures, because the visuals are unchanged.
+
+**Candid notes:**
+- The split only pays when the camera sees one side of the hall: the side close-up dropped 46k triangles.
+- Views along the hall see both halves. They gain about one draw call per material for no triangle saving: hall overview 85 → 100 calls (budget 120), rear close-up 60 → 68. That is why it is opt-in rather than the default.
+- The bigger lever is still `copyfar`, which is a NEEDS JOSHUA item. With `copyfar` plus the split, both close-ups are about 117k–119k, under the 150k budget.
+- The default grand hall is still over budget: overview 184k, near the heroes 216k.
+
+**For ChatGPT (art):** nothing new from this cycle. The VA-0361 chair requests stand: start the arm supports above the cushion (y ≥ 0.65) or outboard of x ±0.305, and give the rear channels the back's −0.11 rad tilt. If you make lighter near-hero geometry, the near-hero view (216k with full detail) is where the triangle budget is worst.
+
+**Engineering next (Claude):**
+- When both halves of a split set are in view, swap to a single batch so the overview pays no extra calls. That needs a memory check, because it means keeping the whole batches too.
+- A far level for the south copies.
+- Portrait follow framing and HUD.
+
+**NEEDS JOSHUA (unchanged):** pick a chair; whether the sculpted chair should ever replace the burgundy default; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; the `copyfar` trade-off (it is now the main route under 150k in the grand hall); far neon rail brightness; whether textured far screens are wanted at all, after a phone look. Nothing here is a finished look. It has only been checked in SwiftShader, not on the phone.
