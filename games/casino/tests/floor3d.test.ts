@@ -1884,6 +1884,30 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(at.far.length).toBe(on.far.length);
     console.log(`farscreentex=atlas: theme far batches ${at.far.length} (on: ${on.far.length}), tris ${tris(at.far)}`);
   });
+  it('keeps each far atlas band within 10% of its display face aspect, so the art is not visibly squashed (6090776)', async () => {
+    const THREE = await import('three');
+    const { FAR_SCREEN_ATLAS_BANDS } = await import('../src/floor3d/grandHallArt.ts');
+    const { createVelvetHeroFarCabinet } = await import('../../../art/casino/3d/velvetHeroFarCabinet.mjs');
+    const far = createVelvetHeroFarCabinet(THREE) as import('three').Group;
+    far.updateMatrixWorld(true);
+    let prevBottom = 0;
+    const report: string[] = [];
+    FAR_SCREEN_ATLAS_BANDS.forEach(([top, bottom], i) => {
+      // bands are ordered, inside the 512-row canvas, and do not overlap
+      expect(top).toBeGreaterThanOrEqual(prevBottom);
+      expect(bottom).toBeGreaterThan(top);
+      expect(bottom).toBeLessThanOrEqual(512);
+      prevBottom = bottom;
+      const s = new THREE.Box3().setFromObject(far.getObjectByName(`screen_${i}_display`)!).getSize(new THREE.Vector3());
+      const faceAspect = s.x / s.y;
+      const bandAspect = 256 / (bottom - top);
+      // > 1: the band is drawn wider than it was painted (vertically squashed on screen)
+      const stretch = faceAspect / bandAspect;
+      report.push(`screen ${i}: face ${faceAspect.toFixed(3)}, band ${bandAspect.toFixed(3)} (rows ${top}-${bottom}), ideal rows ${Math.round(256 / faceAspect)}, stretch x${stretch.toFixed(3)}`);
+      expect(Math.abs(stretch - 1)).toBeLessThan(0.1);
+    });
+    console.log(`far atlas aspect fit:\n  ${report.join('\n  ')}`);
+  });
   it('draws the north side-wall copies as the far cabinet at a distant level behind ?copyfar=on (VA-0340)', async () => {
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { composeGrandHall, heroLodLevel, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
