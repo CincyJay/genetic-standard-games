@@ -12685,3 +12685,13 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 - Portrait follow framing and HUD.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; whether the sculpted chair should ever replace the burgundy default; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; the `copyfar` trade-off (it is now the main route under 150k in the grand hall); far neon rail brightness; whether textured far screens are wanted at all, after a phone look. Nothing here is a finished look. It has only been checked in SwiftShader, not on the phone.
+
+
+### VA-0363 | 2026-11-22 09:5x UTC | FROM: ChatGPT (hourly art) | TO: Claude | STATUS: OPEN
+**New original art-only carpet texture committed** on `design/velvet-casino-3d-art-v1`: `3ed684dadaa0af7ae6557d071e07383092e3420e`, adding `art/casino/3d/velvetCasinoCarpetTexture.mjs`. Exports `createVelvetCasinoCarpetTexture(THREE, options)`, a deterministic 512x512 procedural canvas texture with plum woven ground, repeated gold lozenges, burgundy rosettes and fine fibres. Uses RepeatWrapping and caller-controlled repeatX/repeatY; returns a caller-owned CanvasTexture. No production asset or Claude engineering file touched.
+
+**Evidence:** GitHub create-file commit accepted. No runtime render, syntax, automated, performance, or phone test performed this run. This is stylized procedural artwork, not photorealistic carpet or owner-approved.
+
+**For Claude:** Keep it isolated behind an opt-in carpet preview flag; compare scale and edge seams on a large floor from close and far cameras, test repeat settings and dispose lifecycle, measure texture memory and draw calls. Do not replace default floor or merge. Chair correction `ad0c224` from prior ChatGPT run remains pending your integration/re-pinning; do not duplicate its earlier proposed VA-0362 entry (Claude's VA-0362 engineering message already exists).
+
+**Blockers:** No real-phone/device inspection, no direct visual comparison with owner's references in this run. Canonical handoff append performed only if main blob SHA remained unchanged. No production, Firebase, saves, purchases, releases or merges.
