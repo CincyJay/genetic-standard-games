@@ -12529,3 +12529,50 @@ The top screen's text is still squeezed, though less than in revision 1. If you 
 **For Claude:** Cherry-pick only `269653b` into `feature/3d-casino-prototype`; wire as optional `?chairs=sculpted` without changing default `?chairs=velvet`, the existing chair/logo, or production. Measure actual triangles/draw calls and collision footprint, test seat alignment and facing, and capture landscape/portrait reference comparisons. If performance or appearance fails, keep disabled. Do not cherry-pick `cd445ed` (conflicting old filename).
 
 **Blockers:** Photorealism, integration, real-device visuals and measured performance remain unverified. No merge/release/Firebase/save/payment changes.
+
+### VA-0359 | 2026-11-22 07:10 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Your sculpted chair (`269653b`) is merged unchanged and can be turned on with `?chair=sculpted`. The default is still the burgundy Velvet Ace chair.**
+
+**What changed on `feature/3d-casino-prototype`:**
+- `892c4eb`: cherry-pick (`-x`) of `269653b` only. `cd445ed` was not taken.
+- `86df6f2`:
+  - Added `sculpted` to `ChairStyle`, `chairStyleFrom` and the chair factory in `chairAt`, plus a ⚙ button label. The ⚙ cycle now goes … → casino → sculpted → velvet.
+  - Fixed an orientation bug in engineering code. Your `userData.forward` is the vector `[0, 0, 1]`, but `chairAt` turned it into the string "0,0,1" and treated it as −Z. That gave every sculpted chair a half turn, so they would have faced away from their tables. The new `forwardIsPlusZ()` accepts both strings and vectors. No art changes needed.
+  - Added `velvet` and `sculpted` to `tests/e2e/chairCloseup.mjs`.
+  - Note: the URL parameter is `?chair=` (singular), not `?chairs=`.
+
+**Results as observed:**
+- `npx tsc --noEmit -p .`: exit 0.
+- `npx vitest run`: 30 files, 371 passed, 1 expected fail (372 tests). VA-0356 reported 391 passed; I don't know why this run counted fewer.
+- `tests/e2e/floor3d.mjs` (vite on 5175, SwiftShader): exit 0, 46 `ok` lines, no console errors. Salon Vegas: 88 draw calls and 129,568 triangles. Framed close-up: 63 draw calls and 111,286 triangles. This e2e opens the salon, so it does not show the sculpted chair.
+- `chairCloseup.mjs velvet,sculpted` (grand hall, warm light, gold coffers), same pinned cameras:
+
+  | View | Velvet (default) | Sculpted |
+  |---|---|---|
+  | rear | 60 calls / 175,082 tris | 59 / 156,378 |
+  | side | 64 / 180,816 | 63 / 162,112 |
+  | front | 70 / 133,326 | 69 / 114,622 |
+
+  Sculpted is about 18.7k triangles and 1 draw call lighter. The grand-hall close-ups are over the 150k budget with either chair; that comes from the hall, not the chair.
+- No APK or device test was done (the cloud session cannot reach the phone). The captures are SwiftShader, not a phone: `docs/ai-handoff/captures/va0359/chair-{velvet,sculpted}-{side,rear}.png`.
+
+**Measured on the chair:** 2,096 triangles, 24 meshes, 4 materials. Seat-cushion top is 0.650 m, which matches `SEAT_HEIGHT`. Lowest point y ≥ 0. Clones share geometry, so they batch. Plan reach from the pedestal axis is 0.432 m (front tips of the arm pads), against the 0.38 m collision circle. The pads poke about 5 cm past it toward the table side, which is not walkable, so I kept r = 0.38.
+
+**Candid notes from the captures:**
+- Facing is now correct (back away from the table).
+- The arm pads are at y ≈ 0.98, about 33 cm above the seat. That reads high, like a throne.
+- The square black seat pan (0.59 × 0.58 m box) shows as a flat slab under the round cushion in the side and rear views.
+- The backrest reads as a plain egg-shaped oval from behind. There is no stitching or panel detail, so it is still not slot-casino premium.
+- The five caster cylinders all keep their axis along X instead of turning with their spoke.
+
+**For ChatGPT (art):**
+1. Arm pads lower, to about y 0.85–0.88.
+2. A rounded or hidden seat pan instead of the box slab.
+3. Rotate each caster about Y to follow its spoke.
+4. Optional: rear panel detail (tufting or a channel) so the back isn't a bare oval.
+
+Keep the same file and export name; I'll re-pick the commit and update the pinned counts.
+
+**Engineering next (Claude):** a far level for the south copies; portrait follow framing and HUD; the grand-hall close-up triangle count (over 150k).
+
+**NEEDS JOSHUA:** whether the sculpted chair should ever replace the burgundy default. It stays opt-in. Earlier open items are unchanged (VA-0357).
