@@ -10,7 +10,7 @@
  * the meshes the art module builds. Coordinates as in that module: X across the hall, Z down it
  * (+Z is the entrance end, where the player starts), Y up, origin at the centre of the floor.
  */
-import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, salonLayout, TABLE, type FloorLayout, type Hall, type Obstacle, type Seat, type SlotPlacement, type Vec2 } from './layout.ts';
+import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, salonLayout, TABLE, type FloorLayout, type Hall, type Obstacle, type Seat, type SlotPlacement, type TableGame, type Vec2 } from './layout.ts';
 import { CASINO_WORLD } from '../../../../art/casino/3d/worldComposition.mjs';
 
 export interface GrandHallSpec {
@@ -28,6 +28,8 @@ export interface HallTable {
   id: string;
   x: number;
   z: number;
+  /** The game its seats open (blackjack when missing). */
+  game?: TableGame;
 }
 
 export interface HallSlot {
@@ -135,7 +137,7 @@ function tableSeats(t: HallTable, first: boolean): Seat[] {
     const z = t.z + a.position[1];
     return {
       id: `${t.id}-${sid}`,
-      game: 'blackjack' as const,
+      game: t.game ?? 'blackjack',
       x,
       z,
       approach: { x: t.x + a.approach[0], z: t.z + a.approach[1] },
@@ -162,7 +164,7 @@ export const SPAWN_FROM_ENTRANCE = 3.5;
  * - slot banks with their backs to the side walls in the back and front thirds, facing the hall;
  * - the spawn on the promenade near the entrance end, facing down the hall.
  */
-export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: number; islands?: boolean; islandDir?: IslandDir } = {}): GrandHallLayout {
+export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: number; islands?: boolean; islandDir?: IslandDir; tableGames?: readonly TableGame[] } = {}): GrandHallLayout {
   const spec = resolveSpec(opts);
   const { width, length, height, aisleWidth } = spec;
   const wallX = width / 2 - WALL_REACH;
@@ -239,7 +241,7 @@ export function grandHallLayout(opts: Partial<GrandHallSpec> & { backRow?: numbe
     for (let i = 0; i < nTables; i++) {
       // offset so each table's back-to-front span is centred in the middle third
       const z = -((nTables - 1) * tablePitch) / 2 + i * tablePitch + (TABLE_SPAN.back - TABLE_SPAN.front) / 2;
-      tables.push({ id: `bj-${side < 0 ? 'w' : 'e'}${i + 1}`, x: side * tableX, z });
+      tables.push({ id: `bj-${side < 0 ? 'w' : 'e'}${i + 1}`, x: side * tableX, z, game: opts.tableGames?.[tables.length] ?? 'blackjack' });
     }
   const seats = tables.flatMap((t, i) => tableSeats(t, i === 0));
 
@@ -305,8 +307,8 @@ export const GRAND_SPAWN = grandHallLayout(GRAND_SPEC).spawn;
  * - The end-wall row holds one interactive machine per theme (reels, spin button, marquee).
  *   The side banks are decorative copies, themes in turn.
  */
-export function grandFloorLayout(opts: { islands?: boolean; islandDir?: IslandDir } = {}): FloorLayout {
-  const l = grandHallLayout({ ...GRAND_SPEC, islands: opts.islands, islandDir: opts.islandDir });
+export function grandFloorLayout(opts: { islands?: boolean; islandDir?: IslandDir; tableGames?: readonly TableGame[] } = {}): FloorLayout {
+  const l = grandHallLayout({ ...GRAND_SPEC, islands: opts.islands, islandDir: opts.islandDir, tableGames: opts.tableGames });
   const themes = CASINO_WORLD.slots.map((s: { id: string }) => s.id);
   const end = l.slots.filter((s) => s.id.startsWith('end-'));
   const side = l.slots.filter((s) => !s.id.startsWith('end-'));
@@ -319,7 +321,7 @@ export function grandFloorLayout(opts: { islands?: boolean; islandDir?: IslandDi
     hall: 'grand',
     // the follow camera stays under the coffer beams (hallCameraClamp): the room's height is theirs
     room: { ...l.bounds, wallHeight: height - 0.32 },
-    table: { ...TABLE, x: first.x, z: first.z },
+    table: { ...TABLE, x: first.x, z: first.z, game: first.game },
     seats: l.seats,
     dealer: dealerOf(first),
     spawn: l.spawn,
@@ -327,7 +329,7 @@ export function grandFloorLayout(opts: { islands?: boolean; islandDir?: IslandDi
     obstacles: l.obstacles,
     // under the art's two ring chandeliers
     lamps: [-length / 4, length / 4].map((z) => ({ x: 0, y: height - 1.6, z })),
-    decor: { tables: others.map((t) => ({ x: t.x, z: t.z })), slots: decorSlots, dealers: others.map(dealerOf) },
+    decor: { tables: others.map((t) => ({ x: t.x, z: t.z, game: t.game })), slots: decorSlots, dealers: others.map(dealerOf) },
     hallSpec: l.spec,
   };
 }
@@ -351,6 +353,6 @@ export function lampsForCeiling(lamps: readonly { x: number; y: number; z: numbe
  * Svelte machines; the classic machines keep their wall banks), crosswise unless `islandDir` is
  * 'along' (the VA-0197 long islands down each side). The salon has no room for islands.
  */
-export function layoutFor(hall: Hall, pilot05: boolean, blackjackHero: boolean, opts: { islands?: boolean; islandDir?: IslandDir } = {}): FloorLayout {
+export function layoutFor(hall: Hall, pilot05: boolean, blackjackHero: boolean, opts: { islands?: boolean; islandDir?: IslandDir; tableGames?: readonly TableGame[] } = {}): FloorLayout {
   return hall === 'grand' ? grandFloorLayout(opts) : salonLayout(pilot05, blackjackHero);
 }

@@ -46,6 +46,13 @@ export class RouletteScene extends Phaser.Scene {
     super('roulette');
   }
 
+  /** Where its back button goes: the 3D floor when a floor seat opened it, else the tables room. */
+  private from: 'room' | 'floor3d' = 'room';
+
+  init(data: { from?: string }): void {
+    this.from = data?.from === 'floor3d' ? 'floor3d' : 'room';
+  }
+
   create(): void {
     const w = VW;
     const h = VH;
@@ -60,7 +67,7 @@ export class RouletteScene extends Phaser.Scene {
     this.spinning = false;
     this.marker = null;
     this.refresh = coinBar(this, 'Roulette', () => {
-      if (!this.spinning) this.scene.start('room', { room: 'tables' });
+      if (!this.spinning) (this.from === 'floor3d' ? this.scene.start('floor3d') : this.scene.start('room', { room: 'tables' }));
     }, 'roulette');
     this.recentRow = this.add.container(0, 240);
     this.drawRecent();

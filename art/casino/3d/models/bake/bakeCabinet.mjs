@@ -7,7 +7,7 @@
  *
  * Usage:
  *   node bakeCabinet.mjs <in.glb> <out.glb> --front=+X|-X|+Z|-Z [--crop=x0,x1,z0,z1] [--scale=S | --height=H]
- *        [--squeeze=1] [--depth=1] [--maxWidth=0.70] [--near=6000] [--far=800] [--farError=0.02] [--colour=2048] [--maps=1024]
+ *        [--squeeze=1] [--depth=1] [--width=W] [--table] [--maxWidth=0.70] [--near=6000] [--far=800] [--farError=0.02] [--colour=2048] [--maps=1024]
  *
  * - `--crop` keeps only triangles whose centroid lies in that model-space X/Z box (for a model that
  *   is a whole bank or scene); omit it for a single cabinet.
@@ -18,6 +18,8 @@
  * - `--squeeze` / `--depth` narrow / thin the cabinet by that factor after scaling (Joshua's OK,
  *   2026-11-22: tweak a model to fit the bank, keep its design), so a squat, wide model can stand
  *   tall without taking two bank spots. Normals are corrected for the stretch.
+ * - Tables (2026-11-22): `--table` centres the model on X and Z instead of backing it on the wall
+ *   line, and `--width=W` scales it so it is W metres across X (its front, the players' side, +Z).
  * - Two meshes in one GLB sharing one material: `tripo_cabinet_near` (~`--near` triangles) and
  *   `tripo_cabinet_far` (~`--far`). Colour texture `--colour`², normal and ORM `--maps`².
  * - Prints the cabinet's size and its front's z, which the floor's model list needs (frontZ).
@@ -76,15 +78,17 @@ async function level(name, targetTris) {
   const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
   for (let i = 0; i < P2.length; i += 3) for (let c = 0; c < 3; c++) { mn[c] = Math.min(mn[c], P2[i + c]); mx[c] = Math.max(mx[c], P2[i + c]); }
   const size = [mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]];
-  let s = arg('scale', null) ? +arg('scale') : arg('height', null) ? +arg('height') / size[1] : 1.74 / size[1];
+  const isTable = rest.includes('--table');
+  let s = arg('width', null) ? +arg('width') / size[0] : arg('scale', null) ? +arg('scale') : arg('height', null) ? +arg('height') / size[1] : 1.74 / size[1];
   const sq = +arg('squeeze', 1), dp = +arg('depth', 1);
-  if (size[0] * s * sq > maxWidth) s = maxWidth / (size[0] * sq);
+  if (!isTable && size[0] * s * sq > maxWidth) s = maxWidth / (size[0] * sq);
   const sx = s * sq, sz = s * dp;
   const cx = (mn[0] + mx[0]) / 2;
   for (let i = 0; i < P2.length; i += 3) {
     P2[i] = (P2[i] - cx) * sx;
     P2[i + 1] = (P2[i + 1] - mn[1]) * s;
-    P2[i + 2] = (P2[i + 2] - mn[2]) * sz + BACK_Z; // back (min z after the turn) at BACK_Z
+    // back (min z after the turn) at BACK_Z; a table is centred instead
+    P2[i + 2] = isTable ? (P2[i + 2] - (mn[2] + mx[2]) / 2) * sz : (P2[i + 2] - mn[2]) * sz + BACK_Z;
     // a stretch scales normals by its inverse
     const nx = N2[i] / sq, ny = N2[i + 1], nz = N2[i + 2] / dp, l = Math.hypot(nx, ny, nz) || 1;
     N2[i] = nx / l; N2[i + 1] = ny / l; N2[i + 2] = nz / l;
@@ -105,7 +109,7 @@ async function level(name, targetTris) {
     compactPrimitive(prim);
   }
   const tris = prim.getIndices().getCount() / 3;
-  return { doc, tris, size: [size[0] * sx, size[1] * s, size[2] * sz].map((v) => +v.toFixed(3)), scale: +s.toFixed(4), frontZ: +(size[2] * sz + BACK_Z).toFixed(3) };
+  return { doc, tris, size: [size[0] * sx, size[1] * s, size[2] * sz].map((v) => +v.toFixed(3)), scale: +s.toFixed(4), frontZ: +(isTable ? (size[2] * sz) / 2 : size[2] * sz + BACK_Z).toFixed(3) };
 }
 
 const near = await level('tripo_cabinet_near', nearTris);

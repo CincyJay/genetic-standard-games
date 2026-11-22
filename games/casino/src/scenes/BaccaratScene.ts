@@ -37,11 +37,18 @@ export class BaccaratScene extends Phaser.Scene {
     super('baccarat');
   }
 
+  /** Where its back button goes: the 3D floor when a floor seat opened it, else the tables room. */
+  private from: 'room' | 'floor3d' = 'room';
+
+  init(data: { from?: string }): void {
+    this.from = data?.from === 'floor3d' ? 'floor3d' : 'room';
+  }
+
   create(): void {
     frame(this);
     backdrop(this, 'table-baccarat');
     this.refresh = coinBar(this, 'Baccarat', () => {
-      if (!this.busy) this.scene.start('room', { room: 'tables' });
+      if (!this.busy) (this.from === 'floor3d' ? this.scene.start('floor3d') : this.scene.start('room', { room: 'tables' }));
     }, 'baccarat');
     this.cards = [];
     this.totals = null;

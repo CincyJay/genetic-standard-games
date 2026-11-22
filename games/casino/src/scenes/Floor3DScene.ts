@@ -95,9 +95,10 @@ export class Floor3DScene extends Phaser.Scene {
           savePrefs(prefs);
           void applyFloorRotation(rotate);
         },
-        onSit: (_seat, s) => {
+        onSit: (seat, s) => {
           this.registry.set(STATE_KEY, s);
-          this.leave('blackjack', { from: 'floor3d' });
+          // each table's seats open its own game (Joshua's Tripo tables bring roulette and baccarat)
+          this.leave(seat.game, { from: 'floor3d' });
         },
         onBack: (s) => {
           this.registry.set(STATE_KEY, s);

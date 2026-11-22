@@ -397,6 +397,8 @@ export interface ArtOptions {
   /** With svelteLod: ChatGPT's slim family at every distance (near shell + 4530e71 mid/far LOD, VA-0226); dev opt-in. */
   slimLod?: boolean;
   /** With the Svelte machines: Joshua's Tripo cabinets (near and far levels each, tripoCabinet.ts) in place of the Svelte cabinet; bank spots pick theirs by `BankSlot.model`. */
+  /** Joshua's Tripo tables, one maker per grand-hall table in layout order (the first is `layout.table`). */
+  tripoTables?: readonly (() => THREE.Group)[];
   tripoCabinet?: readonly { near: THREE.Object3D; far: THREE.Object3D }[];
   /** Grand hall only: its own ceiling, or ChatGPT's gold coffers and chandeliers (VA-0175). */
   ceiling?: CeilingStyle;
@@ -572,7 +574,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
-    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, heroFarTheme: opts.heroFarTheme, heroFarScreen: opts.heroFarScreen, heroFarGlow: opts.heroFarGlow, copyFar: opts.copyFar, southFar: opts.southFar, heroFarScreenTex: opts.heroFarScreenTex, screenCanvas: opts.farScreenCanvas });
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, heroFarTheme: opts.heroFarTheme, heroFarScreen: opts.heroFarScreen, heroFarGlow: opts.heroFarGlow, copyFar: opts.copyFar, southFar: opts.southFar, heroFarScreenTex: opts.heroFarScreenTex, screenCanvas: opts.farScreenCanvas, tripoTables: opts.tripoTables });
     art = grand.root;
     art.updateMatrixWorld(true);
     art.traverse((o) => {

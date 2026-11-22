@@ -40,10 +40,13 @@ export interface BoxObstacle {
 
 export type Obstacle = CircleObstacle | BoxObstacle;
 
+/** The table games a floor seat can open (Joshua's Tripo tables bring roulette and baccarat). */
+export type TableGame = 'blackjack' | 'roulette' | 'baccarat';
+
 export interface Seat {
   id: string;
   /** The game this seat opens. */
-  game: 'blackjack';
+  game: TableGame;
   /** Where the avatar's hips sit (floor position; seat height is SEAT_HEIGHT). */
   x: number;
   z: number;
@@ -268,6 +271,8 @@ export interface SlotPlacement {
 export interface TablePlacement {
   x: number;
   z: number;
+  /** The game its seats open (blackjack when missing). */
+  game?: TableGame;
 }
 
 /** Everything gameplay needs about one floor, from one description. */
@@ -275,7 +280,7 @@ export interface FloorLayout {
   hall: Hall;
   room: Readonly<RoomBounds>;
   /** The table the seats open (blackjack). */
-  table: typeof TABLE;
+  table: typeof TABLE & { game?: TableGame };
   seats: Seat[];
   dealer: Vec2;
   spawn: { x: number; z: number; heading: number };

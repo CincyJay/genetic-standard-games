@@ -696,9 +696,10 @@ export function chairAt(name: string, x: number, z: number, tx: number, tz: numb
   return chair;
 }
 
-function tableWithChairs(t: TablePlacement, chairNames: [string, string], style: ChairStyle, lodTemplates: Map<ChairStyle, THREE.Group>): THREE.Group {
+function tableWithChairs(t: TablePlacement, chairNames: [string, string], style: ChairStyle, lodTemplates: Map<ChairStyle, THREE.Group>, make?: () => THREE.Group): THREE.Group {
   const g = new THREE.Group();
-  const table = makeVelvetBlackjackHero(THREE) as THREE.Group;
+  // Joshua's Tripo table when one is given (players' side +Z like the hero's), else the hero table
+  const table = make ? make() : (makeVelvetBlackjackHero(THREE) as THREE.Group);
   table.position.set(t.x, 0, t.z);
   g.add(table);
   Object.values(BLACKJACK_HERO_ANCHORS.seats).forEach((a, i) => g.add(chairAt(chairNames[i], t.x + a.position[0], t.z + a.position[1], t.x, t.z, style, lodTemplates)));
@@ -707,7 +708,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean; southFar?: boolean; heroFarScreenTex?: FarScreenTexMode; screenCanvas?: () => unknown },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean; southFar?: boolean; heroFarScreenTex?: FarScreenTexMode; screenCanvas?: () => unknown; tripoTables?: readonly (() => THREE.Group)[] },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -787,8 +788,8 @@ export function composeGrandHall(
   // tables: the interactive one's chairs are the seats' (named like the salon's), the rest decor
   const chairStyle = opts.chairStyle ?? readChairStyle();
   const lodTemplates = new Map<ChairStyle, THREE.Group>();
-  root.add(tableWithChairs(layout.table, ['blackjack_1_chair', 'blackjack_2_chair'], chairStyle, lodTemplates));
-  layout.decor.tables.forEach((t, i) => root.add(tableWithChairs(t, [`deco_${i + 1}a_chair`, `deco_${i + 1}b_chair`], chairStyle, lodTemplates)));
+  root.add(tableWithChairs(layout.table, ['blackjack_1_chair', 'blackjack_2_chair'], chairStyle, lodTemplates, opts.tripoTables?.[0]));
+  layout.decor.tables.forEach((t, i) => root.add(tableWithChairs(t, [`deco_${i + 1}a_chair`, `deco_${i + 1}b_chair`], chairStyle, lodTemplates, opts.tripoTables?.[i + 1])));
 
   // machines: one hero per theme, interactive, on the end wall; then copies along the side walls
   const machineDetail = opts.machineDetail ?? readMachineDetail();
