@@ -17,6 +17,8 @@ import blackjackGreenUrl from '../../../../art/casino/3d/models/tripo_table_blac
 import blackjackBlueUrl from '../../../../art/casino/3d/models/tripo_table_blackjack_blue.glb?url';
 import rouletteUrl from '../../../../art/casino/3d/models/tripo_table_roulette.glb?url';
 import baccaratUrl from '../../../../art/casino/3d/models/tripo_table_baccarat.glb?url';
+import dealerManUrl from '../../../../art/casino/3d/models/tripo_dealer_man.glb?url';
+import dealerWomanUrl from '../../../../art/casino/3d/models/tripo_dealer_woman.glb?url';
 
 export interface TableModelSpec {
   id: string;
@@ -35,13 +37,25 @@ export const TABLE_MODELS: readonly TableModelSpec[] = [
   { id: 'baccarat', url: baccaratUrl, game: 'baccarat' },
 ];
 
+/**
+ * Joshua's dealers (static Tripo figures, baked with --table: facing +Z, feet on the floor), one per
+ * table in table order, in turn when there are fewer dealers than tables. Joshua is making one for
+ * every table (4).
+ */
+export const DEALER_MODELS: readonly { id: string; url: string }[] = [
+  { id: 'dealer-man', url: dealerManUrl },
+  { id: 'dealer-woman', url: dealerWomanUrl },
+];
+/** Dealers stand this much nearer the table than the placeholder's spot (the Tripo tables are 2 m deep). */
+export const TRIPO_DEALER_STEP_IN = 0.3;
+
 const loaded = new Map<string, THREE.Object3D>();
 let pending: Promise<void> | null = null;
 
 /** Loads every table once; resolves either way (a table that fails is left out). */
 export function preloadTripoTables(): Promise<void> {
   pending ??= Promise.all(
-    TABLE_MODELS.map((m) =>
+    [...TABLE_MODELS, ...DEALER_MODELS].map((m) =>
       new GLTFLoader()
         .loadAsync(m.url)
         .then((gltf) => {
@@ -76,6 +90,16 @@ export function tripoTables(): LoadedTable[] {
       return g;
     },
   }));
+}
+
+/** A fresh copy of each dealer that loaded, in DEALER_MODELS order; empty until preloaded. */
+export function tripoDealers(): (() => THREE.Group)[] {
+  return DEALER_MODELS.filter((m) => loaded.has(m.id)).map((m) => () => {
+    const g = new THREE.Group();
+    g.name = `tripo_${m.id}`;
+    g.add(loaded.get(m.id)!.clone(true));
+    return g;
+  });
 }
 
 /** The floor's label over a table. */

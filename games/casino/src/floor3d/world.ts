@@ -22,7 +22,7 @@ import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesF
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { HERO_FACING_MARGIN_M, CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, southFarLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
 import { CABINET_STORAGE_KEY, modelForRun, NEXT_CABINET_MODEL, preloadTripoCabinets, readCabinetModel, tripoCabinets } from './tripoCabinet.ts';
-import { preloadTripoTables, TABLE_LABEL, tripoTables } from './tripoTable.ts';
+import { preloadTripoTables, TABLE_LABEL, TRIPO_DEALER_STEP_IN, tripoDealers, tripoTables } from './tripoTable.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { buildPlaceholderCrowd, type PlaceholderPerson } from './placeholderCrowd.ts';
@@ -509,8 +509,18 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // placeholder people (no rigged human art yet): the dealer; the grand hall's other tables have
   // placeholder dealers too, and taken seats a computer player (below). None move, so they are
   // drawn as one merged mesh (placeholderCrowd.ts, VA-0268) instead of two draw calls each.
-  const people: PlaceholderPerson[] = [{ x: DEALER_SPOT.x, z: DEALER_SPOT.z, heading: 0, lift: 0 }];
-  for (const p of layout.decor.dealers) people.push({ x: p.x, z: p.z, heading: 0, lift: 0 });
+  // Joshua's Tripo dealers stand at his Tripo tables instead (static figures, facing the players)
+  const dealerMakers = tripoTableList.length ? tripoDealers() : [];
+  const people: PlaceholderPerson[] = [];
+  for (const [i, p] of [DEALER_SPOT, ...layout.decor.dealers].entries()) {
+    if (!dealerMakers.length) {
+      people.push({ x: p.x, z: p.z, heading: 0, lift: 0 });
+      continue;
+    }
+    const d = dealerMakers[i % dealerMakers.length]();
+    d.position.set(p.x, 0, p.z + TRIPO_DEALER_STEP_IN);
+    scene.add(d);
+  }
   const labels = [TABLE, ...layout.decor.tables].map((t) => label(TABLE_LABEL[t.game ?? 'blackjack'], t.x, 2.6, t.z - 0.6, 1.6));
   scene.add(...labels);
 
