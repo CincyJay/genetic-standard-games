@@ -13027,3 +13027,38 @@ With `+copyfar=on&herogroup=on`, spawn is **100 calls / 131,924 tris** (under th
 **Engineering next (Claude):** a per-table distance level for chairs and racks once there is a light chair (batch tables near/far so the far ones can switch); the portrait follow framing and HUD; ceiling visibility in both cameras.
 
 **NEEDS JOSHUA (unchanged):** which carpet, if any, should replace the default, judged on the phone (`b2ba3c0` is the strongest cloud candidate); sculpted chair vs burgundy default; the `copyfar`/`southfar` trade-off (fewer triangles, plainer far end; with `copyfar` spawn is under budget); whether to turn on `herogroup` by default after a phone check; spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
+
+
+### VA-0375 | 2026-11-22 18:15 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Nothing new from ChatGPT since VA-0369 (the art branch tip is still `b2ba3c0`, already cherry-picked as `2c691c3`). This cycle starts the long-open portrait follow framing item: `d6ab9f3` on `feature/3d-casino-prototype` (pushed), behind a new opt-in flag `?portraitfov=wide`. The default floor is unchanged and no art files were touched.**
+
+**Why:** a portrait capture of the grand hall at spawn (384×832) showed the follow view sees only ~37° across (72° tall on a 0.46 aspect), while landscape sees ~90°. In portrait the side tables, chairs and side banks are out of frame, and the avatar fills about half the screen.
+
+**What changed:** with `?portraitfov=wide`, the portrait follow camera keeps at least 50° across. Its vertical view widens to do that, capped at 90° (on 384×832 it reaches the 90° cap, about 50° across). Landscape (50°), the overview and the default portrait view (72°) are unchanged. New `followPortraitFov()` in `camera.ts`, and one new unit test (VA-0375).
+
+**Results as observed (cloud, SwiftShader, not a phone):**
+- `npx tsc --noEmit -p .`: exit 0.
+- `npx vitest run`: 30 files, 379 passed, 1 expected fail (380). That is 378 + 1 new test.
+- `tests/e2e/floor3d.mjs` (vite 5175, default flags): exit 0, 46 `ok`, no console errors. Vegas 88 calls / 129,568 tris, flat 74, framed close-up 63 / 111,286. Same as VA-0374.
+- Ad-hoc portrait probe at spawn, 384×832, default follow camera, 0 console errors in every run. Figures are calls / tris:
+
+  | Hall | default | `?portraitfov=wide` |
+  |---|---|---|
+  | grand (gold coffers, default hall flags) | 94 / 231,398 | 99 / 231,570 |
+  | salon | 70 / 119,506 | 86 / 129,000 |
+
+- Captures: `docs/ai-handoff/captures/va0375/{grand,salon}-{base,wide}.png`.
+- No APK or device test; the cloud session cannot reach the phone.
+
+**Candid notes:**
+- With the flag, the grand hall shows the coffered ceiling and two chandeliers, the side slot banks and the edges of the tables. The avatar is about 25% smaller on screen. The tables are still only at the edges of the frame from spawn. The salon shows the whole blackjack table and both chairs.
+- 90° tall on a phone is wide. Straight lines at the top and bottom edges stretch a little (the columns lean outward at the top). Whether that reads well on a real 6" screen can only be judged on the phone.
+- With the flag, the avatar's feet sit higher, clear of the joystick ring. The bottom third of the screen is then plain floor (walkway in the grand hall, carpet in the salon).
+- **The grand hall at portrait spawn is 231k tris with default flags, well over the 150k budget, with or without this flag.** The VA-0373/0374 flags (`herogroup`, `copyfar`) were not in this probe. The e2e budget check only covers the salon.
+- The room still looks plain (flat walkway, dark walls). Nothing here is a finished look.
+
+**For ChatGPT (art):** nothing is needed for this change. The VA-0374 requests stand: a lighter far gaming chair (300–800 tris), optionally a lighter far chip rack, the carpet ribbon hue (reads peach, not gold), and a readable lit screen or marquee band on the far cabinet at 15–25 m.
+
+**Engineering next (Claude):** portrait HUD layout with the wider view (the toast and top bar over the ceiling); portrait grand-hall triangles with `herogroup`/`copyfar`; per-table chair/rack distance level once there is a light chair; ceiling visibility in both cameras.
+
+**NEEDS JOSHUA:** whether `?portraitfov=wide` looks better than the default on the phone (it is a dev flag; the local session can open the floor with it). The earlier items are unchanged: which carpet, if any, should replace the default (`b2ba3c0` is the strongest cloud candidate); sculpted chair vs burgundy default; the `copyfar`/`southfar` trade-off; whether to turn on `herogroup` by default; spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
