@@ -104,8 +104,11 @@ export interface ArtScene {
    * `copyFar`, VA-0340) is `far` with the north side-wall copies drawn as the far cabinet too,
    * shown beyond HERO_LOD_FAR_M of every hero and of every north copy (`copyCentres`);
    * `distantAll` is it plus the south copies. Both empty without `copyFar`.
+   * `southFar` (with `southFar`, VA-0371) is the far cabinet for each south copy, drawn in place
+   * of `south` beyond HERO_LOD_FAR_M of every south copy (`southCentres`); hidden, and empty
+   * without the option.
    */
-  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; liteAll: THREE.Mesh[]; far: THREE.Mesh[]; farAll: THREE.Mesh[]; distant: THREE.Mesh[]; distantAll: THREE.Mesh[]; centres: { x: number; z: number }[]; copyCentres: { x: number; z: number }[]; joins: { w: THREE.Mesh; e: THREE.Mesh; whole: THREE.Mesh }[] } | null;
+  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; southFar: THREE.Mesh[]; southCentres: { x: number; z: number }[]; liteAll: THREE.Mesh[]; far: THREE.Mesh[]; farAll: THREE.Mesh[]; distant: THREE.Mesh[]; distantAll: THREE.Mesh[]; centres: { x: number; z: number }[]; copyCentres: { x: number; z: number }[]; joins: { w: THREE.Mesh; e: THREE.Mesh; whole: THREE.Mesh }[] } | null;
   /**
    * Batches the renderer skips by world box instead of bounding sphere (boxCulled in world.ts,
    * VA-0316). With the hero LOD on, the side-wall copies split at the hall's middle: the north
@@ -412,6 +415,8 @@ export interface ArtOptions {
   farScreenCanvas?: () => unknown;
   /** With `heroFar`: the north side-wall copies get a far cabinet too, for the 'distant' level (`?copyfar=on`, VA-0340). */
   copyFar?: boolean;
+  /** With `heroFar`: the south side-wall copies get a far cabinet too, swapped in by their own distance (`?southfar=on`, VA-0371). */
+  southFar?: boolean;
   /**
    * With heroLod: split each culled hero/copy LOD batch (full, lite, south, far, distant) into a west
    * and an east half by world x (VA-0362), so box culling drops the half outside the view. The
@@ -525,7 +530,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let blackjackHero = false;
   let wovenCarpet = false;
   if (opts.layout?.hall === 'grand') {
-    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, heroFarTheme: opts.heroFarTheme, heroFarScreen: opts.heroFarScreen, heroFarGlow: opts.heroFarGlow, copyFar: opts.copyFar, heroFarScreenTex: opts.heroFarScreenTex, screenCanvas: opts.farScreenCanvas });
+    const grand = composeGrandHall(opts.layout, { liftSign: (h) => (heroSignLift = Math.max(heroSignLift, liftHeroSignClear(h))), carpetCanvas: opts.carpetCanvas, ceiling: opts.ceiling, heroLod: opts.heroLod && !opts.svelteMachines, heroFar: opts.heroFar, heroFarAccent: opts.heroFarAccent, heroFarTheme: opts.heroFarTheme, heroFarScreen: opts.heroFarScreen, heroFarGlow: opts.heroFarGlow, copyFar: opts.copyFar, southFar: opts.southFar, heroFarScreenTex: opts.heroFarScreenTex, screenCanvas: opts.farScreenCanvas });
     art = grand.root;
     art.updateMatrixWorld(true);
     art.traverse((o) => {
@@ -586,12 +591,17 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; cabinets: string[]; side: Side; part: string | null; shared: boolean; renderOrder: number; glow: boolean; fade: string | null; lod: string | null; half: 'W' | 'E' | 'B' | null }>();
   const lodCentres: { x: number; z: number }[] = [];
   const copyCentres: { x: number; z: number }[] = [];
+  const southCentres: { x: number; z: number }[] = [];
   let hasFar = false;
   art.traverse((o) => {
     if (o.userData.heroLod === 'far') hasFar = true;
     if (o.userData.heroLod === 'distant' && o.name.startsWith('slotcopyfar_')) {
       o.getWorldPosition(wpLod);
       copyCentres.push({ x: wpLod.x, z: wpLod.z });
+    }
+    if (o.userData.heroLod === 'southFar' && o.name.startsWith('slotsouthfar_')) {
+      o.getWorldPosition(wpLod);
+      southCentres.push({ x: wpLod.x, z: wpLod.z });
     }
     if (o.userData.heroLod !== 'full') return;
     o.getWorldPosition(wpLod);
@@ -623,7 +633,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     // with copyFar the hero far twins are in the 'distant' sets too, and so are the south copies'
     // combined set; the north copies' lite bodies are not (their far cabinets are, VA-0340)
     const distant = copyCentres.length ? ['distant', 'distantAll'] : [];
-    const lods: (string | null)[] = lod ? (lod === 'lite' ? ['lite', 'liteAll'] : lod === 'far' ? ['far', 'farAll', ...distant] : lod === 'distant' ? ['distant', 'distantAll'] : [lod]) : copyLod ? (wp.z > 0 ? ['south', 'liteAll', ...farAll, ...(copyCentres.length ? ['distantAll'] : [])] : ['full', 'lite', 'liteAll', ...(hasFar ? ['far', 'farAll'] : [])]) : [null];
+    const lods: (string | null)[] = lod ? (lod === 'lite' ? ['lite', 'liteAll'] : lod === 'far' ? ['far', 'farAll', ...distant] : lod === 'distant' ? ['distant', 'distantAll'] : lod === 'southFar' ? ['southFar'] : [lod]) : copyLod ? (wp.z > 0 ? ['south', 'liteAll', ...farAll, ...(copyCentres.length ? ['distantAll'] : [])] : ['full', 'lite', 'liteAll', ...(hasFar ? ['far', 'farAll'] : [])]) : [null];
     // merging needs one layout: unindexed, with position / normal / uv only
     const src = mesh.geometry;
     // an instanced mesh (the hero table's chip stacks) becomes one piece per instance
@@ -666,7 +676,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const reelCopies = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
   const fadeable = new Map<string, THREE.Mesh[]>();
-  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], liteAll: [], far: [], farAll: [], distant: [], distantAll: [], centres: lodCentres, copyCentres, joins: [] } : null;
+  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], southFar: [], southCentres, liteAll: [], far: [], farAll: [], distant: [], distantAll: [], centres: lodCentres, copyCentres, joins: [] } : null;
   const boxCull: ArtScene['boxCull'] = [];
   let colourBatches = 0;
   // whole-view batches (VA-0052): buckets that differ only by wall / ceiling side, per material
@@ -752,6 +762,10 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
       mesh.visible = false;
       heroLod[b.lod].push(mesh);
     } else if (heroLod && b.lod === 'south') heroLod.south.push(mesh);
+    else if (heroLod && b.lod === 'southFar') {
+      mesh.visible = false;
+      heroLod.southFar.push(mesh);
+    }
     if (b.fade) {
       const list = fadeable.get(b.fade) ?? [];
       list.push(mesh);

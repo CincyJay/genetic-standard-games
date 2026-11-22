@@ -20,7 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
-import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
+import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, southFarLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { buildPlaceholderCrowd, type PlaceholderPerson } from './placeholderCrowd.ts';
@@ -99,6 +99,8 @@ export interface FloorStats {
   lightMode: LightMode;
   /** Grand hall hero LOD (VA-0305): which detail the end-wall heroes are drawn in now, or null when it is off. */
   heroLod: HeroLodLevel | null;
+  /** `?southfar=on` (VA-0371): whether the south side-wall copies are drawn as the far cabinet now; null when that option is off. */
+  southFar: boolean | null;
   /** Art batches hidden by their world box in the last frame (VA-0316), of how many are box-tested. */
   boxCull: { culled: number; of: number; liteAll: boolean; joined: number };
 }
@@ -332,9 +334,11 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   lampPlan.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   lampScale = lampPlan.intensityScale;
   applyLighting();
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: ['on', 'accent', 'theme'].includes(devFlag('herofar') ?? ''), heroFarAccent: devFlag('herofar') === 'accent', heroFarTheme: devFlag('herofar') === 'theme', heroFarScreen: devFlag('farscreen') === null ? undefined : Number(devFlag('farscreen')), heroFarGlow: { intensity: devFlag('farglow') === null ? undefined : Number(devFlag('farglow')), tint: devFlag('fartint') === null ? undefined : Number(devFlag('fartint')) }, copyFar: devFlag('copyfar') === 'on', heroSplit: devFlag('herosplit') === 'on', heroFarScreenTex: devFlag('farscreentex') === 'atlas' ? 'atlas' : devFlag('farscreentex') === 'on' });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: ['on', 'accent', 'theme'].includes(devFlag('herofar') ?? ''), heroFarAccent: devFlag('herofar') === 'accent', heroFarTheme: devFlag('herofar') === 'theme', heroFarScreen: devFlag('farscreen') === null ? undefined : Number(devFlag('farscreen')), heroFarGlow: { intensity: devFlag('farglow') === null ? undefined : Number(devFlag('farglow')), tint: devFlag('fartint') === null ? undefined : Number(devFlag('fartint')) }, copyFar: devFlag('copyfar') === 'on', southFar: devFlag('southfar') === 'on', heroSplit: devFlag('herosplit') === 'on', heroFarScreenTex: devFlag('farscreentex') === 'atlas' ? 'atlas' : devFlag('farscreentex') === 'on' });
   // the end-wall heroes start in full detail (art.heroLod.lite starts hidden); frame() switches them by distance
   let heroLevel: HeroLodLevel = 'full';
+  // ?southfar=on (VA-0371): the south copies drawn as the far cabinet (their own level, by distance)
+  let southFar = false;
   const heroHasFar = !!art.heroLod?.far.length;
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
@@ -1276,6 +1280,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         for (const m of art.heroLod.far) m.visible = level === 'far';
         for (const m of art.heroLod.distant) m.visible = level === 'distant';
       }
+      const sf = southFarLevel(southFar, camera.position.x, camera.position.z, art.heroLod.southCentres);
+      if (sf !== southFar) {
+        southFar = sf;
+        // the south lite bodies hidden means boxCulled's combined *All swap no longer applies
+        for (const m of art.heroLod.south) m.visible = !sf;
+        for (const m of art.heroLod.southFar) m.visible = sf;
+      }
     }
     capScene?.update(camera.position);
     if (Math.abs(camera.fov - pose.fov) > 0.01) {
@@ -1348,6 +1359,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       guestAvatar,
       lightMode,
       heroLod: art.heroLod ? heroLevel : null,
+      southFar: art.heroLod?.southCentres.length ? southFar : null,
       boxCull: { culled: lastBoxCulled, of: art.boxCull.length, liteAll: lastLiteAll, joined: lastJoined },
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };

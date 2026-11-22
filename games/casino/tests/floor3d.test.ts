@@ -2193,6 +2193,50 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(at('distant', 0, z - 3)).toBe('far');
     console.log(`copyfar: far ${lod.far.length} batches / ${tris(lod.far)} tris -> distant ${lod.distant.length} / ${tris(lod.distant)} (saves ${-perCopy}); farAll ${tris(lod.farAll)} -> distantAll ${tris(lod.distantAll)}`);
   });
+  it('draws the south side-wall copies as the far cabinet by their own distance behind ?southfar=on (VA-0371)', async () => {
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { composeGrandHall, southFarLevel, HERO_LOD_FAR_M, HERO_LOD_HYSTERESIS_M } = await import('../src/floor3d/grandHallArt.ts');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const opts = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, heroFarAccent: true };
+    const off = buildArtScene(new Map(), opts);
+    const on = buildArtScene(new Map(), { ...opts, southFar: true });
+    // off by default: no south far set, no centres
+    expect(off.heroLod!.southFar).toEqual([]);
+    expect(off.heroLod!.southCentres).toEqual([]);
+    const lod = on.heroLod!;
+    // every other set is what it was
+    for (const k of ['full', 'lite', 'far', 'south', 'liteAll', 'farAll', 'distant', 'distantAll'] as const) {
+      expect(Math.abs(tris(lod[k]) - tris(off.heroLod![k]))).toBeLessThan(1);
+      expect(lod[k].length).toBe(off.heroLod![k].length);
+    }
+    // one far cabinet per south copy, where it stands, without the parts the game drives
+    const south = g.decor.slots.filter((s) => s.z > 0);
+    expect(south.length).toBeGreaterThan(0);
+    expect(lod.southCentres.length).toBe(south.length);
+    for (const c of lod.southCentres) expect(south.some((s) => Math.hypot(s.x - c.x, s.z - c.z) < 1e-6)).toBe(true);
+    const root = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarAccent: true, southFar: true }).root;
+    const farCopies = root.children.filter((o) => o.name.startsWith('slotsouthfar_'));
+    expect(farCopies.length).toBe(south.length);
+    for (const o of farCopies) expect(o.getObjectByName('spin_button')).toBeUndefined();
+    // hidden at start, far cheaper than the south lite bodies, no more batches, box-culled like them
+    expect(lod.southFar.length).toBeGreaterThan(0);
+    expect(lod.southFar.every((m) => !m.visible)).toBe(true);
+    expect(tris(lod.south) - tris(lod.southFar)).toBeGreaterThan(20_000);
+    expect(lod.southFar.length).toBeLessThanOrEqual(lod.south.length);
+    for (const m of lod.southFar) expect(on.boxCull.some((e) => e.mesh === m)).toBe(true);
+    expect([...on.interactive.keys()].sort()).toEqual([...off.interactive.keys()].sort());
+    // the level: beyond HERO_LOD_FAR_M of every south copy, with hysteresis; never without centres
+    const nearest = (z: number) => Math.min(...lod.southCentres.map((c) => Math.hypot(c.x, c.z - z)));
+    expect(southFarLevel(false, 0, g.spawn.z, [])).toBe(false);
+    const heroZ = Math.min(...lod.centres.map((c) => c.z));
+    expect(southFarLevel(false, 0, heroZ + 2, lod.southCentres)).toBe(true);
+    let z = heroZ + 2;
+    while (nearest(z) > HERO_LOD_FAR_M + HERO_LOD_HYSTERESIS_M) z += 0.05;
+    expect(southFarLevel(true, 0, z, lod.southCentres)).toBe(true);
+    expect(southFarLevel(false, 0, z, lod.southCentres)).toBe(false);
+    expect(southFarLevel(true, 0, z + 3, lod.southCentres)).toBe(false);
+    console.log(`southfar: south ${lod.south.length} batches / ${tris(lod.south)} tris -> southFar ${lod.southFar.length} / ${tris(lod.southFar)}; spawn z ${g.spawn.z} southFar=${southFarLevel(false, g.spawn.x, g.spawn.z, lod.southCentres)}`);
+  });
   it('drops the floating cove strips with the hall slab when the gold coffers are on (VA-0179)', async () => {
     const { composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
     const count = (ceiling: 'hall' | 'gold-coffers', re: RegExp) => {

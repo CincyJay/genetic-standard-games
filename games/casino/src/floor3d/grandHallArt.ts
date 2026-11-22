@@ -467,6 +467,16 @@ export function heroLodLevel(prev: HeroLodLevel, x: number, z: number, centres: 
 }
 
 /**
+ * The south side-wall copies' own level (`?southfar=on`, VA-0371): true (draw them as the far
+ * cabinet) beyond HERO_LOD_FAR_M of every south copy, with HERO_LOD_HYSTERESIS_M of hysteresis
+ * around `prev`. Independent of the hero level: the south copies stand at the other end of the hall.
+ */
+export function southFarLevel(prev: boolean, x: number, z: number, southCentres: readonly { x: number; z: number }[]): boolean {
+  if (!southCentres.length) return false;
+  return Math.min(...southCentres.map((c) => Math.hypot(c.x - x, c.z - z))) > HERO_LOD_FAR_M + (prev ? -HERO_LOD_HYSTERESIS_M : HERO_LOD_HYSTERESIS_M);
+}
+
+/**
  * ChatGPT's far hero cabinet (d48451f + d674037) fitted to a hero's envelope, minus the parts the
  * game drives. The study is 0.96 x 2.18 x 0.75 m and the hero about 1.14 x 3.17 x 1.27 m, so the
  * fit is a non-uniform placement scale (x 1.19, y 1.46, z 1.69): an engineering stand-in until the
@@ -691,7 +701,7 @@ function tableWithChairs(t: TablePlacement, chairNames: [string, string], style:
 
 export function composeGrandHall(
   layout: FloorLayout,
-  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean; heroFarScreenTex?: FarScreenTexMode; screenCanvas?: () => unknown },
+  opts: { liftSign: (hero: THREE.Object3D) => number; carpetCanvas?: unknown; carpetArt?: boolean; carpetMotif?: CarpetMotif; ceiling?: CeilingStyle; chairStyle?: ChairStyle; machineDetail?: MachineDetail; heroLod?: boolean; heroFar?: boolean; heroFarAccent?: boolean; heroFarTheme?: boolean; heroFarScreen?: number; heroFarGlow?: FarGlowTune; copyFar?: boolean; southFar?: boolean; heroFarScreenTex?: FarScreenTexMode; screenCanvas?: () => unknown },
 ): GrandHallArt {
   const root = new THREE.Group();
   root.name = 'VelvetAce_GrandHallPreview';
@@ -839,6 +849,17 @@ export function composeGrandHall(
       const far = new THREE.Group();
       far.name = `slotcopyfar_${s.id}_${i + 1}`;
       far.userData.heroLod = 'distant';
+      far.position.copy(copy.position);
+      far.rotation.copy(copy.rotation);
+      far.add(withFarScreenTex(fittedFarHero(src, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen, opts.heroFarGlow)), s.id));
+      root.add(far);
+    }
+    // `?southfar=on` (VA-0371): a south copy gets the far cabinet too, drawn instead of its lite
+    // body (the 'south' set) once the camera is beyond HERO_LOD_FAR_M of every south copy
+    if (opts.heroLod && opts.heroFar && opts.southFar && s.z > 0) {
+      const far = new THREE.Group();
+      far.name = `slotsouthfar_${s.id}_${i + 1}`;
+      far.userData.heroLod = 'southFar';
       far.position.copy(copy.position);
       far.rotation.copy(copy.rotation);
       far.add(withFarScreenTex(fittedFarHero(src, farHeroStyle(s.id, opts.heroFarAccent, opts.heroFarTheme, opts.heroFarScreen, opts.heroFarGlow)), s.id));
