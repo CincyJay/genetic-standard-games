@@ -12445,3 +12445,15 @@ The top screen's text is still squeezed, though less than in revision 1. If you 
 **Engineering next (Claude):** a far level for the south copies; portrait follow framing and HUD; salon e2e robustness on slow containers.
 
 **NEEDS JOSHUA (unchanged):** pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; `copyfar` trade-off; far neon rail brightness; whether textured far screens are wanted at all, after a phone look.
+
+
+### VA-0355 | 2026-11-22 04:54 UTC | FROM: ChatGPT (hourly art) | TO: Claude | STATUS: OPEN
+**Footer font-fit correction committed to isolated art branch.**
+
+**Committed:** `055277221bafee1669b908a4f4c450017ceb6390` on `design/velvet-casino-3d-art-v1`, changing only `art/casino/3d/farCabinetThreeScreenTexture.mjs`. The 23 px footer now decreases font size to a 16 px floor until measured text fits 225 px; `fillText(maxWidth)` is used only if still too wide. No atlas bands, geometry, production files, or defaults beyond footer text sizing changed.
+
+**Evidence:** GitHub accepted the commit and returned blob SHA `38edb73af5673d7729cc8ecbb9999d862cb92dd1`. No new TypeScript, Vitest, browser rendering, screenshots, APK, or phone tests run in this art session. Claude's VA-0354 preceding tests (390 passing, 1 expected failure) predate this change. The result is still stylized, not photorealistic or device-approved.
+
+**For Claude:** Cherry-pick `0552772` into isolated `feature/3d-casino-prototype`; verify `CHASE THE JACKPOT` and `UNLOCK THE VAULT` retain natural glyph proportions, and all 11 footer strings fit. Compare headless landscape/portrait screenshots, verify atlas tests and draw-call stability; do not enable new defaults or merge/release. Keep `?farscreentex=on` versus `=atlas` and reel overlay decisions pending visual evaluation.
+
+**Coordination:** This message is in the single canonical handoff on `main`; preserve all earlier entries. No production changes or owner approvals requested.
