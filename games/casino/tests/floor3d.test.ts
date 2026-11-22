@@ -1949,6 +1949,40 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(worst.font).toContain('19px');
     expect(worst.max).toBe(222);
   });
+  it('fits all far footers by font size (16px floor) and clamps only overflow (0552772, VA-0355)', async () => {
+    const THREE = await import('three');
+    const { createFarCabinetThreeScreenTexture } = await import('../../../art/casino/3d/farCabinetThreeScreenTexture.mjs');
+    const { FAR_CABINET_THEME_COPY } = await import('../../../art/casino/3d/farCabinetThemeCopy.mjs');
+    // same fake 2D context as the title test: glyph width = 0.7 * font px per char
+    const draw = (footer: string) => {
+      const calls: { txt: string; max?: number; font: string }[] = [];
+      const st: Record<string, unknown> = { font: '10px sans-serif' };
+      const px = () => Number(/(\d+)px/.exec(String(st.font))![1]);
+      const ctx = new Proxy(st, {
+        get: (t, k) => k === 'fillText' ? (txt: string, _x: number, _y: number, max?: number) => calls.push({ txt, max, font: String(t.font) })
+          : k === 'measureText' ? (txt: string) => ({ width: txt.length * 0.7 * px() })
+          : k in t ? t[k as string] : () => ({ addColorStop: () => {} }),
+        set: (t, k, v) => ((t[k as string] = v), true),
+      });
+      createFarCabinetThreeScreenTexture(THREE, { canvas: { width: 0, height: 0, getContext: () => ctx }, footer });
+      return calls.filter((c) => c.txt === footer.slice(0, 24)).pop()!;
+    };
+    const footers = [...Object.values(FAR_CABINET_THEME_COPY).map((c) => (c as { footer: string }).footer), 'GOOD LUCK'];
+    expect(footers.length).toBe(12);
+    for (const f of footers) {
+      const call = draw(f);
+      const size = Number(/(\d+)px/.exec(call.font)![1]);
+      expect(call.max, f).toBeUndefined();
+      expect(size, f).toBeGreaterThanOrEqual(16);
+      expect(size, f).toBeLessThanOrEqual(23);
+      expect(f.length * 0.7 * size, f).toBeLessThanOrEqual(225);
+    }
+    expect(draw('GOOD LUCK').font).toContain('23px');
+    expect(draw('CHASE THE JACKPOT').font).toContain('18px');
+    const worst = draw('WWWWWWWWWWWWWWWWWWWWWWWW');
+    expect(worst.font).toContain('16px');
+    expect(worst.max).toBe(225);
+  });
   it('keeps each far atlas band within 10% of its display face aspect, so the art is not visibly squashed (6090776)', async () => {
     const THREE = await import('three');
     const { FAR_SCREEN_ATLAS_BANDS } = await import('../src/floor3d/grandHallArt.ts');
