@@ -2230,8 +2230,10 @@ describe('fps readout', () => {
 });
 
 describe('woven medallion carpet texture (436ef01, VA-0234, ?carpetart=on)', () => {
+  // every stub method returns the stub itself, so a gradient the art makes (d3acc7e's
+  // createRadialGradient, VA-0365) takes addColorStop as a no-op too
   const stubCanvas = () => {
-    const ctx = new Proxy({} as Record<string, unknown>, { get: (t, k) => (k in t ? t[k as string] : () => {}), set: (t, k, v) => ((t[k as string] = v), true) });
+    const ctx: Record<string, unknown> = new Proxy({} as Record<string, unknown>, { get: (t, k) => (k in t ? t[k as string] : () => ctx), set: (t, k, v) => ((t[k as string] = v), true) });
     return { width: 0, height: 0, getContext: () => ctx };
   };
   it('is off by default and only swaps the hall carpet texture: same mesh, footprint and square repeat', async () => {
