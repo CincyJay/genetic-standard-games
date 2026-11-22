@@ -1209,7 +1209,14 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     let tris = 0, meshes = 0;
     const mats = new Set<string>();
     tpl.traverse((o) => { const m = o as import('three').Mesh; if (!m.isMesh) return; meshes++; tris += (m.geometry.index?.count ?? m.geometry.attributes.position.count) / 3; mats.add((m.material as import('three').Material).uuid); });
-    expect({ tris, meshes, mats: mats.size }).toEqual({ tris: 2096, meshes: 24, mats: 4 });
+    // 5499a69 (VA-0360) added three rear channels: 2096 -> 2404 tris, 24 -> 27 meshes, still 4 materials
+    expect({ tris, meshes, mats: mats.size }).toEqual({ tris: 2404, meshes: 27, mats: 4 });
+    // 5499a69 lowered the arm pads (top was ~1.02 m) to sit ~0.25 m above the 0.65 m seat
+    const pad = new THREE.Box3().setFromObject(tpl.getObjectByName('arm-pad-1')!);
+    expect(pad.max.y).toBeCloseTo(0.902, 2);
+    // casters turn with their spoke: caster-1 (spoke at 72 deg) is no longer an X-aligned cylinder
+    const c1 = new THREE.Box3().setFromObject(tpl.getObjectByName('caster-1')!);
+    expect(c1.max.z - c1.min.z).toBeGreaterThan(0.07);
     const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat-cushion')!);
     expect(seat.max.y).toBeCloseTo(0.65, 3);
     const all = new THREE.Box3().setFromObject(tpl);
