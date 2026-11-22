@@ -1,10 +1,10 @@
 /**
- * Velvet Ace original far-LOD cabinet artwork, revision 4.
+ * Velvet Ace original far-LOD cabinet artwork, revision 5.
  * One 256x512 atlas, three independently UV-mapped bands; preserve the 256x512 mipmapped atlas.
  * Standalone art only. Caller owns material, UV mapping and disposal.
  */
 export const FAR_CABINET_ATLAS_BANDS = Object.freeze({
-  top: [0, 191], middle: [199, 376], lower: [384, 512]
+  top: [0, 160], middle: [168, 376], lower: [384, 512]
 });
 export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
   const canvas = options.canvas ?? (typeof document !== 'undefined' ? document.createElement('canvas') : null);
@@ -15,6 +15,8 @@ export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
   if (!ctx) throw new Error('2D context required');
   const accent = options.accent ?? '#d9a55c';
   const title = String(options.title ?? 'VELVET ACE').slice(0, 18);
+  const subtitle = String(options.subtitle ?? 'FIVE BY FIVE').slice(0, 24);
+  const footer = String(options.footer ?? 'GOOD LUCK').slice(0, 24);
   ctx.fillStyle = '#080e1a'; ctx.fillRect(0, 0, width, height);
   function panel(y0, y1) {
     const g = ctx.createLinearGradient(0, y0, 0, y1);
@@ -27,16 +29,16 @@ export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
       ctx.beginPath(); ctx.moveTo(x, y0); ctx.lineTo(x+(y1-y0), y1); ctx.stroke();
     }
   }
-  panel(0, 191); panel(199, 376); panel(384, 512);
+  panel(0, 160); panel(168, 376); panel(384, 512);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = '#f8e5c0'; ctx.font = 'bold 25px sans-serif';
-  ctx.fillText(title, 128, 82, 220);
+  ctx.fillText(title, 128, 68, 220);
   ctx.fillStyle = accent; ctx.font = 'bold 12px sans-serif';
-  ctx.fillText('FIVE BY FIVE', 128, 153, 220);
+  ctx.fillText(subtitle, 128, 125, 220);
   // Move the 5x5 grid toward the top of its band, leaving the lower portion
   // unobtrusive when the driven reel strip is overlaid by the host app.
   const glyphs = ['7', '◆', '★', '♣', '♥', '✦', '♦'];
-  const left = 17, top = 207, w = 42, h = 27, gap = 5;
+  const left = 17, top = 177, w = 42, h = 31, gap = 4;
   for (let r = 0; r < 5; r++) for (let c = 0; c < 5; c++) {
     const x = left+c*(w+gap), y = top+r*(h+gap);
     ctx.fillStyle = (r+c)%2 ? '#142239' : '#22334c';
@@ -48,7 +50,7 @@ export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
     ctx.fillText(glyphs[(r*3+c*5)%glyphs.length], x+w/2, y+h/2+1);
   }
   ctx.fillStyle = '#f8e5c0'; ctx.font = 'bold 23px sans-serif';
-  ctx.fillText('GOOD LUCK', 128, 437, 225);
+  ctx.fillText(footer, 128, 437, 225);
   ctx.fillStyle = accent; ctx.font = 'bold 12px sans-serif';
   ctx.fillText('VELVET ACE', 128, 477, 225);
   const texture = new THREE.CanvasTexture(canvas);
