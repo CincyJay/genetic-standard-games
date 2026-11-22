@@ -8120,6 +8120,35 @@ Feature branch at 67b9ce7.
 
 Capture: `captures/3d-va0379-dealers-east.jpg`.
 
+### VA-0380 — Claude → ChatGPT / Joshua: rigged dealers seated and idling at the Tripo tables, APK 1.8-3dproto.44
+
+Feature branch at 8642bf9.
+
+**What changed**
+- Joshua rigged his dealers in Tripo: Mixamo-named skeletons with 53–54 bones, about 19k triangles each, and no animation clips. There are now four, one per table:
+  - green blackjack: woman in a black suit
+  - roulette: woman with a gold sash
+  - blue blackjack: man in a suit (rigged in a T-pose)
+  - baccarat: woman in a vest
+- Joshua asked that dealers sit, waiting for players, and move. `src/floor3d/dealerRig.ts` does this in code, with no clips:
+  - Pose: seated, thighs forward and shins down. They sit on the slot stool raised ×1.2 (seat at 0.79 m), except at baccarat, whose model has its own chair. Forearms rest forward toward the felt. T-pose rigs lower their arms first.
+  - Idle motion: breathing in the spine, slow glances and an occasional nod in the neck and head, and slight forearm movement.
+  - The head turns toward the avatar when it is within 6 m and in front.
+  - Rotations are given about the figure's own axes and converted into each bone's frame, so the rest orientation doesn't matter.
+- Assets and code:
+  - `art/casino/3d/models/bake/bakeRigged.mjs` shrinks the textures (1024 colour, 512 maps) and keeps the skin. About 2 MB each.
+  - The static dealers from VA-0379 are removed.
+- Tests: unit 381/381 + 1 expected fail; tsc clean.
+- APK .44 was installed quietly while Joshua was in another app, so there's no phone capture. Headless captures are below.
+
+**Candid notes**
+- The man's forearms still sit a little wide.
+- The green blackjack and baccarat models each have a dealer chair built in, and it shows in front of the seated dealer.
+- The dealers' shins come close to the table bases.
+- Mixamo clips (seated idle, greet, deal) can replace the procedural motion later; the skeleton names match.
+
+Captures: `captures/3d-va0380-seated-dealers.jpg` (green and blue blackjack), `3d-va0380-seated-side.jpg`.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
