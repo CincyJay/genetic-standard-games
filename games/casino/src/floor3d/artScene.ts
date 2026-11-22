@@ -105,7 +105,7 @@ export interface ArtScene {
    * shown beyond HERO_LOD_FAR_M of every hero and of every north copy (`copyCentres`);
    * `distantAll` is it plus the south copies. Both empty without `copyFar`.
    */
-  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; liteAll: THREE.Mesh[]; far: THREE.Mesh[]; farAll: THREE.Mesh[]; distant: THREE.Mesh[]; distantAll: THREE.Mesh[]; centres: { x: number; z: number }[]; copyCentres: { x: number; z: number }[] } | null;
+  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; liteAll: THREE.Mesh[]; far: THREE.Mesh[]; farAll: THREE.Mesh[]; distant: THREE.Mesh[]; distantAll: THREE.Mesh[]; centres: { x: number; z: number }[]; copyCentres: { x: number; z: number }[]; joins: { w: THREE.Mesh; e: THREE.Mesh; whole: THREE.Mesh }[] } | null;
   /**
    * Batches the renderer skips by world box instead of bounding sphere (boxCulled in world.ts,
    * VA-0316). With the hero LOD on, the side-wall copies split at the hall's middle: the north
@@ -583,7 +583,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   art.updateMatrixWorld(true);
 
   const wpLod = new THREE.Vector3();
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; cabinets: string[]; side: Side; part: string | null; shared: boolean; renderOrder: number; glow: boolean; fade: string | null; lod: string | null }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; cabinets: string[]; side: Side; part: string | null; shared: boolean; renderOrder: number; glow: boolean; fade: string | null; lod: string | null; half: 'W' | 'E' | 'B' | null }>();
   const lodCentres: { x: number; z: number }[] = [];
   const copyCentres: { x: number; z: number }[] = [];
   let hasFar = false;
@@ -632,23 +632,28 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
       // the cabinets' spin buttons share one batch per material (VA-0327); reels and marquees stay per cabinet
       const shared = !!cabinet && part === SHARED_PART;
       // the culled LOD sets split west / east of x = 0 (VA-0362); the combined *All sets never do
-      const half = opts.heroSplit && l && !l.endsWith('All') ? (wp.x < 0 ? ':W' : ':E') : '';
-      const key = shared ? `slots/${part}#${glow ? 'glow#' : ''}${materialKey(material)}` : part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : l ? `lod:${l}${half}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
-      let b = buckets.get(key);
-      if (!b) {
-        b = { material, geos: [], colours: [], emissives: [], names: [], cabinets: [], side, part: part && cabinet ? part : null, shared, renderOrder: 0, glow: false, fade, lod: l };
-        buckets.set(key, b);
-      }
-      for (const g of pieces) {
-        b.geos.push(li === 0 ? g : g.clone());
-        b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
-        b.emissives.push(emissiveOf(material));
-        b.names.push(mesh.name);
-        b.cabinets.push(cabinet ?? '');
-      }
-      if (glow) b.glow = true;
-      // e.g. the contact-shadow decals draw after the floor
-      b.renderOrder = Math.max(b.renderOrder, mesh.renderOrder);
+      const split = !!opts.heroSplit && !!l && !l.endsWith('All');
+      // a split piece also goes into its set's joined ':B' twin, drawn in place of both halves when
+      // both are in view (VA-0365), so a view of the whole hall pays no extra draw calls
+      const halves: ('W' | 'E' | 'B' | null)[] = split ? [wp.x < 0 ? 'W' : 'E', 'B'] : [null];
+      halves.forEach((h, hi) => {
+        const key = shared ? `slots/${part}#${glow ? 'glow#' : ''}${materialKey(material)}` : part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : l ? `lod:${l}${h ? `:${h}` : ''}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
+        let b = buckets.get(key);
+        if (!b) {
+          b = { material, geos: [], colours: [], emissives: [], names: [], cabinets: [], side, part: part && cabinet ? part : null, shared, renderOrder: 0, glow: false, fade, lod: l, half: h };
+          buckets.set(key, b);
+        }
+        for (const g of pieces) {
+          b.geos.push(li === 0 && hi === 0 ? g : g.clone());
+          b.colours.push((material as THREE.MeshStandardMaterial).color ?? new THREE.Color(1, 1, 1));
+          b.emissives.push(emissiveOf(material));
+          b.names.push(mesh.name);
+          b.cabinets.push(cabinet ?? '');
+        }
+        if (glow) b.glow = true;
+        // e.g. the contact-shadow decals draw after the floor
+        b.renderOrder = Math.max(b.renderOrder, mesh.renderOrder);
+      });
     });
     src.dispose();
   });
@@ -661,7 +666,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const reelCopies = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
   const fadeable = new Map<string, THREE.Mesh[]>();
-  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], liteAll: [], far: [], farAll: [], distant: [], distantAll: [], centres: lodCentres, copyCentres } : null;
+  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], liteAll: [], far: [], farAll: [], distant: [], distantAll: [], centres: lodCentres, copyCentres, joins: [] } : null;
   const boxCull: ArtScene['boxCull'] = [];
   let colourBatches = 0;
   // whole-view batches (VA-0052): buckets that differ only by wall / ceiling side, per material
@@ -692,6 +697,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     whole.combined.push(mesh);
     for (const k of keys) replacedKeys.add(k);
   }
+  const halfMeshes = new Map<string, THREE.Mesh>();
   for (const [key, b] of buckets) {
     let material = b.part && !b.shared ? b.material : colourMerge(b.material, b.geos, b.colours, b.emissives);
     if (material !== b.material) colourBatches++;
@@ -730,6 +736,12 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
       if (key.startsWith('slotcopy_')) reelCopies.set(key.slice('slotcopy_'.length, -'/reels'.length), mesh);
       else interactive.set(key, mesh);
     }
+    if (b.half) halfMeshes.set(key, mesh);
+    if (b.half === 'B') {
+      // the joined twin: hidden until boxCulled (world.ts) swaps it in for both halves
+      mesh.visible = false;
+      continue;
+    }
     if (b.lod && b.lod !== 'liteAll' && b.lod !== 'farAll' && b.lod !== 'distantAll') {
       // batches are baked in world space and never move
       merged.computeBoundingBox();
@@ -752,6 +764,17 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     else if (b.side) walls[b.side as WallSide].push(mesh);
   }
   for (const m of whole.combined) root.add(m);
+  // pair each joined twin with its west and east halves; a set with pieces on one side only needs none
+  if (heroLod) for (const [key, joined] of halfMeshes) {
+    if (!key.includes(':B#')) continue;
+    const w = halfMeshes.get(key.replace(':B#', ':W#')), e = halfMeshes.get(key.replace(':B#', ':E#'));
+    if (w && e) heroLod.joins.push({ w, e, whole: joined });
+    else {
+      root.remove(joined);
+      joined.geometry.dispose();
+      if (!root.children.some((c) => (c as THREE.Mesh).material === joined.material)) (joined.material as THREE.Material).dispose();
+    }
+  }
   // materials no batch draws with (merged duplicates, and the originals of colour batches)
   const drawn = new Set(root.children.map((m) => (m as THREE.Mesh).material as THREE.Material));
   for (const m of allMaterials) if (!drawn.has(m)) m.dispose();

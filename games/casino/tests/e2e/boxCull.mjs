@@ -4,7 +4,9 @@
  * views and checks stats().boxCull, with draw calls and triangles, against `?herolod=off` (no
  * hero LOD, so nothing box-culled) for comparison; then the follow camera and the overview
  * unpinned. When both ends are in view the combined lite set draws instead (liteAll), so that
- * view costs no more draw calls than before the split.
+ * view costs no more draw calls than before the split. The `split` pass adds `?herosplit=on`
+ * (VA-0362/0365): each set is also split west / east, with a joined twin drawn when both halves
+ * are in view, so whole-hall views should match `cull` and a side view should drop the far half.
  * Fresh browser profile (no real save), `?floor3d` (no Firebase sign-in).
  * SwiftShader, not a phone: numbers and captures are for review only.
  * Usage: node tests/e2e/boxCull.mjs [url] [outDir]
@@ -29,10 +31,14 @@ const views = {
   northSouth: { pos: { x: 0, y: 1.7, z: -5 }, target: { x: 0, y: 1.6, z: 15 }, fov: 50, liteAll: false, culls: true },
   // near the heroes facing them (heroLod full): the south copies are behind
   nearHero: { pos: { x: -1.3, y: 1.6, z: -13.5 }, target: { x: -1.3, y: 1.5, z: -17.3 }, fov: 50, liteAll: false, culls: true },
+  // the west blackjack chair close-up (chairCloseup.mjs side view): only the west half in view
+  westSide: { pos: { x: -8.43, y: 1.3, z: -0.08 }, target: { x: -9.595, y: 0.85, z: -1.37 }, fov: 40, liteAll: false, culls: null },
 };
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 let failed = false;
-for (const [tag, q] of [['cull', ''], ['off', '&herolod=off']]) {
+const passes = process.env.BOXCULL_PASSES ? process.env.BOXCULL_PASSES.split(',') : ['cull', 'off', 'split'];
+const queries = { cull: '', off: '&herolod=off', split: '&herosplit=on' };
+for (const [tag, q] of passes.map((t) => [t, queries[t]])) {
   const page = await browser.newPage({ viewport: { width: 1152, height: 768 } });
   const errors = [];
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -49,20 +55,20 @@ for (const [tag, q] of [['cull', ''], ['off', '&herolod=off']]) {
     await page.waitForTimeout(1500);
     const st = await page.evaluate(() => window.__floor3d.stats());
     await page.screenshot({ path: `${out}/boxcull-${tag}-${view}.png`, timeout: 90000 });
-    const ok = tag === 'off' ? st.boxCull.of === 0 : st.boxCull.of > 0 && st.boxCull.liteAll === v.liteAll && (st.boxCull.culled > 0) === v.culls;
+    const ok = tag === 'off' ? st.boxCull.of === 0 : st.boxCull.of > 0 && st.boxCull.liteAll === v.liteAll && (v.culls === null || (st.boxCull.culled > 0) === v.culls);
     if (!ok) failed = true;
-    console.log(`${ok ? 'ok' : 'FAIL'} ${tag} ${view}: boxCull ${st.boxCull.culled}/${st.boxCull.of} liteAll ${st.boxCull.liteAll} heroLod ${st.heroLod} drawCalls ${st.drawCalls} triangles ${st.triangles}`);
+    console.log(`${ok ? 'ok' : 'FAIL'} ${tag} ${view}: boxCull ${st.boxCull.culled}/${st.boxCull.of} joined ${st.boxCull.joined} liteAll ${st.boxCull.liteAll} heroLod ${st.heroLod} drawCalls ${st.drawCalls} triangles ${st.triangles}`);
   }
   await page.evaluate(() => window.__floor3d.debug.pinCamera(null));
   await page.waitForTimeout(1500);
   let st = await page.evaluate(() => window.__floor3d.stats());
-  console.log(`info ${tag} follow (spawn): boxCull ${st.boxCull.culled}/${st.boxCull.of} liteAll ${st.boxCull.liteAll} heroLod ${st.heroLod} drawCalls ${st.drawCalls} triangles ${st.triangles}`);
+  console.log(`info ${tag} follow (spawn): boxCull ${st.boxCull.culled}/${st.boxCull.of} joined ${st.boxCull.joined} liteAll ${st.boxCull.liteAll} heroLod ${st.heroLod} drawCalls ${st.drawCalls} triangles ${st.triangles}`);
   await page.locator('#va3d-hud .cam').click();
   await page.waitForFunction(() => window.__floor3d.debug.state().mode === 'overview' && !window.__floor3d.debug.state().transitioning, null, { timeout: 10000 });
   await page.waitForTimeout(1500);
   st = await page.evaluate(() => window.__floor3d.stats());
   await page.screenshot({ path: `${out}/boxcull-${tag}-overview.png`, timeout: 90000 });
-  console.log(`info ${tag} overview: boxCull ${st.boxCull.culled}/${st.boxCull.of} liteAll ${st.boxCull.liteAll} heroLod ${st.heroLod} drawCalls ${st.drawCalls} triangles ${st.triangles}`);
+  console.log(`info ${tag} overview: boxCull ${st.boxCull.culled}/${st.boxCull.of} joined ${st.boxCull.joined} liteAll ${st.boxCull.liteAll} heroLod ${st.heroLod} drawCalls ${st.drawCalls} triangles ${st.triangles}`);
   console.log(`${tag}: console errors ${errors.length}`);
   if (errors.length) {
     failed = true;

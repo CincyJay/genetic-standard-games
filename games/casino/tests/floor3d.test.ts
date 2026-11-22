@@ -1700,6 +1700,37 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(east.some((m) => f.intersectsBox(boxes.get(m)!))).toBe(false);
     expect(tris(east)).toBeGreaterThan(0.4 * tris(b.lite));
   });
+  it('pairs each split set with a hidden joined twin for views that see both halves (VA-0365)', async () => {
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const opts = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, copyFar: true };
+    const whole = buildArtScene(new Map(), { ...opts, heroSplit: false });
+    const split = buildArtScene(new Map(), { ...opts, heroSplit: true });
+    expect(whole.heroLod!.joins).toEqual([]);
+    const joins = split.heroLod!.joins;
+    expect(joins.length).toBeGreaterThan(0);
+    const boxed = new Set(split.boxCull.map((e) => e.mesh));
+    const sets = ['full', 'lite', 'south', 'far', 'distant'] as const;
+    for (const j of joins) {
+      // the twin holds exactly its two halves, draws nothing at start and is not box-tested itself
+      expect(j.w.name).toMatch(/:W#/);
+      expect(j.e.name).toBe(j.w.name.replace(':W#', ':E#'));
+      expect(j.whole.name).toBe(j.w.name.replace(':W#', ':B#'));
+      expect(Math.abs(tris([j.whole]) - tris([j.w, j.e]))).toBeLessThan(1);
+      expect(j.whole.visible).toBe(false);
+      expect(j.whole.parent).toBe(split.root);
+      expect(boxed.has(j.whole)).toBe(false);
+      for (const k of sets) expect(split.heroLod![k].includes(j.whole)).toBe(false);
+    }
+    // a set whose material has both halves gets a twin; one-sided ones need none and leave no orphan in the scene
+    const paired = new Set(joins.flatMap((j) => [j.w, j.e]));
+    for (const k of sets) for (const m of split.heroLod![k]) {
+      const other = split.heroLod![k].find((o) => o.name === m.name.replace(/:([WE])#/, (_, h) => (h === 'W' ? ':E#' : ':W#')));
+      expect(paired.has(m)).toBe(!!other);
+    }
+    const orphans = split.root.children.filter((c) => c.name.includes(':B#') && !joins.some((j) => j.whole === c));
+    expect(orphans).toEqual([]);
+  });
   it('adds ChatGPT\'s far cabinet as a third hero level behind ?herofar=on, fitted to the hero (VA-0330)', async () => {
     const THREE = await import('three');
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');

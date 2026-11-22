@@ -100,7 +100,7 @@ export interface FloorStats {
   /** Grand hall hero LOD (VA-0305): which detail the end-wall heroes are drawn in now, or null when it is off. */
   heroLod: HeroLodLevel | null;
   /** Art batches hidden by their world box in the last frame (VA-0316), of how many are box-tested. */
-  boxCull: { culled: number; of: number; liteAll: boolean };
+  boxCull: { culled: number; of: number; liteAll: boolean; joined: number };
 }
 
 export interface FloorHandle {
@@ -1034,6 +1034,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const shownNow: THREE.Mesh[] = [];
   let lastBoxCulled = 0;
   let lastLiteAll = false;
+  let joinedNow = 0;
+  let lastJoined = 0;
+  const boxOf = new Map(art.boxCull.map((e) => [e.mesh, e.box]));
   const unionBox = (meshes: THREE.Mesh[]) => {
     const box = new THREE.Box3();
     for (const e of art.boxCull) if (meshes.includes(e.mesh)) box.union(e.box);
@@ -1047,6 +1050,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     culledNow.length = 0;
     shownNow.length = 0;
     lastLiteAll = false;
+    joinedNow = 0;
     if (!art.boxCull.length) return;
     camera.updateMatrixWorld();
     cullFrustum.setFromProjectionMatrix(cullMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
@@ -1067,6 +1071,15 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       }
       return;
     }
+    // ?herosplit=on (VA-0365): both halves of a split set in view -> their joined twin, one call
+    for (const j of lod?.joins ?? []) {
+      if (!j.w.visible || !j.e.visible || !cullFrustum.intersectsBox(boxOf.get(j.w)!) || !cullFrustum.intersectsBox(boxOf.get(j.e)!)) continue;
+      j.w.visible = j.e.visible = false;
+      culledNow.push(j.w, j.e);
+      j.whole.visible = true;
+      shownNow.push(j.whole);
+      joinedNow++;
+    }
     for (const { mesh, box } of art.boxCull) {
       if (!mesh.visible || cullFrustum.intersectsBox(box)) continue;
       mesh.visible = false;
@@ -1074,7 +1087,8 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     }
   }
   function boxRestore(): void {
-    lastBoxCulled = lastLiteAll ? 0 : culledNow.length;
+    lastBoxCulled = lastLiteAll ? 0 : culledNow.length - 2 * joinedNow;
+    lastJoined = joinedNow;
     for (const m of culledNow) m.visible = true;
     for (const m of shownNow) m.visible = false;
   }
@@ -1334,7 +1348,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       guestAvatar,
       lightMode,
       heroLod: art.heroLod ? heroLevel : null,
-      boxCull: { culled: lastBoxCulled, of: art.boxCull.length, liteAll: lastLiteAll },
+      boxCull: { culled: lastBoxCulled, of: art.boxCull.length, liteAll: lastLiteAll, joined: lastJoined },
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };
   }
