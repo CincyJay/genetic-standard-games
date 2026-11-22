@@ -8,7 +8,7 @@
  * game takes over.
  */
 import * as THREE from 'three';
-import { LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, propOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, machineFocus, setOverviewSides, turnToward, type CamMode, type CamPose, type MachineFocus } from './camera.ts';
+import { FOLLOW_PORTRAIT_WIDE_H_FOV, LIMITS, LOOK_UP_MAX, OVERVIEW_AXES, TRANSITION_MS, avatarOpacity, propOpacity, blendPose, clampZoom, cutawayWalls, desiredPose, machineFocus, setOverviewSides, turnToward, type CamMode, type CamPose, type MachineFocus } from './camera.ts';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -713,7 +713,9 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   let camYaw = st.heading;
   let transition: { from: CamPose; t0: number } | null = null;
   let pinned: { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number }; fov?: number } | null = null;
-  let lastPose: CamPose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { aspect: window.innerWidth / window.innerHeight });
+  // ?portraitfov=wide (VA-0375): the portrait follow view keeps at least 50° across
+  const portraitMinHFov = devFlag('portraitfov') === 'wide' ? FOLLOW_PORTRAIT_WIDE_H_FOV : undefined;
+  let lastPose: CamPose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { aspect: window.innerWidth / window.innerHeight, portraitMinHFov });
   /** Overview drag offset from the avatar (metres on the floor). */
   let pan = { x: 0, z: 0 };
   let joyVec = { x: 0, y: 0 };
@@ -1232,7 +1234,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       // a chair back between the avatar and the camera: tilt up until the camera sees over it
       let needTilt = 0;
       for (const tilt of LOOK_OVER_TILTS) {
-        const p = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: tilt, lookUp, focus: focusOpt }).pos;
+        const p = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, portraitMinHFov, extraPitch: tilt, lookUp, focus: focusOpt }).pos;
         tmpA.set(st.pos.x, AVATAR_HEIGHT * 0.75, st.pos.z);
         tmpB.set(p.x, p.y, p.z).sub(tmpA);
         camRay.set(tmpA, tmpB.clone().normalize());
@@ -1241,7 +1243,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
         if (!camRay.intersectObjects(lowBlockers, false).length) break;
       }
       lookOver += (needTilt - lookOver) * (reduced ? 1 : 1 - Math.exp(-dt * 6));
-      const want = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, extraPitch: lookOver, lookUp, focus: focusOpt });
+      const want = desiredPose('follow', st.pos, camYaw, st.dist.follow, { aspect: camera.aspect, portraitMinHFov, extraPitch: lookOver, lookUp, focus: focusOpt });
       tmpA.set(want.target.x, want.target.y, want.target.z);
       tmpB.set(want.pos.x, want.pos.y, want.pos.z).sub(tmpA);
       const len = tmpB.length();
@@ -1255,7 +1257,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       const k = Math.exp(-dt * 1.5);
       pan = { x: pan.x * k, z: pan.z * k };
     }
-    let pose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { obstacleDist, aspect: camera.aspect, pan, extraPitch: st.mode === 'follow' ? lookOver : 0, lookUp, focus: focusOpt });
+    let pose = desiredPose(st.mode, st.pos, camYaw, st.dist[st.mode], { obstacleDist, aspect: camera.aspect, portraitMinHFov, pan, extraPitch: st.mode === 'follow' ? lookOver : 0, lookUp, focus: focusOpt });
     if (transition) {
       const t = (now - transition.t0) / TRANSITION_MS;
       if (t >= 1) transition = null;

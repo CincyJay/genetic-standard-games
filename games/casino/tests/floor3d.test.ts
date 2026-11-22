@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_FADE_MIN, LIMITS, overviewLift, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, setOverviewSides, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
+import { AVATAR_FADE_MIN, FOLLOW_PORTRAIT_WIDE_H_FOV, followPortraitFov, LIMITS, overviewLift, LOOK_UP_MAX, avatarOpacity, blendPose, overviewFov, clampZoom, cutawayWalls, desiredPose, FOCUS, setOverviewSides, machineFocus, PROP_FADE_MIN, propOpacity, turnToward } from '../src/floor3d/camera.ts';
 import { AGENT_RADIUS, BLACKJACK_HERO_ANCHORS, DEALER_SPOT, dealerSpotFor, OBSTACLES, ROOM, SALON_ROOM, SEATS, seatsFor, SLOTS, SPAWN, TABLE } from '../src/floor3d/layout.ts';
 import { CASINO_WORLD } from '../../../art/casino/3d/worldComposition.mjs';
 import { NavGrid } from '../src/floor3d/nav.ts';
@@ -241,6 +241,23 @@ describe('cameras', () => {
     expect(hFov).toBeGreaterThan(41);
     expect(overviewFov(16 / 9)).toBe(50);
     expect(desiredPose('overview', { x: 0, z: 0 }, 0, 14, { pan: { x: -3, z: 0 } }).target.x).toBe(-3);
+  });
+  it('?portraitfov=wide keeps the portrait follow view at least 50° across, capped at 90° tall (VA-0375)', () => {
+    const hOf = (v: number, a: number) => (2 * Math.atan(Math.tan((v * Math.PI) / 360) * a) * 180) / Math.PI;
+    const phone = 384 / 832;
+    // default: unchanged 72° tall, only ~37° across
+    expect(desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: phone }).fov).toBe(72);
+    expect(hOf(72, phone)).toBeLessThan(38);
+    const wide = desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: phone, portraitMinHFov: FOLLOW_PORTRAIT_WIDE_H_FOV }).fov;
+    expect(wide).toBeGreaterThan(72);
+    expect(wide).toBeLessThanOrEqual(90);
+    expect(hOf(wide, phone)).toBeGreaterThan(49);
+    // a very tall screen hits the 90° cap; a squarish portrait screen keeps the default
+    expect(followPortraitFov(0.3, 50)).toBe(90);
+    expect(followPortraitFov(0.95, 50)).toBe(72);
+    // landscape and the overview ignore it
+    expect(desiredPose('follow', { x: 0, z: 0 }, 0, 4.2, { aspect: 2, portraitMinHFov: 50 }).fov).toBe(50);
+    expect(desiredPose('overview', { x: 0, z: 0 }, 0, 17, { aspect: phone, portraitMinHFov: 50 }).fov).toBe(overviewFov(phone));
   });
   it('the portrait overview aims ahead so the avatar sits low and the room fills the bottom (VA-0056)', () => {
     // vertical angle (radians) of a point below the camera's view axis

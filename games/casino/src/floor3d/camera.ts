@@ -76,6 +76,21 @@ const OVERVIEW_H_FOV = 42;
 const FOLLOW_LANDSCAPE_FOV = 50;
 const OVERVIEW_MAX_FOV = 80;
 
+/**
+ * Portrait follow view, opt-in (`?portraitfov=wide`, VA-0375): the default 72° vertical view on a
+ * 384×832 phone is only ~37° across, so from the spawn point the hall's tables and chairs on both
+ * sides are out of frame and the avatar fills about half the screen (landscape sees ~90° across).
+ * With a minimum horizontal view the vertical view widens to keep it, up to FOLLOW_PORTRAIT_MAX_FOV.
+ */
+export const FOLLOW_PORTRAIT_WIDE_H_FOV = 50;
+const FOLLOW_PORTRAIT_MAX_FOV = 90;
+
+/** The follow view's vertical field of view on a portrait screen keeping at least `minHFov` degrees across. */
+export function followPortraitFov(aspect: number, minHFov: number): number {
+  const v = (2 * Math.atan(Math.tan((minHFov * Math.PI) / 360) / aspect) * 180) / Math.PI;
+  return Math.min(FOLLOW_PORTRAIT_MAX_FOV, Math.max(FOV.follow, v));
+}
+
 /** The overview's vertical field of view for a screen of this aspect (width / height). */
 export function overviewFov(aspect: number): number {
   const v = (2 * Math.atan(Math.tan((OVERVIEW_H_FOV * Math.PI) / 360) / aspect) * 180) / Math.PI;
@@ -101,6 +116,8 @@ export interface PoseOptions {
   lookUp?: number;
   /** Follow view: a machine the avatar has walked up to (see machineFocus), framed beside the avatar. */
   focus?: MachineFocus;
+  /** Follow view, portrait only: keep at least this horizontal field of view in degrees (`?portraitfov=wide`). */
+  portraitMinHFov?: number;
 }
 
 /**
@@ -197,7 +214,8 @@ export function desiredPose(mode: CamMode, avatar: Vec2, heading: number, dist: 
     pos = clampInsideRoom(pos);
     pos.y = Math.max(LOOK_UP_MIN_Y, pos.y);
     // sideways the screen is already wide: a narrower vertical view avoids a fish-eye look
-    return { pos, target, fov: opts.aspect && opts.aspect > 1 ? FOLLOW_LANDSCAPE_FOV : FOV.follow };
+    const fov = opts.aspect && opts.aspect > 1 ? FOLLOW_LANDSCAPE_FOV : opts.aspect && opts.portraitMinHFov ? followPortraitFov(opts.aspect, opts.portraitMinHFov) : FOV.follow;
+    return { pos, target, fov };
   }
   // the overview frames the avatar (plus any drag) but never drifts far outside the room.
   // On a tall screen the aim moves ahead of the avatar (see overviewLift), so the avatar sits low
