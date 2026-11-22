@@ -425,6 +425,25 @@ export interface ArtOptions {
    * sees both halves pays one more draw call per material for no triangle saving.
    */
   heroSplit?: boolean;
+  /**
+   * With heroLod and without heroSplit: split the full, lite, far and distant batches into the
+   * end-wall heroes ('H') and the north side-wall copies ('C') instead of west / east (VA-0373),
+   * with the same joined ':B' twin for views that see both. Box culling then drops whichever group
+   * is out of view, e.g. the heroes' lite twins when looking south from the north end. Opt-in
+   * (`?herogroup=on`).
+   */
+  heroGroup?: boolean;
+}
+
+/** A culled LOD batch's part: west / east of x = 0 (heroSplit), heroes / copies (heroGroup), or the joined twin. */
+type Half = 'W' | 'E' | 'H' | 'C' | 'B';
+const HALF_PAIRS: [Half, Half][] = [['W', 'E'], ['H', 'C']];
+/** The LOD sets that hold both the end-wall heroes and the north side-wall copies (VA-0373). */
+const GROUPED_SETS = ['full', 'lite', 'far', 'distant'];
+/** A piece of a north copy's far cabinet (`slotcopyfar_*`, copyFar). */
+function isCopyFar(o: THREE.Object3D): boolean {
+  for (let p: THREE.Object3D | null = o; p; p = p.parent) if (p.name.startsWith('slotcopyfar_')) return true;
+  return false;
 }
 
 const PILOT_CARPET = 'gaming_floor_patterned_woven_carpet';
@@ -589,7 +608,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   art.updateMatrixWorld(true);
 
   const wpLod = new THREE.Vector3();
-  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; cabinets: string[]; side: Side; part: string | null; shared: boolean; renderOrder: number; glow: boolean; fade: string | null; lod: string | null; half: 'W' | 'E' | 'B' | null }>();
+  const buckets = new Map<string, { material: THREE.Material; geos: THREE.BufferGeometry[]; colours: THREE.Color[]; emissives: THREE.Color[]; names: string[]; cabinets: string[]; side: Side; part: string | null; shared: boolean; renderOrder: number; glow: boolean; fade: string | null; lod: string | null; half: Half | null }>();
   const lodCentres: { x: number; z: number }[] = [];
   const copyCentres: { x: number; z: number }[] = [];
   const southCentres: { x: number; z: number }[] = [];
@@ -647,9 +666,11 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
       const shared = !!cabinet && part === SHARED_PART;
       // the culled LOD sets split west / east of x = 0 (VA-0362); the combined *All sets never do
       const split = !!opts.heroSplit && !!l && !l.endsWith('All');
+      // ?herogroup=on (VA-0373): heroes vs north copies instead of west vs east
+      const group = !opts.heroSplit && !!opts.heroGroup && !!l && GROUPED_SETS.includes(l);
       // a split piece also goes into its set's joined ':B' twin, drawn in place of both halves when
       // both are in view (VA-0365), so a view of the whole hall pays no extra draw calls
-      const halves: ('W' | 'E' | 'B' | null)[] = split ? [wp.x < 0 ? 'W' : 'E', 'B'] : [null];
+      const halves: (Half | null)[] = split ? [wp.x < 0 ? 'W' : 'E', 'B'] : group ? [copyLod || isCopyFar(mesh) ? 'C' : 'H', 'B'] : [null];
       halves.forEach((h, hi) => {
         const key = shared ? `slots/${part}#${glow ? 'glow#' : ''}${materialKey(material)}` : part && cabinet ? `${cabinet}/${part}` : `${fade ? `fade:${fade}` : l ? `lod:${l}${h ? `:${h}` : ''}` : (side ?? '')}#${glow ? 'glow#' : ''}${materialKey(material)}`;
         let b = buckets.get(key);
@@ -785,7 +806,9 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   // pair each joined twin with its west and east halves; a set with pieces on one side only needs none
   if (heroLod) for (const [key, joined] of halfMeshes) {
     if (!key.includes(':B#')) continue;
-    const w = halfMeshes.get(key.replace(':B#', ':W#')), e = halfMeshes.get(key.replace(':B#', ':E#'));
+    // the two halves: west / east (heroSplit) or heroes / copies (heroGroup)
+    const pair = HALF_PAIRS.map(([a, b]) => [halfMeshes.get(key.replace(':B#', `:${a}#`)), halfMeshes.get(key.replace(':B#', `:${b}#`))]).find(([a, b]) => a || b) ?? [];
+    const [w, e] = pair;
     if (w && e) heroLod.joins.push({ w, e, whole: joined });
     else {
       root.remove(joined);

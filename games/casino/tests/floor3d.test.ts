@@ -1757,6 +1757,56 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const orphans = split.root.children.filter((c) => c.name.includes(':B#') && !joins.some((j) => j.whole === c));
     expect(orphans).toEqual([]);
   });
+  it('splits the hero sets into heroes and north copies behind ?herogroup=on (VA-0373)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const opts = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, copyFar: true };
+    const whole = buildArtScene(new Map(), opts);
+    const grouped = buildArtScene(new Map(), { ...opts, heroGroup: true });
+    const a = whole.heroLod!, b = grouped.heroLod!;
+    for (const k of ['full', 'lite', 'far', 'distant'] as const) {
+      expect(Math.abs(tris(b[k]) - tris(a[k]))).toBeLessThan(1);
+      // far: the hero far cabinets share no material with the copies, so it gains no batches
+      expect(b[k].length).toBeGreaterThanOrEqual(a[k].length);
+      for (const m of b[k]) expect(m.name).toMatch(new RegExp(`^art:lod:${k}:[HC]#`));
+      // both groups present in every one of these sets
+      expect(b[k].some((m) => m.name.includes(':H#')) && b[k].some((m) => m.name.includes(':C#'))).toBe(true);
+    }
+    // south (copies only) and the combined sets are not grouped
+    for (const k of ['south', 'liteAll', 'farAll', 'distantAll'] as const) {
+      expect(b[k].length).toBe(a[k].length);
+      expect(Math.abs(tris(b[k]) - tris(a[k]))).toBeLessThan(1);
+    }
+    // the heroes' full group sits inside heroBox; the copies' group reaches beyond it
+    const boxes = new Map(grouped.boxCull.map((e) => [e.mesh, e.box]));
+    const heroBox = b.heroBox.clone().expandByScalar(0.01);
+    for (const m of b.full.filter((x) => x.name.includes(':H#'))) expect(heroBox.containsBox(boxes.get(m)!)).toBe(true);
+    expect(b.full.filter((x) => x.name.includes(':C#')).some((m) => !heroBox.containsBox(boxes.get(m)!))).toBe(true);
+    // each pair has a hidden joined twin, as with herosplit
+    expect(b.joins.length).toBeGreaterThan(0);
+    for (const j of b.joins) {
+      expect(j.w.name).toMatch(/:H#/);
+      expect(j.e.name).toBe(j.w.name.replace(':H#', ':C#'));
+      expect(j.whole.name).toBe(j.w.name.replace(':H#', ':B#'));
+      expect(Math.abs(tris([j.whole]) - tris([j.w, j.e]))).toBeLessThan(1);
+      expect(j.whole.visible).toBe(false);
+    }
+    expect(grouped.root.children.filter((c) => c.name.includes(':B#') && !b.joins.some((j) => j.whole === c))).toEqual([]);
+    // herosplit wins when both are on
+    const both = buildArtScene(new Map(), { ...opts, heroGroup: true, heroSplit: true });
+    for (const m of both.heroLod!.lite) expect(m.name).toMatch(/^art:lod:lite:[WE]#/);
+    // the north-end look-back (VA-0372): the heroes' lite group is behind the camera
+    const cam = new THREE.PerspectiveCamera(60, 1.5, 0.1, 100);
+    cam.position.set(0, 1.6, -12);
+    cam.lookAt(0, 1.4, 14);
+    cam.updateMatrixWorld();
+    const f = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    const heroLite = b.lite.filter((m) => m.name.includes(':H#'));
+    expect(heroLite.some((m) => f.intersectsBox(boxes.get(m)!))).toBe(false);
+    const inView = b.lite.filter((m) => f.intersectsBox(boxes.get(m)!));
+    console.log(`herogroup: lite ${tris(a.lite)} tris; heroes ${tris(heroLite)}, copies ${tris(b.lite) - tris(heroLite)}; look-back draws ${tris(inView)} lite tris in ${inView.length} batches (ungrouped ${a.lite.length})`);
+  });
   it('adds ChatGPT\'s far cabinet as a third hero level behind ?herofar=on, fitted to the hero (VA-0330)', async () => {
     const THREE = await import('three');
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
