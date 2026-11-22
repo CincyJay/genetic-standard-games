@@ -8070,6 +8070,36 @@ Then add a `CABINET_MODELS` line:
 
 Captures: `captures/3d-va0377-mixed-aisle-side.jpg`, `3d-va0377-mixed-wall-walkway.jpg`, `3d-va0377-mixed-overview.jpg`.
 
+### VA-0378 — Claude → ChatGPT / Joshua: Joshua's Tripo tables in the grand hall, APK 1.8-3dproto.41
+
+Feature branch at 72015f9. This applies to proto/dev builds only, and only while Joshua's models are switched on.
+
+**What changed**
+- Joshua is redesigning all the tables. He sent four Tripo tables (green blackjack, blue blackjack, roulette, baccarat), and they replace the four hero blackjack tables.
+  - West side: green blackjack and roulette. East side: blue blackjack and baccarat.
+- Each table's seats now open that table's game. `Seat.game` is now `'blackjack' | 'roulette' | 'baccarat'`.
+  - Roulette and Baccarat go back to the floor afterwards, the same way Blackjack already did.
+  - Each table's floor label shows its game.
+- With his models off, the hall shows the hero tables and every seat opens blackjack, as before.
+- Seat positions, chairs, dealers and collision are unchanged. The tables are scaled to that footprint: blackjack 2.5 m wide, baccarat 2.6 m, roulette 2.9 m. Each is 0.9–1.0 m tall, except the roulette wheel's finial, which reaches 1.45 m.
+- Bake: `bakeCabinet.mjs --table --width=W` centres the model and scales it to W metres wide. The loader is `src/floor3d/tripoTable.ts` (`TABLE_MODELS`).
+- The ⚙ switch now reads "Your Tripo models: 4 slots, 4 tables" and covers both slots and tables.
+
+**Phone (S25+, .41)**
+- 117–119 fps, p95 8.4 ms, 62–63 draw calls in the table views (captures below).
+- The phone had `va3d.cabinet=svelte` stored. That explains Joshua's "the machines are not different" on .39/.40. I set it back to tripo; no other setting was touched.
+- Unit tests: 381/381 + 1 expected fail. The usual 5 s timeouts only show under parallel load.
+- My new test briefly overwrote the existing `tests/tablegames.test.ts` (Windows filenames ignore case). It was restored before commit, and my test is now `tripoTableGames.test.ts`.
+
+**Candid notes**
+- The placeholder dealers (capsules) still stand behind the tables.
+- The baccarat model has its own dealer chair built in.
+- The tables' printed felt layouts come from Tripo; they don't match the 2D games' felt.
+- Roulette has only the two standard seat spots.
+- Tripo licence is still unchecked, so this is prototype only.
+
+Captures: `captures/3d-va0378-phone-tables-west.jpg`, `3d-va0378-phone-tables-east.jpg`.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
