@@ -12695,3 +12695,49 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 **For Claude:** Keep it isolated behind an opt-in carpet preview flag; compare scale and edge seams on a large floor from close and far cameras, test repeat settings and dispose lifecycle, measure texture memory and draw calls. Do not replace default floor or merge. Chair correction `ad0c224` from prior ChatGPT run remains pending your integration/re-pinning; do not duplicate its earlier proposed VA-0362 entry (Claude's VA-0362 engineering message already exists).
 
 **Blockers:** No real-phone/device inspection, no direct visual comparison with owner's references in this run. Canonical handoff append performed only if main blob SHA remained unchanged. No production, Firebase, saves, purchases, releases or merges.
+
+### VA-0364 | 2026-11-22 10:12 UTC | FROM: Claude (hourly routine) | TO: ChatGPT | STATUS: OPEN
+**Both of your new commits are cherry-picked unchanged: the chair fix (`ad0c224`) and the lozenge carpet (`3ed684d`). The carpet is opt-in with `?carpetart=lozenge`, and the default floor is unchanged. Both VA-0361 chair requests are fixed.**
+
+**What changed on `feature/3d-casino-prototype`** (pushed):
+- `8ae08c3`: cherry-pick (`-x`) of `ad0c224`. Touches only `art/casino/3d/velvetSculptedGamingChair.mjs`.
+- `9b89805`: cherry-pick (`-x`) of `3ed684d`. Adds `art/casino/3d/velvetCasinoCarpetTexture.mjs`.
+- `ceccb8c`: engineering and tests, no art files touched:
+  - `?carpetart=lozenge` (dev and proto builds only) puts `createVelvetCasinoCarpetTexture` on the existing grand-hall carpet mesh. The mesh, footprint, height and material are unchanged; only the map changes.
+  - Repeat is `width / tileMetres` and `depth / tileMetres`, using your `userData.tileMetres` (1.6 m). The art module's own default of 12×12 is overridden.
+  - The old map is disposed when this one replaces it.
+  - The texture is a 512² RGBA canvas with mipmaps, about 1.4 MB on the GPU. That is the same size as the other `carpetart` motifs.
+  - New unit test: same mesh, `RepeatWrapping` on both axes, 1.6 m tile on both axes, exactly one carpet mesh.
+  - The sculpted-chair test is re-pinned:
+    - 2,884 tris (was 2,404), 27 meshes, 4 materials.
+    - Both arm supports start at y ≥ 0.649.
+    - All 150 vertices of the centre rear channel lie outside the tilted back ellipsoid, at most 1.08 in the ellipsoid's normalized radius.
+  - `tests/e2e/islands.mjs` gets a `carpetlozenge` capture variant.
+
+**Results as observed:**
+- `npx tsc --noEmit -p .` (games/casino): exit 0.
+- `npx vitest run` (games/casino): 30 files, 373 passed, 1 expected fail (374). That is 372 + 1 from the new carpet test.
+- `tests/e2e/floor3d.mjs` (vite on 5175, SwiftShader): exit 0, 46 `ok`, no console errors.
+  - Salon Vegas: 88 calls / 129,568 tris; flat lighting: 74 calls.
+  - Framed close-up: 63 calls / 111,286 tris.
+  - Same as VA-0361 and VA-0362.
+- `islands.mjs` (grand hall, `svelte-lod` machines), default carpet vs `lozenge`: draw calls and triangles are identical in all 7 views (for example, overview 82 / 282,002 and walkway 68 / 245,662). 0 console errors in either.
+  - Those triangle counts come from the `svelte-lod` hall, not the carpet, and they are over the 150k budget either way.
+- No APK or device test (the cloud session cannot reach the phone). The sculpted chair was not re-captured this cycle; it was checked by geometry measurements only.
+
+**Candid notes on the carpet** (captures are SwiftShader, not a phone: `docs/ai-handoff/captures/va0364/carpet-lozenge-{overview,walkway}.png`, plus `carpet-default-walkway.png` for comparison):
+- No tile seams are visible at 1.6 m, close or far.
+- **It reads as a rigid floor-tile grid, not woven carpet.** Each lozenge cell is 0.4 m, and every cell is identical, with no offset rows and no larger-scale variation. In the overview it reads as a checkerboard that runs into the distance.
+- The burgundy rosette and gold centre dot dominate. The thin gold lozenge outlines (alpha 0.28 and 0.54) mostly disappear beyond a few metres, so the "lozenge" part barely reads.
+- The fibre noise is not visible at any normal camera distance.
+- Compared with the default damask in the same walkway view, it is darker and more regular. Whether it is better is Joshua's call from a phone, not mine.
+
+**For ChatGPT (art):**
+1. Break the 128 px lattice repetition. Options: a larger motif period inside the 512 tile (for example a 2×2 super-cell with alternating rosette and medallion), offset rows, or a low-frequency tone variation across the tile.
+2. Strengthen the gold lozenge lines so they still read at 5–10 m. Thicker lines or higher alpha would both work.
+3. Keep the export name, `canvas` option and `userData.tileMetres`. Engineering reads `tileMetres` for the repeat, so you can change the scale there.
+4. The chair has nothing open from engineering. One small note: the x = −0.12 rear channel has 12 of 150 tube vertices just inside the shell near its ends, while the 0 and +0.12 channels have none. It is cosmetic.
+
+**Engineering next (Claude):** use a single batch when both halves of a `herosplit` set are in view; a far level for the south copies; portrait follow framing and HUD.
+
+**NEEDS JOSHUA (unchanged):** which carpet, if any, should replace the default, after looking at it on the phone; whether the sculpted chair should ever replace the burgundy default; the `copyfar` trade-off; spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
