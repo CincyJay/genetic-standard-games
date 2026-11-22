@@ -46,9 +46,9 @@ export function createVelvetCasinoCarpetTexture(THREE, options = {}) {
     const y = row * cell + 128;
     const ornate = (row + col) % 2 === 0;
     drawWrapped((px, py) => {
-      strokeDiamond(px, py, ornate ? 91 : 81, 'rgba(216,168,101,0.85)', 5);
-      strokeDiamond(px, py, ornate ? 74 : 66, 'rgba(112,51,71,0.90)', 12);
-      strokeDiamond(px, py, ornate ? 58 : 51, 'rgba(226,178,111,0.70)', 3);
+      strokeDiamond(px, py, ornate ? 72 : 63, 'rgba(216,168,101,0.62)', 3);
+      strokeDiamond(px, py, ornate ? 61 : 54, 'rgba(112,51,71,0.70)', 8);
+      strokeDiamond(px, py, ornate ? 49 : 43, 'rgba(226,178,111,0.60)', 2);
       if (ornate) {
         for (let p = 0; p < 10; p++) {
           const angle = p * Math.PI / 5;
@@ -73,42 +73,45 @@ export function createVelvetCasinoCarpetTexture(THREE, options = {}) {
       ctx.fillStyle = '#c69b61'; ctx.fill();
     }, x, y);
   }
-  // Continuous gold filigree traverses the empty ground between medallions.
-  // Wrapped cubic paths cross every tile boundary, unlike isolated floor-tile frames.
-  const vine = (offset, alpha) => {
-    for (let wrap = -1; wrap <= 1; wrap++) {
-      ctx.beginPath();
-      ctx.moveTo(-size + wrap * size, offset);
-      for (let segment = -1; segment < 5; segment++) {
-        const x0 = segment * 128 + wrap * size;
-        const y0 = offset + (segment % 2 === 0 ? 26 : -26);
-        const y1 = offset + (segment % 2 === 0 ? -26 : 26);
-        ctx.bezierCurveTo(x0 + 42, y0, x0 + 86, y1, x0 + 128, offset);
-      }
-      ctx.strokeStyle = 'rgba(197,137,83,' + alpha + ')';
-      ctx.lineWidth = 4; ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(offset, -size + wrap * size);
-      for (let segment = -1; segment < 5; segment++) {
-        const y0 = segment * 128 + wrap * size;
-        const x0 = offset + (segment % 2 === 0 ? 26 : -26);
-        const x1 = offset + (segment % 2 === 0 ? -26 : 26);
-        ctx.bezierCurveTo(x0, y0 + 42, x1, y0 + 86, offset, y0 + 128);
-      }
-      ctx.strokeStyle = 'rgba(197,137,83,' + alpha + ')';
-      ctx.lineWidth = 4; ctx.stroke();
+  // Wide woven S-bands form a continuous damask network, not hairline cracks.
+  // Each curve is periodic at x=0/512 and is duplicated across tile edges.
+  const band = (vertical, offset) => {
+    for (const shift of [-size, 0, size]) {
+      const trace = (delta) => {
+        ctx.beginPath();
+        for (let i = 0; i <= 128; i++) {
+          const t = i / 128, a = t * Math.PI * 4;
+          const along = t * size + shift;
+          const across = offset + delta + 22 * Math.sin(a);
+          if (vertical) {
+            if (!i) ctx.moveTo(across, along); else ctx.lineTo(across, along);
+          } else {
+            if (!i) ctx.moveTo(along, across); else ctx.lineTo(along, across);
+          }
+        }
+      };
+      // Deep burgundy underlay and paired golden threads create woven ribbon depth.
+      trace(0); ctx.strokeStyle = 'rgba(104,43,66,0.93)'; ctx.lineWidth = 19; ctx.stroke();
+      trace(-5); ctx.strokeStyle = 'rgba(214,159,91,0.86)'; ctx.lineWidth = 3.8; ctx.stroke();
+      trace(5); ctx.strokeStyle = 'rgba(214,159,91,0.86)'; ctx.lineWidth = 3.8; ctx.stroke();
+      trace(0); ctx.strokeStyle = 'rgba(184,103,90,0.53)'; ctx.lineWidth = 3; ctx.stroke();
     }
   };
-  vine(0, 0.55); vine(256, 0.55);
-  // Small repeating leaves bridge the vine network; wrapped copies avoid seams.
-  for (let x = 0; x < size; x += 64) for (let y = 0; y < size; y += 128) {
+  for (const offset of [0, 256]) { band(false, offset); band(true, offset); }
+  // Bold, paired embroidered leaves at quarter intervals remain legible in distance views.
+  for (let x = 0; x < size; x += 64) for (const y of [0, 256]) {
     drawWrapped((px, py) => {
-      ctx.beginPath();
-      ctx.ellipse(px + 14, py + 10, 13, 4, -0.55, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(166,105,81,0.65)'; ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(px - 14, py - 10, 13, 4, -0.55, 0, Math.PI * 2);
-      ctx.fill();
+      const wave = 22 * Math.sin(x / size * Math.PI * 4);
+      for (const side of [-1, 1]) {
+        ctx.save();
+        ctx.translate(px, py + wave + side * 14);
+        ctx.rotate(side * 0.48);
+        ctx.beginPath(); ctx.ellipse(0, 0, 17, 7, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(199,137,90,0.88)'; ctx.fill();
+        ctx.beginPath(); ctx.moveTo(-11, 0); ctx.lineTo(11, 0);
+        ctx.strokeStyle = 'rgba(85,35,55,0.75)'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.restore();
+      }
     }, x, y);
   }
   const texture = new THREE.CanvasTexture(canvas);
