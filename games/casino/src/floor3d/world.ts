@@ -21,6 +21,7 @@ import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { HERO_FACING_MARGIN_M, CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, southFarLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
+import { CABINET_STORAGE_KEY, NEXT_CABINET_MODEL, preloadTripoCabinet, readCabinetModel, TRIPO_CABINET, TRIPO_STOOL_Z, tripoCabinet } from './tripoCabinet.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { buildPlaceholderCrowd, type PlaceholderPerson } from './placeholderCrowd.ts';
@@ -174,6 +175,16 @@ const C = {
   taken: 0xdf4b4b,
   mine: 0xf1c550,
 };
+
+/**
+ * Loads what the floor needs before it can mount (it builds synchronously): Joshua's Tripo cabinet
+ * when the prototype's Svelte machines use it. Resolves either way.
+ */
+export async function preloadFloorAssets(): Promise<void> {
+  if (!(import.meta.env.MODE === 'proto' || import.meta.env.DEV)) return;
+  if (readMachineStyle() === 'classic' || readCabinetModel() !== 'tripo') return;
+  await preloadTripoCabinet();
+}
 
 export function mountFloor(opts: FloorOptions): FloorHandle {
   const st: FloorState = { pos: { ...opts.state.pos }, heading: opts.state.heading, mode: opts.state.mode, dist: { ...opts.state.dist } };
@@ -329,14 +340,18 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // the grand hall's back row stands outside the walkable room, against the end wall; its caps (and
   // the side banks' back caps) may stand out to that wall line, 0.2 m off the wall like the room
   const capRoom = layout.hallSpec ? { ...ROOM, z0: -layout.hallSpec.length / 2 + 0.2 } : ROOM;
-  const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM, capRoom) : null;
+  // Joshua's Tripo cabinet (proto/dev; preloaded before the floor mounts): shallower than the Svelte
+  // cabinet, so its stools stand closer; falls back to the Svelte cabinet if it failed to load
+  const cabinetModel = readCabinetModel();
+  const tripo = svelteMachines && cabinetModel === 'tripo' ? (() => { const near = tripoCabinet('near'), far = tripoCabinet('far'); return near && far ? { near, far } : undefined; })() : undefined;
+  const svelteBanks = svelteMachines ? planBanks([...layout.slots, ...layout.decor.slots], baseObstacles, ROOM, capRoom, tripo ? { stoolZ: TRIPO_STOOL_Z, frontZ: TRIPO_CABINET.frontZ + 0.15 } : {}) : null;
   // prototype switch (VA-0175): the grand hall's own ceiling, or ChatGPT's gold coffers and chandeliers
   const ceilingStyle = (import.meta.env.MODE === 'proto' || import.meta.env.DEV) && hall === 'grand' ? readCeilingStyle() : 'hall';
   const lampPlan = lampsForCeiling(layout.lamps, ceilingStyle);
   lampPlan.lamps.forEach((p, i) => lamps[i]?.position.set(p.x, p.y, p.z));
   lampScale = lampPlan.intensityScale;
   applyLighting();
-  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: ['on', 'accent', 'theme'].includes(devFlag('herofar') ?? ''), heroFarAccent: devFlag('herofar') === 'accent', heroFarTheme: devFlag('herofar') === 'theme', heroFarScreen: devFlag('farscreen') === null ? undefined : Number(devFlag('farscreen')), heroFarGlow: { intensity: devFlag('farglow') === null ? undefined : Number(devFlag('farglow')), tint: devFlag('fartint') === null ? undefined : Number(devFlag('fartint')) }, copyFar: devFlag('copyfar') === 'on', southFar: devFlag('southfar') === 'on', heroSplit: devFlag('herosplit') === 'on', heroGroup: devFlag('herogroup') === 'on', drawSources: devFlag('drawsrc') === 'on', heroFarScreenTex: devFlag('farscreentex') === 'atlas' ? 'atlas' : devFlag('farscreentex') === 'on' });
+  const art = buildArtScene(new Map(SEATS.map((s) => [s.id, { facing: -s.facing, x: s.x, z: s.z }])), { pilot05, blackjackHero, wovenCarpet, layout, ceiling: ceilingStyle, svelteMachines, svelteLod: machineStyle === 'svelte-lod' || machineStyle === 'svelte-lod-mid', svelteMidLod: machineStyle === 'svelte-lod-mid', svelteBanks: svelteBanks ?? undefined, artFarStool: devFlag('farstool') === 'art', slimNear: devFlag('nearcab') === 'slim', slimLod: devFlag('slimlod') === 'on', heroLod: devFlag('herolod') !== 'off', heroFar: ['on', 'accent', 'theme'].includes(devFlag('herofar') ?? ''), heroFarAccent: devFlag('herofar') === 'accent', heroFarTheme: devFlag('herofar') === 'theme', heroFarScreen: devFlag('farscreen') === null ? undefined : Number(devFlag('farscreen')), heroFarGlow: { intensity: devFlag('farglow') === null ? undefined : Number(devFlag('farglow')), tint: devFlag('fartint') === null ? undefined : Number(devFlag('fartint')) }, copyFar: devFlag('copyfar') === 'on', southFar: devFlag('southfar') === 'on', heroSplit: devFlag('herosplit') === 'on', heroGroup: devFlag('herogroup') === 'on', drawSources: devFlag('drawsrc') === 'on', heroFarScreenTex: devFlag('farscreentex') === 'atlas' ? 'atlas' : devFlag('farscreentex') === 'on', tripoCabinet: tripo });
   // the end-wall heroes start in full detail (art.heroLod.lite starts hidden); frame() switches them by distance
   let heroLevel: HeroLodLevel = 'full';
   // ?southfar=on (VA-0371): the south copies drawn as the far cabinet (their own level, by distance)
@@ -637,6 +652,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     <button type="button" class="sveltemachines" hidden></button>
     <button type="button" class="ceilingstyle" hidden></button>
     <button type="button" class="chairstyle" hidden></button>
+    <button type="button" class="cabinetmodel" hidden></button>
     <button type="button" class="sveltepreview" hidden>Preview: Svelte 01 slot</button>
   </div>
 </div>
@@ -831,6 +847,21 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     location.reload();
   });
   // prototype builds, grand hall only: the table chairs, luxury or ChatGPT's LOD chair (stored; reloads the floor)
+  // prototype builds, Svelte machines on: Joshua's Tripo cabinet or the Svelte one (stored; reloads the floor)
+  const cabinetBtn = $<HTMLButtonElement>('.cabinetmodel');
+  cabinetBtn.hidden = svelteBtn.hidden || !svelteMachines;
+  cabinetBtn.textContent = cabinetModel === 'tripo' ? (tripo ? 'Slot cabinets: your Tripo model (preview)' : 'Slot cabinets: your Tripo model (failed to load)') : 'Slot cabinets: Svelte';
+  cabinetBtn.setAttribute('aria-label', `${cabinetBtn.textContent}. Tap to switch (reloads the floor).`);
+  cabinetBtn.addEventListener('click', () => {
+    try {
+      localStorage.setItem(CABINET_STORAGE_KEY, NEXT_CABINET_MODEL[cabinetModel]);
+    } catch {
+      return toast('Can’t switch the cabinets: storage is unavailable');
+    }
+    const url = new URL(location.href);
+    url.searchParams.delete('cabinet');
+    location.replace(url.toString());
+  });
   const chairBtn = $<HTMLButtonElement>('.chairstyle');
   const chairStyle = readChairStyle();
   chairBtn.hidden = svelteBtn.hidden;

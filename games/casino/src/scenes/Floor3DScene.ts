@@ -82,7 +82,8 @@ export class Floor3DScene extends Phaser.Scene {
       this.events.off('back', onBack);
       this.teardown();
     });
-    void import('../floor3d/world.ts').then(({ mountFloor }) => {
+    void import('../floor3d/world.ts').then(async ({ mountFloor, preloadFloorAssets }) => {
+      await preloadFloorAssets();
       if (this.leaving || !this.sys.isActive()) return;
       loading.destroy();
       this.world = mountFloor({

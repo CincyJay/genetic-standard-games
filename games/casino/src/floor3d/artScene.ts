@@ -396,6 +396,8 @@ export interface ArtOptions {
   slimNear?: boolean;
   /** With svelteLod: ChatGPT's slim family at every distance (near shell + 4530e71 mid/far LOD, VA-0226); dev opt-in. */
   slimLod?: boolean;
+  /** With the Svelte machines: Joshua's Tripo cabinet (near and far levels, tripoCabinet.ts) in place of the Svelte cabinet. */
+  tripoCabinet?: { near: THREE.Object3D; far: THREE.Object3D };
   /** Grand hall only: its own ceiling, or ChatGPT's gold coffers and chandeliers (VA-0175). */
   ceiling?: CeilingStyle;
   /** Grand hall only: give the end-wall heroes a lighter far twin (VA-0305; see ArtScene.heroLod). */
@@ -595,7 +597,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   let svelteLod: SvelteLod | null = null;
   if (opts.svelteMachines) {
     const ids = opts.layout?.slots.map((s) => s.id) ?? MACHINES.map((m) => m.id);
-    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, midLod: opts.svelteMidLod, banks: opts.svelteBanks, artFarStool: opts.artFarStool, slimNear: opts.slimNear, slimLod: opts.slimLod });
+    const svelte = applySvelteMachines(art, ids, { lod: opts.svelteLod, midLod: opts.svelteMidLod, banks: opts.svelteBanks, artFarStool: opts.artFarStool, slimNear: opts.slimNear, slimLod: opts.slimLod, tripo: opts.tripoCabinet });
     svelteLod = svelte.lod;
     heroTextures = [...heroTextures, ...svelte.textures];
     svelteCabinets = svelte.cabinets;

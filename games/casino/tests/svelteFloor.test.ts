@@ -461,6 +461,26 @@ describe('Svelte machines switch (prototype)', () => {
     }
   });
 
+  it("Joshua's Tripo cabinet: stools come in to its shallow front, nothing dropped, every stool reachable", async () => {
+    const { TRIPO_STOOL_Z, TRIPO_CABINET } = await import('../src/floor3d/tripoCabinet.ts');
+    const g = layoutFor('grand', true, true, { islands: true });
+    const wallLine = { ...g.room, z0: -g.hallSpec!.length / 2 + 0.2 };
+    const plan = planBanks([...g.slots, ...g.decor.slots], g.obstacles, g.room, wallLine, { stoolZ: TRIPO_STOOL_Z, frontZ: TRIPO_CABINET.frontZ + 0.15 });
+    expect(plan.stoolZ).toBe(TRIPO_STOOL_Z);
+    expect(plan.stoolsDropped).toBe(0);
+    expect(plan.capsDropped).toBe(0);
+    // the stool clears the cabinet's front
+    expect(TRIPO_STOOL_Z - BANK.stoolR).toBeGreaterThan(TRIPO_CABINET.frontZ);
+    useRoom(g.room);
+    try {
+      const nav = new NavGrid(ROOM, [...g.obstacles, ...plan.obstacles]);
+      expect(nav.walkableAt(g.spawn)).toBe(true);
+      for (const s of g.seats) expect(nav.walkableAt(s.approach), s.id).toBe(true);
+    } finally {
+      useRoom(SALON_ROOM);
+    }
+  });
+
   it('island seam topper (96e9670, VA-0201): one run per island on the shared centre line, inside the caps, 2 draw calls', async () => {
     const { ISLAND_FROM_EDGE } = await import('../src/floor3d/grandHall.ts');
     // the topper study was made on the long VA-0197 islands; crosswise ones get one seam each too
