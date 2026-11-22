@@ -13,12 +13,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import type { TableGame } from './layout.ts';
+import { makeSeatedDealer, type SeatedDealer } from './dealerRig.ts';
 import blackjackGreenUrl from '../../../../art/casino/3d/models/tripo_table_blackjack_green.glb?url';
 import blackjackBlueUrl from '../../../../art/casino/3d/models/tripo_table_blackjack_blue.glb?url';
 import rouletteUrl from '../../../../art/casino/3d/models/tripo_table_roulette.glb?url';
 import baccaratUrl from '../../../../art/casino/3d/models/tripo_table_baccarat.glb?url';
-import dealerManUrl from '../../../../art/casino/3d/models/tripo_dealer_man.glb?url';
-import dealerWomanUrl from '../../../../art/casino/3d/models/tripo_dealer_woman.glb?url';
+import dealerWomanBlackSuitRigUrl from '../../../../art/casino/3d/models/tripo_dealer_woman_blacksuit_rig.glb?url';
+import dealerWomanVestRigUrl from '../../../../art/casino/3d/models/tripo_dealer_woman_vest_rig.glb?url';
+import dealerWomanGoldRigUrl from '../../../../art/casino/3d/models/tripo_dealer_woman_gold_rig.glb?url';
+import dealerManSuitRigUrl from '../../../../art/casino/3d/models/tripo_dealer_man_suit_rig.glb?url';
 
 export interface TableModelSpec {
   id: string;
@@ -38,16 +41,23 @@ export const TABLE_MODELS: readonly TableModelSpec[] = [
 ];
 
 /**
- * Joshua's dealers (static Tripo figures, baked with --table: facing +Z, feet on the floor), one per
- * table in table order, in turn when there are fewer dealers than tables. Joshua is making one for
- * every table (4).
+ * Joshua's dealers, one per table in table order (in turn when there are fewer dealers than
+ * tables; Joshua is making one for every table). Rigged ones (Mixamo-named skeleton) sit on a stool
+ * and idle (dealerRig.ts); static ones (baked with --table, 1.7–1.8 m) stand behind the table.
+ * `rawHeight` is a rigged figure's height in its own units.
  */
-export const DEALER_MODELS: readonly { id: string; url: string }[] = [
-  { id: 'dealer-man', url: dealerManUrl },
-  { id: 'dealer-woman', url: dealerWomanUrl },
+export const DEALER_MODELS: readonly { id: string; url: string; rigged?: { rawHeight: number; height: number; tPose?: boolean } }[] = [
+  // in table order: green blackjack, roulette, blue blackjack, baccarat
+  { id: 'dealer-woman-black-suit', url: dealerWomanBlackSuitRigUrl, rigged: { rawHeight: 0.977, height: 1.7 } },
+  { id: 'dealer-woman-gold', url: dealerWomanGoldRigUrl, rigged: { rawHeight: 0.975, height: 1.72 } },
+  // rigged in a T-pose: the arms come down before he sits
+  { id: 'dealer-man-suit', url: dealerManSuitRigUrl, rigged: { rawHeight: 0.979, height: 1.8, tPose: true } },
+  { id: 'dealer-woman-vest', url: dealerWomanVestRigUrl, rigged: { rawHeight: 0.977, height: 1.7 } },
 ];
-/** Dealers stand this much nearer the table than the placeholder's spot (the Tripo tables are 2 m deep). */
+/** Standing dealers stand this much nearer the table than the placeholder's spot (the Tripo tables are 2 m deep). */
 export const TRIPO_DEALER_STEP_IN = 0.3;
+/** Seated dealers sit nearer still: knees under the table's back edge, hands on the felt. */
+export const TRIPO_DEALER_SEATED_STEP_IN = 0.42;
 
 const loaded = new Map<string, THREE.Object3D>();
 let pending: Promise<void> | null = null;
@@ -59,6 +69,10 @@ export function preloadTripoTables(): Promise<void> {
       new GLTFLoader()
         .loadAsync(m.url)
         .then((gltf) => {
+          if ('rigged' in m && m.rigged) {
+            loaded.set(m.id, gltf.scene);
+            return;
+          }
           const near = gltf.scene.getObjectByName('tripo_cabinet_near');
           if (!near) throw new Error(`${m.id}: table mesh missing`);
           near.removeFromParent();
@@ -92,13 +106,25 @@ export function tripoTables(): LoadedTable[] {
   }));
 }
 
-/** A fresh copy of each dealer that loaded, in DEALER_MODELS order; empty until preloaded. */
-export function tripoDealers(): (() => THREE.Group)[] {
-  return DEALER_MODELS.filter((m) => loaded.has(m.id)).map((m) => () => {
-    const g = new THREE.Group();
-    g.name = `tripo_${m.id}`;
-    g.add(loaded.get(m.id)!.clone(true));
-    return g;
+export type DealerMaker = { kind: 'static'; make: () => THREE.Group } | { kind: 'seated'; make: (opts: { stool: boolean; phase: number }) => SeatedDealer };
+
+/** Each dealer that loaded, in DEALER_MODELS order; empty until preloaded. */
+export function tripoDealers(): DealerMaker[] {
+  return DEALER_MODELS.filter((m) => loaded.has(m.id)).map((m): DealerMaker => {
+    const src = loaded.get(m.id)!;
+    if (m.rigged) {
+      const { rawHeight, height, tPose } = m.rigged;
+      return { kind: 'seated', make: (o) => makeSeatedDealer(src, rawHeight, height, { ...o, tPose }) };
+    }
+    return {
+      kind: 'static',
+      make: () => {
+        const g = new THREE.Group();
+        g.name = `tripo_${m.id}`;
+        g.add(src.clone(true));
+        return g;
+      },
+    };
   });
 }
 

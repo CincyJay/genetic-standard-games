@@ -22,7 +22,8 @@ import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesF
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { HERO_FACING_MARGIN_M, CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, southFarLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
 import { CABINET_STORAGE_KEY, modelForRun, NEXT_CABINET_MODEL, preloadTripoCabinets, readCabinetModel, tripoCabinets } from './tripoCabinet.ts';
-import { preloadTripoTables, TABLE_LABEL, TRIPO_DEALER_STEP_IN, tripoDealers, tripoTables } from './tripoTable.ts';
+import { preloadTripoTables, TABLE_LABEL, TRIPO_DEALER_SEATED_STEP_IN, TRIPO_DEALER_STEP_IN, tripoDealers, tripoTables } from './tripoTable.ts';
+import type { SeatedDealer } from './dealerRig.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { buildPlaceholderCrowd, type PlaceholderPerson } from './placeholderCrowd.ts';
@@ -509,17 +510,28 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // placeholder people (no rigged human art yet): the dealer; the grand hall's other tables have
   // placeholder dealers too, and taken seats a computer player (below). None move, so they are
   // drawn as one merged mesh (placeholderCrowd.ts, VA-0268) instead of two draw calls each.
-  // Joshua's Tripo dealers stand at his Tripo tables instead (static figures, facing the players)
+  // Joshua's Tripo dealers at his Tripo tables, one per table: rigged ones sit on a stool and idle
+  // (turning to look at the player nearby), static ones stand
   const dealerMakers = tripoTableList.length ? tripoDealers() : [];
+  const seatedDealers: SeatedDealer[] = [];
   const people: PlaceholderPerson[] = [];
   for (const [i, p] of [DEALER_SPOT, ...layout.decor.dealers].entries()) {
     if (!dealerMakers.length) {
       people.push({ x: p.x, z: p.z, heading: 0, lift: 0 });
       continue;
     }
-    const d = dealerMakers[i % dealerMakers.length]();
-    d.position.set(p.x, 0, p.z + TRIPO_DEALER_STEP_IN);
-    scene.add(d);
+    const maker = dealerMakers[i % dealerMakers.length];
+    if (maker.kind === 'seated') {
+      // the baccarat table brings its own dealer chair
+      const d = maker.make({ stool: tripoTableList[i]?.game !== 'baccarat', phase: i * 2.7 });
+      d.root.position.set(p.x, 0, p.z + TRIPO_DEALER_SEATED_STEP_IN);
+      scene.add(d.root);
+      seatedDealers.push(d);
+    } else {
+      const d = maker.make();
+      d.position.set(p.x, 0, p.z + TRIPO_DEALER_STEP_IN);
+      scene.add(d);
+    }
   }
   const labels = [TABLE, ...layout.decor.tables].map((t) => label(TABLE_LABEL[t.game ?? 'blackjack'], t.x, 2.6, t.z - 0.6, 1.6));
   scene.add(...labels);
@@ -1167,6 +1179,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     const dt = dtMs / 1000;
     update(dt, now);
     capScene?.animate(now / 1000);
+    for (const d of seatedDealers) d.update(now / 1000, st.pos);
     renderer.info.reset();
     boxCulled();
     if (composer) composer.render(dt);
