@@ -7958,6 +7958,70 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 
 **Claude next:** Cherry-pick ONLY `d52172a` into the isolated prototype, run `createVelvetTripleSlotCabinet(THREE)` before any screenshot work to catch reference errors; check arched crown existence, tower face normals, five button/deck contact and glass clearance; rerun TypeScript, vitest and triple-slot preview front/three/side/seated captures, report measured tris/calls and whether the arch improves the phone silhouette. Reject promotion if still boxy or physically implausible. The grand-hall ~328k triangle budget overrun (especially 60k glow batch) needs a separate art-geometry reduction pass after the cabinet constructor is verified. No production edits, merges, releases or Claude Code execution.
 
+### VA-0376 | 2026-11-22 | FROM: Claude (local session), Joshua present | TO: ChatGPT, Claude routine | STATUS: INFO
+
+**Hourly routine paused.** Joshua asked: "stop the hourly handoff for now". Routine `trig_01WSmptH4rvvGUEzkAbmkohw` is disabled, not deleted. Its last run was 17:56 UTC today.
+
+**Joshua's own slot cabinet is on the floor.** He generated a bank of Velvet Ace machines with Tripo on his phone. Claude cut one cabinet out of it and made it the proto/dev default cabinet for the Svelte machines. Done in `5285231` on the feature branch, APK **1.8-3dproto.39**, installed on his phone (not yet viewed: the screen was off).
+
+**The model as received:**
+- One fused mesh of about 1.95M triangles with 4096² colour, normal and ORM textures, 19 MB.
+- It is a whole scene: 4 slim cabinets in a row with chairs, plus one cabinet turned sideways. The front faces -Z.
+
+**Processing:** done with glTF-Transform 4.5 and meshoptimizer, in a scratch folder.
+- **Cut:** kept the triangles of cabinet 3 by footprint, which left 203k.
+- **Turn, scale, place:**
+  - Turned half a revolution, so the front faces +Z.
+  - Scaled ×3.8, which puts the model's chair seat at the stools' 0.66 m.
+  - Floor at y 0, back at z -0.34 (the islands' twin spacing).
+- **Levels:**
+  - `tripo_cabinet_near`: 6,076 triangles.
+  - `tripo_cabinet_far`: 810 triangles.
+- **Textures:** colour 2048², normal and ORM 1024². One material for both levels.
+- **Output:** `art/casino/3d/models/tripo_velvet_cabinet.glb`, 3.3 MB. The original upload is not committed.
+
+**Engineering:**
+- `tripoCabinet.ts`:
+  - Load: `preloadTripoCabinet()` runs before `mountFloor`, through the new `preloadFloorAssets()` in world.ts. Floor3DScene awaits it.
+  - Selection: `readCabinetModel()` reads `?cabinet=`, then `va3d.cabinet`, and defaults to 'tripo'.
+  - Fallback: if the load fails, the floor keeps the Svelte cabinet.
+- `applySvelteMachines` takes `tripo: { near, far }` and uses it at every distance through `buildSvelteLod`. The per-theme screens are skipped, because its reels are painted into its texture.
+- `planBanks` takes `{ stoolZ, frontZ }`. The Tripo cabinet is only 7 cm deep in front of its origin, so its stools stand at 0.45 m and its bank box front is at 0.225.
+- Stools may now stand out to the caps' wall line (`capRoom`). Without that, the end-wall row's 20 stools dropped out of the walkable room.
+- ⚙ has a new button, "Slot cabinets: your Tripo model (preview)", which switches to "Svelte". Merged cleanly with the routine's hero-LOD flags in world.ts.
+
+**Measurements (SwiftShader 1152×768, grand hall, crosswise islands, svelte-lod, follow):**
+
+| | Tripo | Svelte (VA-0262) |
+|---|---|---|
+| Draw calls | 91 | 115 |
+| Cabinet LOD calls | 9 | 40 |
+| Triangles | 325k | 296k |
+| Cabinets / stools | 116 / 116 | 116 / 116 |
+| Caps / stools dropped | 0 / 0 | 0 / 0 |
+
+- Overview: 60 calls.
+- Console errors: 0.
+
+**Tests:**
+- 380 of 381 passed.
+- New: "Joshua's Tripo cabinet: stools come in to its shallow front, nothing dropped, every stool reachable".
+- The failure is the routine's new `?farscreentex=on` test in floor3d.test.ts. It **timed out** at 5.98 s against the default 5 s, and it passes with `--testTimeout=30000`, so it is slow rather than a regression. It needs a per-test timeout.
+- tsc is clean.
+
+**Captures:**
+- `docs/ai-handoff/captures/3d-va0376-tripo-cabinet-overview.jpg`
+- `docs/ai-handoff/captures/3d-va0376-tripo-cabinet-close.jpg`
+
+**Candid notes:**
+- Up close the texture is softer than in the Tripo viewer, because of the 2048 atlas.
+- Every machine shows the same painted screen. The reels do not spin and there are no per-theme screens.
+- The cut edges at the cabinet's sides hide where neighbours overlap by about 3 cm at the islands' 0.65 m pitch.
+- The cabinet is 1.74 m tall against the caps' 2.09 m.
+- Tripo licence terms for this output have not been checked. Treat it as prototype-only until Joshua confirms.
+
+**For ChatGPT:** Joshua is now generating his own 3D art with Tripo. Nothing new is requested from you this cycle.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
