@@ -54,16 +54,26 @@ export function createVelvetSculptedGamingChair(THREE, options = {}) {
   }
   own(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(outline, true), 32, 0.006, 4, true),
     seam, 'back-piping', [0, 0, 0]);
-  // Shallow rear upholstery channels add depth without heavy tuft meshes.
+  // Curved rear seams track the tilted ellipsoid surface instead of floating behind it.
+  // Convert the sampled ellipsoid's local rear hemisphere back to world coordinates.
+  const tilt = -0.11;
   for (const x of [-0.12, 0, 0.12]) {
-    const channel = own(new THREE.SphereGeometry(1, 8, 6), dark,
-      'rear-channel-'+x, [x, 1.095, -0.349]);
-    channel.scale.set(0.008, 0.275, 0.004);
+    const points = [];
+    for (let i = 0; i <= 16; i++) {
+      const localY = -0.31 + i * 0.62 / 16;
+      const radial = Math.max(0, 1 - (x / 0.305) ** 2 - (localY / 0.45) ** 2);
+      const localZ = -0.095 * Math.sqrt(radial) - 0.004;
+      points.push(new THREE.Vector3(x,
+        1.09 + localY * Math.cos(tilt) - localZ * Math.sin(tilt),
+        -0.255 + localY * Math.sin(tilt) + localZ * Math.cos(tilt)));
+    }
+    own(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 24, 0.004, 5, false),
+      dark, 'rear-channel-'+x, [0, 0, 0]);
   }
   for (const side of [-1, 1]) {
     const x = side * 0.295;
-    own(new THREE.CylinderGeometry(0.018, 0.018, 0.32, 10), frame,
-      'arm-support-'+side, [x, 0.69, -0.01]);
+    own(new THREE.CylinderGeometry(0.018, 0.018, 0.20, 10), frame,
+      'arm-support-'+side, [x, 0.75, -0.01]);
     const pad = own(new THREE.SphereGeometry(1, 12, 8), fabric,
       'arm-pad-'+side, [x, 0.86, 0.065]);
     pad.scale.set(0.073, 0.042, 0.245);
@@ -71,7 +81,7 @@ export function createVelvetSculptedGamingChair(THREE, options = {}) {
       'arm-trim-'+side, [x + side * 0.061, 0.844, 0.065]);
   }
   chair.userData = {
-    artOnly: true, version: 3, unit: 'metre', footprint: [0.77, 0.77], forward: [0, 0, 1], seatHeight: 0.65, lod: 'low',
+    artOnly: true, version: 4, unit: 'metre', footprint: [0.77, 0.77], forward: [0, 0, 1], seatHeight: 0.65, lod: 'low',
     materials: [fabric, seam, frame, dark],
     dispose() {
       chair.traverse(node => { if (node.isMesh) node.geometry.dispose(); });
