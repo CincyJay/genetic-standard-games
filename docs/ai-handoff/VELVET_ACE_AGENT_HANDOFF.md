@@ -8022,6 +8022,54 @@ For ChatGPT: please don't restyle this chair's back without Joshua's say-so. He 
 
 **For ChatGPT:** Joshua is now generating his own 3D art with Tripo. Nothing new is requested from you this cycle.
 
+### VA-0377 — Claude → ChatGPT / Joshua: mixed floor of Joshua's Tripo cabinets (4 models), APK 1.8-3dproto.40
+
+Feature branch `feature/3d-casino-prototype` at 66a4e00. Proto/dev only; the classic floor is unchanged.
+
+**What changed**
+- Joshua asked for "multiple different machines, not one cookie cutter" and sent three more Tripo models. The floor now uses four of his models. Rows take them in turn: the Velvet bank cut, Enchanted Forest, an Egyptian-themed cabinet, and Deep Sea Expedition.
+- Each model brings its own pitch, stool distance and collision front:
+  - `CABINET_MODELS` in `src/floor3d/tripoCabinet.ts`
+  - `planBanks` accepts a per-row cabinet in `svelteFloor.ts`
+- The two faces of a back-to-back island share one model. Before this change, mismatched faces put one face's end cap inside the other face's bank, which dropped 16 caps.
+- Wide models (Deep Sea, 0.86 m pitch, 4 per 3.9 m island face) keep their caps at the row ends instead of tucking them in.
+- Each model keeps its 3 nearest cabinets at full detail. With four models, 24 near cabinets had pushed the LOD to 302k triangles; it is now 218k.
+- Joshua allowed fit tweaks that keep each design. Applied in the bake:
+  - Heights evened to 1.6–1.7 m (Forest went from 1.49 to 1.66 m).
+  - Deep Sea narrowed ×0.8 and thinned ×0.75.
+  - Forest narrowed ×0.9.
+  - Forest and Egyptian thinned ×0.85.
+- `art/casino/3d/models/bake/bakeCabinet.mjs` changes:
+  - New `--squeeze`/`--depth` options; normals are corrected for the stretch.
+  - The far level now gets a sloppy simplify pass, about 850 tris each; before, Tripo's UV seams held it at 2.2–3.3k.
+  - Only baked copies are committed; Joshua's original uploads are not.
+
+**Measured** (headless dev, islands capture):
+- 100 cabinets, 34 caps, 0 caps dropped, 100 stools, 0 dropped.
+- Follow view: 88 draws, 360k tris. LOD: 218k tris, 15 draws.
+- 0 console errors.
+- Unit tests 379/381 + 1 expected fail. The one failure is the known `?farscreentex=on` 5 s timeout, which passes with a longer timeout. tsc clean.
+- APK .40 (versionCode 1840) installed quietly on the S25+. Not yet looked at on the phone.
+
+**Candid notes**
+- Egyptian near level is 11k tris (simplifier stalls at seams); others ~7k.
+- Up close the far level is rough, but it is only used beyond the 3 nearest per model.
+- 360k tris in the follow view is heavier than the one-model floor. Phone fps is not yet measured.
+- Deep Sea rows leave ~13 cm gaps between cabinets (4 spread over a 3.9 m face).
+- Joshua's file "slot machine 3d model (2).glb" is byte-identical to the Egyptian one, so it is not added twice.
+- Tripo commercial-use licence is still unchecked, so this is prototype-only.
+- Still open from VA-0376: Joshua saw Svelte cabinets on the phone with .39. Check the ⚙ "Slot cabinets" button; it should say "your Tripo models ×4".
+
+**Adding a model** (for whoever bakes next): render it to find its front, then run
+`node bakeCabinet.mjs in.glb out.glb --front=+X --height=1.7 [--squeeze=…] [--depth=…] --near=7000 --far=900`.
+Then add a `CABINET_MODELS` line:
+- pitch ≈ width + 0.02
+- halfW = pitch / 2
+- frontZ from the script
+- stoolZ ≈ frontZ + 0.37
+
+Captures: `captures/3d-va0377-mixed-aisle-side.jpg`, `3d-va0377-mixed-wall-walkway.jpg`, `3d-va0377-mixed-overview.jpg`.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
