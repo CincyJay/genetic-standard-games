@@ -20,7 +20,7 @@ import { applyVelvetReelAtlas, createVelvetReelArt } from '../../../../art/casin
 import { MACHINES } from '../logic/slots.ts';
 import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesFor, SEAT_HEIGHT, useRoom, type Seat, type Vec2 } from './layout.ts';
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
-import { CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, southFarLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
+import { HERO_FACING_MARGIN_M, CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, southFarLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
 import { buildPlaceholderCrowd, type PlaceholderPerson } from './placeholderCrowd.ts';
@@ -103,6 +103,8 @@ export interface FloorStats {
   southFar: boolean | null;
   /** Art batches hidden by their world box in the last frame (VA-0316), of how many are box-tested. */
   boxCull: { culled: number; of: number; liteAll: boolean; joined: number };
+  /** `?herofacing=on` (VA-0372): true while the heroes are held in lite because they are off screen; null with the flag off. */
+  heroFacingLite: boolean | null;
 }
 
 export interface FloorHandle {
@@ -340,6 +342,13 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   // ?southfar=on (VA-0371): the south copies drawn as the far cabinet (their own level, by distance)
   let southFar = false;
   const heroHasFar = !!art.heroLod?.far.length;
+  // ?herofacing=on (VA-0372): within the full range but with the heroes off screen (e.g. at the
+  // north end looking south), draw the lite set; the full set also carries every north copy
+  const heroFacing = devFlag('herofacing') === 'on';
+  const heroView = art.heroLod ? art.heroLod.heroBox.clone().expandByScalar(HERO_FACING_MARGIN_M) : null;
+  const facingFrustum = new THREE.Frustum();
+  const facingMatrix = new THREE.Matrix4();
+  let heroFacingLite = false;
   // the pilot's swivel chair and the hero table's wider ends are furniture you can't walk through
   const obstacles = [...(hall === 'grand' ? layout.obstacles : obstaclesFor(pilot05, art.blackjackHero))].filter((o) => !(svelteMachines && o.id === 'pilot-luxury-chair'));
   // ChatGPT's far chase bulb (VA-0232), dev opt-in `?capbulbs=lod`; default keeps every bulb on the 20-tri icosahedron
@@ -1272,7 +1281,16 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     camera.lookAt(pose.target.x, pose.target.y, pose.target.z);
     art.svelteLod?.update(camera.position);
     if (art.heroLod) {
-      const level = heroLodLevel(heroLevel, camera.position.x, camera.position.z, art.heroLod.centres, heroHasFar, art.heroLod.copyCentres);
+      let level = heroLodLevel(heroLevel === 'lite' && heroFacingLite ? 'full' : heroLevel, camera.position.x, camera.position.z, art.heroLod.centres, heroHasFar, art.heroLod.copyCentres);
+      heroFacingLite = false;
+      if (heroFacing && level === 'full' && heroView) {
+        camera.updateMatrixWorld();
+        facingFrustum.setFromProjectionMatrix(facingMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+        if (!facingFrustum.intersectsBox(heroView)) {
+          level = 'lite';
+          heroFacingLite = true;
+        }
+      }
       if (level !== heroLevel) {
         heroLevel = level;
         for (const m of art.heroLod.full) m.visible = level === 'full';
@@ -1360,6 +1378,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       lightMode,
       heroLod: art.heroLod ? heroLevel : null,
       southFar: art.heroLod?.southCentres.length ? southFar : null,
+      heroFacingLite: heroFacing ? heroFacingLite : null,
       boxCull: { culled: lastBoxCulled, of: art.boxCull.length, liteAll: lastLiteAll, joined: lastJoined },
       reelCells: [...art.interactive.entries()].filter(([k]) => k.endsWith('/reels')).reduce((n, [, m]) => n + m.geometry.groups.length, 0),
     };

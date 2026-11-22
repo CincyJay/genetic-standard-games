@@ -1655,6 +1655,32 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // ...where three.js's own sphere test would still draw every south batch
     expect(lod.south.every((m) => f.intersectsObject(m))).toBe(true);
   });
+  it('bounds the end-wall heroes alone for ?herofacing=on (VA-0372)', async () => {
+    const THREE = await import('three');
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { HERO_FACING_MARGIN_M } = await import('../src/floor3d/grandHallArt.ts');
+    const on = buildArtScene(new Map(), { layout: g, ceiling: 'gold-coffers', heroLod: true, heroSplit: false });
+    const lod = on.heroLod!;
+    const box = lod.heroBox;
+    expect(box.isEmpty()).toBe(false);
+    // every hero stands in it; it stays at the north end wall, short of the side-wall copies
+    for (const c of lod.centres) expect(box.containsPoint(new THREE.Vector3(c.x, (box.min.y + box.max.y) / 2, c.z))).toBe(true);
+    const fullBox = on.boxCull.filter((e) => lod.full.includes(e.mesh)).reduce((b, e) => b.union(e.box), new THREE.Box3());
+    expect(box.max.z).toBeLessThan(fullBox.max.z - 3);
+    // at the north end looking south the heroes (grown by the margin) are off screen; looking north they are not
+    const grown = box.clone().expandByScalar(HERO_FACING_MARGIN_M);
+    const frustumOf = (from: [number, number, number], to: [number, number, number]) => {
+      const cam = new THREE.PerspectiveCamera(60, 1.5, 0.1, 100);
+      cam.position.set(...from);
+      cam.lookAt(...to);
+      cam.updateMatrixWorld();
+      return new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    };
+    expect(frustumOf([0, 1.7, -12], [0, 1.2, 14]).intersectsBox(grown)).toBe(false);
+    expect(frustumOf([0, 1.7, -12], [0, 1.2, -20]).intersectsBox(grown)).toBe(true);
+    // ...while the full set (which carries the north copies) is still in that south view
+    expect(frustumOf([0, 1.7, -12], [0, 1.2, 14]).intersectsBox(fullBox)).toBe(true);
+  });
   it('splits the culled hero/copy LOD sets west / east so a side view drops the far half (VA-0362)', async () => {
     const THREE = await import('three');
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');

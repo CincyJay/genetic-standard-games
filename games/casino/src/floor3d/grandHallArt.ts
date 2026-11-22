@@ -446,6 +446,12 @@ export function heroLodFull(prev: boolean, x: number, z: number, centres: readon
   return centres.some((c) => Math.hypot(c.x - x, c.z - z) < limit);
 }
 
+/**
+ * `?herofacing=on` (VA-0372): the heroes' box is grown by this much (m) before the frustum test that
+ * keeps them in lite while off screen, so the full set is back before a hero edge enters the view.
+ */
+export const HERO_FACING_MARGIN_M = 1;
+
 /** Beyond this distance (m) from every hero, a hero with a far twin draws it (VA-0328/0330, dev opt-in). */
 export const HERO_LOD_FAR_M = 12;
 export type HeroLodLevel = 'full' | 'lite' | 'far' | 'distant';

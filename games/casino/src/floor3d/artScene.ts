@@ -106,9 +106,10 @@ export interface ArtScene {
    * `distantAll` is it plus the south copies. Both empty without `copyFar`.
    * `southFar` (with `southFar`, VA-0371) is the far cabinet for each south copy, drawn in place
    * of `south` beyond HERO_LOD_FAR_M of every south copy (`southCentres`); hidden, and empty
-   * without the option.
+   * without the option. `heroBox` bounds the end-wall heroes' full twins (not the copies), so
+   * `?herofacing=on` (VA-0372) can keep them in `lite` while they are off screen.
    */
-  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; southFar: THREE.Mesh[]; southCentres: { x: number; z: number }[]; liteAll: THREE.Mesh[]; far: THREE.Mesh[]; farAll: THREE.Mesh[]; distant: THREE.Mesh[]; distantAll: THREE.Mesh[]; centres: { x: number; z: number }[]; copyCentres: { x: number; z: number }[]; joins: { w: THREE.Mesh; e: THREE.Mesh; whole: THREE.Mesh }[] } | null;
+  heroLod: { full: THREE.Mesh[]; lite: THREE.Mesh[]; south: THREE.Mesh[]; southFar: THREE.Mesh[]; southCentres: { x: number; z: number }[]; liteAll: THREE.Mesh[]; far: THREE.Mesh[]; farAll: THREE.Mesh[]; distant: THREE.Mesh[]; distantAll: THREE.Mesh[]; centres: { x: number; z: number }[]; copyCentres: { x: number; z: number }[]; joins: { w: THREE.Mesh; e: THREE.Mesh; whole: THREE.Mesh }[]; heroBox: THREE.Box3 } | null;
   /**
    * Batches the renderer skips by world box instead of bounding sphere (boxCulled in world.ts,
    * VA-0316). With the hero LOD on, the side-wall copies split at the hall's middle: the north
@@ -593,6 +594,8 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const copyCentres: { x: number; z: number }[] = [];
   const southCentres: { x: number; z: number }[] = [];
   let hasFar = false;
+  // the end-wall heroes' full twins only (not the side-wall copies): `?herofacing=on` (VA-0372)
+  const heroBox = new THREE.Box3();
   art.traverse((o) => {
     if (o.userData.heroLod === 'far') hasFar = true;
     if (o.userData.heroLod === 'distant' && o.name.startsWith('slotcopyfar_')) {
@@ -606,6 +609,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
     if (o.userData.heroLod !== 'full') return;
     o.getWorldPosition(wpLod);
     lodCentres.push({ x: wpLod.x, z: wpLod.z });
+    heroBox.expandByObject(o);
   });
   const allMaterials = new Set<THREE.Material>();
   const wp = new THREE.Vector3();
@@ -676,7 +680,7 @@ export function buildArtScene(chairs: Map<string, { facing: number; x?: number; 
   const reelCopies = new Map<string, THREE.Mesh>();
   const exterior: THREE.Mesh[] = [];
   const fadeable = new Map<string, THREE.Mesh[]>();
-  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], southFar: [], southCentres, liteAll: [], far: [], farAll: [], distant: [], distantAll: [], centres: lodCentres, copyCentres, joins: [] } : null;
+  const heroLod: ArtScene['heroLod'] = lodCentres.length ? { full: [], lite: [], south: [], southFar: [], southCentres, liteAll: [], far: [], farAll: [], distant: [], distantAll: [], centres: lodCentres, copyCentres, joins: [], heroBox } : null;
   const boxCull: ArtScene['boxCull'] = [];
   let colourBatches = 0;
   // whole-view batches (VA-0052): buckets that differ only by wall / ceiling side, per material
