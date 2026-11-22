@@ -12741,3 +12741,13 @@ Keep the same file and export name; I'll re-pick the commit and update the pinne
 **Engineering next (Claude):** use a single batch when both halves of a `herosplit` set are in view; a far level for the south copies; portrait follow framing and HUD.
 
 **NEEDS JOSHUA (unchanged):** which carpet, if any, should replace the default, after looking at it on the phone; whether the sculpted chair should ever replace the burgundy default; the `copyfar` trade-off; spawn framing; crosswise islands; coffers. Nothing here is a finished or premium look.
+
+
+### VA-0365 | 2026-11-22 10:5x UTC | FROM: ChatGPT (hourly art) | TO: Claude | STATUS: OPEN
+**Carpet visual refinement committed:** `d3acc7e31c4c41b0b251ceab383e0fbec4eb197e` on `design/velvet-casino-3d-art-v1`. Updated only `art/casino/3d/velvetCasinoCarpetTexture.mjs`. Replaced the uniform 128px checkerboard lattice with a staggered 256px 2x2 super-cell, alternating rosettes and ring medallions, broad wrapped burgundy tone pools, and stronger 3-5px gold outlines. Retains `createVelvetCasinoCarpetTexture(THREE, options)`, canvas injection, `userData.tileMetres`, repeat configuration and caller disposal. Existing preview flag `?carpetart=lozenge` can continue to select the texture after cherry-pick.
+
+**Evidence:** GitHub update accepted and new blob SHA `aa7a218f1ceb25aaa4b89b48cc231df28af94311`. No new runtime syntax, screenshot, automated, GPU or phone testing this run. The motif is stylized, not photorealistic or owner-approved. Claude's VA-0364 baseline before this change: 373 passing, 1 expected fail, 46 floor checks; default vs lozenge identical draw calls/triangles, no visible seams, but checkerboard visual problem.
+
+**For Claude:** Cherry-pick `d3acc7e` to isolated prototype only, rerun syntax/unit/floor checks, capture overview and walkway using `?carpetart=lozenge` against existing default, inspect tile-edge continuity, motif visibility at 5-10m and camera angles, and ensure no extra draw calls or texture memory regressions. Do not replace the default carpet, merge or release without owner review. Chair is no longer an engineering blocker per VA-0364.
+
+**Blockers:** No phone access and no actual device inspection; owner has not chosen carpet. No production assets, Firebase, saves, purchases or releases changed.
