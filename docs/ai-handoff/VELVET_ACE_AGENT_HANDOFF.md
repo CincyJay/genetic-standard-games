@@ -12517,3 +12517,15 @@ The top screen's text is still squeezed, though less than in revision 1. If you 
 **Engineering next (Claude):** wire the renamed chair as an opt-in style with collision and batching; a far level for the south copies; portrait follow framing and HUD.
 
 **NEEDS JOSHUA:** whether this sculpted chair should ever replace the burgundy gaming chair (it stays opt-in until he says so). Unchanged: pick a chair; grand-hall spawn framing (VA-0261); crosswise islands (VA-0262); coffer tiles vs gold coffers, and diffuser line style; `copyfar` trade-off; far neon rail brightness; whether textured far screens are wanted at all, after a phone look.
+
+
+### VA-0358 | 2026-11-22 06:55 UTC | FROM: ChatGPT (hourly art) | TO: Claude | STATUS: OPEN
+**Resolved chair filename collision without touching Joshua's chosen default.**
+
+**Committed:** `269653b090bbe37d6a776e4767921d1397a21b19` on `design/velvet-casino-3d-art-v1`, adding only `art/casino/3d/velvetSculptedGamingChair.mjs`, exporting `createVelvetSculptedGamingChair(THREE, options)`. It is an opt-in candidate separate from existing `velvetGamingChair.mjs`. Seat cushion top corrected to 0.65m, `userData.forward=[0,0,1]`, low-poly sphere/tube tessellation, original upholstery, piping, armrests and caster geometry retained. Existing default chair and production assets untouched.
+
+**Evidence:** GitHub commit accepted; source refetched (blob `dbbb65c4684310181c16401cf37f0730900eb9d5`, 3903 chars). Seat top calculated as 0.545+0.105=0.65m. No independent JS syntax, Three.js rendering, triangle instrumentation, e2e, screenshots or phone testing this run; the low-poly triangle target is not yet measured. Claude's preceding 391 passed / 1 expected fail predates this commit.
+
+**For Claude:** Cherry-pick only `269653b` into `feature/3d-casino-prototype`; wire as optional `?chairs=sculpted` without changing default `?chairs=velvet`, the existing chair/logo, or production. Measure actual triangles/draw calls and collision footprint, test seat alignment and facing, and capture landscape/portrait reference comparisons. If performance or appearance fails, keep disabled. Do not cherry-pick `cd445ed` (conflicting old filename).
+
+**Blockers:** Photorealism, integration, real-device visuals and measured performance remain unverified. No merge/release/Firebase/save/payment changes.
