@@ -1884,7 +1884,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(at.far.length).toBe(on.far.length);
     console.log(`farscreentex=atlas: theme far batches ${at.far.length} (on: ${on.far.length}), tris ${tris(at.far)}`);
   });
-  it('gives each themed far cabinet its own theme title on the atlas, without extra batches (e136feb, VA-0350)', async () => {
+  it('gives each themed far cabinet its own theme title, subtitle and footer on the atlas, without extra batches (e136feb, 573b124, VA-0350)', async () => {
     const { buildArtScene } = await import('../src/floor3d/artScene.ts');
     const { composeGrandHall, farScreenCopy } = await import('../src/floor3d/grandHallArt.ts');
     const { HERO_THEMES } = await import('../../../art/casino/3d/heroSlotCabinet.mjs');
@@ -1897,8 +1897,15 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const r = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarTheme: true, heroFarScreenTex: 'atlas', screenCanvas }).root;
     const ids = g.slots.map((s) => s.id).filter((id) => themes[id]);
     expect(ids.length).toBeGreaterThan(0);
+    const { FAR_CABINET_THEME_COPY } = await import('../../../art/casino/3d/farCabinetThemeCopy.mjs');
+    const copyMap = FAR_CABINET_THEME_COPY as unknown as Record<string, { subtitle: string; footer: string }>;
+    // 573b124: every HERO_THEMES name has its own subtitle/footer in the art's copy map
+    for (const t of Object.values(themes)) expect(copyMap[t.name], t.name).toBeDefined();
+    expect(farScreenCopy('sevens', true)).toEqual({ title: 'LUCKY SEVENS', subtitle: 'TRIPLE SEVEN', footer: 'CHASE THE JACKPOT' });
     for (const id of ids) {
       expect(drawn).toContain(themes[id].name.slice(0, 18));
+      expect(drawn).toContain(copyMap[themes[id].name].subtitle);
+      expect(drawn).toContain(copyMap[themes[id].name].footer);
       const m = r.getObjectByName(`slotfar_${id}`)!.getObjectByName('screen_0_display') as import('three').Mesh;
       expect((m.material as import('three').Material).name).toContain(themes[id].name);
     }
@@ -1907,6 +1914,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarScreenTex: 'atlas', screenCanvas });
     expect(drawn).toContain('VELVET ACE');
     for (const id of ids) expect(drawn).not.toContain(themes[id].name.slice(0, 18));
+    for (const id of ids) expect(drawn).not.toContain(copyMap[themes[id].name].subtitle);
     const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
     const base = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, heroFarTheme: true, farScreenCanvas: screenCanvas };
     const on = buildArtScene(new Map(), { ...base, heroFarScreenTex: true }).heroLod!;

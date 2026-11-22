@@ -28,6 +28,7 @@ import { createVelvetCasinoChair } from '../../../../art/casino/3d/velvetCasinoC
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { createFarCabinetScreenTexture } from '../../../../art/casino/3d/farCabinetScreenTexture.mjs';
 import { createFarCabinetThreeScreenTexture, FAR_CABINET_ATLAS_BANDS } from '../../../../art/casino/3d/farCabinetThreeScreenTexture.mjs';
+import { getFarCabinetThemeCopy } from '../../../../art/casino/3d/farCabinetThemeCopy.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
@@ -535,14 +536,17 @@ export type FarScreenTexMode = boolean | 'atlas';
 export interface FarScreenCopy { title?: string; subtitle?: string; footer?: string }
 /**
  * VA-0350 item 2: each themed far cabinet shows its own theme name instead of every cabinet saying
- * VELVET ACE. The names are the art's own HERO_THEMES names; subtitle and footer stay the art's
+ * VELVET ACE. The names are the art's own HERO_THEMES names; subtitle and footer come from the
+ * art's own per-theme copy (573b124, FAR_CABINET_THEME_COPY keyed by that name), else the art's
  * defaults. Only with a per-theme accent, where each theme already has its own material, so this
  * adds no batches.
  */
 export function farScreenCopy(id: string, perTheme: boolean | undefined): FarScreenCopy | undefined {
   if (!perTheme) return undefined;
   const t = (HERO_THEMES as Record<string, { name?: string } | undefined>)[id];
-  return t?.name ? { title: t.name } : undefined;
+  if (!t?.name) return undefined;
+  const c = getFarCabinetThemeCopy(t.name) as { subtitle?: string; footer?: string } | null;
+  return { title: t.name, ...(c?.subtitle ? { subtitle: c.subtitle } : {}), ...(c?.footer ? { footer: c.footer } : {}) };
 }
 const atlasBands = FAR_CABINET_ATLAS_BANDS as unknown as { top: readonly [number, number]; middle: readonly [number, number]; lower: readonly [number, number] };
 export const FAR_SCREEN_ATLAS_BANDS: readonly (readonly [number, number])[] = [atlasBands.top, atlasBands.middle, atlasBands.lower];
