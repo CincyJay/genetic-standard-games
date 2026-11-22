@@ -30,7 +30,7 @@ export function createVelvetCasinoCarpetTexture(THREE, options = {}) {
   for (const [x, y, radius] of [[64, 88, 115], [380, 310, 145], [150, 440, 95]]) {
     drawWrapped((px, py) => {
       const grad = ctx.createRadialGradient(px, py, 0, px, py, radius);
-      grad.addColorStop(0, 'rgba(116,49,72,0.19)');
+      grad.addColorStop(0, 'rgba(146,59,83,0.37)');
       grad.addColorStop(1, 'rgba(116,49,72,0)');
       ctx.fillStyle = grad; ctx.fillRect(px-radius, py-radius, radius*2, radius*2);
     }, x, y);
@@ -42,7 +42,7 @@ export function createVelvetCasinoCarpetTexture(THREE, options = {}) {
     ctx.strokeStyle = color; ctx.lineWidth = width; ctx.stroke();
   };
   for (let row = 0; row < 2; row++) for (let col = 0; col < 2; col++) {
-    const x = col * cell + 128 + (row % 2 ? 28 : -28);
+    const x = col * cell + 128 + (row % 2 ? 68 : -68);
     const y = row * cell + 128;
     const ornate = (row + col) % 2 === 0;
     drawWrapped((px, py) => {
@@ -71,6 +71,44 @@ export function createVelvetCasinoCarpetTexture(THREE, options = {}) {
       }
       ctx.beginPath(); ctx.arc(px, py, ornate ? 9 : 7, 0, Math.PI*2);
       ctx.fillStyle = '#c69b61'; ctx.fill();
+    }, x, y);
+  }
+  // Continuous gold filigree traverses the empty ground between medallions.
+  // Wrapped cubic paths cross every tile boundary, unlike isolated floor-tile frames.
+  const vine = (offset, alpha) => {
+    for (let wrap = -1; wrap <= 1; wrap++) {
+      ctx.beginPath();
+      ctx.moveTo(-size + wrap * size, offset);
+      for (let segment = -1; segment < 5; segment++) {
+        const x0 = segment * 128 + wrap * size;
+        const y0 = offset + (segment % 2 === 0 ? 26 : -26);
+        const y1 = offset + (segment % 2 === 0 ? -26 : 26);
+        ctx.bezierCurveTo(x0 + 42, y0, x0 + 86, y1, x0 + 128, offset);
+      }
+      ctx.strokeStyle = 'rgba(197,137,83,' + alpha + ')';
+      ctx.lineWidth = 4; ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(offset, -size + wrap * size);
+      for (let segment = -1; segment < 5; segment++) {
+        const y0 = segment * 128 + wrap * size;
+        const x0 = offset + (segment % 2 === 0 ? 26 : -26);
+        const x1 = offset + (segment % 2 === 0 ? -26 : 26);
+        ctx.bezierCurveTo(x0, y0 + 42, x1, y0 + 86, offset, y0 + 128);
+      }
+      ctx.strokeStyle = 'rgba(197,137,83,' + alpha + ')';
+      ctx.lineWidth = 4; ctx.stroke();
+    }
+  };
+  vine(0, 0.55); vine(256, 0.55);
+  // Small repeating leaves bridge the vine network; wrapped copies avoid seams.
+  for (let x = 0; x < size; x += 64) for (let y = 0; y < size; y += 128) {
+    drawWrapped((px, py) => {
+      ctx.beginPath();
+      ctx.ellipse(px + 14, py + 10, 13, 4, -0.55, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(166,105,81,0.65)'; ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(px - 14, py - 10, 13, 4, -0.55, 0, Math.PI * 2);
+      ctx.fill();
     }, x, y);
   }
   const texture = new THREE.CanvasTexture(canvas);
