@@ -4,7 +4,7 @@
  * fresh browser profile (no real save) and `?floor3d` (no Firebase sign-in). Captures for review
  * only: SwiftShader, not a phone.
  * Usage: node tests/e2e/chairCloseup.mjs [url] [outDir] [tag] [styles, comma-separated; default all]
- * Writes <outDir>/<tag>-<chair>-<view>.png for chair = luxury, lod, lod-near, swivel, tub, casino and view = rear, side, front.
+ * Writes <outDir>/<tag>-<chair>-<view>.png for chair = luxury, lod, lod-near, swivel, tub, casino, velvet, sculpted and view = rear, side, front.
  */
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -19,7 +19,7 @@ const tag = process.argv[4] ?? 'chair';
 mkdirSync(out, { recursive: true });
 const CHAIR = 'blackjack_1_chair';
 const only = process.argv[5]?.split(',');
-const styles = [['luxury', ''], ['lod', '&chair=lod'], ['lod-near', '&chair=lod-near'], ['swivel', '&chair=swivel', '+Z'], ['tub', '&chair=tub', '+Z'], ['casino', '&chair=casino']];
+const styles = [['luxury', ''], ['lod', '&chair=lod'], ['lod-near', '&chair=lod-near'], ['swivel', '&chair=swivel', '+Z'], ['tub', '&chair=tub', '+Z'], ['casino', '&chair=casino'], ['velvet', '&chair=velvet', '+Z'], ['sculpted', '&chair=sculpted', '+Z']];
 // eye offsets in the chair's frame: f = toward the table (its front), r = its right, y = height
 const views = { rear: { f: -1.25, r: 0.55, y: 1.35 }, side: { f: -0.35, r: 1.7, y: 1.3 }, front: { f: 0.35, r: -1.25, y: 1.35 } };
 

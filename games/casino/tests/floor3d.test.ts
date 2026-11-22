@@ -1044,9 +1044,9 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     // the ⚙ cycle visits every style once
     const seen = new Set<string>();
     let s: keyof typeof NEXT_CHAIR_STYLE = 'velvet';
-    for (let i = 0; i < 7; i++) { seen.add(s); s = NEXT_CHAIR_STYLE[s]; }
+    for (let i = 0; i < 8; i++) { seen.add(s); s = NEXT_CHAIR_STYLE[s]; }
     expect(s).toBe('velvet');
-    expect(seen.size).toBe(7);
+    expect(seen.size).toBe(8);
     const tpl = createVelvetGamingChair(THREE);
     tpl.updateMatrixWorld(true);
     expect(new THREE.Box3().setFromObject(tpl.getObjectByName('chair_seat_cushion')!).max.y).toBeCloseTo(SEAT_HEIGHT, 2);
@@ -1161,7 +1161,7 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const { chairStyleFrom, chairAt, NEXT_CHAIR_STYLE } = await import('../src/floor3d/grandHallArt.ts');
     const { createVelvetCasinoChair } = await import('../../../art/casino/3d/velvetCasinoChair.mjs');
     expect(chairStyleFrom('?chair=casino')).toBe('casino');
-    expect(NEXT_CHAIR_STYLE.casino).toBe('velvet');
+    expect(NEXT_CHAIR_STYLE.casino).toBe('sculpted');
     const tpl = createVelvetCasinoChair(THREE) as import('three').Group;
     tpl.updateMatrixWorld(true);
     expect(tpl.userData.forward).toBe('-Z');
@@ -1191,6 +1191,43 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     const back = new THREE.Box3().setFromObject(chair.getObjectByName('back_outer')!);
     expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
     expect((twin.getObjectByName('back_outer') as import('three').Mesh).geometry).toBe((chair.getObjectByName('back_outer') as import('three').Mesh).geometry);
+  });
+  // 269653b (VA-0358): ChatGPT's sculpted chair, opt-in only. It declares forward as a vector [0, 0, 1], which the
+  // old string check read as -Z (a half turn: every chair would have faced away from its table).
+  it("ChatGPT's sculpted chair (269653b) is opt-in with ?chair=sculpted, faces its table, seat top 0.65 m (VA-0358)", async () => {
+    const THREE = await import('three');
+    const { chairStyleFrom, chairAt, NEXT_CHAIR_STYLE, forwardIsPlusZ } = await import('../src/floor3d/grandHallArt.ts');
+    const { createVelvetSculptedGamingChair } = await import('../../../art/casino/3d/velvetSculptedGamingChair.mjs');
+    expect(chairStyleFrom('?chair=sculpted')).toBe('sculpted');
+    expect(NEXT_CHAIR_STYLE.sculpted).toBe('velvet');
+    expect(forwardIsPlusZ([0, 0, 1])).toBe(true);
+    expect(forwardIsPlusZ([0, 0, -1])).toBe(false);
+    expect(forwardIsPlusZ('+Z')).toBe(true);
+    expect(forwardIsPlusZ(undefined)).toBe(false);
+    const tpl = createVelvetSculptedGamingChair(THREE) as import('three').Group;
+    tpl.updateMatrixWorld(true);
+    let tris = 0, meshes = 0;
+    const mats = new Set<string>();
+    tpl.traverse((o) => { const m = o as import('three').Mesh; if (!m.isMesh) return; meshes++; tris += (m.geometry.index?.count ?? m.geometry.attributes.position.count) / 3; mats.add((m.material as import('three').Material).uuid); });
+    expect({ tris, meshes, mats: mats.size }).toEqual({ tris: 2096, meshes: 24, mats: 4 });
+    const seat = new THREE.Box3().setFromObject(tpl.getObjectByName('seat-cushion')!);
+    expect(seat.max.y).toBeCloseTo(0.65, 3);
+    const all = new THREE.Box3().setFromObject(tpl);
+    expect(all.min.y).toBeGreaterThanOrEqual(-0.001);
+    // plan reach from the pedestal axis, measured over vertices: 0.432 m, the arm pads' front tips (x ~0.30, z ~0.31);
+    // the other chairs' collision circle is 0.38 m, so the pads poke ~5 cm past it toward the table
+    let reach = 0;
+    const v = new THREE.Vector3();
+    tpl.traverse((o) => { const m = o as import('three').Mesh; if (!m.isMesh) return; const pos = m.geometry.attributes.position; for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld); reach = Math.max(reach, Math.hypot(v.x, v.z)); } });
+    expect(reach).toBeCloseTo(0.432, 2);
+    // facing a table at -X (front +Z, no half turn): the back ends up on the far side (+X)
+    const templates = new Map();
+    const chair = chairAt('c', 0, 0, -3, 0, 'sculpted', templates);
+    const twin = chairAt('d', 2, 0, -3, 0, 'sculpted', templates);
+    chair.updateMatrixWorld(true);
+    const back = new THREE.Box3().setFromObject(chair.getObjectByName('sculpted-back')!);
+    expect((back.min.x + back.max.x) / 2).toBeGreaterThan(0.15);
+    expect((twin.getObjectByName('sculpted-back') as import('three').Mesh).geometry).toBe((chair.getObjectByName('sculpted-back') as import('three').Mesh).geometry);
   });
   it('casino chair (33aa2b9): seat cushion lies flat, top near 0.49 m (VA-0299)', async () => {
     const THREE = await import('three');

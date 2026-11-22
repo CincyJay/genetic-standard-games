@@ -25,6 +25,7 @@ import { createVelvetGamingChairLod } from '../../../../art/casino/3d/velvetGami
 import { createVelvetLuxuryChairLOD } from '../../../../art/casino/3d/velvetLuxuryChairLOD.mjs';
 import { createVelvetTubChair } from '../../../../art/casino/3d/velvetTubChairPrototype.mjs';
 import { createVelvetCasinoChair } from '../../../../art/casino/3d/velvetCasinoChair.mjs';
+import { createVelvetSculptedGamingChair } from '../../../../art/casino/3d/velvetSculptedGamingChair.mjs';
 import { makeVelvetBlackjackHero } from '../../../../art/casino/3d/blackjackHero.mjs';
 import { createFarCabinetScreenTexture } from '../../../../art/casino/3d/farCabinetScreenTexture.mjs';
 import { createFarCabinetThreeScreenTexture, FAR_CABINET_ATLAS_BANDS } from '../../../../art/casino/3d/farCabinetThreeScreenTexture.mjs';
@@ -332,7 +333,7 @@ export interface GrandHallArt {
   carpetMotif: CarpetMotif | null;
 }
 
-export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near' | 'swivel' | 'tub' | 'casino';
+export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near' | 'swivel' | 'tub' | 'casino' | 'sculpted';
 
 /**
  * Which chair the grand hall's tables get. The default stays the luxury study chair (about 10.3k
@@ -340,7 +341,7 @@ export type ChairStyle = 'velvet' | 'luxury' | 'lod-mid' | 'lod-near' | 'swivel'
  * revised in 38aba98, VA-0187; tube side rails in 336a41b, VA-0189: 732 triangles at 'mid', 984 at 'near') is opt-in for dev and prototype builds with `?chair=lod` (mid) or `?chair=lod-near`,
  * for comparison before anyone decides on it. ChatGPT's low-poly luxury swivel chair (31b9eb8,
  * VA-0240) is opt-in the same way with `?chair=swivel`, and its tub chair (d0c2607, VA-0246) with
- * `?chair=tub`; its upholstered office-style casino chair study (69db376, VA-0299) with `?chair=casino`.
+ * `?chair=tub`; its upholstered office-style casino chair study (69db376, VA-0299) with `?chair=casino`; its sculpted gaming chair (269653b, VA-0358) with `?chair=sculpted`.
  * Anything else is the default.
  */
 export function chairStyleFrom(search: string): ChairStyle {
@@ -351,6 +352,7 @@ export function chairStyleFrom(search: string): ChairStyle {
   if (raw === 'swivel') return 'swivel';
   if (raw === 'tub') return 'tub';
   if (raw === 'casino') return 'casino';
+  if (raw === 'sculpted') return 'sculpted';
   return 'luxury';
 }
 
@@ -605,7 +607,7 @@ export function farScreenTexMaterials(makeCanvas: () => unknown, brightness?: nu
 }
 
 export const CHAIR_STORAGE_KEY = 'va3d.chair';
-export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'swivel', swivel: 'tub', tub: 'casino', casino: 'velvet' };
+export const NEXT_CHAIR_STYLE: Record<ChairStyle, ChairStyle> = { velvet: 'luxury', luxury: 'lod-mid', 'lod-mid': 'lod-near', 'lod-near': 'swivel', swivel: 'tub', tub: 'casino', casino: 'sculpted', sculpted: 'velvet' };
 /**
  * A `?chair=` parameter wins; otherwise the ⚙ button's stored choice (VA-0207), so a phone can compare.
  * With nothing stored, prototype builds get Claude's burgundy gaming chair (Joshua, VA-0210); the
@@ -630,6 +632,16 @@ export function readChairStyle(): ChairStyle {
  * turn from the +Z heading. LOD chairs are clones of one template, sharing its geometries and
  * materials so they batch.
  */
+/**
+ * Whether a chair's declared front is +Z. Chairs state it as a string ('+Z', '-Z') or, like the
+ * sculpted chair (269653b), as a vector [0, 0, 1]; missing means -Z (the older chairs' convention).
+ */
+export function forwardIsPlusZ(forward: unknown): boolean {
+  if (Array.isArray(forward)) return Number(forward[2]) > 0 && Math.abs(Number(forward[2])) >= Math.abs(Number(forward[0]));
+  const f = String(forward ?? '-Z').toUpperCase();
+  return f === '+Z' || f === 'Z';
+}
+
 export function chairAt(name: string, x: number, z: number, tx: number, tz: number, style: ChairStyle = 'luxury', lodTemplates?: Map<ChairStyle, THREE.Group>): THREE.Group {
   let chair: THREE.Group;
   if (style === 'luxury') {
@@ -641,6 +653,7 @@ export function chairAt(name: string, x: number, z: number, tx: number, tz: numb
         : style === 'swivel' ? createVelvetLuxuryChairLOD(THREE)
           : style === 'tub' ? createVelvetTubChair(THREE)
           : style === 'casino' ? createVelvetCasinoChair(THREE)
+          : style === 'sculpted' ? createVelvetSculptedGamingChair(THREE)
           : createVelvetGamingChairLod(THREE, { detail: style === 'lod-near' ? 'near' : 'mid' })) as THREE.Group;
       // the swivel chair (31b9eb8) states its front only as userData.velvetArt.orientation
       // ('front +Z'); without this it would get the -Z half turn and face away from its table
@@ -650,8 +663,7 @@ export function chairAt(name: string, x: number, z: number, tx: number, tz: numb
     }
     chair = tpl.clone();
   }
-  const fwd = String(chair.userData.forward ?? chair.userData.front ?? '-Z').toUpperCase();
-  const turn = fwd === '+Z' || fwd === 'Z' ? 0 : Math.PI;
+  const turn = forwardIsPlusZ(chair.userData.forward ?? chair.userData.front) ? 0 : Math.PI;
   chair.name = name;
   chair.position.set(x, 0, z);
   chair.rotation.y = Math.atan2(tx - x, tz - z) + turn;
