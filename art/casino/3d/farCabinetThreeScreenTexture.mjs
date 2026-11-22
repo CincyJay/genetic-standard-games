@@ -63,8 +63,16 @@ export function createFarCabinetThreeScreenTexture(THREE, options = {}) {
     ctx.font = 'bold 18px sans-serif';
     ctx.fillText(glyphs[(r*3+c*5)%glyphs.length], x+w/2, y+h/2+1);
   }
-  ctx.fillStyle = '#f8e5c0'; ctx.font = 'bold 23px sans-serif';
-  ctx.fillText(footer, 128, 437, 225);
+  // Preserve footer glyph proportions: shrink before using Canvas's width clamp.
+  let footerSize = 23;
+  do {
+    ctx.font = `bold ${footerSize}px sans-serif`;
+    if (ctx.measureText(footer).width <= 225 || footerSize <= 16) break;
+    footerSize -= 1;
+  } while (true);
+  ctx.fillStyle = '#f8e5c0';
+  if (ctx.measureText(footer).width > 225) ctx.fillText(footer, 128, 437, 225);
+  else ctx.fillText(footer, 128, 437);
   ctx.fillStyle = accent; ctx.font = 'bold 12px sans-serif';
   ctx.fillText('VELVET ACE', 128, 477, 225);
   const texture = new THREE.CanvasTexture(canvas);
