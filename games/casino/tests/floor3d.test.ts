@@ -1884,6 +1884,36 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     expect(at.far.length).toBe(on.far.length);
     console.log(`farscreentex=atlas: theme far batches ${at.far.length} (on: ${on.far.length}), tris ${tris(at.far)}`);
   });
+  it('gives each themed far cabinet its own theme title on the atlas, without extra batches (e136feb, VA-0350)', async () => {
+    const { buildArtScene } = await import('../src/floor3d/artScene.ts');
+    const { composeGrandHall, farScreenCopy } = await import('../src/floor3d/grandHallArt.ts');
+    const { HERO_THEMES } = await import('../../../art/casino/3d/heroSlotCabinet.mjs');
+    const themes = HERO_THEMES as unknown as Record<string, { name: string; accent: number }>;
+    const drawn: string[] = [];
+    const ctx = new Proxy({} as Record<string, unknown>, { get: (t, k) => (k === 'fillText' ? (txt: string) => drawn.push(txt) : k in t ? t[k as string] : () => ({ addColorStop: () => {} })), set: (t, k, v) => ((t[k as string] = v), true) });
+    const screenCanvas = () => ({ width: 0, height: 0, getContext: () => ctx });
+    expect(farScreenCopy('sevens', false)).toBeUndefined();
+    expect(farScreenCopy('no-such-theme', true)).toBeUndefined();
+    const r = composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarTheme: true, heroFarScreenTex: 'atlas', screenCanvas }).root;
+    const ids = g.slots.map((s) => s.id).filter((id) => themes[id]);
+    expect(ids.length).toBeGreaterThan(0);
+    for (const id of ids) {
+      expect(drawn).toContain(themes[id].name.slice(0, 18));
+      const m = r.getObjectByName(`slotfar_${id}`)!.getObjectByName('screen_0_display') as import('three').Mesh;
+      expect((m.material as import('three').Material).name).toContain(themes[id].name);
+    }
+    // untinted (plain ?herofar=on) keeps the art's default title on one shared material
+    drawn.length = 0;
+    composeGrandHall(g, { liftSign: () => 0, heroLod: true, heroFar: true, heroFarScreenTex: 'atlas', screenCanvas });
+    expect(drawn).toContain('VELVET ACE');
+    for (const id of ids) expect(drawn).not.toContain(themes[id].name.slice(0, 18));
+    const tris = (ms: import('three').Mesh[]) => ms.reduce((n, m) => n + (m.geometry.index ? m.geometry.index.count : m.geometry.attributes.position.count) / 3, 0);
+    const base = { layout: g, ceiling: 'gold-coffers' as const, heroLod: true, heroFar: true, heroFarTheme: true, farScreenCanvas: screenCanvas };
+    const on = buildArtScene(new Map(), { ...base, heroFarScreenTex: true }).heroLod!;
+    const at = buildArtScene(new Map(), { ...base, heroFarScreenTex: 'atlas' }).heroLod!;
+    expect(at.far.length).toBe(on.far.length);
+    expect(tris(at.far)).toBe(tris(on.far));
+  });
   it('keeps each far atlas band within 10% of its display face aspect, so the art is not visibly squashed (6090776)', async () => {
     const THREE = await import('three');
     const { FAR_SCREEN_ATLAS_BANDS } = await import('../src/floor3d/grandHallArt.ts');

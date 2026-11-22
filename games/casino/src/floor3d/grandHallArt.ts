@@ -531,6 +531,19 @@ const FAR_SCREEN_TEX_H = 512;
  * uses those rows instead of choosing its own.
  */
 export type FarScreenTexMode = boolean | 'atlas';
+/** Per-theme text for the far screen textures; unset fields keep the art's defaults. */
+export interface FarScreenCopy { title?: string; subtitle?: string; footer?: string }
+/**
+ * VA-0350 item 2: each themed far cabinet shows its own theme name instead of every cabinet saying
+ * VELVET ACE. The names are the art's own HERO_THEMES names; subtitle and footer stay the art's
+ * defaults. Only with a per-theme accent, where each theme already has its own material, so this
+ * adds no batches.
+ */
+export function farScreenCopy(id: string, perTheme: boolean | undefined): FarScreenCopy | undefined {
+  if (!perTheme) return undefined;
+  const t = (HERO_THEMES as Record<string, { name?: string } | undefined>)[id];
+  return t?.name ? { title: t.name } : undefined;
+}
 const atlasBands = FAR_CABINET_ATLAS_BANDS as unknown as { top: readonly [number, number]; middle: readonly [number, number]; lower: readonly [number, number] };
 export const FAR_SCREEN_ATLAS_BANDS: readonly (readonly [number, number])[] = [atlasBands.top, atlasBands.middle, atlasBands.lower];
 export function farScreenBands(mode: FarScreenTexMode | undefined): readonly (readonly [number, number])[] {
@@ -567,18 +580,20 @@ export function applyFarScreenTexture(far: THREE.Object3D, material: THREE.Mater
  * shares it and batches. Mirrors the study's screen values (emissive 0.3, roughness 0.42) with the
  * texture as map and emissive map; `brightness` is ?farscreen's 0..1 dimming.
  */
-export function farScreenTexMaterials(makeCanvas: () => unknown, brightness?: number, mode: FarScreenTexMode = true): (accent?: number) => THREE.MeshStandardMaterial {
+export function farScreenTexMaterials(makeCanvas: () => unknown, brightness?: number, mode: FarScreenTexMode = true): (accent?: number, copy?: FarScreenCopy) => THREE.MeshStandardMaterial {
   const create = mode === 'atlas' ? createFarCabinetThreeScreenTexture : createFarCabinetScreenTexture;
   const cache = new Map<string, THREE.MeshStandardMaterial>();
   const b = brightness !== undefined && Number.isFinite(brightness) ? Math.max(0, Math.min(1, brightness)) : 1;
-  return (accent) => {
-    const key = accent === undefined ? 'default' : accent.toString(16).padStart(6, '0');
+  return (accent, copy) => {
+    const hex = accent === undefined ? 'default' : accent.toString(16).padStart(6, '0');
+    // a theme's own copy (e136feb exposes title/subtitle/footer) is part of its texture, so of its key
+    const key = copy ? `${hex}|${copy.title ?? ''}|${copy.subtitle ?? ''}|${copy.footer ?? ''}` : hex;
     let mat = cache.get(key);
     if (!mat) {
-      const tex = create(THREE, { canvas: makeCanvas(), ...(accent === undefined ? {} : { accent: `#${key}` }) }) as THREE.Texture;
+      const tex = create(THREE, { canvas: makeCanvas(), ...(accent === undefined ? {} : { accent: `#${hex}` }), ...(copy ?? {}) }) as THREE.Texture;
       const tint = new THREE.Color(0xffffff).multiplyScalar(b);
       mat = new THREE.MeshStandardMaterial({ color: tint, map: tex, emissive: tint, emissiveMap: tex, emissiveIntensity: 0.3, roughness: 0.42 });
-      mat.name = `far_screen_${mode === 'atlas' ? 'atlas' : 'tex'}_${key}`;
+      mat.name = `far_screen_${mode === 'atlas' ? 'atlas' : 'tex'}_${hex}${copy?.title ? `_${copy.title}` : ''}`;
       cache.set(key, mat);
     }
     return mat;
@@ -661,7 +676,8 @@ export function composeGrandHall(
   const withFarScreenTex = (fit: THREE.Group, id: string): THREE.Group => {
     if (!farScreenMat) return fit;
     const t = (HERO_THEMES as Record<string, HeroTheme | undefined>)[id];
-    applyFarScreenTexture(fit, farScreenMat(opts.heroFarAccent || opts.heroFarTheme ? t?.accent : undefined), farScreenBands(opts.heroFarScreenTex));
+    const perTheme = opts.heroFarAccent || opts.heroFarTheme;
+    applyFarScreenTexture(fit, farScreenMat(perTheme ? t?.accent : undefined, farScreenCopy(id, perTheme)), farScreenBands(opts.heroFarScreenTex));
     return fit;
   };
   const spec = layout.hallSpec ?? { width: 24, length: 36, height: 7.2, aisleWidth: 7.5, bayLength: 4 };
