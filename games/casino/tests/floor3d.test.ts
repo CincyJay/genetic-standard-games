@@ -1209,8 +1209,23 @@ describe('grand hall preview (VA-0064/VA-0069, opt-in)', async () => {
     let tris = 0, meshes = 0;
     const mats = new Set<string>();
     tpl.traverse((o) => { const m = o as import('three').Mesh; if (!m.isMesh) return; meshes++; tris += (m.geometry.index?.count ?? m.geometry.attributes.position.count) / 3; mats.add((m.material as import('three').Material).uuid); });
-    // 5499a69 (VA-0360) added three rear channels: 2096 -> 2404 tris, 24 -> 27 meshes, still 4 materials
-    expect({ tris, meshes, mats: mats.size }).toEqual({ tris: 2404, meshes: 27, mats: 4 });
+    // 5499a69 (VA-0360) added three rear channels: 2096 -> 2404 tris, 24 -> 27 meshes, still 4 materials;
+    // ad0c224 (VA-0363) rebuilt the channels as tubes on the tilted back: 2404 -> 2884 tris, same meshes
+    expect({ tris, meshes, mats: mats.size }).toEqual({ tris: 2884, meshes: 27, mats: 4 });
+    // ad0c224: the arm supports start at the cushion's top (0.65 m) instead of passing through it (VA-0361)
+    for (const side of [-1, 1]) expect(new THREE.Box3().setFromObject(tpl.getObjectByName('arm-support-' + side)!).min.y).toBeGreaterThanOrEqual(0.649);
+    // ad0c224: the centre rear channel lies outside the tilted back ellipsoid instead of floating/sinking (VA-0361)
+    {
+      const back = tpl.getObjectByName('sculpted-back')!;
+      const inv = back.matrixWorld.clone().invert();
+      const ch = tpl.getObjectByName('rear-channel-0') as import('three').Mesh;
+      const pos = ch.geometry.attributes.position;
+      const p = new THREE.Vector3();
+      let inside = 0, far = 0;
+      for (let i = 0; i < pos.count; i++) { const r = p.fromBufferAttribute(pos, i).applyMatrix4(ch.matrixWorld).applyMatrix4(inv).length(); if (r < 1) inside++; far = Math.max(far, r); }
+      expect(inside).toBe(0);
+      expect(far).toBeLessThan(1.1);
+    }
     // 5499a69 lowered the arm pads (top was ~1.02 m) to sit ~0.25 m above the 0.65 m seat
     const pad = new THREE.Box3().setFromObject(tpl.getObjectByName('arm-pad-1')!);
     expect(pad.max.y).toBeCloseTo(0.902, 2);
@@ -2268,5 +2283,33 @@ describe('woven medallion carpet texture (436ef01, VA-0234, ?carpetart=on)', () 
     expect(mb.repeat.toArray()).toEqual(ma.repeat.toArray());
     expect(b.position.toArray()).toEqual(a.position.toArray());
     expect(b.geometry.parameters).toEqual(a.geometry.parameters);
+  });
+  it('?carpetart=lozenge selects the woven lozenge carpet (3ed684d, VA-0363) on the same mesh at its 1.6 m tile', async () => {
+    const THREE = await import('three');
+    const { carpetArtFrom, carpetMotifFrom, composeGrandHall } = await import('../src/floor3d/grandHallArt.ts');
+    const { grandFloorLayout } = await import('../src/floor3d/grandHall.ts');
+    expect(carpetArtFrom('?carpetart=lozenge')).toBe(true);
+    expect(carpetMotifFrom('?carpetart=lozenge')).toBe('lozenge');
+    const g = grandFloorLayout();
+    type Plane = InstanceType<typeof THREE.Mesh<InstanceType<typeof THREE.PlaneGeometry>>>;
+    const off = composeGrandHall(g, { liftSign: () => 0, carpetCanvas: stubCanvas() });
+    const lz = composeGrandHall(g, { liftSign: () => 0, carpetCanvas: stubCanvas(), carpetArt: true, carpetMotif: 'lozenge' });
+    expect(lz.carpetArt).toBe(true);
+    expect(lz.carpetMotif).toBe('lozenge');
+    const a = off.root.getObjectByName('VA_opt_in_patterned_carpet') as Plane;
+    const b = lz.root.getObjectByName('VA_opt_in_patterned_carpet') as Plane;
+    expect(b.userData.carpetArt).toBe('3ed684d');
+    expect(b.position.toArray()).toEqual(a.position.toArray());
+    expect(b.geometry.parameters).toEqual(a.geometry.parameters);
+    const map = (b.material as InstanceType<typeof THREE.MeshStandardMaterial>).map!;
+    expect(map.userData.tilePixels).toBe(512);
+    expect(map.wrapS).toBe(THREE.RepeatWrapping);
+    expect(map.wrapT).toBe(THREE.RepeatWrapping);
+    const { width, height } = b.geometry.parameters;
+    expect(width / map.repeat.x).toBeCloseTo(1.6, 6);
+    expect(height / map.repeat.y).toBeCloseTo(1.6, 6);
+    let n = 0;
+    lz.root.traverse((o) => { if (o.name === 'VA_opt_in_patterned_carpet') n++; });
+    expect(n).toBe(1);
   });
 });

@@ -32,6 +32,7 @@ import { createFarCabinetThreeScreenTexture, FAR_CABINET_ATLAS_BANDS } from '../
 import { getFarCabinetThemeCopy } from '../../../../art/casino/3d/farCabinetThemeCopy.mjs';
 import { makeVelvetPatternCarpet } from '../../../../art/casino/3d/patternCarpet.mjs';
 import { createVelvetCarpetTexture } from '../../../../art/casino/3d/velvetCarpetPattern.mjs';
+import { createVelvetCasinoCarpetTexture } from '../../../../art/casino/3d/velvetCasinoCarpetTexture.mjs';
 import { createVelvetCofferedCeiling } from '../../../../art/casino/3d/velvetCofferedCeiling.mjs';
 import { createVelvetCeilingCoffer } from '../../../../art/casino/3d/velvetCeilingCoffer.mjs';
 import { createVelvetCofferBeamDiffuser } from '../../../../art/casino/3d/velvetCofferBeamDiffuser.mjs';
@@ -268,22 +269,24 @@ function readCofferEdgeMode(): CofferEdgeMode {
  */
 export function carpetArtFrom(search: string): boolean {
   const v = new URLSearchParams(search).get('carpetart');
-  return v === 'on' || v === 'vine' || v === 'damask2';
+  return v === 'on' || v === 'vine' || v === 'damask2' || v === 'lozenge';
 }
 
 /**
  * Which motif `?carpetart` asks for. `on` keeps the original medallion texture (436ef01);
  * `vine` asks for the continuous woven-vine overlay (ca3a8ec, VA-0236) and `damask2` for the
  * interlaced damask without the medallion grid (5c65389, VA-0238), both for side-by-side comparison.
+ * `lozenge` asks for the plum woven ground with gold lozenges and burgundy rosettes (3ed684d, VA-0363),
+ * a separate art module that tiles at its own `tileMetres` (1.6 m) instead of the damask's repeat.
  */
-export type CarpetMotif = 'medallion' | 'woven-vine' | 'interlaced-damask';
+export type CarpetMotif = 'medallion' | 'woven-vine' | 'interlaced-damask' | 'lozenge';
 export function carpetMotifFrom(search: string): CarpetMotif {
   const v = new URLSearchParams(search).get('carpetart');
-  return v === 'vine' ? 'woven-vine' : v === 'damask2' ? 'interlaced-damask' : 'medallion';
+  return v === 'vine' ? 'woven-vine' : v === 'damask2' ? 'interlaced-damask' : v === 'lozenge' ? 'lozenge' : 'medallion';
 }
 
 /** Art commit each opt-in carpet motif came from, recorded on the mesh for captures and tests. */
-const CARPET_MOTIF_COMMIT: Record<CarpetMotif, string> = { medallion: '436ef01', 'woven-vine': 'ca3a8ec', 'interlaced-damask': '5c65389' };
+const CARPET_MOTIF_COMMIT: Record<CarpetMotif, string> = { medallion: '436ef01', 'woven-vine': 'ca3a8ec', 'interlaced-damask': '5c65389', lozenge: '3ed684d' };
 
 function readCarpetMotif(): CarpetMotif {
   if (typeof location === 'undefined') return 'medallion';
@@ -308,12 +311,19 @@ export function applyCarpetArt(carpet: THREE.Mesh, width: number, depth: number,
   const mat = carpet.material as THREE.MeshStandardMaterial;
   const repeatMeters = Number((carpet.userData as { repeatMeters?: number }).repeatMeters) || 3.5;
   let tex: THREE.Texture;
+  let tileMeters = repeatMeters;
   try {
-    tex = createVelvetCarpetTexture(THREE, { size: CARPET_ART_SIZE, createCanvas: makeCanvas, motif }) as THREE.Texture;
+    if (motif === 'lozenge') {
+      // fixed 512 px tile; the art module sizes the canvas itself and records its tile size in metres
+      tex = createVelvetCasinoCarpetTexture(THREE, { canvas: makeCanvas(CARPET_ART_SIZE) }) as THREE.Texture;
+      tileMeters = Number((tex.userData as { tileMetres?: number }).tileMetres) || repeatMeters;
+    } else {
+      tex = createVelvetCarpetTexture(THREE, { size: CARPET_ART_SIZE, createCanvas: makeCanvas, motif }) as THREE.Texture;
+    }
   } catch {
     return false;
   }
-  tex.repeat.set(width / repeatMeters, depth / repeatMeters);
+  tex.repeat.set(width / tileMeters, depth / tileMeters);
   mat.map?.dispose();
   mat.map = tex;
   mat.needsUpdate = true;
