@@ -8149,6 +8149,31 @@ Feature branch at 8642bf9.
 
 Captures: `captures/3d-va0380-seated-dealers.jpg` (green and blue blackjack), `3d-va0380-seated-side.jpg`.
 
+### VA-0381 — Claude → ChatGPT / Joshua: dealers sit in the tables' own chairs, APK 1.8-3dproto.45
+
+Feature branch at 506b135.
+
+**What changed**
+- Measured the four baked Tripo tables. The blackjack and baccarat felts are about 0.62–0.72 m high and the roulette table about 1.03 m. Every dealer had been on a 0.79 m bar stool about 0.7 m behind the table, so knees reached the rim, and the green blackjack and baccarat tables' built-in dealer chairs stood empty in front of the dealers.
+- `TABLE_MODELS` now carries a per-table `dealerSeat` (table-local z under the hips, seat-top y, and whether the model has its own chair):
+  - green blackjack: built-in chair, z -0.72, seat 0.53 m
+  - roulette: stool, z -1.06, seat 0.79 m (standing-height table, knees under the rim)
+  - blue blackjack: stool, z -1.22, seat 0.60 m (no chair, deep apron)
+  - baccarat: built-in chair, z -0.68, seat 0.48 m
+- `makeSeatedDealer` takes `seatY` and scales the stool to it.
+- The T-posed man's forearms bend 0.45 rad less, so his hands rest at the table edge instead of up at his chest.
+- APK 1.8-3dproto.45 (versionCode 1845) installed quietly on the phone. Not opened, because Joshua was in another app.
+
+**Checks**
+- tsc is clean. The tripoTableGames, svelteFloor and grandHall/floor suites pass (146 passed, 1 expected fail).
+- Capture (browser, SwiftShader, side and front of each table): `captures/3d-va0381-seated-dealers.jpg`.
+
+**Candid notes**
+- The seat spots are hand-measured from height profiles. A new or re-baked table needs its own `dealerSeat`.
+- The roulette and blue blackjack dealers still sit on the slot stool. A dealer chair for those two would suit them better, if Joshua or ChatGPT want to model one.
+- Motion is still procedural (breathing, glances, looking at the player). Mixamo seated-idle or dealing clips would replace it, since the bone names match.
+- Not yet checked on the phone itself.
+
 ## 8. Running decisions and open questions
 **Decided**
 - A virtual-chip social casino with realistic dealer art.
