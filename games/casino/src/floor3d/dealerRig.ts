@@ -30,9 +30,8 @@ const SEATED: [string, THREE.Vector3, number][] = [
   ['RightForeArm', X, -1.05],
 ];
 
-/** Seat top of the dealer's stool (the slot stool, raised for a table at ~0.95 m). */
-const STOOL_SCALE_Y = 1.2;
-export const DEALER_SEAT_Y = 0.66 * STOOL_SCALE_Y;
+/** Seat top of the slot stool at its own size; the dealer's stool is scaled to the table's seat height. */
+const STOOL_SEAT_Y = 0.66;
 
 export interface SeatedDealer {
   root: THREE.Group;
@@ -70,9 +69,9 @@ function localAxis(frame: THREE.Object3D, b: THREE.Bone, axis: THREE.Vector3): T
  * A seated, idling copy of a rigged figure standing `rawHeight` tall in its own units (feet at y 0,
  * facing +Z), scaled to `height` metres. The root's origin is the floor under the hips; place it
  * behind the table, facing the players. `stool: false` leaves out the stool (a table with its own
- * dealer chair).
+ * dealer chair); `seatY` is the seat top (default the stool's 0.66 m).
  */
-export function makeSeatedDealer(src: THREE.Object3D, rawHeight: number, height: number, opts: { stool?: boolean; phase?: number; tPose?: boolean } = {}): SeatedDealer {
+export function makeSeatedDealer(src: THREE.Object3D, rawHeight: number, height: number, opts: { stool?: boolean; seatY?: number; phase?: number; tPose?: boolean } = {}): SeatedDealer {
   const root = new THREE.Group();
   root.name = 'tripo_seated_dealer';
   const fig = cloneSkinned(src) as THREE.Object3D;
@@ -88,8 +87,11 @@ export function makeSeatedDealer(src: THREE.Object3D, rawHeight: number, height:
     }
   });
   root.updateMatrixWorld(true);
-  // a figure rigged in a T-pose first lowers its arms to its sides
-  const pose: [string, THREE.Vector3, number][] = opts.tPose ? [['LeftArm', Z, -1.45], ['RightArm', Z, 1.45], ...SEATED] : SEATED;
+  // a figure rigged in a T-pose first lowers its arms to its sides, and bends its forearms less
+  // (otherwise his hands come up to his chest)
+  const pose: [string, THREE.Vector3, number][] = opts.tPose
+    ? [['LeftArm', Z, -1.45], ['RightArm', Z, 1.45], ...SEATED, ['LeftForeArm', X, 0.45], ['RightForeArm', X, 0.45]]
+    : SEATED;
   for (const [name, axis, angle] of pose) {
     const b = bone(fig, name);
     if (b) rotateIn(fig, b, axis, angle);
@@ -97,10 +99,11 @@ export function makeSeatedDealer(src: THREE.Object3D, rawHeight: number, height:
   // sit the hips on the seat: the hips stand at ~0.58 of the raw height; drop them to the seat top
   const hips = bone(fig, 'Hips');
   const hipsY = hips ? hips.getWorldPosition(new THREE.Vector3()).y : 0.58 * height;
-  fig.position.y = DEALER_SEAT_Y + 0.07 - hipsY;
+  const seatY = opts.seatY ?? STOOL_SEAT_Y;
+  fig.position.y = seatY + 0.07 - hipsY;
   if (opts.stool !== false) {
     const stool = createVelvetSlotStool(THREE) as THREE.Group;
-    stool.scale.y = STOOL_SCALE_Y;
+    stool.scale.y = seatY / STOOL_SEAT_Y;
     stool.name = 'tripo_dealer_stool';
     root.add(stool);
   }

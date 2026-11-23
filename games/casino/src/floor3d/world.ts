@@ -22,7 +22,7 @@ import { AVATAR_HEIGHT, HALL_STORAGE_KEY, readHall, ROOM, SALON_ROOM, obstaclesF
 import { lampsForCeiling, layoutFor } from './grandHall.ts';
 import { HERO_FACING_MARGIN_M, CEILING_STORAGE_KEY, CHAIR_STORAGE_KEY, NEXT_CEILING_STYLE, NEXT_CHAIR_STYLE, heroLodLevel, southFarLevel, readCeilingStyle, type HeroLodLevel, readChairStyle } from './grandHallArt.ts';
 import { CABINET_STORAGE_KEY, modelForRun, NEXT_CABINET_MODEL, preloadTripoCabinets, readCabinetModel, tripoCabinets } from './tripoCabinet.ts';
-import { preloadTripoTables, TABLE_LABEL, TRIPO_DEALER_SEATED_STEP_IN, TRIPO_DEALER_STEP_IN, tripoDealers, tripoTables } from './tripoTable.ts';
+import { preloadTripoTables, TABLE_LABEL, TRIPO_DEALER_STEP_IN, tripoDealers, tripoTables } from './tripoTable.ts';
 import type { SeatedDealer } from './dealerRig.ts';
 import { CAP_BULB_FAR_M, MACHINES_STORAGE_KEY, NEXT_MACHINE_STYLE, buildIslandToppers, buildSvelteCaps, islandSeams, planBanks, readMachineStyle } from './svelteFloor.ts';
 import { NavGrid } from './nav.ts';
@@ -515,6 +515,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
   const dealerMakers = tripoTableList.length ? tripoDealers() : [];
   const seatedDealers: SeatedDealer[] = [];
   const people: PlaceholderPerson[] = [];
+  const tableSpots = [TABLE, ...layout.decor.tables];
   for (const [i, p] of [DEALER_SPOT, ...layout.decor.dealers].entries()) {
     if (!dealerMakers.length) {
       people.push({ x: p.x, z: p.z, heading: 0, lift: 0 });
@@ -522,9 +523,11 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
     }
     const maker = dealerMakers[i % dealerMakers.length];
     if (maker.kind === 'seated') {
-      // the baccarat table brings its own dealer chair
-      const d = maker.make({ stool: tripoTableList[i]?.game !== 'baccarat', phase: i * 2.7 });
-      d.root.position.set(p.x, 0, p.z + TRIPO_DEALER_SEATED_STEP_IN);
+      // in the table's own dealer chair, or on a stool sized to the table
+      const seat = tripoTableList[i]?.dealerSeat ?? { z: -1.4, y: 0.66 };
+      const t = tableSpots[i] ?? { x: p.x, z: p.z + 1.8 };
+      const d = maker.make({ stool: !seat.chair, seatY: seat.y, phase: i * 2.7 });
+      d.root.position.set(t.x, 0, t.z + seat.z);
       scene.add(d.root);
       seatedDealers.push(d);
     } else {
@@ -533,7 +536,7 @@ export function mountFloor(opts: FloorOptions): FloorHandle {
       scene.add(d);
     }
   }
-  const labels = [TABLE, ...layout.decor.tables].map((t) => label(TABLE_LABEL[t.game ?? 'blackjack'], t.x, 2.6, t.z - 0.6, 1.6));
+  const labels = tableSpots.map((t) => label(TABLE_LABEL[t.game ?? 'blackjack'], t.x, 2.6, t.z - 0.6, 1.6));
   scene.add(...labels);
 
   // seats: a state ring on the floor, a tap volume and a bobbing marker over free seats

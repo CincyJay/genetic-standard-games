@@ -27,6 +27,12 @@ export interface TableModelSpec {
   id: string;
   url: string;
   game: TableGame;
+  /**
+   * Where the seated dealer sits, in the table's own frame (players +Z): `z` under the hips, `y` the
+   * seat top. `chair`: the model has its own dealer chair there (no stool added). Measured from the
+   * baked models (felt ~0.7 m on the blackjack and baccarat tables, ~1.03 m on the roulette table).
+   */
+  dealerSeat: { z: number; y: number; chair?: boolean };
 }
 
 /**
@@ -34,16 +40,18 @@ export interface TableModelSpec {
  * tables face each other across the promenade, roulette and baccarat behind them.
  */
 export const TABLE_MODELS: readonly TableModelSpec[] = [
-  { id: 'blackjack-green', url: blackjackGreenUrl, game: 'blackjack' },
-  { id: 'roulette', url: rouletteUrl, game: 'roulette' },
-  { id: 'blackjack-blue', url: blackjackBlueUrl, game: 'blackjack' },
-  { id: 'baccarat', url: baccaratUrl, game: 'baccarat' },
+  { id: 'blackjack-green', url: blackjackGreenUrl, game: 'blackjack', dealerSeat: { z: -0.72, y: 0.53, chair: true } },
+  // a standing-height table: the tall stool, knees under its rim
+  { id: 'roulette', url: rouletteUrl, game: 'roulette', dealerSeat: { z: -1.06, y: 0.79 } },
+  // no dealer chair and a deep apron: a stool just behind the rim
+  { id: 'blackjack-blue', url: blackjackBlueUrl, game: 'blackjack', dealerSeat: { z: -1.22, y: 0.6 } },
+  { id: 'baccarat', url: baccaratUrl, game: 'baccarat', dealerSeat: { z: -0.68, y: 0.48, chair: true } },
 ];
 
 /**
  * Joshua's dealers, one per table in table order (in turn when there are fewer dealers than
  * tables; Joshua is making one for every table). Rigged ones (Mixamo-named skeleton) sit on a stool
- * and idle (dealerRig.ts); static ones (baked with --table, 1.7–1.8 m) stand behind the table.
+ * (the table's own dealer chair, or a stool) at the table's `dealerSeat` and idle (dealerRig.ts); static ones (baked with --table, 1.7–1.8 m) stand behind the table.
  * `rawHeight` is a rigged figure's height in its own units.
  */
 export const DEALER_MODELS: readonly { id: string; url: string; rigged?: { rawHeight: number; height: number; tPose?: boolean } }[] = [
@@ -56,8 +64,6 @@ export const DEALER_MODELS: readonly { id: string; url: string; rigged?: { rawHe
 ];
 /** Standing dealers stand this much nearer the table than the placeholder's spot (the Tripo tables are 2 m deep). */
 export const TRIPO_DEALER_STEP_IN = 0.3;
-/** Seated dealers sit nearer still: knees under the table's back edge, hands on the felt. */
-export const TRIPO_DEALER_SEATED_STEP_IN = 0.42;
 
 const loaded = new Map<string, THREE.Object3D>();
 let pending: Promise<void> | null = null;
@@ -106,7 +112,7 @@ export function tripoTables(): LoadedTable[] {
   }));
 }
 
-export type DealerMaker = { kind: 'static'; make: () => THREE.Group } | { kind: 'seated'; make: (opts: { stool: boolean; phase: number }) => SeatedDealer };
+export type DealerMaker = { kind: 'static'; make: () => THREE.Group } | { kind: 'seated'; make: (opts: { stool: boolean; seatY: number; phase: number }) => SeatedDealer };
 
 /** Each dealer that loaded, in DEALER_MODELS order; empty until preloaded. */
 export function tripoDealers(): DealerMaker[] {
