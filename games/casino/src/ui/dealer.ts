@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { popIn } from '@tgs/kit';
 import { GOLD, save } from '../services.ts';
-import { text } from './common.ts';
+import { VH, VW, text } from './common.ts';
+import { textInput } from './domInput.ts';
+import { askDealer, type DealerTurn } from '../dealerChat.ts';
 
 export type DealerMood = 'hello' | 'bets' | 'win' | 'bigwin' | 'lose' | 'push' | 'special';
 
@@ -157,6 +159,9 @@ export class Dealer {
   private ring: Phaser.GameObjects.Graphics | null = null;
   /** How many times the player has sat at this dealer's table (counting this one). */
   readonly visits: number;
+  private readonly talk: DealerTurn[] = [];
+  private chatInput: HTMLInputElement | null = null;
+  private busy = false;
 
   constructor(scene: Phaser.Scene, game: keyof typeof DEALERS, x = 110, y = 310, bubbleLeft = false) {
     this.scene = scene;
@@ -195,6 +200,50 @@ export class Dealer {
     plate.strokeRoundedRect(x - 80, py - 36, 160, 72, 18);
     text(scene, x, py - 12, 'DEALER', 18, '800', '#a898b0').setDepth(22).setLetterSpacing(3);
     text(scene, x, py + 12, this.info.name, 28, '900', GOLD).setDepth(22);
+    // tap "Talk" to chat with this dealer
+    const chip = scene.add.graphics().setDepth(21);
+    chip.fillStyle(0x5a1a8a, 0.95);
+    chip.fillRoundedRect(x - 60, py + 44, 120, 44, 22);
+    chip.lineStyle(2, 0xe9c86a, 0.9);
+    chip.strokeRoundedRect(x - 60, py + 44, 120, 44, 22);
+    text(scene, x, py + 66, 'Talk', 26, '800', '#ffffff').setDepth(22);
+    scene.add.zone(x, py + 66, 140, 64).setDepth(24).setInteractive({ useHandCursor: true }).on('pointerup', () => this.toggleChat());
+    scene.events.once('shutdown', () => this.closeChat());
+  }
+
+  /** Opens or closes the chat field at the bottom of the screen. */
+  private toggleChat(): void {
+    if (this.chatInput) {
+      this.closeChat();
+      return;
+    }
+    const send = (value: string) => void this.converse(value);
+    this.chatInput = textInput(this.scene, VW / 2, VH - 150, 940, 96, `Say something to ${this.info.name}...`, send, 200);
+    this.chatInput.focus();
+  }
+
+  private closeChat(): void {
+    this.chatInput?.remove();
+    this.chatInput = null;
+  }
+
+  /** One turn of conversation: the dealer answers live, or with a scripted line when the AI is out of reach. */
+  private async converse(raw: string): Promise<void> {
+    const msg = raw.replace(/\s+/g, ' ').trim();
+    if (!msg || this.busy) return;
+    this.busy = true;
+    if (this.chatInput) this.chatInput.value = '';
+    this.say('hello', '...', 6000);
+    const reply = await askDealer(this.info.key, msg, this.talk, this.visits, save.get().coins ?? 0);
+    this.busy = false;
+    if (!this.scene.sys.isActive()) return;
+    this.talk.push({ role: 'player', text: msg });
+    if (reply) {
+      this.talk.push({ role: 'dealer', text: reply });
+      this.say('hello', reply, 5200);
+    } else {
+      this.say('hello', undefined, 3000);
+    }
   }
 
   /** Hello on a first visit; a returning player gets a personal welcome back. */
@@ -208,7 +257,7 @@ export class Dealer {
     }
   }
 
-  say(mood: DealerMood | 'back', line?: string): void {
+  say(mood: DealerMood | 'back', line?: string, holdMs = 2600): void {
     const pool = this.info.lines[mood];
     const msg = (line ?? pool[Math.floor(Math.random() * pool.length)]!).replace('{n}', String(this.visits));
     this.animate(mood);
@@ -225,7 +274,7 @@ export class Dealer {
     const c = this.scene.add.container(this.left ? this.x - 92 - w / 2 : this.x + 92 + w / 2, this.y, [g, t]).setDepth(23);
     this.bubble = c;
     popIn(this.scene, c);
-    this.scene.tweens.add({ targets: c, alpha: 0, delay: 2600, duration: 400, onComplete: () => c.destroy() });
+    this.scene.tweens.add({ targets: c, alpha: 0, delay: holdMs, duration: 400, onComplete: () => c.destroy() });
   }
 
   /** Body language: a nod when talking, a lift and a gold flash on big moments, a small droop on losses. */
