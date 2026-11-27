@@ -73,7 +73,7 @@ exports.dealerChat = onCall({ secrets: [ANTHROPIC_API_KEY], region: 'us-central1
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': ANTHROPIC_API_KEY.value(), 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 120, system: systemPrompt(dealer[0], dealer[1], dealer[2], visits, coins), messages: turns }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 120, thinking: { type: 'disabled' }, system: systemPrompt(dealer[0], dealer[1], dealer[2], visits, coins), messages: turns }),
   });
   if (!res.ok) throw new HttpsError('unavailable', 'The dealer is busy.');
   const out = await res.json();
