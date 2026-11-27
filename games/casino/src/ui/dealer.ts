@@ -240,7 +240,8 @@ export class Dealer {
     this.talk.push({ role: 'player', text: msg });
     if (reply) {
       this.talk.push({ role: 'dealer', text: reply });
-      this.say('hello', reply, 5200);
+      // time to read it: longer replies stay up longer
+      this.say('hello', reply, Math.max(5200, reply.length * 60));
     } else {
       this.say('hello', undefined, 3000);
     }
@@ -263,15 +264,22 @@ export class Dealer {
     this.animate(mood);
     this.bubble?.destroy();
     const t = text(this.scene, 0, 0, msg, 28, '800', '#1a1020');
+    // long lines (live replies) wrap so the bubble stays on the screen
+    const room = this.left ? this.x - 92 - 16 : VW - 16 - (this.x + 92);
+    t.setWordWrapWidth(room - 40);
     const w = t.width + 40;
+    const h = Math.max(60, t.height + 28);
+    // a tall bubble moves down rather than cover the top bar; its tail still points at the dealer
+    const cy = Math.max(this.y, 205 + h / 2);
+    const dy = this.y - cy;
     const g = this.scene.add.graphics();
     g.fillStyle(0x000000, 0.35);
-    g.fillRoundedRect(-w / 2 + 3, -30 + 5, w, 60, 24);
+    g.fillRoundedRect(-w / 2 + 3, -h / 2 + 5, w, h, 24);
     g.fillStyle(0xfdf6e6, 1);
-    g.fillRoundedRect(-w / 2, -30, w, 60, 24);
-    if (this.left) g.fillTriangle(w / 2 - 6, 10, w / 2 + 22, 22, w / 2 - 24, -8);
-    else g.fillTriangle(-w / 2 + 6, 10, -w / 2 - 22, 22, -w / 2 + 24, -8);
-    const c = this.scene.add.container(this.left ? this.x - 92 - w / 2 : this.x + 92 + w / 2, this.y, [g, t]).setDepth(23);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, 24);
+    if (this.left) g.fillTriangle(w / 2 - 6, dy + 10, w / 2 + 22, dy + 22, w / 2 - 24, dy - 8);
+    else g.fillTriangle(-w / 2 + 6, dy + 10, -w / 2 - 22, dy + 22, -w / 2 + 24, dy - 8);
+    const c = this.scene.add.container(this.left ? this.x - 92 - w / 2 : this.x + 92 + w / 2, cy, [g, t]).setDepth(23);
     this.bubble = c;
     popIn(this.scene, c);
     this.scene.tweens.add({ targets: c, alpha: 0, delay: holdMs, duration: 400, onComplete: () => c.destroy() });
