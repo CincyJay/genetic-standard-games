@@ -27,10 +27,13 @@ export function textInput(
     const cam = scene.cameras.main;
     const sx = r.width / scene.scale.width;
     const sy = r.height / scene.scale.height;
+    // the keyboard can cover the field's spot: keep it just above the keyboard
+    const view = window.visualViewport;
+    const lowest = (view ? view.offsetTop + view.height : window.innerHeight) - h * sy - 8;
     Object.assign(input.style, {
       position: 'fixed',
       left: `${r.left + (x - w / 2 - cam.scrollX) * sx}px`,
-      top: `${r.top + (y - h / 2 - cam.scrollY) * sy}px`,
+      top: `${Math.min(r.top + (y - h / 2 - cam.scrollY) * sy, lowest)}px`,
       width: `${w * sx}px`,
       height: `${h * sy}px`,
       boxSizing: 'border-box',
@@ -55,7 +58,20 @@ export function textInput(
       e.preventDefault();
     }
   });
-  scene.scale.on('resize', place);
-  scene.events.once('shutdown', () => input.remove());
+  // the canvas settles a frame after the window resizes, so place again then
+  const replace = () => {
+    if (!input.isConnected) return;
+    place();
+    requestAnimationFrame(place);
+  };
+  scene.scale.on('resize', replace);
+  window.addEventListener('resize', replace);
+  window.visualViewport?.addEventListener('resize', replace);
+  scene.events.once('shutdown', () => {
+    scene.scale.off('resize', replace);
+    window.removeEventListener('resize', replace);
+    window.visualViewport?.removeEventListener('resize', replace);
+    input.remove();
+  });
   return input;
 }

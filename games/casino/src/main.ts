@@ -27,6 +27,7 @@ import { SlotsScene } from './scenes/SlotsScene.ts';
 import { VideoPokerScene } from './scenes/VideoPokerScene.ts';
 import { setupBackButton } from './native.ts';
 import { THEME } from './services.ts';
+import { holdGameHeight } from './ui/holdHeight.ts';
 
 async function start(): Promise<void> {
   try {
@@ -37,6 +38,7 @@ async function start(): Promise<void> {
   } catch {
     /* system fonts */
   }
+  holdGameHeight();
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
