@@ -9,6 +9,7 @@
  */
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
+const { tidyReply } = require('./tidy.js');
 
 const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');
 const MODEL = 'claude-haiku-5-5';
@@ -77,7 +78,8 @@ exports.dealerChat = onCall({ secrets: [ANTHROPIC_API_KEY], region: 'us-central1
   });
   if (!res.ok) throw new HttpsError('unavailable', 'The dealer is busy.');
   const out = await res.json();
-  const reply = (out.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(' ').replace(/\s+/g, ' ').trim().slice(0, 240);
+  const full = (out.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(' ').replace(/\s+/g, ' ').trim();
+  const reply = tidyReply(full, 240, out.stop_reason === 'max_tokens');
   if (!reply) throw new HttpsError('unavailable', 'The dealer is busy.');
   return { reply };
 });

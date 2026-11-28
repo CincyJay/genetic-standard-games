@@ -29,6 +29,7 @@ import { Floor3DScene } from './scenes/Floor3DScene.ts';
 import { PROTO } from './floor3d/flags.ts';
 import { setupBackButton } from './native.ts';
 import { THEME } from './services.ts';
+import { holdGameHeight } from './ui/holdHeight.ts';
 
 async function start(): Promise<void> {
   try {
@@ -39,6 +40,7 @@ async function start(): Promise<void> {
   } catch {
     /* system fonts */
   }
+  holdGameHeight();
   const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
