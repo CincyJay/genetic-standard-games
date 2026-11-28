@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { PROTO } from '../floor3d/flags.ts';
 import { RANKS, SUITS, cardId } from '../logic/cards.ts';
 import { MACHINES } from '../logic/slots.ts';
 import { applyAvatar } from '../ui/avatar.ts';
@@ -153,6 +154,6 @@ export class BootScene extends Phaser.Scene {
     analytics.track('session_start', {});
     // keep the default portrait under its own key, then apply the player's chosen picture
     makeDefaultAvatar(this);
-    applyAvatar(this, () => this.scene.start('lobby'));
+    applyAvatar(this, () => this.scene.start(PROTO ? 'floor3d' : 'lobby'));
   }
 }

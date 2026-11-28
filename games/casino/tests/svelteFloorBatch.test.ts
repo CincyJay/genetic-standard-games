@@ -1,0 +1,123 @@
+import { describe, expect, it } from 'vitest';
+import * as THREE from 'three';
+import { createSvelteSlotCabinet } from '../../../art/casino/3d/svelteSlotCabinet.mjs';
+import { applySvelteLuxuryFinish } from '../../../art/casino/3d/svelteLuxuryFinish.mjs';
+import { batchSvelteCabinet, repairSvelteWinding } from '../src/floor3d/svelteFloorBatch.ts';
+
+function build(finish: boolean): THREE.Group {
+  const c = createSvelteSlotCabinet(THREE) as THREE.Group;
+  if (finish) applySvelteLuxuryFinish(THREE, c);
+  c.updateMatrixWorld(true);
+  return c;
+}
+
+function sourceStats(c: THREE.Object3D) {
+  let tris = 0, meshes = 0;
+  const box = new THREE.Box3();
+  c.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    meshes++;
+    const g = m.geometry;
+    tris += (g.index ? g.index.count : g.attributes.position.count) / 3;
+  });
+  box.setFromObject(c, true);
+  return { tris, meshes, box };
+}
+
+const placements = (n: number) => Array.from({ length: n }, (_, i) =>
+  new THREE.Matrix4().compose(new THREE.Vector3((i % 10) * 1.2, 0, Math.floor(i / 10) * 2), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), i * 0.3), new THREE.Vector3(1, 1, 1)));
+
+describe('Svelte cabinet floor batching', () => {
+  for (const finish of [false, true]) {
+    it(`keeps every triangle and collapses draw calls (finish=${finish})`, () => {
+      const c = build(finish);
+      const src = sourceStats(c);
+      const b = batchSvelteCabinet(c, placements(38));
+      expect(b.sourceMeshes).toBe(src.meshes);
+      expect(b.trianglesPerCabinet).toBe(src.tris);
+      expect(b.meshes.length).toBeLessThan(src.meshes);
+      expect(b.meshes.length).toBeLessThanOrEqual(10);
+      for (const m of b.meshes) expect(m.count).toBe(38);
+      // the screen stays its own bucket so a reel texture can go on it
+      expect(b.meshes.filter((m) => (m.material as THREE.Material).name === 'VA_SVELTE_REEL_SCREEN_SWAP')).toHaveLength(1);
+    });
+  }
+
+  it('places each copy where its matrix says, with the cabinet footprint unchanged', () => {
+    const c = build(true);
+    const { box } = sourceStats(c);
+    const ps = placements(3);
+    const b = batchSvelteCabinet(c, ps);
+    const merged = new THREE.Box3();
+    for (const m of b.meshes) { m.geometry.computeBoundingBox(); merged.union(m.geometry.boundingBox!); }
+    expect(merged.min.distanceTo(box.min)).toBeLessThan(1e-4);
+    expect(merged.max.distanceTo(box.max)).toBeLessThan(1e-4);
+    const got = new THREE.Matrix4();
+    b.meshes[0].getMatrixAt(2, got);
+    got.elements.forEach((v, i) => expect(v).toBeCloseTo(ps[2].elements[i], 5));
+  });
+});
+
+describe('Svelte winding repair (VA-0136 recess gaskets)', () => {
+  it('leaves every recess gasket facing the player', () => {
+    const c = build(false);
+    const gaskets = ['left_recess_shadow_gasket', 'right_recess_shadow_gasket'].map((n) => c.getObjectByName(n) as THREE.Mesh | undefined).filter(Boolean) as THREE.Mesh[];
+    repairSvelteWinding(c);
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), d = new THREE.Vector3();
+    for (const m of gaskets) {
+      const g = m.geometry, p = g.attributes.position, idx = g.index!;
+      for (let i = 0; i < idx.count; i += 3) {
+        a.fromBufferAttribute(p, idx.getX(i)); b.fromBufferAttribute(p, idx.getX(i + 1)); d.fromBufferAttribute(p, idx.getX(i + 2));
+        expect(b.sub(a).cross(d.sub(a)).z).toBeGreaterThan(0);
+      }
+    }
+    // a second call changes nothing
+    expect(repairSvelteWinding(c)).toEqual([]);
+  });
+});
+
+describe('Svelte art as authored (VA-0138, `970c27f`)', () => {
+  it('needs no winding repair now that the gaskets face the player at the source', () => {
+    expect(repairSvelteWinding(build(true))).toEqual([]);
+  });
+
+  it('builds both sculpted recess returns, double-sided, outside the glass width', () => {
+    const c = build(true);
+    const glass = new THREE.Box3().setFromObject(c.getObjectByName('portrait_glass_curved_49inch_visual_target')!);
+    for (const name of ['left_sculpted_recess_return', 'right_sculpted_recess_return']) {
+      const m = c.getObjectByName(name) as THREE.Mesh | undefined;
+      expect(m, name).toBeDefined();
+      expect((m!.material as THREE.Material).side).toBe(THREE.DoubleSide);
+      const box = new THREE.Box3().setFromObject(m!);
+      // never over the 5x5 reels: the returns stay outboard of the glass edge
+      expect(Math.min(Math.abs(box.min.x), Math.abs(box.max.x))).toBeGreaterThan(glass.max.x);
+    }
+  });
+});
+
+describe('Svelte art UVs (VA-0151, `fd81685`)', () => {
+  const named = ['continuous_sculpted_S_curve_hull', 'left_screen_shell_fairing', 'right_screen_shell_fairing', 'left_recess_shadow_gasket', 'right_recess_shadow_gasket'];
+  for (const finish of [false, true]) {
+    it(`every mesh ships its own finite 0..1 UVs, one per vertex (finish=${finish})`, () => {
+      const c = build(finish);
+      const seen = new Set<string>();
+      c.traverse((o) => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh) return;
+        const g = m.geometry;
+        const uv = g.attributes.uv;
+        expect(uv, `${m.name} has no uv`).toBeTruthy();
+        expect(uv.count, m.name).toBe(g.attributes.position.count);
+        if (named.includes(m.name)) {
+          seen.add(m.name);
+          for (let i = 0; i < uv.array.length; i++) {
+            const v = uv.array[i];
+            expect(Number.isFinite(v) && v >= 0 && v <= 1, `${m.name} uv[${i}]=${v}`).toBe(true);
+          }
+        }
+      });
+      expect([...seen].sort()).toEqual([...named].sort());
+    });
+  }
+});
